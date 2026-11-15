@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 // Telegram держит старую копию игры: сверяем версию с сервером и при расхождении перезагружаемся (один раз)
-(function(){var VER='2026-11-15c',h=location.hash;
+(function(){var VER='2026-11-15d',h=location.hash;
   fetch('version.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();
     if(!v||v===VER)return;var k='bsova_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
     location.replace(location.pathname+'?v='+encodeURIComponent(v)+h);}).catch(function(){});})();
@@ -1426,7 +1426,8 @@ function menuCamera(hm,px,gy,pz){
   if(menuFit.n--<=0){menuFit.n=20;const sh=document.querySelector('#menu .sheet'),lg=document.querySelector('#menu .logo2');
     const r=sh&&sh.getBoundingClientRect(),l=lg&&lg.getBoundingClientRect();if(r&&r.height>0){menuFit.feet=r.top-12;menuFit.top=l&&l.height>0?l.bottom+14:H*0.15;}}
   const feet=menuFit.feet||H*0.62,top=menuFit.top||H*0.15;
-  const ht=hm.kind==='owl'?1.55:1.75; // высота героя с запасом над головой
+  // оба героя ростом ~1.28 (замерено) — одинаковая камера, чтобы на экране они были одного размера
+  const ht=1.62;
   const want=Math.max(110,Math.min((feet-top)*0.74,H*0.42));
   const d=clamp(ht*H/(want*2*Math.tan(camera.fov*Math.PI/360)),2.6,9);
   if(camera.view&&camera.view.enabled)camera.clearViewOffset();
