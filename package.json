@@ -1,0 +1,14 @@
+{
+  "name": "belaya-sova-bot",
+  "private": true,
+  "type": "module",
+  "description": "Белая Сова · Спуск — сервер рекордов (Telegram Serverless) и мини-приложение (папка docs)",
+  "scripts": {
+    "deploy": "tgcloud push",
+    "migrate": "tgcloud migrate",
+    "status": "tgcloud status"
+  },
+  "devDependencies": {
+    "@tgcloud/cli": "^0.2.0"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/@tgcloud/cli/schema/tgcloud.json",
+  // мини-приложение = та же игра, что и на GitHub Pages (папка docs)
+  "static": {
+    "source": "docs",
+    "immutable": ["/vendor/*", "/fonts/*"],
+    "headers": [
+      { "path": "/models/*", "set": { "Cache-Control": "public, max-age=86400" } },
+      { "path": "/ui/*", "set": { "Cache-Control": "public, max-age=86400" } }
+    ]
+  }
+}

@@ -108,6 +108,13 @@ html,body,button,input,#wrap{font-family:'Rubik',system-ui,-apple-system,"Segoe 
 .seg button small{display:block;font-size:10.5px;font-weight:500;color:#4a5f80;opacity:1;line-height:1.2;margin-top:2px}
 .seg button.sel{background:#fff;color:var(--navy);box-shadow:0 0 0 2px #ffb347,0 3px 8px rgba(255,122,0,.25)}
 .player{align-self:center;margin:-4px 0 -2px;padding:3px 12px;border-radius:12px;background:#fff;border:1.5px solid #e6cfa6;font:700 12.5px 'Rubik',system-ui,sans-serif;color:var(--navy)}
+.toppill{border:2px solid #d9b98a;background:#fff;border-radius:12px;padding:4px 10px;font:800 13px 'Rubik',system-ui,sans-serif;color:var(--navy);box-shadow:0 2px 0 #c9a46c}
+.netline{font:700 14px 'Rubik',system-ui,sans-serif;color:var(--navy);background:#fff;border:2px solid #e6cfa6;border-radius:12px;padding:6px 10px}
+.tabs{display:flex;gap:6px}.tabs button{flex:1;border:2px solid #d9b98a;background:#fff;border-radius:12px;padding:7px;font:800 14px 'Rubik',system-ui,sans-serif;color:var(--navy)}
+.tabs button.sel{background:linear-gradient(180deg,#ffc867,#ff9d32);color:#fff;border-color:var(--orgD);text-shadow:0 1px 0 var(--orgD)}
+.toplist{max-height:50vh;overflow:auto;text-align:left;display:flex;flex-direction:column;gap:2px}
+.trow{display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:10px;font-size:14px;color:var(--navy)}.trow:nth-child(odd){background:rgba(255,255,255,.75)}
+.trow.me{background:#fff3c4;box-shadow:inset 0 0 0 2px #ffb347}.trow .pl{min-width:28px;font-weight:900}.trow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}.trow .sc{font-weight:900}.trow small{color:#6a809c;font-weight:500}
 .row.stats{font-size:19px;font-weight:800;padding:0 6px;border-top:2px solid rgba(110,58,20,.14);padding-top:8px}
 /* оранжевая кнопка */
 button.big{font:900 24px/1 'Rubik',system-ui,sans-serif;letter-spacing:.5px;padding:15px 34px;border-radius:22px;border:3px solid var(--orgD);color:#fff;
@@ -166,7 +173,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
   <div class="sheet compact">
     <div class="seg"><button data-h="bear"><img src="ui/av_bear.jpg" alt=""><span><b>Мишаня</b><small>лыжи • сносит сугробы</small></span></button><i></i><button data-h="owl"><img src="ui/av_owl.jpg" alt=""><span><b>Сова</b><small>сноуборд • долго парит</small></span></button></div>
     <div class="player hidden" id="mPlayer"></div>
-    <div class="row stats"><span>⭐ Рекорд: <b id="mBest">0</b></span><span>🍊 <b id="mCoins">0</b></span></div>
+    <div class="row stats"><span>⭐ Рекорд: <b id="mBest">0</b></span><button class="toppill" id="bTop">🏆 Рейтинг</button><span>🍊 <b id="mCoins">0</b></span></div>
     <div class="playwrap"><span class="rays"><b></b><b></b><b></b></span><button class="big" id="bPlay"><svg viewBox="0 0 24 24"><path d="M6 3.5v17a1 1 0 0 0 1.5.86l14-8.5a1 1 0 0 0 0-1.72l-14-8.5A1 1 0 0 0 6 3.5z" fill="#fff"/></svg>ПОЕХАЛИ!</button><span class="rays r"><b></b><b></b><b></b></span></div>
     <div class="btnrow"><button class="mini snowcap" id="bColl"><span class="ic">🏅</span>Коллекция</button><button class="mini snowcap" id="bTasks"><span class="ic">🎯</span>Задания</button><button class="mini snowcap" id="bShop"><span class="ic">🛒</span>Улучшения</button><button class="mini snowcap" id="bSet"><span class="ic">⚙️</span>Настройки</button></div>
   </div>
@@ -200,6 +207,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
     <div class="newrec hidden" id="oRec">НОВЫЙ РЕКОРД!</div>
     <div class="big-num" id="oScore">0</div>
     <div style="font-size:14px;line-height:1.4" id="oStats"></div>
+    <div class="netline hidden" id="oNet"></div>
     <div class="fistip" id="oFis"></div>
     <div class="cap">Задания</div><div id="oMis"></div>
     <div><button class="big" id="bAgain">ЕЩЁ РАЗ</button></div>
@@ -214,6 +222,11 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
     <div><button class="mid" id="bCollClose">Назад</button></div>
   </div>
 </div>
+<div id="top" class="ui hidden overlay"><div class="sheet" style="margin:auto 0">
+  <div class="title2">🏆 Рейтинг</div>
+  <div class="tabs"><button data-p="week" class="sel">Неделя</button><button data-p="all">Всё время</button></div>
+  <div id="topList" class="toplist"></div><div class="how" style="text-align:center" id="topMe"></div>
+  <div><button class="mid pclose">Назад</button></div></div></div>
 <div id="fis" class="ui hidden overlay"><div class="sheet" style="margin:auto 0">
   <div class="title2">📜 10 правил FIS</div><div class="how" style="text-align:center;font-weight:800" id="fisCnt"></div><ol class="fisl" id="fisList"></ol>
   <div class="how" style="text-align:center">Правила Международной федерации лыжного спорта для всех на склоне — лыжников и сноубордистов.</div>
@@ -1330,6 +1343,24 @@ function clearWorld(){dropMogPatches(true);if(G)for(const o of G.objs)release(o)
   for(const t of forest){t.userData.z=-rnd(-15,170);t.userData.x=0;}lamps.forEach((l,i)=>l.userData.z=-Math.floor(i/2)*30-(l.userData.side>0?15:0));towers.forEach((t,i)=>t.userData.z=-i*35);}
 function startGame(){initAudio();music('run');hideToast();clearWorld();G=newGame('play');setTimeout(()=>voice('start',true),600);lastTrackZ=0;$('share').classList.add('hidden');if(save.helmets>0){save.helmets--;G.p.lives=1;persist();}G.letter=collState();G.letterAt=G.letter?letterDist(G.letter.w,G.letter.i):Infinity;for(const m of save.missions)m.got=false;
   $('topbtns').classList.remove('hidden');['menu','over','pause'].forEach(id=>$(id).classList.add('hidden'));}
+// ===== рейтинг (сервер Telegram Serverless: подпись игрока проверяет Telegram) =====
+const canNet=()=>!!(TG&&TG.Serverless&&TG.Serverless.call);
+function submitRun(sc){const el=$('oNet');if(!canNet()){el.classList.add('hidden');return;}el.classList.remove('hidden');el.textContent='Отправляю результат в рейтинг…';
+  try{TG.Serverless.call('submitScore',{score:sc,dist:Math.floor(G.y/20),dur:+G.t.toFixed(1),hero,stage:G.stage+1},(err,r)=>{
+    if(err||!r){el.textContent=err&&err.type==='ENDPOINT_ERROR'?'Результат не принят: '+err.message:'Рейтинг сейчас недоступен';return;}
+    el.innerHTML='🏆 Место за неделю: <b>#'+r.weekRank+'</b> · за всё время: <b>#'+r.rank+'</b>'+(r.newWeek&&r.weekRank===1?'<br>Ты лидер недели!':'');});}catch(e){el.textContent='Рейтинг сейчас недоступен';}}
+let topPeriod='week';
+function loadTop(period){topPeriod=period;document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('sel',b.dataset.p===period));
+  const L=$('topList'),M=$('topMe');M.textContent='';
+  if(!canNet()){L.innerHTML='<div class="how" style="text-align:center">Рейтинг работает в Telegram:<br><b>t.me/belaya_sovabot/play</b></div>';return;}
+  L.innerHTML='<div class="how" style="text-align:center">Загрузка…</div>';
+  TG.Serverless.call('leaderboard',{period},(err,r)=>{if(period!==topPeriod)return;if(err||!r){L.innerHTML='<div class="how" style="text-align:center">Рейтинг сейчас недоступен</div>';return;}
+    if(!r.rows.length){L.innerHTML='<div class="how" style="text-align:center">'+(period==='week'?'На этой неделе ещё никто не катался — будь первым!':'Рекордов пока нет')+'</div>';}
+    else L.innerHTML=r.rows.map((p,i)=>{const md=['🥇','🥈','🥉'][i]||(i+1)+'.';const nm=String(p.name).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+      return '<div class="trow'+(TGU&&p.id===TGU.id?' me':'')+'"><span class="pl">'+md+'</span><span class="nm">'+nm+' <small>'+(p.hero==='owl'?'🦉':'🐻')+' '+p.dist+' м</small></span><span class="sc">'+p.score+'</span></div>';}).join('');
+    M.textContent=r.me&&r.me.rank?'Твоё место: #'+r.me.rank+' · '+r.me.score+' очков':(period==='week'?'Тебя пока нет в рейтинге недели — прокатись!':'');});}
+$('bTop').onclick=()=>{$('top').classList.remove('hidden');loadTop('week');};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>loadTop(b.dataset.p));
 function gameOver(){
   G.mode='over';setLoops(0,0,null);
   const sc=score();const rec=sc>save.best;if(rec)save.best=sc;
@@ -1339,10 +1370,10 @@ function gameOver(){
   ensureMissions();save.coins+=G.coins+reward;persist();
   $('oFail').textContent=G.failMsg||'';$('oFis').innerHTML=fisTip(G.failKind);$('oRec').classList.toggle('hidden',!rec);$('oScore').textContent=sc;
   $('oStats').innerHTML=`Этап ${G.stage+1}: ${stageDef(Math.max(0,G.stage)).name}<br>${Math.floor(G.y/20)} м · ворот ${G.gates} · серия ${G.maxCombo} · трюков ${G.tricks}<br>🍊 +${G.coins}${reward?` · за задания +${reward}`:''}${G.feathers?` · перьев ${G.feathers}`:''} · рекорд <b>${save.best}</b>`;
-  $('oMis').innerHTML=lines.join('');$('topbtns').classList.add('hidden');$('over').classList.remove('hidden');
+  $('oMis').innerHTML=lines.join('');submitRun(sc);$('topbtns').classList.add('hidden');$('over').classList.remove('hidden');
 }
 function pauseGame(){if(!G||G.mode!=='play')return;G.mode='pause';drag=null;setLoops(0,0,null);syncSens();$('pause').classList.remove('hidden');}
-function toMenu(){music('menu');hideToast();clearWorld();G=newGame('menu');['over','pause','topbtns','coll','share','tasks','shop','settings'].forEach(id=>$(id).classList.add('hidden'));$('menu').classList.remove('hidden');refreshMenu();}
+function toMenu(){music('menu');hideToast();clearWorld();G=newGame('menu');['over','pause','topbtns','coll','share','tasks','shop','settings','top'].forEach(id=>$(id).classList.add('hidden'));$('menu').classList.remove('hidden');refreshMenu();}
 const PHR={bear:['Каска надета — можно ехать!','Объезжай с запасом — так по правилам FIS!','Я сношу сугробы одним махом!','Мандаринки сами себя не соберут!'],
   owl:['Ух-ух! Полетели!','На трамплине я парю дольше всех!','Шлем и очки — уже на мне!','Лови буквы E-M-C-O!']};
 let bubT=0;function sayBubble(){const el=$('bubble');if(!el)return;const a=PHR[hero];el.textContent=a[Math.floor(Math.random()*a.length)];el.classList.add('on');clearTimeout(bubT);bubT=setTimeout(()=>el.classList.remove('on'),3800);}
@@ -1448,7 +1479,7 @@ if(TG){try{
   if(TG.isVersionAtLeast&&TG.isVersionAtLeast('8.0')&&/android|ios/i.test(TG.platform||''))TG.requestFullscreen();
   for(const ev of['safeAreaChanged','contentSafeAreaChanged','fullscreenChanged','viewportChanged'])TG.onEvent(ev,updSafe);
   // кнопка «Назад» Telegram: в заезде — пауза, в окнах — закрыть окно, после заезда — в меню
-  const OVL=['coll','fis','share','tasks','shop','settings'];
+  const OVL=['coll','fis','share','tasks','shop','settings','top'];
   TG.BackButton.onClick(()=>{if(G&&G.mode==='play'){pauseGame();return;}const o=OVL.find(id=>!$(id).classList.contains('hidden'));if(o){$(o).classList.add('hidden');return;}if(G&&G.mode!=='menu')toMenu();});
   let lastBack=null,lastConf=null;
   setInterval(()=>{const need=!!(G&&(G.mode!=='menu'||OVL.some(id=>!$(id).classList.contains('hidden'))));if(need!==lastBack){lastBack=need;need?TG.BackButton.show():TG.BackButton.hide();}
