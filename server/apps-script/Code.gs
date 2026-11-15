@@ -198,10 +198,15 @@ function rolloverWeek() {
 }
 
 // ---------- Telegram Bot API ----------
+// убрать токен бота из любого текста (ошибки UrlFetch содержат полный адрес запроса)
+function redact(s) { return String(s).replace(/bot\d+:[A-Za-z0-9_-]+/g, 'bot***').replace(/\d{6,}:[A-Za-z0-9_-]{20,}/g, '***'); }
 function tg(method, params) {
-  const r = UrlFetchApp.fetch('https://api.telegram.org/bot' + token() + '/' + method, {
-    method: 'post', contentType: 'application/json', payload: JSON.stringify(params), muteHttpExceptions: true,
-  });
+  let r;
+  try {
+    r = UrlFetchApp.fetch('https://api.telegram.org/bot' + token() + '/' + method, {
+      method: 'post', contentType: 'application/json', payload: JSON.stringify(params), muteHttpExceptions: true,
+    });
+  } catch (e) { throw new Error(redact(e && e.message || e)); }
   const j = JSON.parse(r.getContentText() || '{}');
   if (!j.ok) { console.warn(method + ' failed: ' + r.getContentText()); logSheet(method + ': ' + (j.description || r.getResponseCode())); }
   return j;
@@ -210,7 +215,7 @@ function tg(method, params) {
 function logSheet(msg) {
   try {
     const sh = sheet('Журнал', ['время', 'событие']);
-    sh.appendRow([new Date(), String(msg).slice(0, 500)]);
+    sh.appendRow([new Date(), redact(msg).slice(0, 500)]);
     if (sh.getLastRow() > 220) sh.deleteRows(2, sh.getLastRow() - 200);
   } catch (e) { console.warn('log failed', e); }
 }
@@ -239,6 +244,13 @@ function setupPolling() {
   playersSheet();
   pollUpdates();
   console.log('Вебхук отключён: ' + JSON.stringify(d) + '\nОпрос Telegram включён: раз в минуту (функция pollUpdates).');
+}
+
+/** Очистить лист «Журнал» (например, если туда попало что-то лишнее). */
+function clearLog() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Журнал');
+  if (sh && sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
+  console.log('Журнал очищен');
 }
 
 /** Диагностика бота: состояние вебхука у Telegram (без токена). */
