@@ -1087,15 +1087,18 @@ function update(dt){
   p.ang+=(clamp(p.vx/430,-1,1)-p.ang)*Math.min(1,dt*10);
   for(const k of['boost','magnet','slow','wob','inv','fall'])if(p[k]>0)p[k]=Math.max(0,p[k]-dt);
   // бугры: едем по рельефу; если гребень уходит вниз быстрее, чем тянет гравитация, — отрываемся и подпрыгиваем
-  {const mh=mogAt(p.x,G.y),gk=hero==='owl'?12:20;
+  // скорость по наклону бугра вдоль движения (а не по скачку высоты за кадр — он давал «улёт в небо»), с ограничением
+  {const mh=mogAt(p.x,G.y),gk=hero==='owl'?14:22,spd=G.speed/20,vMax=hero==='owl'?3.2:2.2;
+    const slope=(mogAt(p.x,G.y+4)-mogAt(p.x,G.y-4))/(8*U),vz=clamp(slope*spd,-vMax*2,vMax);
     if(p.air>0||p.fall>0){p.mh=mh;p.mvz=0;p.hop=0;}
     else if(p.hop>0){p.mvz-=gk*dt;p.mh+=p.mvz*dt;p.hop+=dt;
-      if(p.mh<=mh){const hard=-p.mvz;p.mh=mh;p.hop=0;p.mvz=0;
+      if(p.mh<=mh||p.hop>0.9){const hard=-p.mvz;p.mh=mh;p.hop=0;p.mvz=0;
         if(hard>2.5){SFX.land();emit(X(p.x),Hz(Z(G.y))+mh+0.05,Z(G.y),0,1.6,0,0.35,0.06,'#ffffff');}
         if(hard>5.5&&hero!=='bear'&&!p.boost){p.wob=Math.max(p.wob,0.35);p.slow=Math.max(p.slow,0.3);vibe(30);addText(p.x,G.y,'Жёстко!','#c0392b',14);}}}
     else{const ball=p.mh+p.mvz*dt-gk*dt*dt;
-      if(p.mvz>0.4&&mh<ball-0.03){p.hop=dt;p.mh=ball;p.mvz-=gk*dt;}
-      else{p.mvz=dt>0?(mh-p.mh)/dt:0;p.mh=mh;}}}
+      if(p.mvz>0.6&&spd>9&&mh<ball-0.04){p.hop=dt;p.mvz=Math.min(p.mvz,vMax)-gk*dt;p.mh=Math.min(ball,mh+0.3);}
+      else{p.mvz=vz;p.mh=mh;}}
+    p.mh=Math.min(p.mh,mh+1.0);}
   if(p.air>0){
     p.airT+=dt;
     if(p.trick>0){const TT=TRICKS[p.tt||0];p.trick+=dt/(h.trickT*TT.t);if(p.trick>=1){p.trick=0;p.spin++;G.tricks++;const pts=Math.round(TT.pts*mult()*(stNow.park?2:1)*(p.spin>1?1.5:1));G.bonus+=pts;addText(p.x,G.y,(p.spin>1?'Комбо! ':'')+TT.n+'! +'+pts,'#8e44ad',18);SFX.trickDone();if(Math.random()<0.45)voice('jump');}}
