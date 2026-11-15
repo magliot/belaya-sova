@@ -38,6 +38,7 @@ function doPost(e) {
     return out({ ok: false, error: 'unknown action' });
   } catch (err) {
     console.error(err && err.stack || err);
+    if (!(err && err.userMessage)) logSheet('ошибка: ' + (err && err.message || err));
     return out({ ok: false, error: err && err.userMessage ? err.userMessage : 'server error' });
   }
 }
@@ -202,8 +203,53 @@ function tg(method, params) {
     method: 'post', contentType: 'application/json', payload: JSON.stringify(params), muteHttpExceptions: true,
   });
   const j = JSON.parse(r.getContentText() || '{}');
-  if (!j.ok) console.warn(method + ' failed: ' + r.getContentText());
+  if (!j.ok) { console.warn(method + ' failed: ' + r.getContentText()); logSheet(method + ': ' + (j.description || r.getResponseCode())); }
   return j;
+}
+// Журнал ошибок на отдельном листе таблицы (последние ~200 строк), без секретов
+function logSheet(msg) {
+  try {
+    const sh = sheet('Журнал', ['время', 'событие']);
+    sh.appendRow([new Date(), String(msg).slice(0, 500)]);
+    if (sh.getLastRow() > 220) sh.deleteRows(2, sh.getLastRow() - 200);
+  } catch (e) { console.warn('log failed', e); }
+}
+// ---------- бот без вебхука: Apps Script отвечает на POST перенаправлением 302, Telegram считает это ошибкой
+// и копит очередь. Поэтому сообщения бота забираем сами раз в минуту (триггер по времени).
+function pollUpdates() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return;
+  try {
+    let offset = Number(getSetting('offset') || 0);
+    const r = tg('getUpdates', { offset: offset, timeout: 0, limit: 50, allowed_updates: ['message', 'my_chat_member'] });
+    if (!r.ok || !r.result) return;
+    r.result.forEach(function (u) {
+      try { handleUpdate(u); } catch (e) { logSheet('update ' + u.update_id + ': ' + (e && e.message || e)); }
+      offset = u.update_id + 1;
+      setSetting('offset', offset);
+    });
+  } finally { lock.releaseLock(); }
+}
+
+/** Запустить один раз: отключает вебхук и включает опрос Telegram каждую минуту. */
+function setupPolling() {
+  const d = tg('deleteWebhook', { drop_pending_updates: false });
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'pollUpdates') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('pollUpdates').timeBased().everyMinutes(1).create();
+  playersSheet();
+  pollUpdates();
+  console.log('Вебхук отключён: ' + JSON.stringify(d) + '\nОпрос Telegram включён: раз в минуту (функция pollUpdates).');
+}
+
+/** Диагностика бота: состояние вебхука у Telegram (без токена). */
+function diag() {
+  const me = tg('getMe', {}), w = tg('getWebhookInfo', {});
+  const r = w.result || {};
+  console.log('Бот: ' + (me.ok ? '@' + me.result.username : 'нет доступа') +
+    '\nВебхук: ' + (r.url === WEBAPP_URL ? 'на этот скрипт' : (r.url ? 'ДРУГОЙ адрес' : 'не установлен (работает опрос)')) +
+    '\nТриггеры опроса: ' + ScriptApp.getProjectTriggers().filter(function (t) { return t.getHandlerFunction() === 'pollUpdates'; }).length +
+    '\nОжидают доставки: ' + r.pending_update_count +
+    '\nПоследняя ошибка: ' + (r.last_error_message || 'нет') + (r.last_error_date ? ' (' + new Date(r.last_error_date * 1000) + ')' : ''));
 }
 const PLAY = { inline_keyboard: [[{ text: '⛷ Играть', url: GAME_LINK }]] };
 function postToChannel(text) {

@@ -246,7 +246,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
     <div class="vol"><span>🗣 Голоса героев</span><input type="range" class="volr" data-v="vox" min="0" max="10" step="1"><b></b></div>
     <div class="vol"><span>🖐 Чувствительность</span><input type="range" class="sens" min="1" max="10" step="1"><b class="sensv"></b></div>
     <div><button class="big" id="bResume">ДАЛЬШЕ</button></div>
-    <div><button class="mid" id="bQuit">В меню</button></div>
+    <div><button class="mid" id="bQuit">Закончить заезд</button></div>
   </div>
 </div>
 <div id="stProbe" style="position:absolute;top:0;left:0;width:1px;height:var(--st);visibility:hidden;pointer-events:none"></div>
@@ -1350,7 +1350,7 @@ const canNet=()=>!!(TG&&TG.initData&&API_URL);
 // запрос к серверу: initData — подпись Telegram, по ней сервер узнаёт игрока; text/plain — без лишнего CORS-запроса
 function netCall(action,data,cb){fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action,initData:TG.initData},data||{}))})
   .then(r=>r.json()).then(j=>{if(j&&j.ok)cb(null,j);else cb({type:j&&j.error&&j.error!=='server error'&&j.error!=='unauthorized'?'ENDPOINT_ERROR':'ERROR',message:(j&&j.error)||'ошибка'});}).catch(e=>cb({type:'NET',message:String(e)}));}
-function submitRun(sc){const el=$('oNet');if(!canNet()){el.classList.add('hidden');return;}el.classList.remove('hidden');el.textContent='Отправляю результат в рейтинг…';
+function submitRun(sc){const wait=G.beaconAt?5000-(Date.now()-G.beaconAt):0;if(wait>0){$('oNet').classList.remove('hidden');$('oNet').textContent='Отправляю результат в рейтинг…';setTimeout(()=>{G.beaconAt=0;submitRun(sc);},wait);return;}const el=$('oNet');if(!canNet()){el.classList.add('hidden');return;}el.classList.remove('hidden');el.textContent='Отправляю результат в рейтинг…';
   try{netCall('submit',{score:sc,dist:Math.floor(G.y/20),dur:+G.t.toFixed(1),hero,stage:G.stage+1},(err,r)=>{
     if(err||!r){el.textContent=err&&err.type==='ENDPOINT_ERROR'?'Результат не принят: '+err.message:'Рейтинг сейчас недоступен';return;}
     el.innerHTML='🏆 Место за неделю: <b>#'+r.weekRank+'</b> · за всё время: <b>#'+r.rank+'</b>'+(r.newWeek&&r.weekRank===1?'<br>Ты лидер недели!':'');});}catch(e){el.textContent='Рейтинг сейчас недоступен';}}
@@ -1464,9 +1464,14 @@ $('bShCopy').onclick=async()=>{try{await navigator.clipboard.writeText(shareText
 $('bShSend').onclick=async()=>{if(TG){tgShare();return;}try{const f=shareBlob&&new File([shareBlob],'belaya-sova.png',{type:'image/png'});
   if(f&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:shareText});return;}
   if(navigator.share){await navigator.share({text:shareText});return;}throw 0;}catch(e){$('shHint').textContent='Здесь отправка не работает — зажмите картинку и сохраните её, или скопируйте текст';}};$('bAgain').onclick=startGame;$('bMenu').onclick=toMenu;
-$('bPause').onclick=pauseGame;$('bResume').onclick=()=>{$('pause').classList.add('hidden');G.mode='play';};$('bQuit').onclick=toMenu;
+$('bPause').onclick=pauseGame;$('bResume').onclick=()=>{$('pause').classList.add('hidden');G.mode='play';};// выход из заезда = конец заезда: показываем итоги и отправляем результат в рейтинг
+$('bQuit').onclick=()=>{if(G&&G.mode==='pause'&&G.y/20>=30){$('pause').classList.add('hidden');G.failMsg='Заезд завершён';G.failKind=null;gameOver();}else toMenu();};
 $('bMute').onclick=()=>{save.muted=!save.muted;persist();initAudio();if(master)master.gain.value=save.muted?0:0.65;if(!save.muted)music(musWant);refreshMenu();};
-document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseGame();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){pauseGame();beaconRun();}});
+window.addEventListener('pagehide',beaconRun);
+// игру свернули или закрыли посреди заезда — тихо отправляем текущий результат (если закроют совсем, рекорд не пропадёт)
+function beaconRun(){try{if(!canNet()||!G||!(G.mode==='play'||G.mode==='pause')||G.y/20<30||!navigator.sendBeacon)return;if(G.beaconAt&&Date.now()-G.beaconAt<5000)return;
+  G.beaconAt=Date.now();navigator.sendBeacon(API_URL,new Blob([JSON.stringify({action:'submit',initData:TG.initData,score:score(),dist:Math.floor(G.y/20),dur:+G.t.toFixed(1),hero,stage:G.stage+1})],{type:'text/plain;charset=utf-8'}));}catch(e){}}
 
 let last=performance.now();
 function frame(now){const dt=Math.min(0.033,(now-last)/1000);last=now;if(G){update(dt);render(dt);}requestAnimationFrame(frame);}
