@@ -115,6 +115,9 @@ html,body,button,input,#wrap{font-family:'Rubik',system-ui,-apple-system,"Segoe 
 .toplist{max-height:50vh;overflow:auto;text-align:left;display:flex;flex-direction:column;gap:2px}
 .trow{display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:10px;font-size:14px;color:var(--navy)}.trow:nth-child(odd){background:rgba(255,255,255,.75)}
 .trow.me{background:#fff3c4;box-shadow:inset 0 0 0 2px #ffb347}.trow .pl{min-width:28px;font-weight:900}.trow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}.trow .sc{font-weight:900}.trow small{color:#6a809c;font-weight:500}
+.dancebtn{position:absolute;left:10px;top:calc(var(--st) + 128px);z-index:3;border:2px solid var(--woodD);border-radius:13px;padding:7px 12px;background:linear-gradient(180deg,#e0a061,#b06b31);color:#fff;font:800 13px 'Rubik',system-ui,sans-serif;text-shadow:0 1px 0 var(--woodD);box-shadow:inset 0 2px 0 rgba(255,235,200,.5),0 3px 0 var(--woodD)}
+.trow.lock{opacity:.7}#danceList .nm{white-space:normal}#danceList .nm small{display:block;line-height:1.2;margin-top:1px}.dbtn{flex:none;border:2px solid #d9b98a;background:#fff;border-radius:10px;font:800 14px 'Rubik',system-ui,sans-serif;padding:5px 9px;color:var(--navy);box-shadow:0 2px 0 #c9a46c}
+.dbtn.play{background:linear-gradient(180deg,#ffc867,#ff9d32);border-color:var(--orgD);color:#fff}
 .row.stats{font-size:19px;font-weight:800;padding:0 6px;border-top:2px solid rgba(110,58,20,.14);padding-top:8px}
 /* оранжевая кнопка */
 button.big{font:900 24px/1 'Rubik',system-ui,sans-serif;letter-spacing:.5px;padding:15px 34px;border-radius:22px;border:3px solid var(--orgD);color:#fff;
@@ -169,7 +172,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
 <div id="menu" class="ui hidden">
   <button id="bMute" aria-label="Звук"></button>
   <div class="logo logo2"><div class="lt1">БЕЛАЯ СОВА</div><div class="ribbon snowcap"><i></i>ГОРНОЛЫЖНЫЙ СПУСК • ШАХТЕРСК<i></i></div></div>
-  <div id="bubble" class="bubble"></div><div id="spinHint" class="spinhint">↔ крути героя пальцем</div>
+  <button id="bDance" class="dancebtn">💃 Танцы</button><div id="bubble" class="bubble"></div><div id="spinHint" class="spinhint">↔ крути героя пальцем</div>
   <div class="sheet compact">
     <div class="seg"><button data-h="bear"><img src="ui/av_bear.jpg" alt=""><span><b>Мишаня</b><small>лыжи • сносит сугробы</small></span></button><i></i><button data-h="owl"><img src="ui/av_owl.jpg" alt=""><span><b>Сова</b><small>сноуборд • долго парит</small></span></button></div>
     <div class="player hidden" id="mPlayer"></div>
@@ -226,6 +229,11 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
   <div class="title2">🏆 Рейтинг</div>
   <div class="tabs"><button data-p="week" class="sel">Неделя</button><button data-p="all">Всё время</button></div>
   <div id="topList" class="toplist"></div><div class="how" style="text-align:center" id="topMe"></div>
+  <div><button class="mid pclose">Назад</button></div></div></div>
+<div id="dances" class="ui hidden overlay"><div class="sheet" style="margin:auto 0">
+  <div class="title2">💃 Танцы</div>
+  <div class="how" style="text-align:center">Открывай танцы за достижения — герой станцует прямо в меню, а танцем можно похвастаться в чате.</div>
+  <div id="danceList" class="toplist"></div>
   <div><button class="mid pclose">Назад</button></div></div></div>
 <div id="fis" class="ui hidden overlay"><div class="sheet" style="margin:auto 0">
   <div class="title2">📜 10 правил FIS</div><div class="how" style="text-align:center;font-weight:800" id="fisCnt"></div><ol class="fisl" id="fisList"></ol>
@@ -451,6 +459,42 @@ function rotB(h,name,ax,ay,az){const b=h.bones[name];if(!b)return;
   b.parent.updateWorldMatrix(true,false);b.parent.getWorldQuaternion(_qa);h.holder.getWorldQuaternion(_qb);
   _qr.setFromEuler(_eu.set(ax,ay,az));const Rw=_qb.clone().multiply(_qr).multiply(_qb.clone().invert());
   b.quaternion.copy(_qa.clone().invert().multiply(Rw).multiply(_qa).multiply(b.userData.rest));}
+// ===== танцы-награды (позы по костям, работают и у Мишани, и у Совы) =====
+const DANCES=[
+  {id:'sway',icon:'🎄',name:'Ёлочка',need:()=>true,cond:()=>'Открыт сразу'},
+  {id:'floss',icon:'❄️',name:'Снежный флосс',need:()=>(save.meet.feathers||0)>=3,cond:()=>'Найди 3 золотых пера ('+Math.min(3,save.meet.feathers||0)+'/3)'},
+  {id:'hop',icon:'🎁',name:'Весёлые прыжки',need:()=>(save.meet.gifts||0)>=20,cond:()=>'Собери 20 подарков в Новогоднем городке ('+Math.min(20,save.meet.gifts||0)+'/20)'},
+  {id:'dab',icon:'🏆',name:'Победный дэб',need:()=>save.best>=5000,cond:()=>'Набери 5000 очков за заезд (рекорд: '+save.best+')'},
+  {id:'champ',icon:'📜',name:'Танец чемпиона',need:()=>save.fis.length>=10,cond:()=>'Собери все 10 правил FIS ('+save.fis.length+'/10)'},
+];
+function danceGlb(h,id,t){
+  // руки: у этого скелета подъём левой — +z, правой — −z (замерено), поэтому z для рук переворачиваем
+  const R=(n,x,y,z)=>rotB(h,n,x,y,/Arm$/.test(n)?-z:z);
+  const s=Math.sin(t*3.2),c=Math.cos(t*3.2);
+  if(id==='sway'){ // лапы вверх, качается как ёлочка на ветру
+    R('Spine',0,0,0.2*s);R('Head',0,0.25*c,-0.15*s);
+    R('LeftArm',0,0,-2.3+0.35*s);R('RightArm',0,0,2.3+0.35*s);R('LeftForeArm',0,0,-0.3);R('RightForeArm',0,0,0.3);
+    R('LeftUpLeg',-0.15-0.15*Math.max(0,s),0,0);R('RightUpLeg',-0.15-0.15*Math.max(0,-s),0,0);
+    h._bounce=Math.abs(Math.sin(t*6.4))*0.05;}
+  else if(id==='floss'){ // прямые руки качаются в стороны, корпус — навстречу
+    const a=Math.sin(t*7),b=Math.cos(t*7);
+    R('Spine',0,0,-0.22*a);R('Hips',0,0,0.18*a);R('Head',0,0.2*a,0);
+    R('LeftArm',0.55*b,0,-0.45+0.75*a);R('RightArm',-0.55*b,0,0.45+0.75*a);
+    h._bounce=Math.abs(Math.sin(t*7))*0.03;}
+  else if(id==='hop'){ // прыжки «звёздочкой»
+    const k=Math.abs(Math.sin(t*4.2));
+    R('LeftArm',0,0,-0.3-2.3*k);R('RightArm',0,0,0.3+2.3*k);R('Head',-0.15*k,0,0);
+    R('LeftUpLeg',-0.2*(1-k),0,0.3*k);R('RightUpLeg',-0.2*(1-k),0,-0.3*k);R('LeftLeg',0.4*(1-k),0,0);R('RightLeg',0.4*(1-k),0,0);
+    h._bounce=0.22*k;}
+  else if(id==='dab'){ // каждые 1,6 с — дэб, между ними пружинит и хлопает
+    const ph=(t%1.6)/1.6;
+    if(ph<0.55){R('RightArm',0,0,2.35);R('RightForeArm',0,0,0.1);R('LeftArm',-1.35,0,-1.0);R('LeftForeArm',-1.7,0,0);R('Head',0.45,-0.5,0);R('Spine',0.15,0,-0.12);}
+    else{const k=Math.sin((ph-0.55)/0.45*Math.PI*2);R('LeftArm',-0.8,0,-0.3+0.3*k);R('RightArm',-0.8,0,0.3-0.3*k);R('LeftForeArm',-0.9,0,0);R('RightForeArm',-0.9,0,0);
+      R('LeftUpLeg',-0.35,0,0);R('RightUpLeg',-0.35,0,0);R('LeftLeg',0.6,0,0);R('RightLeg',0.6,0,0);h._bounce=-0.05+Math.abs(k)*0.06;}}
+  else{ // champ: кружится (в syncWorld) и машет обеими лапами над головой
+    const w=Math.sin(t*12)*0.35;R('LeftArm',0,0,-2.5+w);R('RightArm',0,0,2.5+w);R('Head',-0.2,0,0);R('Spine',-0.1,0,0.1*s);
+    h._bounce=Math.abs(Math.sin(t*6.3))*0.08;}
+}
 // падение по фазам ft: 0…0.4 кувырок (руки-ноги разлетаются), 0.4…0.72 лежит звездой и ворочается, 0.72…1 встаёт и отряхивается
 function poseFall(h,t,ft){
   const fl=Math.sin(t*20);
@@ -470,11 +514,13 @@ function poseGlb(h,p,mode,t){
   // падение: с каской (встаёт) или финальное (остаётся лежать)
   const crash=!menu&&(mode==='crash'||p.fall>0);
   const ft=p.fall>0?1-p.fall/FALL_T:mode==='crash'?Math.min(0.7,(G.crashT||0)/1.4):0;
+  h._bounce=0;
   if(crash)poseFall(h,t,ft);
+  else if(menu&&G.dance&&G.t<G.dance.until)danceGlb(h,G.dance.id,G.t-G.dance.t0);
   else if(menu){ // стоит, дышит, иногда машет
     const br=Math.sin(t*2)*0.03;rotB(h,'Spine',br,0,0);rotB(h,'Head',-0.05,Math.sin(t*0.9)*0.35,0);
     const wave=(G.waveT||0)>0;
-    if(h.kind==='bear'){rotB(h,'LeftArm',0.2,0,-0.35);rotB(h,'RightArm',wave?-0.4:0.2,0,wave?2.2:0.35);if(wave)rotB(h,'RightForeArm',0,0,0.6+Math.sin(t*14)*0.5);}
+    if(h.kind==='bear'){rotB(h,'LeftArm',0.2,0,-0.35);rotB(h,'RightArm',wave?-0.4:0.2,0,wave?-2.2:0.35);if(wave)rotB(h,'RightForeArm',0,0,-0.6-Math.sin(t*14)*0.5);}
     else{const f=wave?Math.sin(t*14)*0.5:Math.sin(t*2.5)*0.08;rotB(h,'LeftArm',0,0,0.15+f);rotB(h,'RightArm',0,0,-0.15-f);}
   }else if(h.kind==='bear'){
     const tuck=air?1.5:1;const pump=Math.sin(t*4)*0.06;
@@ -494,7 +540,7 @@ function poseGlb(h,p,mode,t){
     rotB(h,'LeftArm',0,0,flap);rotB(h,'RightArm',0,0,-flap);
   }
   // ноги остаются на лыжах/доске
-  h.holder.position.y=0;const fy=footY(h);h.holder.position.y=h.restFoot-fy;
+  h.holder.position.y=0;const fy=footY(h);h.holder.position.y=h.restFoot-fy+(h._bounce||0);
   // лыжи/доска под ногами, палки от руки к снегу
   h.root.updateMatrixWorld(true);const fp=[];for(const k of['LeftFoot','RightFoot']){const bn=h.bones[k];bn.getWorldPosition(_va);h.pivot.worldToLocal(_va);fp.push(_va.clone());}
   if(h.skis){h.skis.forEach((g,i)=>{g.position.set(fp[i].x,0.025,fp[i].z-0.1);});}
@@ -858,17 +904,18 @@ function playS(k,rate,vol,delay){if(!AC||save.muted)return true;const n=SFXF[k]|
   const g=AC.createGain();g.gain.value=vol==null?0.8:vol;s.connect(g).connect(sfxBus);s.start(AC.currentTime+(delay||0));return true;}
 const SFX={
   coin(){noise(0.08,0.18,'bandpass',1400,700,2.5);tone(520,0.1,0.05,'sine',820);},
-  gate(c){const k=Math.min(c,19);const n=PENTA[k%5]+12*Math.floor(k/5);const f=392*Math.pow(2,n/12);tone(f,0.22,0.07);tone(f*1.5,0.28,0.035,'sine',null,0.05);},
-  miss(){tone(330,0.28,0.06,'triangle',210);},
+  // ворота, промах и вежливый обгон звучали слишком часто — без звука (остаются надпись и очки)
+  gate(){},
+  miss(){},
   jump(){noise(0.4,0.16,'bandpass',350,1600,1.1);},
-  land(){if(playS('land',0.9,0.9))return;noise(0.16,0.22,'lowpass',600,140);},
+  land(){if(playS('land',0.9,0.28))return;noise(0.16,0.22,'lowpass',600,140);},
   trick(){noise(0.3,0.12,'bandpass',800,2400,1.6);},
   trickDone(){tone(784,0.14,0.05);tone(1175,0.22,0.05,'sine',null,0.07);},
-  crash(){playS('land',0.7,0.9,0.15);noise(0.7,0.45,'lowpass',1100,110);tone(150,0.45,0.12,'sine',50);},
-  smash(){playS('land',0.8,0.7,0.02);noise(0.35,0.3,'lowpass',1800,260);},
+  crash(){playS('land',0.7,0.3,0.15);noise(0.7,0.45,'lowpass',1100,110);tone(150,0.45,0.12,'sine',50);},
+  smash(){playS('land',0.8,0.22,0.02);noise(0.35,0.3,'lowpass',1800,260);},
   power(){[523,659,784,1046].forEach((f,i)=>tone(f,0.2,0.05,'sine',null,i*0.06));},
   feather(){[784,988,1175,1568,1976].forEach((f,i)=>tone(f,0.35,0.045,'sine',null,i*0.07));},
-  polite(){tone(880,0.15,0.04);tone(1320,0.22,0.04,'sine',null,0.08);},
+  polite(){},
   warn(){tone(466,0.16,0.06,'triangle');tone(466,0.16,0.06,'triangle',null,0.2);},
   shield(){noise(0.3,0.2,'highpass',1500,4000);tone(600,0.3,0.06,'sine',300);},
   chime(){tone(1046,0.5,0.04);tone(1568,0.6,0.03,'sine',null,0.12);},
@@ -886,7 +933,9 @@ const VOX={};let voxT=0;
 function loadVox(){if(!AC||!window.__SND)return;for(const k in window.__SND){if(VOX[k])continue;const b64=window.__SND[k];const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);VOX[k]='loading';AC.decodeAudioData(u.buffer).then(buf=>{VOX[k]=buf;if(k==='music_'+musWant)music(musWant);}).catch(()=>delete VOX[k]);}}
 document.addEventListener('pointerdown',()=>{initAudio();if(musWant&&!musSrc)music(musWant);},{passive:true});
 {const sc=document.createElement('script');sc.src='models/sounds.js';sc.onload=()=>loadVox();document.head.appendChild(sc);}
-function voice(n,force){if(!AC||save.muted)return;const now=AC.currentTime;if(!force&&now-voxT<2.5)return;const b=VOX[hero+'_'+n];if(!b||b==='loading')return;voxT=now;const s=AC.createBufferSource();s.buffer=b;const g=AC.createGain();g.gain.value=1.1;s.connect(g).connect(voxBus);s.start();}
+// частые реплики (обгон, промах) — не чаще раза в 40 с
+const VOX_RARE={polite:40,miss:40};const voxLast={};
+function voice(n,force){if(!AC||save.muted)return;const now=AC.currentTime;if(!force&&now-voxT<2.5)return;if(VOX_RARE[n]&&now-(voxLast[n]??-1e9)<VOX_RARE[n])return;const b=VOX[hero+'_'+n];if(!b||b==='loading')return;voxT=now;voxLast[n]=now;const s=AC.createBufferSource();s.buffer=b;const g=AC.createGain();g.gain.value=1.1;s.connect(g).connect(voxBus);s.start();}
 // музыка (Suno) и новые реплики героев — отдельные mp3 в папке audio/
 const AUDIO_FILES=['music_menu','music_run'].concat(['bear','owl'].flatMap(h=>['record','polite','warn','miss','feather','stage'].map(k=>h+'_'+k)));
 function loadAudioFiles(){if(!AC)return;for(const k of AUDIO_FILES){if(VOX[k])continue;VOX[k]='loading';
@@ -1200,7 +1249,7 @@ function update(dt){
       case 'dog':if(p.air<=0&&dd<17){o.dead=true;p.wob=0.6;p.slow=0.6;G.combo=0;SFX.wobble();vibe(40);addText(p.x,py,'Гав! Собака! Серия сброшена','#a0622d',16);}break;
       case 'ball':if(p.air<=0&&Math.abs(dx)<14&&Math.abs(dy)<14){o.dead=true;p.wob=0.5;p.slow=0.4;G.combo=0;SFX.smash();vibe(40);burst3(X(p.x),1.2,Z(py),14,'#ffffff',3);addText(p.x,py,'Попали снежком!','#3d5a80',16);}break;
       case 'snowman':if(p.air<=0&&dd<o.r+8)hit('snowman',o);break;
-      case 'gift':if(dd<24){o.dead=true;const pts=50*mult();G.bonus+=pts;SFX.power();burst3(X(o.x),0.8,Z(o.y),14,'#ffd200',4);addText(p.x,py,'Подарок! +'+pts,'#c0392b',16);}break;
+      case 'gift':if(dd<24){o.dead=true;save.meet.gifts=(save.meet.gifts||0)+1;const pts=50*mult();G.bonus+=pts;SFX.power();burst3(X(o.x),0.8,Z(o.y),14,'#ffd200',4);addText(p.x,py,'Подарок! +'+pts,'#c0392b',16);}break;
       case 'yeti':if(!o.met&&py>o.y-60){o.met=true;G.yetiRun=true;save.meet.yeti++;persist();const pts=500*mult();G.bonus+=pts;SFX.feather();vibe([40,40,40]);banner('ВСТРЕЧА С ЙЕТИ!',save.meet.yeti===1?'+'+pts+' · записано в коллекцию':'+'+pts+' · встреч: '+save.meet.yeti,'gold');}break;
       case 'letter':
         if(dd<28&&(!o.air||p.air>0)){o.dead=true;collectLetter(o,dist);}
@@ -1304,7 +1353,11 @@ function syncWorld(dt){
   for(const k in HEROMODELS){HEROMODELS[k].root.visible=(k===hero);if(HEROMODELS[k].poles)HEROMODELS[k].poles.forEach(q=>q.g.visible=(k===hero));}
   const hm=HEROMODELS[hero];
   hm.root.position.set(px,gy+(p.air>0?p.launchH*(1-clamp(p.airT/p.airMax,0,1))+p.alt*2.3:p.rampH+(G.mode==='menu'?0:p.mh)),pz);hm.root.scale.setScalar(hm.glb?1:0.8);
-  if(G.mode==='menu'){if(!menuDrag){menuYaw+=menuVel;menuVel*=0.94;}hm.root.rotation.set(0,menuYaw+Math.sin(G.t*0.4)*0.12,0);}else{const mSl=p.air>0||p.hop>0?0:(mogAt(p.x,G.y+5)-mogAt(p.x,G.y-5))/(10*U);const tg=Math.atan(gr-mSl)*(p.air>0?0.3:1);G.tilt=lerp(G.tilt==null?tg:G.tilt,tg,Math.min(1,dt*5));hm.root.rotation.set(-G.tilt,-p.ang*0.45,-p.ang*0.32);}hm.slopeTilt=G.mode==='menu'?0:(G.tilt||0)*0.55;
+  if(G.mode==='menu'){const dn=G.dance&&G.t<G.dance.until;
+    if(dn){menuVel=0;menuYaw=lerp(menuYaw,0,Math.min(1,dt*6));}else if(!menuDrag){menuYaw+=menuVel;menuVel*=0.94;}
+    // в «Танце чемпиона» герой кружится каждые 2 секунды
+    const spin=dn&&G.dance.id==='champ'?(()=>{const k=((G.t-G.dance.t0)%2)/2;return k<0.4?k/0.4*Math.PI*2:0;})():0;
+    hm.root.rotation.set(0,menuYaw+spin+(dn?0:Math.sin(G.t*0.4)*0.12),0);}else{const mSl=p.air>0||p.hop>0?0:(mogAt(p.x,G.y+5)-mogAt(p.x,G.y-5))/(10*U);const tg=Math.atan(gr-mSl)*(p.air>0?0.3:1);G.tilt=lerp(G.tilt==null?tg:G.tilt,tg,Math.min(1,dt*5));hm.root.rotation.set(-G.tilt,-p.ang*0.45,-p.ang*0.32);}hm.slopeTilt=G.mode==='menu'?0:(G.tilt||0)*0.55;
   {const tr=p.trick>0?TRICKS[p.tt||0].f(p.trick):[0,0,0];const fp=G.mode==='play'?fallPose(p):null;
    hm.pivot.rotation.set((G.mode==='crash'?p.tumble:0)+tr[0]+(fp?fp.rx:0),tr[1],tr[2]+(p.wob>0?Math.sin(G.t*16)*0.07:0)+(fp?fp.rz:0));
    const cy=0.6;pivC.set(0,cy,0).applyEuler(hm.pivot.rotation);hm.pivot.position.set(-pivC.x,cy-pivC.y+(fp?fp.dy:0),-pivC.z);}
@@ -1411,6 +1464,19 @@ function loadTop(period){topPeriod=period;document.querySelectorAll('.tabs butto
       return '<div class="trow'+(TGU&&p.id===TGU.id?' me':'')+'"><span class="pl">'+md+'</span><span class="nm">'+nm+' <small>'+(p.hero==='owl'?'🦉':'🐻')+' '+p.dist+' м</small></span><span class="sc">'+p.score+'</span></div>';}).join('');
     M.textContent=r.me&&r.me.rank?'Твоё место: #'+r.me.rank+' · '+r.me.score+' очков':(period==='week'?'Тебя пока нет в рейтинге недели — прокатись!':'');});}
 $('bTop').onclick=()=>{$('top').classList.remove('hidden');loadTop('week');};
+// ===== окно «Танцы» =====
+function renderDances(){$('danceList').innerHTML=DANCES.map(d=>{const ok=d.need();
+    return '<div class="trow'+(ok?'':' lock')+'"><span class="pl">'+(ok?d.icon:'🔒')+'</span><span class="nm">'+d.name+'<br><small>'+(ok?'Открыт':d.cond())+'</small></span>'+
+      (ok?'<button class="dbtn play" data-d="'+d.id+'">▶</button><button class="dbtn" data-s="'+d.id+'">📤</button>':'')+'</div>';}).join('');
+  document.querySelectorAll('#danceList [data-d]').forEach(b=>b.onclick=()=>startDance(b.dataset.d));
+  document.querySelectorAll('#danceList [data-s]').forEach(b=>b.onclick=()=>shareDance(b.dataset.s));}
+function startDance(id){$('dances').classList.add('hidden');if(!G||G.mode!=='menu')return;G.dance={id,t0:G.t,until:G.t+8};initAudio();SFX.chime();
+  const el=$('bubble');if(el){el.textContent=(hero==='bear'?'Смотри, как я умею!':'Ух-ух, танцуем!');el.classList.add('on');setTimeout(()=>el.classList.remove('on'),2500);}}
+function shareDance(id){const d=DANCES.find(x=>x.id===id);const who=hero==='bear'?'Мишаня':'Сова';
+  const txt=(PLAYER?PLAYER+': ':'')+'мой '+who+' танцует «'+d.name+'» '+d.icon+' в игре «Белая Сова»! Открой танцы и ты:';
+  if(TG){TG.openTelegramLink('https://t.me/share/url?url='+encodeURIComponent(gameLink())+'&text='+encodeURIComponent(txt));}
+  else if(navigator.share){navigator.share({text:txt+' '+gameLink()}).catch(()=>{});}else{try{navigator.clipboard.writeText(txt+' '+gameLink());}catch(e){}}}
+$('bDance').onclick=()=>{renderDances();$('dances').classList.remove('hidden');};
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>loadTop(b.dataset.p));
 function gameOver(){
   G.mode='over';setLoops(0,0,null);
@@ -1421,10 +1487,13 @@ function gameOver(){
   ensureMissions();save.coins+=G.coins+reward;persist();
   $('oFail').textContent=G.failMsg||'';$('oFis').innerHTML=fisTip(G.failKind);$('oRec').classList.toggle('hidden',!rec);$('oScore').textContent=sc;
   $('oStats').innerHTML=`Этап ${G.stage+1}: ${stageDef(Math.max(0,G.stage)).name}<br>${Math.floor(G.y/20)} м · ворот ${G.gates} · серия ${G.maxCombo} · трюков ${G.tricks}<br>🍊 +${G.coins}${reward?` · за задания +${reward}`:''}${G.feathers?` · перьев ${G.feathers}`:''} · рекорд <b>${save.best}</b>`;
-  $('oMis').innerHTML=lines.join('');submitRun(sc);$('topbtns').classList.add('hidden');$('over').classList.remove('hidden');
+  $('oMis').innerHTML=lines.join('');submitRun(sc);
+  // новые танцы, открытые этим заездом
+  {const seen=save.meet.danceSeen||['sway'];const fresh=DANCES.filter(d=>d.need()&&!seen.includes(d.id));
+    if(fresh.length){save.meet.danceSeen=seen.concat(fresh.map(d=>d.id));persist();$('oStats').innerHTML+='<br><b style="color:#ff6a00">💃 Открыт танец «'+fresh.map(d=>d.name).join('», «')+'»!</b> Меню → Танцы';}}$('topbtns').classList.add('hidden');$('over').classList.remove('hidden');
 }
 function pauseGame(){if(!G||G.mode!=='play')return;G.mode='pause';drag=null;setLoops(0,0,null);syncSens();$('pause').classList.remove('hidden');}
-function toMenu(){music('menu');hideToast();clearWorld();G=newGame('menu');['over','pause','topbtns','coll','share','tasks','shop','settings','top'].forEach(id=>$(id).classList.add('hidden'));$('menu').classList.remove('hidden');refreshMenu();}
+function toMenu(){music('menu');hideToast();clearWorld();G=newGame('menu');['over','pause','topbtns','coll','share','tasks','shop','settings','top','dances'].forEach(id=>$(id).classList.add('hidden'));$('menu').classList.remove('hidden');refreshMenu();}
 const PHR={bear:['Каска надета — можно ехать!','Объезжай с запасом — так по правилам FIS!','Я сношу сугробы одним махом!','Мандаринки сами себя не соберут!'],
   owl:['Ух-ух! Полетели!','На трамплине я парю дольше всех!','Шлем и очки — уже на мне!','Лови буквы E-M-C-O!']};
 let bubT=0;function sayBubble(){const el=$('bubble');if(!el)return;const a=PHR[hero];el.textContent=a[Math.floor(Math.random()*a.length)];el.classList.add('on');clearTimeout(bubT);bubT=setTimeout(()=>el.classList.remove('on'),3800);}
@@ -1535,7 +1604,7 @@ if(TG){try{
   if(TG.isVersionAtLeast&&TG.isVersionAtLeast('8.0')&&/android|ios/i.test(TG.platform||''))TG.requestFullscreen();
   for(const ev of['safeAreaChanged','contentSafeAreaChanged','fullscreenChanged','viewportChanged'])TG.onEvent(ev,updSafe);
   // кнопка «Назад» Telegram: в заезде — пауза, в окнах — закрыть окно, после заезда — в меню
-  const OVL=['coll','fis','share','tasks','shop','settings','top'];
+  const OVL=['coll','fis','share','tasks','shop','settings','top','dances'];
   TG.BackButton.onClick(()=>{if(G&&G.mode==='play'){pauseGame();return;}const o=OVL.find(id=>!$(id).classList.contains('hidden'));if(o){$(o).classList.add('hidden');return;}if(G&&G.mode!=='menu')toMenu();});
   let lastBack=null,lastConf=null;
   setInterval(()=>{const need=!!(G&&(G.mode!=='menu'||OVL.some(id=>!$(id).classList.contains('hidden'))));if(need!==lastBack){lastBack=need;need?TG.BackButton.show():TG.BackButton.hide();}
