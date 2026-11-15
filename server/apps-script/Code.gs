@@ -49,7 +49,12 @@ function userError(msg) { const e = new Error(msg); e.userMessage = msg; return 
 
 // ---------- проверка подписи Telegram (https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app) ----------
 function token() {
-  const t = PropertiesService.getScriptProperties().getProperty('BOT_TOKEN');
+  // имя свойства ищем без учёта пробелов и регистра («BOT_TOKEN », «bot_token»)
+  const all = PropertiesService.getScriptProperties().getProperties();
+  const key = Object.keys(all).filter(function (k) { return k.replace(/\s/g, '').toUpperCase() === 'BOT_TOKEN'; })[0];
+  const raw = key ? all[key] : '';
+  // убираем случайные пробелы, переносы строк и кавычки при копировании
+  const t = String(raw || '').replace(/[\s"'«»]/g, '');
   if (!t) throw new Error('BOT_TOKEN не задан в свойствах скрипта');
   return t;
 }
@@ -248,9 +253,17 @@ function handleUpdate(u) {
 
 // ---------- запускается вручную из редактора один раз ----------
 /** После «Развертывания» как веб-приложения: подключает бота к скрипту (вебхук). */
+// рабочий адрес веб-приложения (Развертывание → Управление развертываниями → URL, заканчивается на /exec)
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxlD0YW9fFAhinQsr-02Vc9q-9yOeSoD6yPyqhnQ9tsQvtBzepwTKftBhqW-54bHxvT/exec';
+
 function setupWebhook() {
-  const url = ScriptApp.getService().getUrl();
-  if (!url) throw new Error('Сначала: Развернуть → Новое развертывание → Веб-приложение');
+  const url = WEBAPP_URL;
+  // диагностика без раскрытия секретов: только имена свойств и длина значений
+  const props = PropertiesService.getScriptProperties().getProperties();
+  console.log('Свойства скрипта: ' + Object.keys(props).filter(function (k) { return k.indexOf('S_') !== 0; })
+    .map(function (k) { const name = /^\d+:/.test(k) || k.length > 20 ? '(похоже на токен в поле «Свойство»!)' : '«' + k + '»'; return name + ' (' + String(props[k]).length + ' симв.)'; }).join(', '));
+  const me = tg('getMe', {});
+  console.log('Бот: ' + (me.ok ? '@' + me.result.username : 'ТОКЕН НЕ ПОДХОДИТ — проверьте BOT_TOKEN (длина ' + token().length + ' символов, ожидается ~46)'));
   const r = tg('setWebhook', { url: url, allowed_updates: ['message', 'my_chat_member'], drop_pending_updates: true });
   playersSheet();
   console.log('Вебхук: ' + JSON.stringify(r) + '\nАдрес для игры (API_URL): ' + url);
