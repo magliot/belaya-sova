@@ -107,6 +107,7 @@ html,body,button,input,#wrap{font-family:'Rubik',system-ui,-apple-system,"Segoe 
 .seg button b{display:block;font-size:18px;font-weight:800;color:var(--navy);line-height:1.1}
 .seg button small{display:block;font-size:10.5px;font-weight:500;color:#4a5f80;opacity:1;line-height:1.2;margin-top:2px}
 .seg button.sel{background:#fff;color:var(--navy);box-shadow:0 0 0 2px #ffb347,0 3px 8px rgba(255,122,0,.25)}
+.player{align-self:center;margin:-4px 0 -2px;padding:3px 12px;border-radius:12px;background:#fff;border:1.5px solid #e6cfa6;font:700 12.5px 'Rubik',system-ui,sans-serif;color:var(--navy)}
 .row.stats{font-size:19px;font-weight:800;padding:0 6px;border-top:2px solid rgba(110,58,20,.14);padding-top:8px}
 /* оранжевая кнопка */
 button.big{font:900 24px/1 'Rubik',system-ui,sans-serif;letter-spacing:.5px;padding:15px 34px;border-radius:22px;border:3px solid var(--orgD);color:#fff;
@@ -164,6 +165,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
   <div id="bubble" class="bubble"></div><div id="spinHint" class="spinhint">↔ крути героя пальцем</div>
   <div class="sheet compact">
     <div class="seg"><button data-h="bear"><img src="ui/av_bear.jpg" alt=""><span><b>Мишаня</b><small>лыжи • сносит сугробы</small></span></button><i></i><button data-h="owl"><img src="ui/av_owl.jpg" alt=""><span><b>Сова</b><small>сноуборд • долго парит</small></span></button></div>
+    <div class="player hidden" id="mPlayer"></div>
     <div class="row stats"><span>⭐ Рекорд: <b id="mBest">0</b></span><span>🍊 <b id="mCoins">0</b></span></div>
     <div class="playwrap"><span class="rays"><b></b><b></b><b></b></span><button class="big" id="bPlay"><svg viewBox="0 0 24 24"><path d="M6 3.5v17a1 1 0 0 0 1.5.86l14-8.5a1 1 0 0 0 0-1.72l-14-8.5A1 1 0 0 0 6 3.5z" fill="#fff"/></svg>ПОЕХАЛИ!</button><span class="rays r"><b></b><b></b><b></b></span></div>
     <div class="btnrow"><button class="mini snowcap" id="bColl"><span class="ic">🏅</span>Коллекция</button><button class="mini snowcap" id="bTasks"><span class="ic">🎯</span>Задания</button><button class="mini snowcap" id="bShop"><span class="ic">🛒</span>Улучшения</button><button class="mini snowcap" id="bSet"><span class="ic">⚙️</span>Настройки</button></div>
@@ -249,6 +251,10 @@ import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 const TG=(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initData)?window.Telegram.WebApp:null;
 // ссылка на игру в Telegram (https://t.me/<бот>/<приложение>) — вписать после создания бота в @BotFather
 const TG_LINK='https://t.me/belaya_sovabot/play';
+// игрок Telegram: у каждого аккаунта своё сохранение (на одном телефоне может быть несколько аккаунтов)
+const TGU=(TG&&TG.initDataUnsafe&&TG.initDataUnsafe.user)||null;
+const PLAYER=TGU?(TGU.username?'@'+TGU.username:[TGU.first_name,TGU.last_name].filter(Boolean).join(' ')):'';
+const SKEY='bsova_'+(TGU?'tg'+TGU.id+'_':'');
 let SAFE_TOP=0;
 const wrap=document.getElementById('wrap'),cv=document.getElementById('gl'),hud=document.getElementById('hud'),hx=hud.getContext('2d');
 const $=id=>document.getElementById(id);
@@ -757,12 +763,12 @@ function acquire(o){const k=poolKey(o);const p=pools[k]||(pools[k]=[]);let m=p.p
 function release(o){if(!o.m)return;const m=o.m;scene.remove(m);if((m.userData.gen||0)===assetGen)(pools[m.userData.key]||(pools[m.userData.key]=[])).push(m);o.m=null;}
 
 // ================= SAVE / MISSIONS =================
-const store={get(k,d){try{const v=localStorage.getItem('bsova_'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem('bsova_'+k,JSON.stringify(v));}catch(e){}}};
+const store={get(k,d){try{const v=localStorage.getItem(SKEY+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(SKEY+k,JSON.stringify(v));}catch(e){}}};
 const save={best:store.get('best',0),coins:store.get('coins',0),hero:store.get('hero','bear'),muted:store.get('muted',false),mag:store.get('mag',0),boost:store.get('boost',0),helmets:store.get('helmets',0),sens:store.get('sens',4),coll:store.get('coll',[]),fis:store.get('fis',[]),meet:store.get('meet',{yeti:0,feathers:0,bestStage:0}),mdone:store.get('mdone',0),missions:store.get('missions',null),vol:Object.assign({music:6,sfx:8,vox:8},store.get('vol',{}))};
 const SAVE_KEYS=['best','coins','hero','muted','mag','boost','helmets','mdone','missions','sens','coll','meet','fis','vol'];
 function persist(){for(const k of SAVE_KEYS)store.set(k,save[k]);cloudSave();}
 // облачное сохранение Telegram: рекорд и прогресс не пропадут, если телефон почистит кэш
-function cloudSave(){if(!TG||!TG.CloudStorage)return;clearTimeout(cloudSave.t);cloudSave.t=setTimeout(()=>{try{const s={};for(const k of SAVE_KEYS)s[k]=save[k];let j=JSON.stringify(s);if(j.length>4000){delete s.coll;j=JSON.stringify(s);}TG.CloudStorage.setItem('save',j);}catch(e){}},1500);}
+function cloudSave(){if(!TG||!TG.CloudStorage)return;clearTimeout(cloudSave.t);cloudSave.t=setTimeout(()=>{try{const s={uid:TGU?TGU.id:0};for(const k of SAVE_KEYS)s[k]=save[k];let j=JSON.stringify(s);if(j.length>4000){delete s.coll;j=JSON.stringify(s);}TG.CloudStorage.setItem('save',j);}catch(e){}},1500);}
 const HEROES={
   bear:{name:'Мишаня',air:0.85,trickT:0.42,steer:1.0,fails:['Ой-ой, лапы запутались!','Мишаня нырнул в сугроб!','Бум! Зато каска на месте!']},
   owl:{name:'Сова',air:1.45,trickT:0.5,steer:1.15,fails:['Ух! Перья в снегу!','Сова приземлилась… клювом!','Ух-ух, вот это кувырок!','Крылья не помогли…']}
@@ -1342,7 +1348,7 @@ const PHR={bear:['Каска надета — можно ехать!','Объе�
 let bubT=0;function sayBubble(){const el=$('bubble');if(!el)return;const a=PHR[hero];el.textContent=a[Math.floor(Math.random()*a.length)];el.classList.add('on');clearTimeout(bubT);bubT=setTimeout(()=>el.classList.remove('on'),3800);}
 setInterval(()=>{if(!$('menu').classList.contains('hidden'))sayBubble();},6500);
 const UPC=l=>[150,400,900,2000,4000][l]||99999;const MAXU=5;const HELM=250;
-function refreshMenu(){
+function refreshMenu(){if(PLAYER){$('mPlayer').textContent='👤 '+PLAYER;$('mPlayer').classList.remove('hidden');}
   $('mBest').textContent=save.best;$('mCoins').textContent=save.coins;document.querySelectorAll('.coinsv').forEach(e=>e.textContent=save.coins);
   $('mMis').innerHTML=save.missions.map(m=>`<div class="mis"><span>${mdef(m.id).t(m.n)}</span><i>+${m.reward} 🍊</i></div>`).join('');
   document.querySelectorAll('.seg button').forEach(el=>el.classList.toggle('sel',el.dataset.h===hero));
@@ -1404,6 +1410,7 @@ function makeCard(){
   x.fillStyle='#fff';x.beginPath();x.moveTo(0,1350);x.lineTo(0,1050);x.lineTo(380,820);x.lineTo(700,980);x.lineTo(1080,760);x.lineTo(1080,1350);x.fill();
   x.textAlign='center';x.fillStyle='#fff';x.font='900 92px system-ui,sans-serif';x.fillText('БЕЛАЯ СОВА',540,150);
   x.font='700 40px system-ui,sans-serif';x.fillStyle='#cfe3ff';x.fillText((hero==='bear'?'Мишаня':'Сова')+' · горнолыжный спуск',540,215);
+  if(PLAYER){x.font='800 44px system-ui,sans-serif';x.fillStyle='#ffd34d';x.fillText('Игрок: '+PLAYER,540,272);}
   x.fillStyle='#fff';x.font='900 210px system-ui,sans-serif';x.fillText(sc,540,450);x.font='800 44px system-ui,sans-serif';x.fillText('очков'+(sc>=save.best?' · НОВЫЙ РЕКОРД!':''),540,515);
   x.font='700 44px system-ui,sans-serif';x.fillText(Math.floor(G.y/20)+' м  ·  этап '+(G.stage+1)+': '+stageDef(Math.max(0,G.stage)).name,540,600);
   const finds=[];if(G.lettersRun.length)finds.push('буквы: '+G.lettersRun.join(' '));if(G.yetiRun)finds.push('встретил Йети!');if(G.feathers)finds.push('золотых перьев: '+G.feathers);
@@ -1412,7 +1419,7 @@ function makeCard(){
   const wi=Math.min(WORDS.length-1,(collState()||{w:WORDS.length-1}).w);const w=WORDS[wi],got=save.coll.filter(c=>c.w===wi).length;const bw=110,tot=w.length*(bw+16)-16;
   w.split('').forEach((ch,i)=>{const bx=540-tot/2+i*(bw+16);const on=i<got;x.fillStyle=on?'#e8a400':'#dfe7f1';x.beginPath();x.roundRect?x.roundRect(bx,1040,bw,130,20):x.rect(bx,1040,bw,130);x.fill();x.fillStyle=on?'#0f2c52':'#9fb0c4';x.font='900 90px system-ui,sans-serif';x.fillText(ch,bx+bw/2,1138);});
   x.fillStyle='#0f2c52';x.font='900 34px system-ui,sans-serif';x.fillText('EMCO · БЕЗОПАСНЫЙ ОТДЫХ',540,1270);
-  shareText=`Белая Сова: ${sc} очков, ${Math.floor(G.y/20)} м, этап ${G.stage+1} (${stageDef(Math.max(0,G.stage)).name})`+(finds.length?'. Находки: '+finds.join(', '):'')+'. Сможешь больше?';
+  shareText=(PLAYER?PLAYER+' — ':'')+`Белая Сова: ${sc} очков, ${Math.floor(G.y/20)} м, этап ${G.stage+1} (${stageDef(Math.max(0,G.stage)).name})`+(finds.length?'. Находки: '+finds.join(', '):'')+'. Сможешь больше?';
   $('shImg').src=c.toDataURL('image/png');shareBlob=null;c.toBlob(b=>shareBlob=b,'image/png');
 }
 $('bShare').onclick=()=>{makeCard();if(!save.fis.includes(10)){save.fis.push(10);persist();renderFis();}$('shHint').textContent='Зажмите картинку, чтобы сохранить или переслать в чат';$('share').classList.remove('hidden');};
@@ -1447,7 +1454,7 @@ if(TG){try{
   setInterval(()=>{const need=!!(G&&(G.mode!=='menu'||OVL.some(id=>!$(id).classList.contains('hidden'))));if(need!==lastBack){lastBack=need;need?TG.BackButton.show():TG.BackButton.hide();}
     const conf=!!(G&&G.mode==='play');if(conf!==lastConf){lastConf=conf;conf?TG.enableClosingConfirmation():TG.disableClosingConfirmation();}},300);
   // облачное сохранение: подтягиваем прогресс, если в облаке рекорд не хуже локального
-  if(TG.CloudStorage)TG.CloudStorage.getItem('save',(err,v)=>{try{if(err||!v)return;const c=JSON.parse(v);if((c.best||0)<(save.best||0))return;
+  if(TG.CloudStorage)TG.CloudStorage.getItem('save',(err,v)=>{try{if(err||!v)return;const c=JSON.parse(v);if(!TGU||c.uid!==TGU.id)return;if((c.best||0)<(save.best||0))return;
     for(const k of SAVE_KEYS)if(k in c)save[k]=c[k];for(const k of SAVE_KEYS)store.set(k,save[k]);ensureMissions();hero=save.hero in HEROES?save.hero:hero;if(G&&G.mode==='menu')refreshMenu();if(typeof renderFis==='function')renderFis();}catch(e){}});
 }catch(e){console.warn('telegram',e);}}
 window.addEventListener('resize',updSafe);updSafe();
