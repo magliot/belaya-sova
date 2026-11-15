@@ -1344,9 +1344,14 @@ function clearWorld(){dropMogPatches(true);if(G)for(const o of G.objs)release(o)
 function startGame(){initAudio();music('run');hideToast();clearWorld();G=newGame('play');setTimeout(()=>voice('start',true),600);lastTrackZ=0;$('share').classList.add('hidden');if(save.helmets>0){save.helmets--;G.p.lives=1;persist();}G.letter=collState();G.letterAt=G.letter?letterDist(G.letter.w,G.letter.i):Infinity;for(const m of save.missions)m.got=false;
   $('topbtns').classList.remove('hidden');['menu','over','pause'].forEach(id=>$(id).classList.add('hidden'));}
 // ===== рейтинг (сервер Telegram Serverless: подпись игрока проверяет Telegram) =====
-const canNet=()=>!!(TG&&TG.Serverless&&TG.Serverless.call);
+// адрес сервера рекордов (Google Apps Script → «Веб-приложение», заканчивается на /exec)
+const API_URL='https://script.google.com/macros/s/AKfycbxlD0YW9fFAhinQsr-02Vc9q-9yOeSoD6yPyqhnQ9tsQvtBzepwTKftBhqW-54bHxvT/exec';
+const canNet=()=>!!(TG&&TG.initData&&API_URL);
+// запрос к серверу: initData — подпись Telegram, по ней сервер узнаёт игрока; text/plain — без лишнего CORS-запроса
+function netCall(action,data,cb){fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action,initData:TG.initData},data||{}))})
+  .then(r=>r.json()).then(j=>{if(j&&j.ok)cb(null,j);else cb({type:j&&j.error&&j.error!=='server error'&&j.error!=='unauthorized'?'ENDPOINT_ERROR':'ERROR',message:(j&&j.error)||'ошибка'});}).catch(e=>cb({type:'NET',message:String(e)}));}
 function submitRun(sc){const el=$('oNet');if(!canNet()){el.classList.add('hidden');return;}el.classList.remove('hidden');el.textContent='Отправляю результат в рейтинг…';
-  try{TG.Serverless.call('submitScore',{score:sc,dist:Math.floor(G.y/20),dur:+G.t.toFixed(1),hero,stage:G.stage+1},(err,r)=>{
+  try{netCall('submit',{score:sc,dist:Math.floor(G.y/20),dur:+G.t.toFixed(1),hero,stage:G.stage+1},(err,r)=>{
     if(err||!r){el.textContent=err&&err.type==='ENDPOINT_ERROR'?'Результат не принят: '+err.message:'Рейтинг сейчас недоступен';return;}
     el.innerHTML='🏆 Место за неделю: <b>#'+r.weekRank+'</b> · за всё время: <b>#'+r.rank+'</b>'+(r.newWeek&&r.weekRank===1?'<br>Ты лидер недели!':'');});}catch(e){el.textContent='Рейтинг сейчас недоступен';}}
 let topPeriod='week';
@@ -1354,7 +1359,7 @@ function loadTop(period){topPeriod=period;document.querySelectorAll('.tabs butto
   const L=$('topList'),M=$('topMe');M.textContent='';
   if(!canNet()){L.innerHTML='<div class="how" style="text-align:center">Рейтинг работает в Telegram:<br><b>t.me/belaya_sovabot/play</b></div>';return;}
   L.innerHTML='<div class="how" style="text-align:center">Загрузка…</div>';
-  TG.Serverless.call('leaderboard',{period},(err,r)=>{if(period!==topPeriod)return;if(err||!r){L.innerHTML='<div class="how" style="text-align:center">Рейтинг сейчас недоступен</div>';return;}
+  netCall('leaderboard',{period},(err,r)=>{if(period!==topPeriod)return;if(err||!r){L.innerHTML='<div class="how" style="text-align:center">Рейтинг сейчас недоступен</div>';return;}
     if(!r.rows.length){L.innerHTML='<div class="how" style="text-align:center">'+(period==='week'?'На этой неделе ещё никто не катался — будь первым!':'Рекордов пока нет')+'</div>';}
     else L.innerHTML=r.rows.map((p,i)=>{const md=['🥇','🥈','🥉'][i]||(i+1)+'.';const nm=String(p.name).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
       return '<div class="trow'+(TGU&&p.id===TGU.id?' me':'')+'"><span class="pl">'+md+'</span><span class="nm">'+nm+' <small>'+(p.hero==='owl'?'🦉':'🐻')+' '+p.dist+' м</small></span><span class="sc">'+p.score+'</span></div>';}).join('');
