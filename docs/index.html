@@ -451,10 +451,27 @@ function rotB(h,name,ax,ay,az){const b=h.bones[name];if(!b)return;
   b.parent.updateWorldMatrix(true,false);b.parent.getWorldQuaternion(_qa);h.holder.getWorldQuaternion(_qb);
   _qr.setFromEuler(_eu.set(ax,ay,az));const Rw=_qb.clone().multiply(_qr).multiply(_qb.clone().invert());
   b.quaternion.copy(_qa.clone().invert().multiply(Rw).multiply(_qa).multiply(b.userData.rest));}
+// падение по фазам ft: 0…0.4 кувырок (руки-ноги разлетаются), 0.4…0.72 лежит звездой и ворочается, 0.72…1 встаёт и отряхивается
+function poseFall(h,t,ft){
+  const fl=Math.sin(t*20);
+  if(ft<0.4){rotB(h,'Spine',-0.3,0,0);rotB(h,'Head',-0.5,0,0);
+    rotB(h,'LeftArm',-2.2+fl*0.5,0,-0.9);rotB(h,'RightArm',-2.2-fl*0.5,0,0.9);rotB(h,'LeftForeArm',-0.6,0,0);rotB(h,'RightForeArm',-0.6,0,0);
+    rotB(h,'LeftUpLeg',-1.1+fl*0.4,0,0.3);rotB(h,'RightUpLeg',-0.6-fl*0.4,0,-0.3);rotB(h,'LeftLeg',1.4,0,0);rotB(h,'RightLeg',0.9,0,0);}
+  else if(ft<0.72){const w=Math.sin(t*6)*0.15;rotB(h,'Spine',0.1,0,0);rotB(h,'Head',0.2,Math.sin(t*3)*0.5,0);
+    rotB(h,'LeftArm',0,0,-1.3+w);rotB(h,'RightArm',0,0,1.3-w);rotB(h,'LeftUpLeg',-0.2,0,0.5);rotB(h,'RightUpLeg',-0.2,0,-0.5);rotB(h,'LeftLeg',0.3,0,0);rotB(h,'RightLeg',0.3,0,0);}
+  else{const k=(ft-0.72)/0.28,s=Math.sin(t*14)*(1-k);
+    rotB(h,'Spine',0.6*(1-k)+0.2,0,0);rotB(h,'LeftUpLeg',-1.3*(1-k)-0.4,0,0);rotB(h,'RightUpLeg',-1.3*(1-k)-0.4,0,0);
+    rotB(h,'LeftLeg',1.8*(1-k)+0.6,0,0);rotB(h,'RightLeg',1.8*(1-k)+0.6,0,0);
+    rotB(h,'LeftArm',-0.6,0,-0.5+s*0.3);rotB(h,'RightArm',-0.6,0,0.5);rotB(h,'Head',-0.2,s*0.25,0);}
+}
 function poseGlb(h,p,mode,t){
   for(const n of POSE_BONES){const b=h.bones[n];if(b)b.quaternion.copy(b.userData.rest);}
   const air=p.air>0,menu=mode==='menu';const turn=p.ang;h.holder.rotation.set(menu?0:-(h.slopeTilt||0),Math.PI+(h.kind==='owl'&&!menu?0.55:0),0,'YXZ');
-  if(menu){ // стоит, дышит, иногда машет
+  // падение: с каской (встаёт) или финальное (остаётся лежать)
+  const crash=!menu&&(mode==='crash'||p.fall>0);
+  const ft=p.fall>0?1-p.fall/FALL_T:mode==='crash'?Math.min(0.7,(G.crashT||0)/1.4):0;
+  if(crash)poseFall(h,t,ft);
+  else if(menu){ // стоит, дышит, иногда машет
     const br=Math.sin(t*2)*0.03;rotB(h,'Spine',br,0,0);rotB(h,'Head',-0.05,Math.sin(t*0.9)*0.35,0);
     const wave=(G.waveT||0)>0;
     if(h.kind==='bear'){rotB(h,'LeftArm',0.2,0,-0.35);rotB(h,'RightArm',wave?-0.4:0.2,0,wave?2.2:0.35);if(wave)rotB(h,'RightForeArm',0,0,0.6+Math.sin(t*14)*0.5);}
@@ -465,7 +482,8 @@ function poseGlb(h,p,mode,t){
     rotB(h,'LeftUpLeg',-0.75*tuck,0,0);rotB(h,'RightUpLeg',-0.75*tuck,0,0);
     rotB(h,'LeftLeg',1.15*tuck,0,0);rotB(h,'RightLeg',1.15*tuck,0,0);
     rotB(h,'LeftFoot',-0.4*tuck,0,0);rotB(h,'RightFoot',-0.4*tuck,0,0);
-    if(air){rotB(h,'LeftArm',-0.9,0,0.3);rotB(h,'RightArm',-0.9,0,-0.3);}
+    // в прыжке руки к груди, палки прижаты назад
+    if(air){rotB(h,'LeftArm',-0.35,0,-0.25);rotB(h,'RightArm',-0.35,0,0.25);rotB(h,'LeftForeArm',-1.15,0,0);rotB(h,'RightForeArm',-1.15,0,0);}
     else{rotB(h,'LeftArm',-0.55+pump,0,-0.45);rotB(h,'RightArm',-0.55+pump,0,0.45);rotB(h,'LeftForeArm',-0.4,0,0);rotB(h,'RightForeArm',-0.4,0,0);}
   }else{ // сова на доске
     const tuck=air?1.6:1;
@@ -482,7 +500,12 @@ function poseGlb(h,p,mode,t){
   if(h.skis){h.skis.forEach((g,i)=>{g.position.set(fp[i].x,0.025,fp[i].z-0.1);});}
   if(h.board){const a=fp[0],c=fp[1];h.board.position.set((a.x+c.x)/2,0.025,(a.z+c.z)/2);h.board.rotation.y=-Math.atan2(c.z-a.z,c.x-a.x);}
   if(h.poles){for(const pl of h.poles){if(!pl.hand)continue;pl.g.visible=h.root.visible;pl.hand.getWorldPosition(_va);const H=_va.clone();
-      const loc=h.pivot.worldToLocal(H.clone());const tip=h.pivot.localToWorld(new THREE.Vector3(loc.x+pl.side*0.12,air?loc.y-0.9:0.03,loc.z+(air?0.35:0.45+Math.sin(t*4)*0.08)));
+      const loc=h.pivot.worldToLocal(H.clone());
+      // земля: упор в снег; прыжок: прижаты назад вдоль корпуса; падение: торчат в стороны и болтаются
+      const tl=crash?new THREE.Vector3(loc.x+pl.side*0.75,loc.y+0.15+Math.sin(t*15+pl.side)*0.35,loc.z+0.25+Math.cos(t*11+pl.side)*0.3)
+        :air?new THREE.Vector3(loc.x+pl.side*0.1,loc.y-0.32,loc.z+0.95)
+        :new THREE.Vector3(loc.x+pl.side*0.12,0.03,loc.z+0.45+Math.sin(t*4)*0.08);
+      const tip=h.pivot.localToWorld(tl);
       const d=tip.clone().sub(H);const L=d.length()+0.06;pl.g.position.copy(tip);pl.g.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().negate().normalize());sizePole(pl.g,L);}}
 }
 function loadHeroes(){
