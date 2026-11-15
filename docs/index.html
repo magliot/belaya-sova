@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 // Telegram держит старую копию игры: сверяем версию с сервером и при расхождении перезагружаемся (один раз)
-(function(){var VER='2026-11-15b',h=location.hash;
+(function(){var VER='2026-11-15c',h=location.hash;
   fetch('version.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();
     if(!v||v===VER)return;var k='bsova_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
     location.replace(location.pathname+'?v='+encodeURIComponent(v)+h);}).catch(function(){});})();
@@ -150,7 +150,21 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
 .fislink b{font-weight:900}
 .foot{color:var(--navy);font:800 13px 'Rubik',system-ui,sans-serif;letter-spacing:1px;text-shadow:0 0 6px #fff,0 0 2px #fff;display:flex;align-items:center;gap:10px;margin-top:2px}
 .foot::before,.foot::after{content:'';width:34px;height:2px;background:var(--navy);border-radius:2px;opacity:.6}
-#menu .sheet{padding-bottom:30px}
+#menu .sheet{padding-bottom:26px}
+/* компактная панель меню — чтобы герой был виден целиком */
+#menu .sheet.compact{gap:7px;padding:10px 10px 24px}
+#menu .seg button{padding:4px 6px;gap:6px}
+#menu .seg button img{width:36px;height:36px;border-radius:10px}
+#menu .seg button b{font-size:16px}
+#menu .seg button small{font-size:9.5px}
+#menu .row.stats{font-size:16px;padding-top:6px}
+#menu button.big{font-size:20px;padding:11px 28px;border-radius:18px}
+#menu button.big svg{width:18px;height:18px}
+#menu .btnrow .mini{padding:6px 2px 5px;font-size:11px;border-radius:13px}
+#menu .btnrow .mini .ic{font-size:19px;margin-bottom:2px}
+#menu .fislink{padding:6px 14px;font-size:13px;margin-top:-20px}
+#menu .foot{font-size:11px}
+#menu .spinhint{left:12px;right:auto;top:calc(var(--st) + 168px);text-align:left;font-size:11px}
 /* облачко героя */
 .bubble{font:700 12.5px/1.2 'Rubik',system-ui,sans-serif;color:var(--navy);border-radius:14px;padding:7px 10px;border:2px solid #d7e4f3;box-shadow:0 3px 0 #c3d4e8,0 5px 10px rgba(15,44,82,.18);
   right:8px;top:calc(var(--st) + 128px);max-width:36%}
@@ -551,9 +565,11 @@ function poseGlb(h,p,mode,t){
   h.holder.position.y=0;const fy=footY(h);h.holder.position.y=h.restFoot-fy+(h._bounce||0);
   // лыжи/доска под ногами, палки от руки к снегу
   h.root.updateMatrixWorld(true);const fp=[];for(const k of['LeftFoot','RightFoot']){const bn=h.bones[k];bn.getWorldPosition(_va);h.pivot.worldToLocal(_va);fp.push(_va.clone());}
+  // в меню герой без снаряжения: лыжи/палки/доска воткнуты в снег рядом (menuGear)
+  if(h.skis)h.skis.forEach(g=>g.visible=!menu);if(h.board)h.board.visible=!menu;
   if(h.skis){h.skis.forEach((g,i)=>{g.position.set(fp[i].x,0.025,fp[i].z-0.1);});}
   if(h.board){const a=fp[0],c=fp[1];h.board.position.set((a.x+c.x)/2,0.025,(a.z+c.z)/2);h.board.rotation.y=-Math.atan2(c.z-a.z,c.x-a.x);}
-  if(h.poles){for(const pl of h.poles){if(!pl.hand)continue;pl.g.visible=h.root.visible;pl.hand.getWorldPosition(_va);const H=_va.clone();
+  if(h.poles){for(const pl of h.poles){if(!pl.hand)continue;pl.g.visible=h.root.visible&&!menu;pl.hand.getWorldPosition(_va);const H=_va.clone();
       const loc=h.pivot.worldToLocal(H.clone());
       // земля: упор в снег; прыжок: прижаты назад вдоль корпуса; падение: торчат в стороны и болтаются
       const tl=crash?new THREE.Vector3(loc.x+pl.side*0.75,loc.y+0.15+Math.sin(t*15+pl.side)*0.35,loc.z+0.25+Math.cos(t*11+pl.side)*0.3)
@@ -1376,6 +1392,8 @@ function syncWorld(dt){
   else{hm.body.position.y=bob;hm.wings.forEach((w,i)=>{const s=i?1:-1;const base=p.air>0?1.25+Math.sin(G.t*16)*0.4:0.6+Math.abs(p.ang)*0.5+Math.sin(G.t*3)*0.05;w.rotation.z=s*base;});}
   hm.head.rotation.y=G.mode==='menu'?Math.sin(G.t*0.9)*0.3:-p.ang*0.3;
   hm.root.visible=!(p.inv>0&&!p.boost&&!(p.fall>0)&&Math.floor(G.t*14)%2);}
+  // в меню до загрузки настоящей модели героя не показываем (иначе на секунду мелькает старая)
+  if(G.mode==='menu'&&!hm.glb)hm.root.visible=false;
   // свет
   sun.position.set(px+6,gy+16,pz+4);sun.target.position.set(px,Hz(pz-6),pz-6);
   headlamp.position.set(px,gy+2.6+p.alt*2.3,pz+0.5);headlamp.target.position.set(px+p.ang*3,Hz(pz-14),pz-14);
@@ -1385,8 +1403,8 @@ function syncWorld(dt){
     if(y<z*0.32-0.5){x=rnd(-20,20);z=rnd(-45,8);y=z*0.32+rnd(8,15);}if(x<-20)x+=40;if(x>20)x-=40;sp[i*3]=x;sp[i*3+1]=y;sp[i*3+2]=z;}
   snowGeo.attributes.position.needsUpdate=true;snowPts.position.set(G.camX,gy,pz);
   // камера
-  if(G.mode==='menu'){camera.position.set(px,gy+1.05,pz-3.1);camera.lookAt(px,gy+0.05,pz);G.camX=px;}
-  else{G.camX=lerp(G.camX,px,Math.min(1,dt*5));let sh=G.shake>0?(G.shake-=dt,G.shake*0.4):0;const cz=pz+6.4;
+  if(G.mode==='menu'){menuCamera(hm,px,gy,pz);G.camX=px;}
+  else{if(camera.view&&camera.view.enabled)camera.clearViewOffset();G.camX=lerp(G.camX,px,Math.min(1,dt*5));let sh=G.shake>0?(G.shake-=dt,G.shake*0.4):0;const cz=pz+6.4;
     G.camY=lerp(G.camY||Hz(cz)+2.4,Hz(cz)+2.3+p.alt*1.2+p.mh*0.35,Math.min(1,dt*4));
     camera.position.set(G.camX*0.75+rnd(-sh,sh),G.camY+rnd(-sh,sh),cz);camera.lookAt(G.camX*0.85,Hz(pz-8)+0.5+p.alt*0.8,pz-8);}
 }
@@ -1394,14 +1412,36 @@ function syncWorld(dt){
 const MENU_L=1;hemi.layers.enable(MENU_L);sun.layers.enable(MENU_L);
 const blobShadow=new THREE.Mesh(new THREE.CircleGeometry(0.55,24),new THREE.MeshBasicMaterial({map:canvasTex(64,64,(x,w,h)=>{const g=x.createRadialGradient(32,32,2,32,32,32);g.addColorStop(0,'rgba(30,50,90,0.45)');g.addColorStop(1,'rgba(30,50,90,0)');x.fillStyle=g;x.fillRect(0,0,64,64);}),transparent:true,depthWrite:false}));
 blobShadow.rotation.x=-Math.PI/2;blobShadow.scale.set(1.25,0.8,1);blobShadow.layers.set(MENU_L);scene.add(blobShadow);
+// снаряжение, воткнутое в снег рядом с героем в меню
+const menuGear={};
+function getMenuGear(k){if(menuGear[k])return menuGear[k];const g=new THREE.Group();
+  if(k==='bear'){for(const s of[-1,1]){const w=new THREE.Group(),ski=buildSki();ski.rotation.x=-Math.PI/2;w.add(ski);w.position.set(s*0.075,0.52,0);w.rotation.z=-s*0.07;g.add(w);}
+    for(const s of[-1,1]){const pl=buildPole();sizePole(pl,1.12);pl.position.set(s*0.2,-0.04,0.08);pl.rotation.z=-s*0.16;pl.rotation.x=0.08;g.add(pl);}}
+  else{const w=new THREE.Group(),b=buildBoard();b.rotation.set(0,-Math.PI/2,Math.PI/2);w.add(b);w.position.y=0.44;w.rotation.z=0.13;g.add(w);}
+  const mound=new THREE.Mesh(sharedGeo.sph,new THREE.MeshStandardMaterial({color:0xf4f8ff,roughness:0.9}));mound.scale.set(0.2,0.045,0.15);g.add(mound);
+  g.traverse(o=>{o.layers.set(MENU_L);if(o.isMesh)o.castShadow=true;});g.visible=false;scene.add(g);return menuGear[k]=g;}
+// камера меню: герой целиком, ногами на снегу чуть выше панели
+const _mv=new THREE.Vector3();let menuFit={feet:0,top:0,n:0};
+function menuCamera(hm,px,gy,pz){
+  if(menuFit.n--<=0){menuFit.n=20;const sh=document.querySelector('#menu .sheet'),lg=document.querySelector('#menu .logo2');
+    const r=sh&&sh.getBoundingClientRect(),l=lg&&lg.getBoundingClientRect();if(r&&r.height>0){menuFit.feet=r.top-12;menuFit.top=l&&l.height>0?l.bottom+14:H*0.15;}}
+  const feet=menuFit.feet||H*0.62,top=menuFit.top||H*0.15;
+  const ht=hm.kind==='owl'?1.55:1.75; // высота героя с запасом над головой
+  const want=Math.max(110,Math.min((feet-top)*0.74,H*0.42));
+  const d=clamp(ht*H/(want*2*Math.tan(camera.fov*Math.PI/360)),2.6,9);
+  if(camera.view&&camera.view.enabled)camera.clearViewOffset();
+  camera.position.set(px-0.25,gy+ht*0.5+d*0.22,pz-d);camera.lookAt(px-0.25,gy+ht*0.5,pz);camera.updateMatrixWorld(true);
+  _mv.set(px,gy,pz).project(camera);const sy=(1-_mv.y)/2*H;camera.setViewOffset(W,H,0,-(feet-sy),W,H);
+}
 let menuBgOK=false;{const im=new Image();im.onload=()=>{menuBgOK=true;document.getElementById('menubg').style.backgroundImage="url('ui/menu_bg.jpg')";};im.src='ui/menu_bg.jpg';}
 function render(dt){
   syncWorld(dt);
   const menuBg=G.mode==='menu'&&menuBgOK;document.getElementById('menubg').classList.toggle('on',menuBg);
   if(menuBg){const hm=HEROMODELS[hero];hm.root.traverse(o=>o.layers.enable(MENU_L));if(hm.poles)hm.poles.forEach(q=>q.g.traverse(o=>o.layers.enable(MENU_L)));
-    blobShadow.visible=true;blobShadow.position.set(hm.root.position.x,hm.root.position.y+0.02,hm.root.position.z);
+    blobShadow.visible=hm.root.visible;blobShadow.position.set(hm.root.position.x,hm.root.position.y+0.02,hm.root.position.z);
+    for(const k of['bear','owl']){const mg=getMenuGear(k);mg.visible=k===hero&&hm.glb;mg.position.set(hm.root.position.x-0.8,hm.root.position.y,hm.root.position.z+0.25);mg.rotation.y=k==='bear'?0.25:-0.2;}
     const bg=scene.background;scene.background=null;camera.layers.set(MENU_L);renderer.render(scene,camera);camera.layers.set(0);scene.background=bg;}
-  else{blobShadow.visible=false;renderer.render(scene,camera);}
+  else{blobShadow.visible=false;for(const k in menuGear)menuGear[k].visible=false;renderer.render(scene,camera);}
   hx.setTransform(1,0,0,1,0,0);hx.clearRect(0,0,hud.width,hud.height);hx.setTransform(DPR,0,0,DPR,0,0);
   if(G.mode==='menu')return;
   hx.textAlign='center';hx.textBaseline='middle';
