@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 // Telegram держит старую копию игры: сверяем версию с сервером и при расхождении перезагружаемся (один раз)
-(function(){var VER='2026-11-16f',h=location.hash;
+(function(){var VER='2026-11-17a',h=location.hash;
   fetch('version.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();
     if(!v||v===VER)return;var k='bsova_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
     location.replace(location.pathname+'?v='+encodeURIComponent(v)+h);}).catch(function(){});})();
@@ -459,7 +459,7 @@ function sizePole(g,L){const u=g.userData;u.shaft.scale.y=L;u.shaft.position.y=L
 // ================= ГЕРОИ ИЗ TRIPO (GLB) =================
 const gltfLoader=new GLTFLoader();
 const _qa=new THREE.Quaternion(),_qb=new THREE.Quaternion(),_qr=new THREE.Quaternion(),_eu=new THREE.Euler(),_va=new THREE.Vector3();
-const POSE_BONES=['Hips','Spine','Spine1','Spine2','Neck','Head','LeftArm','RightArm','LeftForeArm','RightForeArm','LeftUpLeg','RightUpLeg','LeftLeg','RightLeg','LeftFoot','RightFoot'];
+const POSE_BONES=['Hips','Spine','Spine1','Spine2','Neck','Head','LeftShoulder','RightShoulder','LeftArm','RightArm','LeftForeArm','RightForeArm','LeftUpLeg','RightUpLeg','LeftLeg','RightLeg','LeftFoot','RightFoot'];
 function makeGlbHero(kind,gltf){
   const root=new THREE.Group(),pivot=new THREE.Group(),holder=new THREE.Group();root.add(pivot);pivot.add(holder);
   const model=gltf.scene;holder.add(model);const SC=kind==='bear'?1.3:1.32;holder.scale.setScalar(SC);
@@ -501,11 +501,13 @@ function danceGlb(h,id,t){
   else if(id==='floss'){ // прямые руки качаются в стороны, корпус — навстречу
     const a=Math.sin(t*7),b=Math.cos(t*7);
     R('Spine',0,0,-0.22*a);R('Hips',0,0,0.18*a);R('Head',0,0.2*a,0);
-    R('LeftArm',0.55*b,0,-0.45+0.75*a);R('RightArm',-0.55*b,0,0.45+0.75*a);
+    R('LeftShoulder',0,0,0.06*(1-a));R('RightShoulder',0,0,-0.06*(1+a));
+    R('LeftArm',0.75*b,0,-0.6+1.05*a);R('RightArm',-0.75*b,0,0.6+1.05*a);
     h._bounce=Math.abs(Math.sin(t*7))*0.03;}
   else if(id==='hop'){ // прыжки «звёздочкой»
-    const k=Math.abs(Math.sin(t*4.2));
-    R('LeftArm',0,0,-0.3-2.3*k);R('RightArm',0,0,0.3+2.3*k);R('Head',-0.15*k,0,0);
+    const k=(1-Math.cos(t*8.4))*0.5; // мягкий отрыв и приземление без рывка в нижней точке
+    R('LeftShoulder',0,0,0.25*k);R('RightShoulder',0,0,-0.25*k);
+    R('LeftArm',0,0,-0.2-1.85*k);R('RightArm',0,0,0.2+1.85*k);R('Head',-0.15*k,0,0);
     R('LeftUpLeg',-0.2*(1-k),0,0.3*k);R('RightUpLeg',-0.2*(1-k),0,-0.3*k);R('LeftLeg',0.4*(1-k),0,0);R('RightLeg',0.4*(1-k),0,0);
     h._bounce=0.22*k;}
   else if(id==='dab'){ // каждые 1,6 с — дэб, между ними пружинит и хлопает
