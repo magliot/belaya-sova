@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 // Telegram держит старую копию игры: сверяем версию с сервером и при расхождении перезагружаемся (один раз)
-(function(){var VER='2026-11-16d',h=location.hash;
+(function(){var VER='2026-11-16e',h=location.hash;
   fetch('version.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();
     if(!v||v===VER)return;var k='bsova_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
     location.replace(location.pathname+'?v='+encodeURIComponent(v)+h);}).catch(function(){});})();
@@ -1074,7 +1074,8 @@ const pickCol=()=>chairCols[Math.floor(Math.random()*6)];
 function addSkier(y,x,vy,extra){const o=Object.assign({type:'npc',x,bx:x,y,vy,ph:Math.random()*6,amp:rnd(15,40),colHex:pickCol(),vi:Math.floor(Math.random()*7),passed:false},extra||{});addObj(o);return o;}
 // люди на склоне: объезжают препятствия и друг друга, заезжают на трамплины и бугры (прыгают)
 function npcAI(o,dt){
-  if(!o.lead){let push=0;
+  if(o.rival){}// соперник рулит сам (rivalSteer)
+  else if(!o.lead){let push=0;
     for(const q of G.objs){if(q===o||q.dead)continue;const dy=q.y-o.y;if(dy<-12||dy>170)continue;const k=1-Math.max(0,dy)/170;let qx=q.x,rad=0;
       switch(q.type){
         case 'tree':rad=(q.r||8)*(q.s||1)+14;break;
@@ -1238,11 +1239,32 @@ function chalTick(){const c=G.chal;
 function chalReset(){if(G.chal&&G.chal.d.k==='clean'&&!G.chal.done)G.chal.cleanY=G.y;}
 // соперник едет рядом весь заезд: темп «дышит» (иногда он пригибается), почти как у тебя с зажатым пальцем.
 // Притормозил, упал, отпустил палец — он уходит вперёд; держишь разгон — обгоняешь. Далеко отстал/убежал — подтягивается (не пропадает)
-function rivalTick(){const R=G.rival;
-  if(!R||!R.o.m||R.o.dead){if(G.y/20<4)return;const o=addSkier(G.y+(R?-200:70),clamp(G.p.x+(Math.random()<.5?-75:75),60,340),G.base,{rival:true,amp:28,w:0.9,vi:2});
+// «профи»-руль соперника: проходит каждые ворота по центру, заранее объезжает камни/людей/ёлки/сетки, иногда заезжает на трамплин
+const RIV_AVOID={rock:o=>o.r+20,tree:o=>(o.r||8)*(o.s||1)+20,snowman:o=>o.r+22,cannon:o=>o.r+22,cat:o=>o.w/2+28,mogul:()=>22,aid:()=>22,npc:o=>o.sit||o.stand?34:30,dog:()=>24};
+function rivalSteer(R,dt){const o=R.o;
+  const look=G.objs.filter(q=>q!==o&&!q.dead&&q.m&&q.y>o.y+8&&q.y<o.y+420).sort((a,b)=>a.y-b.y);
+  const g=look.find(q=>q.type==='gate');let tx=g?g.x:(R.tx??o.x);
+  // упреждение: если ворота близко, а следующие уже видны — смещаемся к линии между ними (как гонщик)
+  if(g){const g2=look.find(q=>q.type==='gate'&&q!==g);const near=clamp((g.y-o.y)/260,0,1);if(g2&&near<0.35)tx=lerp(g.x,g2.x,0.25*(0.35-near)/0.35);}
+  if(!g){const rp=look.find(q=>q.type==='ramp'&&q.y<o.y+300);if(rp&&(R.rampPick??(R.rampPick=Math.random()<0.6)))tx=rp.x;else{R.rampPick=null;tx=lerp(tx,200,dt*0.3);}}
+  for(let pass=0;pass<2;pass++)for(const q of look){if(q.y>o.y+260)break;
+    if(q.type==='fence'){if(tx>q.x1-22&&tx<q.x2+22)tx=q.x1>40?q.x1-30:q.x2+30;continue;}
+    const f=RIV_AVOID[q.type];if(!f||q.rival)continue;const rad=f(q);if(Math.abs(q.x-tx)<rad){let s=tx>=q.x?1:-1;if(q.x+s*rad<35||q.x+s*rad>365)s=-s;tx=q.x+s*rad;}}
+  // ворота важнее: объезд не должен вывести за флаги ближайших ворот
+  if(g&&g.y-o.y<200)tx=clamp(tx,g.x-g.gap/2+14,g.x+g.gap/2-14);
+  R.tx=tx=clamp(tx,35,365);
+  // если объехать уже не успевает — перепрыгивает (с грэбом)
+  if(!(o.air>0))for(const q of look){if(q.y>o.y+70)break;const f=RIV_AVOID[q.type];const hitF=q.type==='fence'?(o.x>q.x1-10&&o.x<q.x2+10):f&&!q.rival&&Math.abs(q.x-o.x)<f(q)-8;
+    if(hitF){o.air=1;o.airT=0;o.airMax=0.75;o.launchH=0;o.jumpH=0.85;R.forceTrick=5;break;}}
+  const want=clamp((tx-o.bx)*7,-480,480);o.vx=lerp(o.vx||0,want,Math.min(1,dt*9));o.bx=clamp(o.bx+o.vx*dt,30,370);}
+function rivalTick(dt){const R=G.rival;
+  if(!R||!R.o.m||R.o.dead){if(G.y/20<4)return;const o=addSkier(G.y+(R?-200:70),clamp(G.p.x+(Math.random()<.5?-75:75),60,340),G.base,{rival:true,amp:0,w:0.9,vi:2});
     G.rival={o,ph:Math.random()*6,lead:o.y>G.y?1:-1,ovT:0};return;}
+  rivalSteer(R,dt);
   const o=R.o,gap=(o.y-G.y)/20;let pace=1.17+0.1*Math.sin(G.t/7+R.ph)+0.04*Math.sin(G.t*0.9+R.ph*2);
-  if(gap>70)pace=0.98;else if(gap<-70)pace=1.4;o.vy=G.base*pace;
+  if(gap>70)pace=0.92;else if(gap<-70)pace=1.4;o.vy=G.base*pace;
+  // дальше ~95 м вперёд трасса ещё не построена — там он не видит ворот, поэтому дальше не уезжает
+  if(gap>95)o.y=G.y+95*20;
   // обгон в ту или другую сторону (с защитой от «пинг-понга»)
   const lead=gap>3?1:gap<-3?-1:R.lead;
   if(lead!==R.lead&&G.t>R.ovT){R.ovT=G.t+4;const nm=rivalKind()==='owl'?'Сову':'Мишаню';
@@ -1270,13 +1292,13 @@ function rivalSay(kind){const R=G.rival,rk=rivalKind();const L=RIVAL_SAY[kind][r
 function rivalSync(){const rk=rivalKind(),rm=HEROMODELS[rk];const R=G.rival;
   if(!R||!R.o.m||R.o.dead||!rm.glb||G.mode==='menu'){if(R&&R.o.m)R.o.m.visible=true;return;}
   const o=R.o;o.m.visible=false;const z=Z(o.y);
-  // своё подпрыгивание с трюком раз в 3–6 с (+ прыжки с трамплинов из npcAI)
-  if(!(o.air>0)&&G.t>(R.hopT||G.t+0.01)){o.air=1;o.airT=0;o.airMax=rnd(0.85,1.15);o.launchH=0;o.jumpH=0.9;}
-  if(R.hopT==null||(!(o.air>0)&&G.t>R.hopT))R.hopT=G.t+rnd(3,6);
-  if(o.air>0&&!R.inAir){R.inAir=true;R.trick=[0,1,2,3,5,6][Math.floor(Math.random()*6)];}if(!(o.air>0))R.inAir=false;
+  // трюки — на трамплинах (npcAI) и изредка эффектный прыжок на ровном (раз в 20–35 с, когда впереди чисто)
+  if(R.hopT==null)R.hopT=G.t+rnd(20,35);
+  if(!(o.air>0)&&G.t>R.hopT&&!(R.tx!=null&&Math.abs(R.tx-o.x)>25)){R.hopT=G.t+rnd(20,35);o.air=1;o.airT=0;o.airMax=rnd(0.9,1.1);o.launchH=0;o.jumpH=0.9;}
+  if(o.air>0&&!R.inAir){R.inAir=true;R.trick=R.forceTrick??[0,1,2,3,5,6][Math.floor(Math.random()*6)];R.forceTrick=null;}if(!(o.air>0))R.inAir=false;
   const k=o.air>0?clamp(o.airT/o.airMax,0,1):0;
   const y=Hz(z)+mogAt(o.x,o.y)+(o.air>0?(o.launchH||0)*(1-k)+Math.sin(Math.PI*k)*(o.jumpH||0.8):(o.rampH||0));
-  const w=o.w||1.3,vx=Math.cos(G.t*w+o.ph)*o.amp*w,ang=clamp(Math.atan2(vx,Math.max(40,o.vy))*1.6,-1,1);
+  R.ang=lerp(R.ang||0,clamp((o.vx||0)/340,-1,1),0.15);const ang=R.ang;
   rm.root.visible=true;rm.root.position.set(X(o.x),y,z);rm.root.scale.setScalar(1);rm.root.rotation.set(0,-ang*0.45,-ang*0.32);
   const tr=o.air>0?TRICKS[R.trick||0].f(k):[0,0,0];rm.pivot.rotation.set(tr[0],tr[1],tr[2]);const cy=0.6;pivC.set(0,cy,0).applyEuler(rm.pivot.rotation);rm.pivot.position.set(-pivC.x,cy-pivC.y,-pivC.z);
   rm.slopeTilt=(G.tilt||0)*0.55;R.fp=R.fp||{air:0,ang:0,fall:0,trick:0,tuck:0.3,airT:0,airMax:1};R.fp.air=o.air>0?1:0;R.fp.ang=ang;poseGlb(rm,R.fp,'play',G.t);
@@ -1307,7 +1329,7 @@ function update(dt){
   G.prevY=G.y;G.y+=G.speed*dt;
   if(snNow!==G.stage){if(G.stage>=0){banner('Этап '+(snNow+1)+': '+stNow.name,stNow.sub);SFX.chime();voice('stage');}G.stage=snNow;if(snNow+1>save.meet.bestStage){save.meet.bestStage=snNow+1;persist();}}
   const Zn=ZONES[zi];
-  rivalTick();chaseTick(dt);if(G.mode!=='play')return;chalTick();
+  rivalTick(dt);chaseTick(dt);if(G.mode!=='play')return;chalTick();
   if(zi===4){G.fw=(G.fw||0)-dt;if(G.fw<0){G.fw=rnd(0.5,1.2);const fx=rnd(-14,14),fz=Z(G.y)-rnd(35,55),fy=Hz(fz)+rnd(14,22);const col=['#ff4d6d','#ffd60a','#4cc9f0','#80ffdb','#ff9f1c'][Math.floor(Math.random()*5)];
     for(let i=0;i<28;i++){const a=Math.random()*6.283,b=Math.random()*3.14;const v=rnd(4,7);emit(fx,fy,fz,Math.cos(a)*Math.sin(b)*v,Math.cos(b)*v+4,Math.sin(a)*Math.sin(b)*v,rnd(0.8,1.3),0.12,col);}if(Math.random()<0.6)noise(0.4,0.12,'lowpass',500,120,0.7,0.1);}}
   G.wind=Zn.blizz?Math.sin(G.t*0.55)*75+Math.sin(G.t*1.7)*25:0;
