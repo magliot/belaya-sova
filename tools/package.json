@@ -1,0 +1,15 @@
+{
+  "name": "belaya-sova-tools",
+  "private": true,
+  "type": "module",
+  "description": "Инструменты подготовки ассетов: сжатие и обрезка GLB из Tripo, упаковка в JS, локальный сервер",
+  "scripts": {
+    "serve": "node serve.cjs ../docs 8766"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
+    "meshoptimizer": "^0.22.0"
+  }
+}
