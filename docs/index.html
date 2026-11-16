@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 // Telegram держит старую копию игры: сверяем версию с сервером и при расхождении перезагружаемся (один раз)
-(function(){var VER='2026-11-16c',h=location.hash;
+(function(){var VER='2026-11-16d',h=location.hash;
   fetch('version.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();
     if(!v||v===VER)return;var k='bsova_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
     location.replace(location.pathname+'?v='+encodeURIComponent(v)+h);}).catch(function(){});})();
@@ -1195,11 +1195,11 @@ let menuYaw=0,menuVel=0,menuDrag=null;
  mn.addEventListener('pointermove',e=>{if(!menuDrag)return;const d=(e.clientX-menuDrag.x)*0.012;menuYaw+=d;menuVel=d;menuDrag.x=e.clientX;});
  const up=()=>{menuDrag=null;};mn.addEventListener('pointerup',up);mn.addEventListener('pointercancel',up);}
 let drag=null;const keys={};
-// палец: влево-вправо — руль; вверх — пригнуться и разогнаться, вниз — тормоз; в прыжке быстрый свайп — трюк (направление = трюк), тап — случайный трюк
+// палец: влево-вправо — руль; держишь палец — пригнулся и разгоняешься, потянул вниз — тормоз, отпустил — едешь медленнее; в прыжке быстрый свайп — трюк (направление = трюк), тап — случайный трюк
 cv.addEventListener('pointerdown',e=>{e.preventDefault();initAudio();if(!G||G.mode!=='play')return;const now=performance.now();
-  drag={sx:e.clientX,sy:e.clientY,spx:G.tx,rx:e.clientX,ry:e.clientY,rt:now,t0:now,air:G.p.air>0,swiped:false};try{cv.setPointerCapture(e.pointerId);}catch(_){}});
+  drag={sx:e.clientX,sy:e.clientY,spx:G.tx,rx:e.clientX,ry:e.clientY,rt:now,t0:now,air:G.p.air>0,swiped:false};G.tuckIn=1;try{cv.setPointerCapture(e.pointerId);}catch(_){}});
 cv.addEventListener('pointermove',e=>{if(!drag||!G)return;G.tx=clamp(drag.spx+(e.clientX-drag.sx)/S*1.35*sensK(),22,378);
-  const dyp=e.clientY-drag.sy;G.tuckIn=Math.abs(dyp)<14?0:clamp(-(dyp-Math.sign(dyp)*14)/55,-1,1);
+  const dyp=e.clientY-drag.sy;G.tuckIn=dyp>35?-1:1;
   if(G.mode==='play'&&G.p.air>0&&G.p.trick<=0){const now=performance.now();if(now-drag.rt>260){drag.rx=e.clientX;drag.ry=e.clientY;drag.rt=now;}
     const mx=e.clientX-drag.rx,my=e.clientY-drag.ry,md=Math.hypot(mx,my);
     const pick=big=>Math.abs(my)>Math.abs(mx)?(my<0?(big?7:1):(big?2:5)):(mx<0?(big?4:3):(big?6:0));
@@ -1236,16 +1236,22 @@ function chalTick(){const c=G.chal;
   if(!G.chal&&G.stage>=0){newChallenge(G.stage);const ch=G.chal;setTimeout(()=>{if(G&&G.chal===ch&&G.mode==='play')banner('ИСПЫТАНИЕ ЭТАПА',ch.d.t(ch.need),'gold');},G.stage?2700:3200);}
   const k=G.chal;if(k&&!k.done&&chalProgress()>=k.need){k.done=true;const pts=(300+100*Math.min(7,G.stage))*mult();G.bonus+=pts;banner('ИСПЫТАНИЕ ВЫПОЛНЕНО!','+'+pts,'gold');SFX.feather();vibe([30,30,30]);}}
 function chalReset(){if(G.chal&&G.chal.d.k==='clean'&&!G.chal.done)G.chal.cleanY=G.y;}
-// соперник: едет чуть быстрее обычной скорости — без разгона не обгонишь
-function rivalTick(){const d=G.y/20,R=G.rival;
-  if(!R){if(!G.chase&&d>=(G.nextRivalD??260)){const o=addSkier(G.y+150,clamp(G.p.x+(Math.random()<.5?-80:80),60,340),G.base*1.05,{rival:true,amp:28,w:0.9,vi:2});
-      G.rival={o,endY:G.y+7000};G.nextRivalD=d+rnd(800,1200);const nm=rivalKind()==='owl'?'СОВА':'МИШАНЯ';banner(nm+' ВЫЗЫВАЕТ НА ГОНКУ!','обгони за 350 м · палец вверх — разгон','gold');}return;}
-  const o=R.o;if(o.m&&!o.dead)o.vy=G.base*1.05;
-  if(G.y>=R.endY){const win=!o.m||o.dead||o.y<G.y;rivalSay(win?'lose':'win');G.rival=null;o.rival=false;
-    if(win){const pts=400*mult();G.bonus+=pts;banner('ТЫ ОБОГНАЛ!','+'+pts,'gold');SFX.feather();}else banner((rivalKind()==='owl'?'Сова':'Мишаня')+' быстрее','пригнись — палец вверх — и разгонись','warn');}}
+// соперник едет рядом весь заезд: темп «дышит» (иногда он пригибается), почти как у тебя с зажатым пальцем.
+// Притормозил, упал, отпустил палец — он уходит вперёд; держишь разгон — обгоняешь. Далеко отстал/убежал — подтягивается (не пропадает)
+function rivalTick(){const R=G.rival;
+  if(!R||!R.o.m||R.o.dead){if(G.y/20<4)return;const o=addSkier(G.y+(R?-200:70),clamp(G.p.x+(Math.random()<.5?-75:75),60,340),G.base,{rival:true,amp:28,w:0.9,vi:2});
+    G.rival={o,ph:Math.random()*6,lead:o.y>G.y?1:-1,ovT:0};return;}
+  const o=R.o,gap=(o.y-G.y)/20;let pace=1.17+0.1*Math.sin(G.t/7+R.ph)+0.04*Math.sin(G.t*0.9+R.ph*2);
+  if(gap>70)pace=0.98;else if(gap<-70)pace=1.4;o.vy=G.base*pace;
+  // обгон в ту или другую сторону (с защитой от «пинг-понга»)
+  const lead=gap>3?1:gap<-3?-1:R.lead;
+  if(lead!==R.lead&&G.t>R.ovT){R.ovT=G.t+4;const nm=rivalKind()==='owl'?'Сову':'Мишаню';
+    if(lead<0){const pts=150*mult();G.bonus+=pts;addText(G.p.x,G.y,'Обогнал '+nm+'! +'+pts,'#1f8a4c',17);SFX.trickDone();rivalSay('behind');R.sayT=G.t+rnd(4,7);}
+    else{addText(G.p.x,G.y,(rivalKind()==='owl'?'Сова обогнала!':'Мишаня обогнал!'),'#c0392b',16);rivalSay('ahead');R.sayT=G.t+rnd(4,7);}}
+  R.lead=lead;}
 // лавина: догоняет сзади; тормозишь или падаешь — накроет
 function chaseTick(dt){const d=G.y/20;let C=G.chase;
-  if(!C){if(!G.rival&&d>=(G.nextChaseD??900)){G.chase=C={y:G.y-560,t:20,k:0};G.nextChaseD=d+rnd(1300,1900);banner('⚠ ЛАВИНА!','не сбавляй — пригнись и гони!','warn');SFX.warn();}else return;}
+  if(!C){if(d>=(G.nextChaseD??900)){G.chase=C={y:G.y-560,t:20,k:0};G.nextChaseD=d+rnd(1300,1900);banner('⚠ ЛАВИНА!','не сбавляй — пригнись и гони!','warn');SFX.warn();}else return;}
   C.t-=dt;C.y+=G.base*1.1*dt;const gap=G.y-C.y;const k=clamp(1-gap/560,0,1);C.k=k;rumble(0.05+0.3*k*k);G.shake=Math.max(G.shake||0,k*k*0.12);
   if(k>0.3)for(let i=0;i<2;i++)emit(X(G.p.x)+rnd(-7,7),Hz(Z(G.y))+rnd(0,1.2),Z(G.y)+rnd(3,6),rnd(-1,1),rnd(1,3),rnd(-1.5,0),0.8,rnd(0.08,0.18),'#ffffff');
   if(gap<15&&!(G.p.fall>0)){hit('avalanche',null);if(G.mode==='play')C.y=G.y-420;}
@@ -1295,9 +1301,9 @@ function update(dt){
   {const kb=(keys.w||keys.ArrowUp?1:0)-(keys.s||keys.ArrowDown?1:0);const want=kb?kb:drag?(G.tuckIn||0):-0.3;const cur=p.tuck||0;
     p.tuck=p.air>0?cur:lerp(cur,want,Math.min(1,dt*(want>cur?1.6:3.5)));}
   if(drag&&drag.pend&&performance.now()-drag.pend.t>150){const i=drag.pend.idx;drag.pend=null;if(p.air>0){drag.swiped=true;tryTrick(i);}}
-  const tk=p.tuck||0,tuckK=tk>=0?1+0.32*tk:1+0.35*tk;G.base=base;
+  const tk=p.tuck||0,tuckK=tk>=0?1+0.25*tk:1+0.4*tk;G.base=base;
   G.speed=base*tuckK*(p.boost>0?1.4:1)*(p.slow>0?0.62:1)*(p.fall>0?fallSpeedK(p):1);
-  if(tk>0.05&&!(p.fall>0)){G.tuckAcc=(G.tuckAcc||0)+tk*G.speed*dt/20*0.6;if(G.tuckAcc>=1){const n=Math.floor(G.tuckAcc);G.tuckAcc-=n;G.bonus+=n;}}
+  if(tk>0.05&&!(p.fall>0)){G.tuckAcc=(G.tuckAcc||0)+tk*G.speed*dt/20*0.3;if(G.tuckAcc>=1){const n=Math.floor(G.tuckAcc);G.tuckAcc-=n;G.bonus+=n;}}
   G.prevY=G.y;G.y+=G.speed*dt;
   if(snNow!==G.stage){if(G.stage>=0){banner('Этап '+(snNow+1)+': '+stNow.name,stNow.sub);SFX.chime();voice('stage');}G.stage=snNow;if(snNow+1>save.meet.bestStage){save.meet.bestStage=snNow+1;persist();}}
   const Zn=ZONES[zi];
@@ -1376,6 +1382,7 @@ function update(dt){
           else{const k=1-dd/(o.r+9);p.rampH=Math.max(p.rampH,0.32*Math.sin(Math.PI/2*Math.min(1,k*1.6)));if(!o.hitOnce){o.hitOnce=true;p.slow=Math.max(p.slow,0.25);emit(X(p.x),Hz(Z(py))+0.1,Z(py),0,1.5,0,0.4,0.06,'#ffffff');}}
         }break;
       case 'npc':
+        if(o.rival)break; // соперник проезжает рядом, не сбивает и в обгоны «вежливо/близко» не считается
         if(p.air<=0&&dd<(o.kid?14:19)){hit(o.sit?'sit':o.kid||o.instr?'kids':'npc',o);break;}
         if(!o.passed&&py>o.y){o.passed=true;
           // группа (инструктор + дети в колонне, урок) оценивается один раз; предупреждения не чаще раза в 2.5 с
@@ -1424,7 +1431,7 @@ function update(dt){
 function animObjs(dt){
   const top=G.y-260;
   for(const o of G.objs){
-    if(o.dead||o.y<top){release(o);continue;}
+    if(o.dead||(o.y<top&&!o.rival)){release(o);continue;}
     const m=o.m;if(!m)continue;
     const oz=Z(o.y),og=Hz(oz)+mogAt(o.x,o.y);
     if(o.type==='npc'||o.type==='cat'||o.type==='coin'||o.type==='feather'||o.type==='dog'||o.type==='ball'){m.position.x=X(o.x);m.position.z=oz;m.position.y=og+(o.type==='ball'?o.h:o.type==='npc'?npcLift(o):0);}
@@ -1600,8 +1607,7 @@ function drawHUD(){
     pill(10,top+104,w,22);hx.fillStyle=c.done?'#1f8a4c':'#7a4a10';hx.save();hx.beginPath();hx.rect(10,top+104,w-8,22);hx.clip();hx.fillText(t,20,top+109);hx.restore();}}
   // соперник: метка над ним и отрыв
   {const R=G.rival;const nm=rivalKind()==='owl'?'СОВА':'МИШАНЯ';let tagX=null,tagY=null;
-    if(R&&R.o.m&&!R.o.dead){const o=R.o;const ps=R.pos;if(ps)v3.set(ps.x,ps.y+1.95,ps.z);else v3.set(X(o.x),Hz(Z(o.y))+2.3,Z(o.y));v3.project(camera);if(v3.z<1){const sx=(v3.x+1)/2*W,sy=(1-v3.y)/2*H;if(sy<H-40){tagX=sx;tagY=sy;hx.textAlign='center';hx.font='900 12px Rubik,system-ui,sans-serif';
-      const tw=hx.measureText(nm).width+14;hrr(sx-tw/2,sy-9,tw,18,9);hx.fillStyle='rgba(216,56,31,0.92)';hx.fill();hx.fillStyle='#fff';hx.fillText(nm,sx,sy-5);}}}
+    if(R&&R.o.m&&!R.o.dead){const o=R.o;const ps=R.pos;if(ps)v3.set(ps.x,ps.y+1.95,ps.z);else v3.set(X(o.x),Hz(Z(o.y))+2.3,Z(o.y));v3.project(camera);if(v3.z<1){const sx=(v3.x+1)/2*W,sy=(1-v3.y)/2*H;if(sy<H-40){tagX=sx;tagY=sy+8;}}}
     // облачко с криком: над соперником, а если он позади (не виден) — внизу экрана
     const S=G.rSay;if(S&&G.t<S.until){let bx=tagX,by=tagY!=null?tagY-14:null;if(bx==null&&S.pos&&!R){v3.copy(S.pos);v3.y+=1.95;v3.project(camera);if(v3.z<1){const sy=(1-v3.y)/2*H;if(sy<H-40){bx=(v3.x+1)/2*W;by=sy-14;}}}
       const t=(bx==null?nm.charAt(0)+nm.slice(1).toLowerCase()+': ':'')+S.txt;hx.font='800 14px Rubik,system-ui,sans-serif';hx.textAlign='center';const tw=hx.measureText(t).width+22;
@@ -1610,8 +1616,9 @@ function drawHUD(){
       hx.beginPath();hx.moveTo(bx-6,by-3);hx.lineTo(bx+6,by-3);hx.lineTo(bx,by+5);hx.closePath();hx.fillStyle='#d8381f';hx.fill();
       hx.fillStyle='#0f2c52';hx.fillText(t,bx,by-24);hx.globalAlpha=1;}}
   {const R=G.rival;
-    if(R){const o=R.o,gap=Math.round(((o.m&&!o.dead)?G.y-o.y:300)/20),left=Math.max(0,Math.round((R.endY-G.y)/20));const t=(gap>=0?'Ты впереди на '+gap+' м':'Соперник впереди на '+(-gap)+' м')+' · ещё '+left+' м';
-      hx.textAlign='center';hx.font='800 13px Rubik,system-ui,sans-serif';const tw=hx.measureText(t).width+24;hrr(W/2-tw/2,top+214,tw,24,12);hx.fillStyle=gap>=0?'rgba(31,138,76,0.9)':'rgba(216,56,31,0.9)';hx.fill();hx.fillStyle='#fff';hx.fillText(t,W/2,top+219);}}
+    // отрыв от соперника — маленькая плашка справа под спидометром
+    if(R&&R.o.m&&!R.o.dead){const gap=Math.round((G.y-R.o.y)/20);const ic=rivalKind()==='owl'?'🦉':'🐻';const t=gap>=0?'ты +'+gap+' м':ic+' +'+(-gap)+' м';
+      hx.textAlign='center';hx.font='800 13px Rubik,system-ui,sans-serif';hrr(W-108,top+120,98,24,12);hx.fillStyle=gap>=0?'rgba(31,138,76,0.92)':'rgba(216,56,31,0.92)';hx.fill();hx.fillStyle='#fff';hx.fillText(t,W-59,top+125);}}
   // лавина: белая стена снизу экрана и отрыв
   {const C=G.chase;if(C){const k=C.k||0;const gh=H*(0.08+0.32*k);const gr=hx.createLinearGradient(0,H-gh,0,H);gr.addColorStop(0,'rgba(255,255,255,0)');gr.addColorStop(1,`rgba(240,246,255,${0.55+0.4*k})`);hx.fillStyle=gr;hx.fillRect(0,H-gh,W,gh);
     // клубы снега с тенью — видно и на белом склоне
@@ -1633,7 +1640,7 @@ if(p.boost>0)icon('☕ какао',p.boost,'#c0392b');if(p.magnet>0)icon('🧲',
 function clearWorld(){dropMogPatches(true);if(G)for(const o of G.objs)release(o);for(let i=0;i<TRACKN;i++){tmpM.makeScale(0,0,0);trackMesh.setMatrixAt(i,tmpM);}trackMesh.instanceMatrix.needsUpdate=true;
   for(const t of forest){t.userData.z=-rnd(-15,170);t.userData.x=0;}lamps.forEach((l,i)=>l.userData.z=-Math.floor(i/2)*30-(l.userData.side>0?15:0));towers.forEach((t,i)=>t.userData.z=-i*35);}
 function startGame(){initAudio();music('run');hideToast();clearWorld();G=newGame('play');setTimeout(()=>voice('start',true),600);
-  if((save.meet.ctlHint||0)<4){save.meet.ctlHint=(save.meet.ctlHint||0)+1;persist();const g0=G;setTimeout(()=>{if(G===g0&&G.mode==='play')banner('Палец вверх — разгон, вниз — тормоз','в прыжке свайп — трюк: вверх, вниз, влево, вправо');},1500);}lastTrackZ=0;$('share').classList.add('hidden');if(save.helmets>0){save.helmets--;G.p.lives=1;persist();}G.letter=collState();G.letterAt=G.letter?letterDist(G.letter.w,G.letter.i):Infinity;for(const m of save.missions)m.got=false;
+  if((save.meet.ctlHint||0)<4){save.meet.ctlHint=(save.meet.ctlHint||0)+1;persist();const g0=G;setTimeout(()=>{if(G===g0&&G.mode==='play')banner('Держи палец — разгон, отпустил — медленнее','потяни вниз — тормоз · в прыжке свайп — трюк');},1500);}lastTrackZ=0;$('share').classList.add('hidden');if(save.helmets>0){save.helmets--;G.p.lives=1;persist();}G.letter=collState();G.letterAt=G.letter?letterDist(G.letter.w,G.letter.i):Infinity;for(const m of save.missions)m.got=false;
   $('topbtns').classList.remove('hidden');['menu','over','pause'].forEach(id=>$(id).classList.add('hidden'));}
 // ===== рейтинг (сервер Telegram Serverless: подпись игрока проверяет Telegram) =====
 // адрес сервера рекордов (Google Apps Script → «Веб-приложение», заканчивается на /exec)
