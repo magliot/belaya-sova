@@ -1,0 +1,42 @@
+name: Dance browser check
+on:
+  push:
+    branches: [main, codex/fix-hero-dances]
+    paths:
+      - docs/index.html
+      - docs/version.txt
+      - docs/models/mishka.js
+      - docs/models/sova.js
+      - tools/check-dances.cjs
+      - .github/workflows/dance-check.yml
+concurrency:
+  group: dance-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Prepare browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/dance-browser" --no-package-lock playwright
+          "$RUNNER_TEMP/dance-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Check dances at phone size
+        env:
+          DANCE_BROWSER_MODULE: ${{ runner.temp }}/dance-browser/node_modules/playwright
+        run: |
+          node tools/serve.cjs docs 8766 > "$RUNNER_TEMP/dance-server.log" 2>&1 &
+          for attempt in {1..30}; do curl -fsS http://127.0.0.1:8766/version.txt && break || sleep 1; done
+          node tools/check-dances.cjs
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: dance-phone-check
+          path: dance-checks
+          retention-days: 7
