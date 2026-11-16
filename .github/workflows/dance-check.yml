@@ -1,7 +1,14 @@
 name: Dance browser check
 on:
   push:
-    branches: [codex/fix-hero-dances]
+    branches: [main, codex/fix-hero-dances]
+    paths:
+      - docs/index.html
+      - docs/version.txt
+      - docs/models/mishka.js
+      - docs/models/sova.js
+      - tools/check-dances.cjs
+      - .github/workflows/dance-check.yml
 concurrency:
   group: dance-${{ github.ref }}
   cancel-in-progress: true
