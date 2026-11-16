@@ -34,10 +34,18 @@ fs.writeFileSync('docs/test.html',html);
     await page.evaluate(()=>__danceTest.prepare());
     const summary=[];
     for(const hero of ['bear','owl']) {
+      const idleBefore=await page.evaluate(h=>__danceTest.pose(h,null,0),hero);
       for(const [dance,t] of [[null,0],['sway',0],['floss',Math.PI/14],['floss',3*Math.PI/14],['hop',0],['hop',Math.PI/8.4],['dab',0],['champ',0]]){
         const result=await page.evaluate(([h,d,t])=>__danceTest.pose(h,d,t),[hero,dance,t]);
         assert(result.equipmentHidden,`${hero}: equipment visible in menu`);
         assert(Object.values(result.points).flat().every(Number.isFinite),`${hero}: invalid pose`);
+        if(dance==='hop'&&t>0){
+          for(const side of ['Left','Right'])assert(result.points[side+'Hand'][1]>result.points.Head[1]+0.025,`${hero}: ${side} hand stays below the raised pose`);
+        }
+        if(dance==='floss'){
+          const side=t<0.4?'Right':'Left';
+          assert(result.points[side+'Hand'][1]>result.points[side+'Arm'][1]+0.1,`${hero}: ${side} arm barely moves in floss`);
+        }
         summary.push({hero,dance,t,...result});
         await page.screenshot({path:path.join(out,`${hero}-${dance||'idle'}-${t.toFixed(3)}.png`)});
       }
@@ -48,6 +56,10 @@ fs.writeFileSync('docs/test.html',html);
       assert.equal(state.dance,'hop');assert.equal(state.hero,hero);
       const ended=await page.evaluate(()=>__danceTest.advance(8.1));
       assert.equal(ended.hasDance,false);assert.equal(ended.mode,'menu');
+      const idleAfter=await page.evaluate(h=>__danceTest.pose(h,null,0),hero);
+      for(const n of ['LeftHand','RightHand','LeftFoot','RightFoot']){
+        idleAfter.points[n].forEach((v,i)=>assert(Math.abs(v-idleBefore.points[n][i])<0.00001,`${hero}: ${n} did not return to idle`));
+      }
     }
     assert.deepEqual(errors,[],'JavaScript errors');
     fs.writeFileSync(path.join(out,'summary.json'),JSON.stringify({viewport:{width:375,height:812},errors,summary},null,2));
