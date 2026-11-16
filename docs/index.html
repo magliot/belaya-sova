@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 // Telegram держит старую копию игры: сверяем версию с сервером и при расхождении перезагружаемся (один раз)
-(function(){var VER='2026-11-16e',h=location.hash;
+(function(){var VER='2026-11-16f',h=location.hash;
   fetch('version.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();
     if(!v||v===VER)return;var k='bsova_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
     location.replace(location.pathname+'?v='+encodeURIComponent(v)+h);}).catch(function(){});})();
@@ -1243,20 +1243,22 @@ function chalReset(){if(G.chal&&G.chal.d.k==='clean'&&!G.chal.done)G.chal.cleanY
 const RIV_AVOID={rock:o=>o.r+20,tree:o=>(o.r||8)*(o.s||1)+20,snowman:o=>o.r+22,cannon:o=>o.r+22,cat:o=>o.w/2+28,mogul:()=>22,aid:()=>22,npc:o=>o.sit||o.stand?34:30,dog:()=>24};
 function rivalSteer(R,dt){const o=R.o;
   const look=G.objs.filter(q=>q!==o&&!q.dead&&q.m&&q.y>o.y+8&&q.y<o.y+420).sort((a,b)=>a.y-b.y);
-  const g=look.find(q=>q.type==='gate');let tx=g?g.x:(R.tx??o.x);
-  // упреждение: если ворота близко, а следующие уже видны — смещаемся к линии между ними (как гонщик)
-  if(g){const g2=look.find(q=>q.type==='gate'&&q!==g);const near=clamp((g.y-o.y)/260,0,1);if(g2&&near<0.35)tx=lerp(g.x,g2.x,0.25*(0.35-near)/0.35);}
+  const g=look.find(q=>q.type==='gate');let tx=g?g.x:(R.tx??o.x),ty=g?g.y:o.y+220;
+  // гоночная линия: в окне ворот (±30 от центра) берём точку, ближайшую к линии на следующие ворота — меньше лишних движений
+  if(g){const g2=look.find(q=>q.type==='gate'&&q!==g);const toward=g2?g2.x:o.bx;tx=clamp(lerp(o.bx,toward,0.5),g.x-30,g.x+30);}
   if(!g){const rp=look.find(q=>q.type==='ramp'&&q.y<o.y+300);if(rp&&(R.rampPick??(R.rampPick=Math.random()<0.6)))tx=rp.x;else{R.rampPick=null;tx=lerp(tx,200,dt*0.3);}}
   for(let pass=0;pass<2;pass++)for(const q of look){if(q.y>o.y+260)break;
     if(q.type==='fence'){if(tx>q.x1-22&&tx<q.x2+22)tx=q.x1>40?q.x1-30:q.x2+30;continue;}
-    const f=RIV_AVOID[q.type];if(!f||q.rival)continue;const rad=f(q);if(Math.abs(q.x-tx)<rad){let s=tx>=q.x?1:-1;if(q.x+s*rad<35||q.x+s*rad>365)s=-s;tx=q.x+s*rad;}}
+    const f=RIV_AVOID[q.type];if(!f||q.rival)continue;const rad=f(q);if(Math.abs(q.x-tx)<rad){let s=tx>=q.x?1:-1;if(q.x+s*rad<35||q.x+s*rad>365)s=-s;tx=q.x+s*rad;ty=Math.min(ty,q.y-10);}}
   // ворота важнее: объезд не должен вывести за флаги ближайших ворот
   if(g&&g.y-o.y<200)tx=clamp(tx,g.x-g.gap/2+14,g.x+g.gap/2-14);
   R.tx=tx=clamp(tx,35,365);
   // если объехать уже не успевает — перепрыгивает (с грэбом)
   if(!(o.air>0))for(const q of look){if(q.y>o.y+70)break;const f=RIV_AVOID[q.type];const hitF=q.type==='fence'?(o.x>q.x1-10&&o.x<q.x2+10):f&&!q.rival&&Math.abs(q.x-o.x)<f(q)-8;
     if(hitF){o.air=1;o.airT=0;o.airMax=0.75;o.launchH=0;o.jumpH=0.85;R.forceTrick=5;break;}}
-  const want=clamp((tx-o.bx)*7,-480,480);o.vx=lerp(o.vx||0,want,Math.min(1,dt*9));o.bx=clamp(o.bx+o.vx*dt,30,370);}
+  // плавная дуга: боковая скорость = «сколько сместиться» / «сколько времени до точки», с ограниченным ускорением (как закантовка)
+  const T=Math.max(0.3,(ty-o.y)/Math.max(80,o.vy)*0.8);const want=clamp((tx-o.bx)/T,-320,320);
+  const acc=620*dt;o.vx=(o.vx||0)+clamp(want-(o.vx||0),-acc,acc);o.bx=clamp(o.bx+o.vx*dt,30,370);}
 function rivalTick(dt){const R=G.rival;
   if(!R||!R.o.m||R.o.dead){if(G.y/20<4)return;const o=addSkier(G.y+(R?-200:70),clamp(G.p.x+(Math.random()<.5?-75:75),60,340),G.base,{rival:true,amp:0,w:0.9,vi:2});
     G.rival={o,ph:Math.random()*6,lead:o.y>G.y?1:-1,ovT:0};return;}
@@ -1299,7 +1301,9 @@ function rivalSync(){const rk=rivalKind(),rm=HEROMODELS[rk];const R=G.rival;
   const k=o.air>0?clamp(o.airT/o.airMax,0,1):0;
   const y=Hz(z)+mogAt(o.x,o.y)+(o.air>0?(o.launchH||0)*(1-k)+Math.sin(Math.PI*k)*(o.jumpH||0.8):(o.rampH||0));
   R.ang=lerp(R.ang||0,clamp((o.vx||0)/340,-1,1),0.15);const ang=R.ang;
-  rm.root.visible=true;rm.root.position.set(X(o.x),y,z);rm.root.scale.setScalar(1);rm.root.rotation.set(0,-ang*0.45,-ang*0.32);
+  rm.root.visible=true;rm.root.position.set(X(o.x),y,z);
+  // поправка на перспективу: впереди он дальше от камеры и кажется меньше — слегка увеличиваем (до +35%), чтобы на глаз был одного роста с игроком
+  {const hp=HEROMODELS[hero].root.position;const dp=camera.position.distanceTo(hp)||1,dr=camera.position.distanceTo(rm.root.position);rm.root.scale.setScalar(clamp(dr/dp,1,1.35));}rm.root.rotation.set(0,-ang*0.45,-ang*0.32);
   const tr=o.air>0?TRICKS[R.trick||0].f(k):[0,0,0];rm.pivot.rotation.set(tr[0],tr[1],tr[2]);const cy=0.6;pivC.set(0,cy,0).applyEuler(rm.pivot.rotation);rm.pivot.position.set(-pivC.x,cy-pivC.y,-pivC.z);
   rm.slopeTilt=(G.tilt||0)*0.55;R.fp=R.fp||{air:0,ang:0,fall:0,trick:0,tuck:0.3,airT:0,airMax:1};R.fp.air=o.air>0?1:0;R.fp.ang=ang;poseGlb(rm,R.fp,'play',G.t);
   R.pos=rm.root.position;G.rLast=rm.root.position.clone();
