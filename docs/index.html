@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 // Telegram держит старую копию игры: сверяем версию с сервером и при расхождении перезагружаемся (один раз)
-(function(){var VER='2026-11-15d',h=location.hash;
+(function(){var VER='2026-11-16a',h=location.hash;
   fetch('version.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();
     if(!v||v===VER)return;var k='bsova_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
     location.replace(location.pathname+'?v='+encodeURIComponent(v)+h);}).catch(function(){});})();
@@ -898,6 +898,7 @@ const mdef=id=>MPOOL.find(m=>m.id===id);
 const sensK=()=>0.35+save.sens*0.11;
 
 // ================= AUDIO =================
+let engG=null,engP=null;const engO=[];
 let AC=null,master=null,windG=null,carveG=null,windF=null,noiseBuf=null,sfxBus=null,voxBus=null,musBus=null;
 // три канала громкости: музыка, звуки игры, голоса героев (0…10 из настроек)
 const VOLK={music:0.55,sfx:1,vox:1};
@@ -912,6 +913,13 @@ function initAudio(){
   let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
   for(let i=0;i<len;i++){const w=Math.random()*2-1;b0=.99886*b0+w*.0555179;b1=.99332*b1+w*.0750759;b2=.969*b2+w*.153852;b3=.8665*b3+w*.3104856;b4=.55*b4+w*.5329522;b5=-.7616*b5-w*.016898;d[i]=(b0+b1+b2+b3+b4+b5+b6+w*.5362)*.11;b6=w*.115926;}
   const n1=AC.createBufferSource();n1.buffer=noiseBuf;n1.loop=true;windF=AC.createBiquadFilter();windF.type='bandpass';windF.frequency.value=420;windF.Q.value=0.5;windG=AC.createGain();windG.gain.value=0;n1.connect(windF).connect(windG).connect(sfxBus);n1.start();
+  // мотор ратрака: два «дизельных» пилообразных тона + тарахтение, громкость и панорама — по расстоянию до ближайшего ратрака
+  {const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=380;const chug=AC.createGain();chug.gain.value=0.6;
+    const lfo=AC.createOscillator();lfo.frequency.value=11;const lg=AC.createGain();lg.gain.value=0.4;lfo.connect(lg).connect(chug.gain);lfo.start();
+    engG=AC.createGain();engG.gain.value=0;engP=AC.createStereoPanner?AC.createStereoPanner():null;
+    for(const [f,v] of[[46,0.5],[69,0.35]]){const o=AC.createOscillator();o.type='sawtooth';o.frequency.value=f;const g=AC.createGain();g.gain.value=v;o.connect(g).connect(lp);o.start();engO.push(o);}
+    const n3=AC.createBufferSource();n3.buffer=noiseBuf;n3.loop=true;const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=160;bp.Q.value=1.2;const ng=AC.createGain();ng.gain.value=1.4;n3.connect(bp).connect(ng).connect(lp);n3.start();
+    lp.connect(chug).connect(engG);if(engP)engG.connect(engP).connect(sfxBus);else engG.connect(sfxBus);}
   const n2=AC.createBufferSource();n2.buffer=noiseBuf;n2.loop=true;const hp=AC.createBiquadFilter();hp.type='highpass';hp.frequency.value=700;const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3200;carveG=AC.createGain();carveG.gain.value=0;n2.connect(hp).connect(lp).connect(carveG).connect(sfxBus);n2.start(0,0.7);
 }
 function tone(f,d,v,type,f2,delay){if(!AC||save.muted)return;const t0=AC.currentTime+(delay||0);const o=AC.createOscillator(),g=AC.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f,t0);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t0+d);g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(v,t0+0.015);g.gain.exponentialRampToValueAtTime(0.0001,t0+d);o.connect(g).connect(sfxBus);o.start(t0);o.stop(t0+d+0.05);}
@@ -928,9 +936,11 @@ function playS(k,rate,vol,delay){if(!AC||save.muted)return true;const n=SFXF[k]|
   const g=AC.createGain();g.gain.value=vol==null?0.8:vol;s.connect(g).connect(sfxBus);s.start(AC.currentTime+(delay||0));return true;}
 const SFX={
   coin(){noise(0.08,0.18,'bandpass',1400,700,2.5);tone(520,0.1,0.05,'sine',820);},
-  // ворота, промах и вежливый обгон звучали слишком часто — без звука (остаются надпись и очки)
-  gate(){},
+  // ворота: тихий мягкий «динь», нота растёт по ходу серии; последние ворота серии — аккорд. Промах — без звука
+  gate(c,last){const n=PENTA[(c-1)%5]+12*(Math.floor((c-1)/5)%2);const f=523*Math.pow(2,n/12);tone(f,0.25,0.028);if(last){tone(f*1.25,0.35,0.02,'sine',null,0.08);tone(f*1.5,0.45,0.018,'sine',null,0.16);}},
   miss(){},
+  horn(){if(!AC||save.muted)return;for(const d of[0,0.42])for(const f of[311,392]){const t0=AC.currentTime+d;const o=AC.createOscillator(),g=AC.createGain(),lp=AC.createBiquadFilter();o.type='square';o.frequency.value=f;lp.type='lowpass';lp.frequency.value=1400;
+    g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(0.045,t0+0.02);g.gain.setValueAtTime(0.045,t0+0.3);g.gain.exponentialRampToValueAtTime(0.0001,t0+0.36);o.connect(lp).connect(g).connect(sfxBus);o.start(t0);o.stop(t0+0.4);}},
   jump(){noise(0.4,0.16,'bandpass',350,1600,1.1);},
   land(){if(playS('land',0.9,0.28))return;noise(0.16,0.22,'lowpass',600,140);},
   trick(){noise(0.3,0.12,'bandpass',800,2400,1.6);},
@@ -969,7 +979,13 @@ let musSrc=null,musKey=null,musWant=null;
 function music(k){musWant=k;if(!AC||save.muted)return;if(musKey===k&&musSrc)return;const t=AC.currentTime;
   if(musSrc){const old=musSrc;old._g.gain.setTargetAtTime(0,t,0.35);setTimeout(()=>{try{old.stop();}catch(e){}},1500);musSrc=null;musKey=null;}
   const b=k&&VOX['music_'+k];if(!b||b==='loading')return;const s=AC.createBufferSource();s.buffer=b;s.loop=true;const g=AC.createGain();g.gain.value=0;g.gain.setTargetAtTime(1,t,0.5);s._g=g;s.connect(g).connect(musBus);s.start();musSrc=s;musKey=k;}
-function setLoops(windV,carveV,wf){if(!AC)return;const t=AC.currentTime;windG.gain.setTargetAtTime(save.muted?0:windV,t,0.15);carveG.gain.setTargetAtTime(save.muted?0:carveV,t,0.06);if(wf)windF.frequency.setTargetAtTime(wf,t,0.3);}
+// ратрак: мотор нарастает с приближением, при проезде рядом — гудок
+function catAudio(){if(!AC||!engG)return;let best=null,bd=1e9;for(const o of G.objs){if(o.dead||o.type!=='cat')continue;const d=Math.hypot((G.p.x-o.x)*1.6,G.y-o.y);if(d<bd){bd=d;best=o;}}
+  const t=AC.currentTime;const k=best?Math.max(0,1-bd/900):0;engG.gain.setTargetAtTime(save.muted?0:0.22*k*k,t,0.12);
+  if(best){if(engP)engP.pan.setTargetAtTime(clamp((best.x-G.p.x)/160,-0.9,0.9),t,0.1);const rate=1+k*0.25;engO.forEach((o,i)=>o.frequency.setTargetAtTime((i?69:46)*rate,t,0.2));
+    // гудок: встречный — заранее, попутный — когда обгоняешь
+    if(!best.honk&&((best.vy<0&&best.y>G.y&&best.y-G.y<420)||(Math.abs(best.y-G.y)<90&&Math.abs(best.x-G.p.x)<170))){best.honk=1;SFX.horn();}}}
+function setLoops(windV,carveV,wf){if(!AC)return;const t=AC.currentTime;if(!windV&&!carveV&&engG)engG.gain.setTargetAtTime(0,t,0.1);windG.gain.setTargetAtTime(save.muted?0:windV,t,0.15);carveG.gain.setTargetAtTime(save.muted?0:carveV,t,0.06);if(wf)windF.frequency.setTargetAtTime(wf,t,0.3);}
 function vibe(ms){try{if(TG&&TG.HapticFeedback){const t=Array.isArray(ms)?ms.reduce((a,b)=>a+b,0):ms;TG.HapticFeedback.impactOccurred(t>120?'heavy':t>45?'medium':'light');return;}navigator.vibrate&&navigator.vibrate(ms);}catch(e){}}
 
 // ================= ZONES =================
@@ -1102,10 +1118,13 @@ function spawnSeg(){
   let k=pickMix(st.mix);
   // людей на склоне меньше: часть выпадов людей заменяем воротами/мандаринками, и не больше 3 движущихся впереди
   const PPL={skier:1,board:1,kids:1,sit:1,sbschool:1,walk:1,help:1};
-  if(PPL[k]){const ahead=G.objs.filter(o=>o.type==='npc'&&!o.dead&&o.y>G.y&&o.vy>0).length;if(Math.random()<0.4||(ahead>=3&&k!=='sit'&&k!=='help'&&k!=='walk'))k=Math.random()<0.6?'gate':'coins';}
-  if(k==='cat'&&d<300)k='gate';if((k==='sit'||k==='skier'||k==='board'||k==='sbschool')&&d<40)k='coins';
+  if(PPL[k]){const ahead=G.objs.filter(o=>o.type==='npc'&&!o.dead&&o.y>G.y&&o.vy>0).length;if(Math.random()<0.4||(ahead>=3&&k!=='sit'&&k!=='help'&&k!=='walk'))k=Math.random()<0.3?'gate':'coins';}
+  if(k==='cat'&&d<300)k='gate';
+  // слалом-серии не подряд: между ними хотя бы ~1000 единиц другой трассы
+  if(k==='gate'&&y-(G.lastCourseY??-1e9)<1000){k=pickMix(st.mix);if(k==='gate'||PPL[k]||k==='cat')k='coins';}
+  if(k==='gate')G.lastCourseY=y;if((k==='sit'||k==='skier'||k==='board'||k==='sbschool')&&d<40)k='coins';
   switch(k){
-    case 'gate':addGate(y,diff);break;
+    case 'gate':len=addCourse(y,diff);break;
     case 'skier':addSkier(y,rnd(80,320),rnd(95,140));break;
     case 'sit':{const x=rnd(70,330);addSkier(y,x,0,{sit:true,amp:0});break;}
     case 'walk':{const left=Math.random()<.5;addSkier(y,left?rnd(26,40):rnd(360,374),-30,{walker:true,amp:0});break;}
@@ -1150,6 +1169,12 @@ function spawnLetter(y){
   if(air){addObj({type:'ramp',x,y,w:66});const o={type:'letter',x,y:y+170,ch:L.ch,air:true,r:14};addObj(o);G.letterObj=o;}
   else{addObj({type:'fence',x:(12+x-36)/2,x1:12,x2:x-36,y:y+120});addObj({type:'fence',x:(x+36+388)/2,x1:x+36,x2:388,y:y+120});const o={type:'letter',x,y:y+120,ch:L.ch,air:false,r:14};addObj(o);G.letterObj=o;}
 }
+// слалом: серия 4–7 ворот, строго по очереди влево-вправо от плавной линии; расстояние между воротами — под текущую скорость (≈1.1 с хода)
+function addCourse(y,diff){const n=4+Math.floor(Math.random()*4);const sp=Math.max(230,(G.speed||250)*1.15);const gap=Math.round(124-diff*34);
+  let cx=clamp(G.lastGateX||200,130,270);const off=rnd(48,62+diff*18);let side=Math.random()<.5?-1:1;
+  for(let i=0;i<n;i++){cx=clamp(cx+rnd(-25,25),130,270);const gx=clamp(cx+side*off,72,328);G.gateCol^=1;
+    addObj({type:'gate',x:gx,y:y+i*sp,gap,col:G.gateCol,done:false,ok:false,last:i===n-1});if(Math.random()<0.25)addObj({type:'coin',x:gx,y:y+i*sp,r:9});side=-side;G.lastGateX=gx;}
+  return (n-1)*sp+sp*0.9;}
 function addGate(y,diff){const gap=Math.round(112-diff*44);let gx=G.lastGateX+(Math.random()<.5?-1:1)*rnd(55,135);if(gx<75||gx>325)gx=G.lastGateX-(gx-G.lastGateX);gx=clamp(gx,75,325);G.lastGateX=gx;G.gateCol^=1;
   addObj({type:'gate',x:gx,y,gap,col:G.gateCol,done:false,ok:false});if(Math.random()<0.3)addObj({type:'coin',x:gx,y:y,r:9});}
 function coinLine(y){if(Math.random()<0.35)return;let x=rnd(70,330);const dx=rnd(-14,14);for(let i=0;i<3;i++){addObj({type:'coin',x:clamp(x,40,360),y:y+i*32,r:9});x+=dx;}}
@@ -1247,7 +1272,7 @@ function update(dt){
         if(dd<22&&(!o.air||p.air>0||true)){o.dead=true;G.coins++;G.bonus+=5;SFX.coin();burst3(X(o.x),0.7,Z(o.y),6,'#ff8a1c',3);}break;}
       case 'gate':{
         if(!o.done&&G.prevY<o.y&&py>=o.y){o.done=true;
-          if(Math.abs(dx)<o.gap/2){o.ok=true;G.combo++;G.gates++;G.maxCombo=Math.max(G.maxCombo,G.combo);const m=mult(),pts=25*m;G.bonus+=pts;SFX.gate(G.combo);
+          if(Math.abs(dx)<o.gap/2){o.ok=true;G.combo++;G.gates++;G.maxCombo=Math.max(G.maxCombo,G.combo);const m=mult(),pts=25*m;G.bonus+=pts;SFX.gate(G.combo,o.last);
             addText(o.x,o.y,'+'+pts,o.col?'#2a6df4':'#e8343b',17);if(G.combo%5===0&&m<=10){banner('МНОЖИТЕЛЬ ×'+m,'серия '+G.combo+' ворот');}}
           else{if(G.combo>=3)addText(p.x,py,'Серия сгорела','#c0392b',16);G.combo=0;SFX.miss();vibe(30);if(Math.random()<0.5)voice('miss');}
           o.m.traverse(c=>{if(c.userData.flag)c.material.color.set(o.ok?0xb0bccb:0x6a7380);});}
@@ -1264,8 +1289,11 @@ function update(dt){
       case 'npc':
         if(p.air<=0&&dd<(o.kid?14:19)){hit(o.sit?'sit':o.kid||o.instr?'kids':'npc',o);break;}
         if(!o.passed&&py>o.y){o.passed=true;
-          if(p.air>0){addText(p.x,py,'Над головой!','#8e44ad',15);}
-          else if(Math.abs(dx)<40){G.combo=0;SFX.warn();voice('warn',true);vibe(60);addText(p.x,py,'Слишком близко!','#c0392b',17);
+          // группа (инструктор + дети в колонне, урок) оценивается один раз; предупреждения не чаще раза в 2.5 с
+          const grp=o.lead||o;const dup=grp.judged||(Math.abs(dx)<40&&G.t-(G.closeT??-9)<2.5);grp.judged=true;
+          if(dup){}
+          else if(p.air>0){addText(p.x,py,'Над головой!','#8e44ad',15);}
+          else if(Math.abs(dx)<40){G.closeT=G.t;G.combo=0;SFX.warn();voice('warn',true);vibe(60);addText(p.x,py,'Слишком близко!','#c0392b',17);
             if(o.sit)banner('FIS · Правило 6','объезжай сидящих на трассе с запасом','warn');else if(o.kid||o.instr)banner('Осторожно, дети!','объезжай группу с запасом','warn');else banner('FIS · Правило 4','обгоняй с запасом','warn');}
           else if(Math.abs(dx)<120){G.polite++;const pts=30*mult();G.bonus+=pts;SFX.polite();voice('polite');addText(p.x,py,'Вежливый обгон +'+pts,'#1f8a4c',16);fisEarn(o.walker?7:o.sit?6:o.kid||o.instr?2:4);if(G.polite>=5)fisEarn(3);}
         }break;
@@ -1302,7 +1330,7 @@ function update(dt){
   if(G.y/20-(G.lastHitM||0)>=1500)fisEarn(1);
   const st=runStats();
   for(const m of save.missions){if(!m.got&&st[mdef(m.id).stat]>=m.n){m.got=true;banner('ЗАДАНИЕ ВЫПОЛНЕНО','+'+m.reward+' 🍊','gold');SFX.chime();}}
-  setLoops(Math.min(0.32,G.speed/2200)+(Zn.blizz?0.16:0),p.air>0?0:Math.min(0.3,Math.abs(p.vx)/1300)+0.035,Zn.blizz?650+Math.sin(G.t)*200:420);
+  setLoops(Math.min(0.32,G.speed/2200)+(Zn.blizz?0.16:0),p.air>0?0:Math.min(0.3,Math.abs(p.vx)/1300)+0.035,Zn.blizz?650+Math.sin(G.t)*200:420);catAudio();
 }
 function animObjs(dt){
   const top=G.y-260;
