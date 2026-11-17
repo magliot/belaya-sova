@@ -1,0 +1,6 @@
+render/
+render-final/
+frames/
+*.blend1
+eevee-test.png
+phone-*.png

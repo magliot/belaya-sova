@@ -1,0 +1,72 @@
+[
+  {
+    "frame": 1,
+    "edge_ratio_min": 0.4012930270464144,
+    "edge_ratio_p99": 1.2656191088801056,
+    "edge_ratio_max": 3.65422918832154,
+    "rigid_boot_edge_error": 3.6790392770047475e-06
+  },
+  {
+    "frame": 46,
+    "edge_ratio_min": 0.2068512426684101,
+    "edge_ratio_p99": 1.2951436823931626,
+    "edge_ratio_max": 4.204399725040834,
+    "rigid_boot_edge_error": 6.862567330845337e-06
+  },
+  {
+    "frame": 65,
+    "edge_ratio_min": 0.2913105981181816,
+    "edge_ratio_p99": 1.3815974352650886,
+    "edge_ratio_max": 4.337350338282831,
+    "rigid_boot_edge_error": 5.659334823437945e-06
+  },
+  {
+    "frame": 92,
+    "edge_ratio_min": 0.1888618596722238,
+    "edge_ratio_p99": 1.4405175594045074,
+    "edge_ratio_max": 4.141576409256994,
+    "rigid_boot_edge_error": 5.973963475791599e-06
+  },
+  {
+    "frame": 99,
+    "edge_ratio_min": 0.40000911301869985,
+    "edge_ratio_p99": 1.1988955100035485,
+    "edge_ratio_max": 3.2980685053581364,
+    "rigid_boot_edge_error": 4.508935583125151e-06
+  },
+  {
+    "frame": 112,
+    "edge_ratio_min": 0.09655357911812697,
+    "edge_ratio_p99": 1.4632008448447429,
+    "edge_ratio_max": 5.716354015359556,
+    "rigid_boot_edge_error": 1.8777415267345887e-05
+  },
+  {
+    "frame": 123,
+    "edge_ratio_min": 0.4806891347933768,
+    "edge_ratio_p99": 1.2294756830512252,
+    "edge_ratio_max": 3.4042236696007766,
+    "rigid_boot_edge_error": 6.931840008661538e-06
+  },
+  {
+    "frame": 128,
+    "edge_ratio_min": 0.1284988476085286,
+    "edge_ratio_p99": 1.482809104314048,
+    "edge_ratio_max": 4.542366547753552,
+    "rigid_boot_edge_error": 5.47996426880637e-06
+  },
+  {
+    "frame": 146,
+    "edge_ratio_min": 0.3645039681088005,
+    "edge_ratio_p99": 1.2534786064679655,
+    "edge_ratio_max": 3.5398526115090143,
+    "rigid_boot_edge_error": 5.151870431263639e-06
+  },
+  {
+    "frame": 181,
+    "edge_ratio_min": 0.4012930270464144,
+    "edge_ratio_p99": 1.2656191088801056,
+    "edge_ratio_max": 3.65422918832154,
+    "rigid_boot_edge_error": 3.6790392770047475e-06
+  }
+]
