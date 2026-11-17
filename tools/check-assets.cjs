@@ -57,7 +57,7 @@ const end=html.lastIndexOf('</script>');html=html.slice(0,end)+debug+html.slice(
     const page=await browser.newPage({viewport:{width:375,height:812},deviceScaleFactor:1});const errors=[];
     page.on('pageerror',e=>errors.push(String(e)));await page.addInitScript(()=>window.__freeze=true);
     await page.goto('http://127.0.0.1:8766/test.html',{waitUntil:'domcontentloaded'});
-    await page.waitForFunction(()=>window.__assetTest&&__assetTest.ready(),{timeout:90000});
+    await page.waitForFunction(()=>window.__assetTest&&__assetTest.ready(),null,{timeout:90000});
     const result=await page.evaluate(()=>__assetTest.check());
     for(const m of result.models){assert(m.finite,`${m.k}: invalid vertices`);assert(m.triangles<=m.cap,`${m.k}: triangle budget exceeded`);
       assert(m.size.every(v=>Number.isFinite(v)&&v>0),`${m.k}: invalid bounds`);}
