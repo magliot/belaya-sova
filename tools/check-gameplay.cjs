@@ -83,7 +83,7 @@ async function browserChecks(){
         gates.push({kind,fps,d,...result});if(d===13000&&fps===60)await page.screenshot({path:path.join(out,kind+'-slalom.png')});
       }
     }
-    assert(coasting.every(r=>r.mode==='crash'),'An unattended run must require steering');assert.deepEqual(errors,[]);
+    assert(coasting.every(r=>r.mode==='crash'&&r.time<35),'An unattended run must require steering within 35 seconds');assert.deepEqual(errors,[]);
     const report={viewport:{width:375,height:812},errors,avalanches,coasting,gates};
     fs.writeFileSync(path.join(out,'browser-summary.json'),JSON.stringify(report,null,2));
     console.log('Browser PASS:',avalanches.length,'avalanche cases,',coasting.length,'unattended runs,',gates.length,'player slaloms.');
