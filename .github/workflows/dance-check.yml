@@ -7,8 +7,10 @@ on:
       - docs/version.txt
       - docs/models/mishka.js
       - docs/models/sova.js
+      - docs/models/winter.js
       - tools/check-dances.cjs
       - tools/check-gameplay.cjs
+      - tools/check-assets.cjs
       - .github/workflows/dance-check.yml
 concurrency:
   group: dance-${{ github.ref }}
@@ -36,11 +38,18 @@ jobs:
           for attempt in {1..30}; do curl -fsS http://127.0.0.1:8766/version.txt && break || sleep 1; done
           node tools/check-dances.cjs
           node tools/check-gameplay.cjs
+          node tools/check-assets.cjs
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: dance-phone-check
           path: dance-checks
+          retention-days: 7
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: winter-asset-phone-check
+          path: asset-checks
           retention-days: 7
       - uses: actions/upload-artifact@v5
         if: always()
