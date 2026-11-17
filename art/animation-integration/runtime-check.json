@@ -1,0 +1,37 @@
+{
+  "engine": "160",
+  "results": [
+    {
+      "kind": "bear",
+      "fps": 30,
+      "maxContactError": 0.005768103277552399,
+      "maxGripError": 2.8031757299712627e-16,
+      "localFootHeightRange": 0.029326506597218804,
+      "maxScaleError": 0.000002086162567138672
+    },
+    {
+      "kind": "bear",
+      "fps": 60,
+      "maxContactError": 0.005911880182767499,
+      "maxGripError": 2.8610318401233434e-16,
+      "localFootHeightRange": 0.029416650426035668,
+      "maxScaleError": 0.000002086162567138672
+    },
+    {
+      "kind": "owl",
+      "fps": 30,
+      "maxContactError": 0.006494616809741281,
+      "maxGripError": 0,
+      "localFootHeightRange": 0.04805410073834748,
+      "maxScaleError": 0.000004410743713378906
+    },
+    {
+      "kind": "owl",
+      "fps": 60,
+      "maxContactError": 0.006673883398757862,
+      "maxGripError": 0,
+      "localFootHeightRange": 0.04814939410442623,
+      "maxScaleError": 0.000004410743713378906
+    }
+  ]
+}

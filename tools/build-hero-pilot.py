@@ -4,13 +4,15 @@ blender -b -t 4 --python tools/build-hero-pilot.py -- art/animation-pilot
 import bpy, math, sys, os, json
 from mathutils import Vector, Matrix, Quaternion
 OUT=os.path.abspath(sys.argv[sys.argv.index('--')+1]); os.makedirs(OUT,exist_ok=True)
+ARGS=sys.argv[sys.argv.index('--')+1:];OWL='owl' in ARGS;NO_RENDER='--no-render' in ARGS
+STEM='sova-board-study' if OWL else 'mishanya-ski-study'
 bpy.ops.wm.read_factory_settings(use_empty=True)
-bpy.ops.import_scene.gltf(filepath=os.path.join(OUT,'source/bear.glb'))
+bpy.ops.import_scene.gltf(filepath=os.path.join(OUT,'source/'+('owl' if OWL else 'bear')+'.glb'))
 rig=next(o for o in bpy.context.scene.objects if o.type=='ARMATURE')
 body=next(o for o in bpy.context.scene.objects if o.type=='MESH' and len(o.vertex_groups)>0)
 for o in list(bpy.context.scene.objects):
     if o.type=='MESH' and o!=body: bpy.data.objects.remove(o,do_unlink=True)
-rig.name='Mishanya_Rig'; body.name='Mishanya_Mesh'
+rig.name='Sova_Rig' if OWL else 'Mishanya_Rig'; body.name='Sova_Mesh' if OWL else 'Mishanya_Mesh'
 P=rig.pose.bones
 def bone(n): return P['mixamorig:'+n]
 rest={b.name:b.bone.matrix_local.copy() for b in P}
@@ -23,6 +25,12 @@ weights=np.zeros((len(body.data.vertices),len(body.vertex_groups)),dtype=float)
 coords=[body.matrix_world@v.co for v in body.data.vertices]
 for v in body.data.vertices:
     for g in v.groups: weights[v.index,g.group]=g.weight
+if OWL:
+    # Feathers are not human fingers: consolidate distal feather weights per wing.
+    for g in body.vertex_groups:
+        if 'Hand' in g.name and not g.name.endswith('Hand'):
+            parent='mixamorig:'+('LeftHand' if 'Left' in g.name else 'RightHand')
+            weights[:,body.vertex_groups[parent].index]+=weights[:,g.index];weights[:,g.index]=0
 def ramp(x,a,b):
     t=min(1,max(0,(x-a)/(b-a)));return t*t*(3-2*t)
 for i,w in enumerate(coords):
@@ -44,7 +52,7 @@ for _ in range(3):
     weights=new
 for i,w in enumerate(coords):
     # Backpack shell: rigid main body, soft attachment band at its front edge.
-    bag=ramp(w.y,.08,.13)*(1-ramp(abs(w.x),.17,.21))*ramp(w.z,.28,.34)*(1-ramp(w.z,.69,.75))
+    bag=0 if OWL else ramp(w.y,.08,.13)*(1-ramp(abs(w.x),.17,.21))*ramp(w.z,.28,.34)*(1-ramp(w.z,.69,.75))
     target=body.vertex_groups['mixamorig:Spine2'].index
     weights[i]*=1-bag;weights[i,target]+=bag
     # Match the four-influence runtime rather than relying on Blender-only skinning.
@@ -86,12 +94,18 @@ def cube(name,position,scale,mat,bevel=.01):
     if bevel: m=o.modifiers.new('Soft edges','BEVEL'); m.width=bevel; m.segments=3; o.modifiers.new('Normals','WEIGHTED_NORMAL')
     return o
 skis=[]; poles=[]
+if OWL:
+    blue=material('Sova board — blue',(.025,.23,.52),.1,.35)
+    board=cube('Snowboard',(0,-.036,-.011),(.92,.27,.022),blue,.05)
+    skis.append(('Board',board,board.matrix_world.copy()))
 for side in ['Left','Right']:
     foot=rig.matrix_world@loc(side+'Foot')
-    ski=cube(side+'_Ski',(foot.x,foot.y-.03,-.011),(.078,.85,.022),red)
-    skis.append((side,ski,ski.matrix_world.copy()))
+    if not OWL:
+        ski=cube(side+'_Ski',(foot.x,foot.y-.03,-.011),(.078,.85,.022),red)
+        skis.append((side,ski,ski.matrix_world.copy()))
     binding=cube(side+'_Binding',(foot.x,foot.y,.037),(.072,.14,.028),dark,.006)
     skis.append((side,binding,binding.matrix_world.copy()))
+    if OWL:continue
     # A fixed-length pole, with a local origin at the grip.
     parent=bpy.data.objects.new(side+'_Pole',None); bpy.context.collection.objects.link(parent)
     for name,z,r,depth,mat in [('Shaft',-.20,.004,.4,steel),('Grip',-.025,.012,.065,dark),('Basket',-.375,.025,.008,dark)]:
@@ -136,27 +150,44 @@ for frame in range(1,END+1):
     else:air=0;flight=0
     for b in P: b.matrix_basis=Matrix.Identity(4)
     # Root translation is authored once, then exported with the clip.
-    b=bone('Hips'); m=rest[b.name].copy(); m.translation+=Vector((shift,.012,-comp+air+.025)); b.matrix=m
+    b=bone('Hips'); m=rest[b.name].copy(); m.translation+=Vector((shift*.3 if OWL else shift,.012+(shift*.7 if OWL else 0),-comp+air+.025)); b.matrix=m
     turn('Spine',(1,0,0),lean*.5); turn('Spine1',(1,0,0),lean*.3); turn('Spine2',(1,0,0),lean*.2)
     turn('Neck',(1,0,0),-lean*.35); turn('Head',(1,0,0),-lean*.35)
     turn('Spine2',(0,1,0),-shift*90)
+    if OWL:
+        turn('Spine2',(0,0,1),10);turn('Neck',(0,0,1),20);turn('Head',(0,0,1),35)
     bpy.context.view_layer.update()
     errors=[]
+    boarddelta=Matrix.Translation((0,0,air+.025+.025*flight))@Matrix.Rotation(math.radians(-12*flight),4,'Y')
     for side in ['Left','Right']:
         hip=rig.matrix_world@bone(side+'UpLeg').head
         ankle=rig.matrix_world@loc(side+'Foot')+Vector((0,0,air+.025+.025*flight))
+        if OWL:ankle=boarddelta@(rig.matrix_world@loc(side+'Foot'))
         l1=(loc(side+'Leg')-loc(side+'UpLeg')).length; l2=(loc(side+'Foot')-loc(side+'Leg')).length
         knee=solve(hip,ankle,l1,l2,Vector((0,-1,0)))
         aim(side+'UpLeg',hip,knee); bpy.context.view_layer.update()
         aim(side+'Leg',knee,ankle); bpy.context.view_layer.update()
         footmatrix=rig.matrix_world@rest[bone(side+'Foot').name]
         footmatrix=Matrix.Rotation(math.radians(-12*flight),4,'X')@footmatrix;footmatrix.translation=ankle
+        if OWL:footmatrix=boarddelta@(rig.matrix_world@rest[bone(side+'Foot').name])
+        if not OWL:
+            # Edge each ski about its contact patch; ankle and binding move together.
+            edge=math.radians(-10*shift/.035)*(1-flight)
+            contact=Vector((ankle.x,ankle.y,air+.025+.025*flight))
+            lift=.039*abs(math.sin(edge))+.011*(math.cos(edge)-1)
+            bank=Matrix.Translation(contact+Vector((0,0,lift)))@Matrix.Rotation(edge,4,'Y')@Matrix.Translation(-contact)
+            footmatrix=bank@footmatrix
+            ankle=footmatrix.translation.copy()
+            knee=solve(hip,ankle,l1,l2,Vector((0,-1,0)))
+            aim(side+'UpLeg',hip,knee);bpy.context.view_layer.update()
+            aim(side+'Leg',knee,ankle);bpy.context.view_layer.update()
         set_world(side+'Foot',footmatrix); bpy.context.view_layer.update()
         # Each boot stays rigid; during flight the entire boot/ski pitches as one.
         errors.append(((rig.matrix_world@bone(side+'Foot').head)-ankle).length)
         upper=rig.matrix_world@bone(side+'Arm').head
         sign=1 if side=='Left' else -1
         wrist=Vector((sign*(.255+.025*flight)+shift*.6,-.115+hand,.445-comp*.65+air+.075*flight))
+        if OWL:wrist=Vector((sign*(.32+.025*flight)+shift*.3,-.075+shift*.7,.505-comp*.6+air+.045*flight))
         l1=(loc(side+'ForeArm')-loc(side+'Arm')).length; l2=(loc(side+'Hand')-loc(side+'ForeArm')).length
         if (wrist-upper).length>l1+l2-.002: wrist=upper+(wrist-upper).normalized()*(l1+l2-.002)
         elbow=solve(upper,wrist,l1,l2,Vector((sign,0,-.3)))
@@ -166,31 +197,33 @@ for frame in range(1,END+1):
         hm=rig.matrix_world@rest[bone(side+'Hand').name]; hm.translation=wrist
         set_world(side+'Hand',hm); bpy.context.view_layer.update()
     for side,o,base in skis:
-        o.matrix_world=(rig.matrix_world@bone(side+'Foot').matrix)@(rig.matrix_world@rest[bone(side+'Foot').name]).inverted()@base
+        o.matrix_world=boarddelta@base if side=='Board' else (rig.matrix_world@bone(side+'Foot').matrix)@(rig.matrix_world@rest[bone(side+'Foot').name]).inverted()@base
         o.rotation_mode='QUATERNION'; o.keyframe_insert('location',frame=frame);o.keyframe_insert('rotation_quaternion',frame=frame)
     for side,o in poles:
         wrist=rig.matrix_world@bone(side+'Hand').head
-        o.location=wrist+Vector((0,-.015,-.045))
-        o.rotation_mode='QUATERNION'; o.rotation_quaternion=Quaternion((1,0,0),math.radians(24+comp*100))
+        rest_hand=rig.matrix_world@rest[bone(side+'Hand').name]
+        grip_local=rest_hand.to_3x3().inverted()@Vector((0,-.015,-.045))
+        o.location=(rig.matrix_world@bone(side+'Hand').matrix)@grip_local
+        o.rotation_mode='QUATERNION'; o.rotation_quaternion=Quaternion((1,0,0),math.radians(24+comp*100+16*flight))
         o.keyframe_insert('location',frame=frame);o.keyframe_insert('rotation_quaternion',frame=frame)
     for b in P:
         b.keyframe_insert('location',frame=frame); b.keyframe_insert('rotation_quaternion',frame=frame)
     audit.append({'frame':frame,'foot_target_error':max(errors),'height':air,'compression':comp})
-rig.animation_data.action.name='Mishanya_SkiStudy_v01'
+rig.animation_data.action.name='Sova_BoardStudy_v01' if OWL else 'Mishanya_SkiStudy_v01'
 scene=bpy.context.scene; scene.frame_start=1;scene.frame_end=END;scene.render.fps=FPS
 for f,n in [(1,'СТОЙКА'),(25,'ПОВОРОТ'),(82,'ПОДГОТОВКА'),(99,'ОТРЫВ'),(112,'ПОЛЁТ'),(123,'КОНТАКТ'),(128,'АМОРТИЗАЦИЯ'),(146,'ВОССТАНОВЛЕНИЕ')]: scene.timeline_markers.new(n,frame=f)
 scene.frame_set(1)
 # Export an independently reviewable sample. Include rigid equipment and its baked tracks.
 bpy.ops.object.select_all(action='DESELECT')
 for o in bpy.context.scene.objects:
-    if o==rig or o==body or o.name.endswith(('_Ski','_Binding','_Pole','_Shaft','_Grip','_Basket')): o.select_set(True)
+    if o==rig or o==body or o.name=='Snowboard' or o.name.endswith(('_Ski','_Binding','_Pole','_Shaft','_Grip','_Basket')): o.select_set(True)
 bpy.context.view_layer.objects.active=rig
-bpy.ops.export_scene.gltf(filepath=os.path.join(OUT,'mishanya-ski-study.glb'),use_selection=True,export_format='GLB',export_animations=True,export_animation_mode='SCENE',export_frame_range=True,export_force_sampling=True,export_skins=True,export_morph=False)
+bpy.ops.export_scene.gltf(filepath=os.path.join(OUT,STEM+'.glb'),use_selection=True,export_format='GLB',export_animations=True,export_animation_mode='SCENE',export_frame_range=True,export_force_sampling=True,export_skins=True,export_morph=False)
 # Blender exports one action per object. Merge synchronized body/equipment tracks
 # into one portable study clip without changing geometry or skin data.
 import struct
-glb_path=os.path.join(OUT,'mishanya-ski-study.glb');raw=open(glb_path,'rb').read();size=struct.unpack_from('<I',raw,12)[0]
-doc=json.loads(raw[20:20+size]);merged={'name':'Mishanya_SkiStudy_v01','samplers':[],'channels':[]}
+glb_path=os.path.join(OUT,STEM+'.glb');raw=open(glb_path,'rb').read();size=struct.unpack_from('<I',raw,12)[0]
+doc=json.loads(raw[20:20+size]);merged={'name':rig.animation_data.action.name,'samplers':[],'channels':[]}
 for animation in doc.get('animations',[]):
     offset=len(merged['samplers']);merged['samplers']+=animation['samplers']
     for channel in animation['channels']:channel['sampler']+=offset;merged['channels'].append(channel)
@@ -207,6 +240,6 @@ scene.render.resolution_x=640;scene.render.resolution_y=800;scene.render.resolut
 scene.view_settings.view_transform='AgX';scene.render.image_settings.file_format='PNG'
 scene.render.film_transparent=False
 json.dump({'boot_vertices_reweighted':changed,'max_foot_target_error':max(x['foot_target_error'] for x in audit),'frames':audit},open(os.path.join(OUT,'audit.json'),'w'),indent=2)
-bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT,'mishanya-ski-study.blend'))
-for f in [1,46,92,112,128]:
+bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT,STEM+'.blend'))
+for f in ([] if NO_RENDER else [1,46,92,112,128]):
     scene.frame_set(f);scene.render.filepath=os.path.join(OUT,f'pose-{f:03d}.png');bpy.ops.render.render(write_still=True)
