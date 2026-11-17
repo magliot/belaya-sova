@@ -6,6 +6,7 @@
 <title>Белая Сова · Проба анимации</title>
 <meta http-equiv="Cache-Control" content="no-cache">
 
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
 /* шрифт Rubik лежит рядом с игрой — без Google Fonts и VPN */
@@ -903,7 +904,7 @@ const save={best:store.get('best',0),coins:store.get('coins',0),hero:store.get('
 const SAVE_KEYS=['best','coins','hero','muted','mag','boost','helmets','mdone','missions','sens','coll','meet','fis','vol'];
 function persist(){for(const k of SAVE_KEYS)store.set(k,save[k]);cloudSave();}
 // облачное сохранение Telegram: рекорд и прогресс не пропадут, если телефон почистит кэш
-function cloudSave(){if(!TG||!TG.CloudStorage)return;clearTimeout(cloudSave.t);cloudSave.t=setTimeout(()=>{try{const s={uid:TGU?TGU.id:0};for(const k of SAVE_KEYS)s[k]=save[k];let j=JSON.stringify(s);if(j.length>4000){delete s.coll;j=JSON.stringify(s);}TG.CloudStorage.setItem('save',j);}catch(e){}},1500);}
+function cloudSave(){if(!TG||!TG.CloudStorage)return;clearTimeout(cloudSave.t);cloudSave.t=setTimeout(()=>{try{const s={uid:TGU?TGU.id:0};for(const k of SAVE_KEYS)s[k]=save[k];let j=JSON.stringify(s);if(j.length>4000){delete s.coll;j=JSON.stringify(s);}TG.CloudStorage.setItem('motion_test_save',j);}catch(e){}},1500);}
 const HEROES={
   bear:{name:'Мишаня',air:0.85,trickT:0.42,steer:1.0,fails:['Ой-ой, лапы запутались!','Мишаня нырнул в сугроб!','Бум! Зато каска на месте!']},
   owl:{name:'Сова',air:1.45,trickT:0.5,steer:1.15,fails:['Ух! Перья в снегу!','Сова приземлилась… клювом!','Ух-ух, вот это кувырок!','Крылья не помогли…']}
@@ -1871,7 +1872,7 @@ if(TG){try{
   setInterval(()=>{const need=!!(G&&(G.mode!=='menu'||OVL.some(id=>!$(id).classList.contains('hidden'))));if(need!==lastBack){lastBack=need;need?TG.BackButton.show():TG.BackButton.hide();}
     const conf=!!(G&&G.mode==='play');if(conf!==lastConf){lastConf=conf;conf?TG.enableClosingConfirmation():TG.disableClosingConfirmation();}},300);
   // облачное сохранение: подтягиваем прогресс, если в облаке рекорд не хуже локального
-  if(TG.CloudStorage)TG.CloudStorage.getItem('save',(err,v)=>{try{if(err||!v)return;const c=JSON.parse(v);if(!TGU||c.uid!==TGU.id)return;if((c.best||0)<(save.best||0))return;
+  if(TG.CloudStorage)TG.CloudStorage.getItem('motion_test_save',(err,v)=>{try{if(err||!v)return;const c=JSON.parse(v);if(!TGU||c.uid!==TGU.id)return;if((c.best||0)<(save.best||0))return;
     for(const k of SAVE_KEYS)if(k in c)save[k]=c[k];for(const k of SAVE_KEYS)store.set(k,save[k]);ensureMissions();hero=save.hero in HEROES?save.hero:hero;if(G&&G.mode==='menu')refreshMenu();if(typeof renderFis==='function')renderFis();}catch(e){}});
 }catch(e){console.warn('telegram',e);}}
 window.addEventListener('resize',updSafe);updSafe();
@@ -1879,9 +1880,10 @@ toMenu();$('loading').remove();window.__g=()=>G;
 requestAnimationFrame(frame);
 
 const testPanel=document.createElement('div');testPanel.id='motion-test-controls';
-testPanel.style.cssText='position:fixed;bottom:8px;left:8px;right:8px;z-index:9999;background:#ffffffeb;padding:8px;border-radius:12px;color:#243f4f;font:11px system-ui';
+testPanel.style.cssText='position:fixed;bottom:calc(var(--sb, 0px) + 8px);left:max(8px, calc((100vw - 544px)/2));right:max(8px, calc((100vw - 544px)/2));z-index:9999;background:#ffffffeb;padding:8px;border-radius:12px;color:#243f4f;font:11px system-ui';
 testPanel.innerHTML='<div id="motion-test-status" style="margin-bottom:6px">Загрузка новых движений…</div><div style="display:flex;gap:4px;flex-wrap:wrap"><button id="test-bear">Мишаня</button><button id="test-owl">Сова</button><button id="test-ride">Стойка</button><button id="test-left">Влево</button><button id="test-right">Вправо</button><button id="test-air">Прыжок</button><button id="test-land">Посадка</button><button id="test-play">Играть</button></div>';
 document.body.appendChild(testPanel);
+const controlStyle=document.createElement('style');controlStyle.textContent='#motion-test-controls button{min-height:38px;padding:8px 10px;border:1px solid #d9b98a;border-radius:9px;background:#fff8ea;color:#243f4f;font:700 12px system-ui}';document.head.appendChild(controlStyle);
 function testPose(kind,phase){
  if(!HEROMODELS[kind].motion)return;clearWorld();window.__motionPause=true;hero=kind;G=newGame('play');G.y=1200;G.t=10;G.p.x=200;G.tx=200;G.p.v=400;G.shake=0;G.rival=null;G.p.rampH=0;G.p.mh=0;
  const p=G.p;if(phase==='left')p.ang=-.8;if(phase==='right')p.ang=.8;

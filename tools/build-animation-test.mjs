@@ -9,16 +9,19 @@ html=html.replace("import * as THREE from 'three';","import * as THREE from 'thr
 html=html.replace('const h=makeGlbHero(k,g);','const h=makeGlbHero(k,g);attachHeroMotion(h);');
 html=html.replace('function poseGlb(h,p,mode,t){','function poseGlb(h,p,mode,t){\n  if(poseHeroMotion(h,p,mode,t))return;');
 html=html.replace("R.fp.air=o.air>0?1:0;R.fp.ang=ang;","R.fp.air=o.air>0?1:0;R.fp.airT=o.airT||0;R.fp.airMax=o.airMax||1;R.fp.ang=ang;");
-// Preview never writes results, Telegram saves, or the player's existing progress.
-html=html.replace(/<script src="https:\/\/telegram.org\/js\/telegram-web-app.js"><\/script>/,'');
+// Keep native Telegram sizing and controls, but isolate all test progress.
+html=html.replace(/<script src="motion-entry\.js[^"]*"><\/script>/,'');
+html=html.replaceAll("CloudStorage.setItem('save'","CloudStorage.setItem('motion_test_save'");
+html=html.replaceAll("CloudStorage.getItem('save'","CloudStorage.getItem('motion_test_save'");
 html=html.replace("const SKEY='bsova_'","const SKEY='bsova_motion_test_'");
 html=html.replace(/const API_URL=[^;]+;/,"const API_URL='';");
 html=html.replace("function frame(now){","function frame(now){if(window.__motionPause){last=now;requestAnimationFrame(frame);return;}");
 const testUI=`
 const testPanel=document.createElement('div');testPanel.id='motion-test-controls';
-testPanel.style.cssText='position:fixed;bottom:8px;left:8px;right:8px;z-index:9999;background:#ffffffeb;padding:8px;border-radius:12px;color:#243f4f;font:11px system-ui';
+testPanel.style.cssText='position:fixed;bottom:calc(var(--sb, 0px) + 8px);left:max(8px, calc((100vw - 544px)/2));right:max(8px, calc((100vw - 544px)/2));z-index:9999;background:#ffffffeb;padding:8px;border-radius:12px;color:#243f4f;font:11px system-ui';
 testPanel.innerHTML='<div id="motion-test-status" style="margin-bottom:6px">Загрузка новых движений…</div><div style="display:flex;gap:4px;flex-wrap:wrap"><button id="test-bear">Мишаня</button><button id="test-owl">Сова</button><button id="test-ride">Стойка</button><button id="test-left">Влево</button><button id="test-right">Вправо</button><button id="test-air">Прыжок</button><button id="test-land">Посадка</button><button id="test-play">Играть</button></div>';
 document.body.appendChild(testPanel);
+const controlStyle=document.createElement('style');controlStyle.textContent='#motion-test-controls button{min-height:38px;padding:8px 10px;border:1px solid #d9b98a;border-radius:9px;background:#fff8ea;color:#243f4f;font:700 12px system-ui}';document.head.appendChild(controlStyle);
 function testPose(kind,phase){
  if(!HEROMODELS[kind].motion)return;clearWorld();window.__motionPause=true;hero=kind;G=newGame('play');G.y=1200;G.t=10;G.p.x=200;G.tx=200;G.p.v=400;G.shake=0;G.rival=null;G.p.rampH=0;G.p.mh=0;
  const p=G.p;if(phase==='left')p.ang=-.8;if(phase==='right')p.ang=.8;
@@ -41,7 +44,7 @@ const end=html.lastIndexOf('</script>');html=html.slice(0,end)+testUI+html.slice
 fs.writeFileSync('docs/animation-test.html',html);
 // Portable browser review: public original assets, embedded new study GLBs.
 // Separate in-memory storage avoids saves on a data-document's opaque origin.
-let portable=html.replace('<head>','<head><base href="https://magliot.github.io/belaya-sova/">');
+let portable=html.replace(/<script src="https:\/\/telegram.org\/js\/telegram-web-app.js"><\/script>/,'').replace('<head>','<head><base href="https://magliot.github.io/belaya-sova/">');
 portable=portable.replaceAll('localStorage','previewStorage').replaceAll('sessionStorage','previewStorage');
 const module=fs.readFileSync('docs/hero-motion.js','utf8');portable=portable.replace("'./hero-motion.js'",JSON.stringify('data:text/javascript;base64,'+Buffer.from(module).toString('base64')));
 const b64=Object.fromEntries(['bear','owl'].map(k=>[k,fs.readFileSync('docs/models/studies/'+k+'.glb').toString('base64')]));
