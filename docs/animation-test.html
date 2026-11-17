@@ -204,6 +204,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
     <div class="player hidden" id="mPlayer"></div>
     <div class="row stats"><span>⭐ Рекорд: <b id="mBest">0</b></span><button class="toppill" id="bTop">🏆 Рейтинг</button><span>🍊 <b id="mCoins">0</b></span></div>
     <div class="playwrap"><span class="rays"><b></b><b></b><b></b></span><button class="big" id="bPlay"><svg viewBox="0 0 24 24"><path d="M6 3.5v17a1 1 0 0 0 1.5.86l14-8.5a1 1 0 0 0 0-1.72l-14-8.5A1 1 0 0 0 6 3.5z" fill="#fff"/></svg>ПОЕХАЛИ!</button><span class="rays r"><b></b><b></b><b></b></span></div>
+    <button class="toppill" id="bSprint">Короткий спуск · 1,2 км</button>
     <div class="btnrow"><button class="mini snowcap" id="bColl"><span class="ic">🏅</span>Коллекция</button><button class="mini snowcap" id="bTasks"><span class="ic">🎯</span>Задания</button><button class="mini snowcap" id="bShop"><span class="ic">🛒</span>Улучшения</button><button class="mini snowcap" id="bSet"><span class="ic">⚙️</span>Настройки</button></div>
   </div>
   <button class="fislink" id="bFis">📜 Правила FIS: <b>0/10</b></button>
@@ -292,11 +293,11 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
 <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.min.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
 <script type="module">
 import * as THREE from 'three';
-import {attachHeroMotion,poseHeroMotion} from './hero-motion.js';
+import {attachHeroMotion,poseHeroMotion} from './hero-motion.js?v=2026-11-18a';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
-import {courseCenter,courseHeading,courseGrade,courseHeight,courseCrossHeight,courseCrossSlope,coursePoint,courseGround,coursePitch,courseSlip,courseWidth,courseTheme} from './course.js?v=2026-11-17h';
-import {drawRaceHUD} from './race-hud.js?v=2026-11-17h';
+import {courseCenter,courseHeading,courseGrade,courseHeight,courseCrossHeight,courseCrossSlope,coursePoint,courseGround,coursePitch,courseSlip,courseWidth,courseTheme} from './course.js?v=2026-11-18a';
+import {drawRaceHUD} from './race-hud.js?v=2026-11-18a';
 'use strict';
 // Telegram Mini App: есть только при запуске внутри Telegram
 const TG=(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initData)?window.Telegram.WebApp:null;
@@ -816,7 +817,8 @@ const pickGlow=new THREE.SpriteMaterial({map:glowTex,transparent:true,blending:T
 const flagGeo=new THREE.PlaneGeometry(0.6,0.42);
 const FACT={
   stageProp(o){const g=new THREE.Group(),park=o.theme==='park',forest=o.theme==='forest';const color=park?'#874bdd':forest?'#26714c':'#387eaa';
-    const key='stage_'+o.theme+(forest?(o.x<200?'_r':'_l'):'');const tex=archTexCache[key]||(archTexCache[key]=label(park?'СНОУПАРК':forest?('ЛЕС '+(o.x<200?'→':'←')):'ГРЕБНИ',{bg:color,fg:'#fff',w:512,h:128,font:'900 55px system-ui,sans-serif',r:12}));
+    const caption=o.caption||(forest?('ЛЕС '+(o.x<200?'→':'←')):park?'СНОУПАРК':'ГРЕБНИ');
+    const key='stage_'+o.theme+caption;const tex=archTexCache[key]||(archTexCache[key]=label(caption,{bg:color,fg:'#fff',w:512,h:128,font:'900 55px system-ui,sans-serif',r:12}));
     const tall=park?2.7:1.5;for(const s of[-1,1])S3(mk(sharedGeo.cyl,OM.pole,s*.58,tall/2,0,g),.035,tall,.035);
     const p=plane(tex,park?2.4:1.6,park?.65:.5,g,0,tall-.18,0,false);p.material.side=THREE.DoubleSide;
     S3(mk(sharedGeo.box,OM.snow,0,tall+.09,0,g,false),park?2.45:1.65,.08,.16);return g;},
@@ -879,6 +881,8 @@ const FACT={
     const tex=canvasTex(128,64,(x,w,h)=>{x.strokeStyle='#ff6a00';x.lineWidth=3;for(let i=-h;i<w;i+=12){x.beginPath();x.moveTo(i,0);x.lineTo(i+h,h);x.stroke();x.beginPath();x.moveTo(i+h,0);x.lineTo(i,h);x.stroke();}x.fillStyle='#ff6a00';x.fillRect(0,0,w,5);});
     tex.wrapS=THREE.RepeatWrapping;tex.repeat.set(len/1.5,1);const net=plane(tex,len,1.0,g,0,0.6,0,true);net.material.side=THREE.DoubleSide;
     for(let i=0;i<n;i++)S3(mk(sharedGeo.cyl,M(0x2d2f36),-len/2+i*len/(n-1),0.6,0,g),0.035,1.2,0.035);return g;},
+  finish(){const g=new THREE.Group();for(const side of [-1,1])S3(mk(sharedGeo.cyl,M(0x214664),side*8,2.4,0,g),.15,4.8,.15);
+    plane(label('ФИНИШ',{bg:'#214664',fg:'#fff',w:512,h:96,font:'900 68px system-ui',r:12}),16,1.65,g,0,4.5,0,false);return g;},
   arch(o){const g=new THREE.Group();const st=STAGES[o.stage];const c=M(new THREE.Color(st.col).getHex());
     for(const s of[-1,1])S3(mk(sharedGeo.cyl,c,s*7,2.6,0,g),0.2,5.2,0.2);
     const t=archTexCache[o.stage]||(archTexCache[o.stage]=label(st.name.toUpperCase(),{bg:st.col,fg:'#fff',w:1024,h:128,font:'900 70px system-ui,sans-serif',r:20}));
@@ -922,7 +926,7 @@ const FACT={
     const q=mk(sharedGeo.cyl,OM.gold,0.08,-0.32,0,g);S3(q,0.015,0.25,0.015);q.rotation.z=0.3;g.userData.spin=true;g.userData.baseY=1.0;return g;},
 };
 let assetGen=0;const pools={};const archTexCache={},letterTexCache={};let instrTex=null,aidTex=null;const gateTexCache={};
-function poolKey(o){if(o.type==='stageProp')return 'stageProp_'+o.theme+(o.theme==='forest'?(o.x<200?'_r':'_l'):'');return o.type==='gate'?'gate'+o.col+'_'+Math.round(o.gap):o.type==='npc'?'npc'+o.colHex+'v'+(o.vi||0)+(o.walker?'w':'')+(o.sit?'s':'')+(o.kid?'k':'')+(o.instr?'i':'')+(o.sb?'b':''):o.type==='cat'?'cat'+(o.vy>0?1:0):o.type==='fence'?'fence'+Math.round(o.x2-o.x1):o.type==='cannon'?'cannon'+(o.x<200?1:0):o.type==='arch'?'arch'+o.stage:o.type==='dog'?'dog'+(o.vx>0?1:0):o.type==='snowman'||o.type==='yeti'?o.type+(o.x<200?1:0):o.type==='letter'?'letter'+o.ch+(o.air?1:0):o.type==='tree'?'tree'+(o.pine?'p':o.fir?'f':''):o.type==='ramp'?'ramp'+o.w+'_'+(o.hh||0.75)+(o.park?'_park':''):o.type;}
+function poolKey(o){if(o.type==='stageProp')return 'stageProp_'+o.theme+(o.caption||'')+(o.theme==='forest'?(o.x<200?'_r':'_l'):'');if(o.type==='rail')return 'rail_'+o.w+'_'+o.len+'_'+o.hh;return o.type==='gate'?'gate'+o.col+'_'+Math.round(o.gap):o.type==='npc'?'npc'+o.colHex+'v'+(o.vi||0)+(o.walker?'w':'')+(o.sit?'s':'')+(o.kid?'k':'')+(o.instr?'i':'')+(o.sb?'b':''):o.type==='cat'?'cat'+(o.vy>0?1:0):o.type==='fence'?'fence'+Math.round(o.x2-o.x1):o.type==='cannon'?'cannon'+(o.x<200?1:0):o.type==='arch'?'arch'+o.stage:o.type==='dog'?'dog'+(o.vx>0?1:0):o.type==='snowman'||o.type==='yeti'?o.type+(o.x<200?1:0):o.type==='letter'?'letter'+o.ch+(o.air?1:0):o.type==='tree'?'tree'+(o.pine?'p':o.fir?'f':''):o.type==='ramp'?'ramp'+o.w+'_'+(o.hh||0.75)+(o.park?'_park':''):o.type;}
 function decorateParkRamp(g,o){const w=o.w*U,h=o.hh||.75,blue=M(0x438ef1),purple=M(0x874bdd);
  for(const side of [-1,1]){const strip=mk(new THREE.PlaneGeometry(.14,Math.hypot(3.3,h)),side<0?blue:purple,side*(w/2-.03),h/2+.04,0,g,false);strip.rotation.x=-Math.PI/2+Math.atan(h/3.3);
   S3(mk(sharedGeo.cyl,OM.pole,side*(w/2+.15),h+.5,-1.65,g,false),.025,1,.025);
@@ -1127,7 +1131,7 @@ function burst(x,y,n,c,sp){burst3(X(x),0.4,Z(y),n,c,(sp||150)/30);}
 function addObj(o){G.objs.push(o);o.m=acquire(o);placeObj(o);}
 // ===== поле бугров: бугры в шахматном порядке, рельеф = та же функция, по которой едет герой =====
 const MOG={patches:[]};const mogMat=new THREE.MeshLambertMaterial({vertexColors:true});
-function bumpH(P,x,y){let h=0;for(const b of P.b){const dx=(x-b.x)/(b.Rx||b.R),dy=(y-b.y)/(b.Ry||b.R);const d2=dx*dx+dy*dy;if(d2<1){const c=Math.cos(Math.sqrt(d2)*Math.PI/2);const v=b.A*c*c;h=P.rolling?h+v:Math.max(h,v);}}return h;}
+function bumpH(P,x,y){let h=0;for(const b of P.b){const dx=(x-b.x)/(b.Rx||b.R),dy=(y-b.y)/(b.Ry||b.R);const d2=dx*dx+dy*dy;if(d2<1){const c=Math.cos(Math.sqrt(d2)*Math.PI/2);const v=b.A*c*c;h=P.rolling?h+v:Math.max(h,v);}}if(P.rolling){const k=clamp((Math.abs(x-mogulValley(y))-18)/48,0,1);h*=.12+.88*k*k*(3-2*k);}return h;}
 function mogAt(x,y){for(const P of MOG.patches)if(y>=P.y0&&y<=P.y1)return bumpH(P,x,y);return 0;}
 function addMogulPatch(y0,rows,diff){const rolling=stageDef(stageAt(y0/20)).moguls;const sx=rnd(48,56),sy=rolling?175:rnd(44,52);const P={y0,y1:y0+rows*sy+(rolling?180:50),b:[],rolling:!!rolling};
   if(rolling){for(let r=0;r<rows;r++){const shift=r%2?35:-35;for(const x of [110,290])P.b.push({x:x+shift,y:y0+150+r*sy,Rx:115,Ry:150,A:rnd(1.05,1.35)});}}
@@ -1186,27 +1190,80 @@ function animNpc(o,m){const t=G.t,ph=o.ph||0,b=m.userData.body;const air=o.air>0
   const a=Math.sin(t*1.3+o.ph);m.rotation.set(air>=0?-0.25*tw:0,-a*0.4,-a*0.15);if(air<0&&o.vy>0)m.position.y+=Math.abs(Math.sin(t*2.6+ph))*0.03;}
 const npcLift=o=>o.air>0?o.launchH*(1-o.airT/o.airMax)+Math.sin(Math.PI*o.airT/o.airMax)*o.jumpH:(o.rampH||0);
 function parkBoxHeight(o,y){return o.hh*Math.max(0,Math.min(1,(y-o.y+o.len/2)/40,(o.len/2-y+o.y)/40));}
-function forestSection(y){const n=Math.floor(y/1000),side=n%2?1:-1,route=side>0?140:260;
-  for(const [x,dy,s] of [[28,0,1.6],[372,60,1.7],[35,440,1.4],[365,620,1.6],[200+side*25,200,1.35]])addObj({type:'tree',x,y:y+dy,r:12,s,fir:true});
-  for(let i=0;i<5;i++)addObj({type:'coin',x:route,y:y+80+i*85,r:9});
-  addObj({type:'gate',x:route,y:y+610,gap:112,col:n%2});
-  addObj({type:'stageProp',theme:'forest',x:side>0?365:35,y:y+100});return 1000;}
-function rollerSection(y,diff){const P=addMogulPatch(y,12,diff);
-  for(let r=0;r<12;r++){const x=r%2?220:180;addObj({type:'coin',x,y:y+150+r*175,r:9});
-    if(r%3===0)for(const sx of [22,378])addObj({type:'stageProp',theme:'moguls',x:sx,y:y+150+r*175});}
-  return P.y1-y+60;}
-function parkSection(y){const n=Math.floor(y/1500),phase=n%3,x=[110,200,290][phase];
-  addObj({type:'ramp',x,y:y+180,w:80,hh:phase===1?1.45:1.1,park:true});
-  addObj({type:'rail',x:x<200?290:100,y:y+680,w:46,len:200,hh:.65});
-  for(let i=0;i<5;i++)addObj({type:'coin',x,y:y+240+i*80,r:9,air:1});
-  for(const dy of [0,650,1200])for(const sx of [18,382])addObj({type:'stageProp',theme:'park',x:sx,y:y+dy});
-  addObj({type:'gate',x:200,y:y+1260,gap:136,col:n%2});return 1500;}
+function coinTrail(x,y,count,spacing){
+  for(let i=0;i<count;i++)addObj({type:'coin',x,y:y+i*spacing,r:9});
+}
+function forestSection(y){
+  const side=Math.floor(y/1000)%2?1:-1;
+  const rewardX=200+side*83,wideX=200-side*64;
+  // The close pair frames the reward line. The opposite lane has a wider exit.
+  for(const [x,dy,scale] of [[28,0,1.55],[372,60,1.65],[200+side*28,430,1.35],
+      [200+side*128,470,1.4],[200-side*164,530,1.5]]){
+    addObj({type:'tree',x,y:y+dy,r:12,s:scale,fir:true});
+  }
+  coinTrail(rewardX,y+100,6,105);
+  addObj({type:'gate',x:wideX,y:y+650,gap:112,col:side>0?1:0});
+  addObj({type:'stageProp',theme:'forest',x:side>0?365:35,y:y+65});
+  return 1000;
+}
+function mogulValley(y){return 120+28*Math.sin(y/460);}
+function rollerSection(y,diff){
+  const P=addMogulPatch(y,12,diff);
+  for(let r=0;r<12;r++){
+    const row=y+150+r*175;
+    if(r%3===0){
+      addObj({type:'coin',x:mogulValley(row),y:row,r:9});
+      for(const x of [22,378])addObj({type:'stageProp',theme:'moguls',x,caption:x<200?'ЛОЖБИНА':'ГРЕБНИ',y:row});
+    }
+    addObj({type:'coin',x:r%2?255:285,y:row,r:9});
+  }
+  return P.y1-y+60;
+}
+function parkSection(y){
+  const side=Math.floor(y/1500)%2?1:-1;
+  const rampX=200+side*38,boxX=200-side*64;
+  coinTrail(rampX,y+35,3,100);
+  coinTrail(boxX,y+35,3,100);
+  addObj({type:'ramp',x:rampX,y:y+510,w:84,hh:1.35,park:true});
+  addObj({type:'rail',x:boxX,y:y+590,w:50,len:225,hh:.65});
+  for(let i=0;i<4;i++)addObj({type:'coin',x:rampX,y:y+575+i*75,r:9,air:1});
+  for(const dy of [0,450,1100])for(const x of [18,382])addObj({type:'stageProp',theme:'park',x,caption:(x<200)===(rampX<200)?'ТРАМПЛИН':'БОКС',y:y+dy});
+  addObj({type:'gate',x:200,y:y+1300,gap:150,col:side>0?1:0});
+  return 1500;
+}
+// Authored 75 m sections keep every restart playable and give each choice a clear approach.
+function sprintSection(y){
+  const block=Math.round(y/1500);
+  if(block===16){addObj({type:'finish',x:200,y});G.nextY=Infinity;return;}
+  if([3,8,12].includes(block))forestSection(y);
+  else if([5,10,14].includes(block))parkSection(y);
+  else if(block===2||block===9){
+    coinTrail(200,y,4,100);
+    addObj({type:'thermos',x:200,y:y+420,r:12});
+  }else if(block===7){
+    addObj({type:'snowman',x:269,y:y+440,r:16,cd:0});
+    coinTrail(150,y+100,5,115);
+  }else{
+    for(let i=0;i<3;i++){
+      const x=200+((block+i)%2?48:-48);
+      addObj({type:'gate',x,y:y+300+i*415,gap:138,col:i%2,last:i===2});
+      addObj({type:'coin',x,y:y+300+i*415,r:9});
+    }
+  }
+  G.nextY+=1500;
+}
 function spawnSeg(){
   const y=G.nextY,d=y/20,diff=Math.min(1,d/3000);
   const sn=stageAt(d),st=stageDef(sn),lap=Math.floor(sn/STAGES.length);
   let len=(175-diff*55)/(1+lap*0.12);
+  if(G.sprint){sprintSection(y);return;}
   if(G.mode==='menu'){addGate(y,diff);G.nextY+=len;return;}
   if(sn!==G.lastSpawnStage){G.lastSpawnStage=sn;if(sn>0){addObj({type:'arch',x:200,y,stage:sn%STAGES.length});G.nextY+=140;return;}}
+  if(sn%8===4&&d-sn*STAGE_LEN<75){
+    const landmarkY=(sn*STAGE_LEN+55)*20;
+    if(y<=landmarkY){addObj({type:'snowman',x:266,y:landmarkY,r:16,cd:0});coinTrail(166,landmarkY-250,5,90);}
+    G.nextY=(sn*STAGE_LEN+75)*20;return;
+  }
   if(d<16){for(let i=0;i<3;i++)addObj({type:'coin',x:200,y:y+i*40,r:9});G.nextY+=len;return;}
   // буква коллекции — своё место, без помех
   if(G.letter&&!G.letterObj&&d>=G.letterAt){spawnLetter(y);G.nextY+=260;return;}
@@ -1268,6 +1325,7 @@ function spawnSeg(){
   else if(d>2000&&Math.random()<0.006){addObj({type:'feather',x:rnd(60,340),y:y+len*0.5,r:12});}
   if((sn%8===4||sn%8===6)&&Math.random()<0.007&&!G.yetiSpawned){G.yetiSpawned=true;addObj({type:'yeti',x:Math.random()<.5?22:378,y:y+len*0.3,met:false});}
   G.nextY+=len;
+  if(st.park)G.nextY=Math.min(G.nextY,(sn+1)*STAGE_LEN*20);
 }
 function spawnLetter(y){
   const L=G.letter;const air=Math.random()<0.5;const x=rnd(120,280);
@@ -1323,7 +1381,7 @@ const CHAL=[
   {k:'clean',t:n=>'Проедь '+n+' м без касаний',need:500,cur:c=>Math.floor((G.y-c.cleanY)/20)},
   {k:'tricks',t:n=>'Сделай '+n+' трюка',need:4,cur:c=>G.tricks-c.t0},
   {k:'polite',t:n=>n+' вежливых обгона',need:3,cur:c=>G.polite-c.p0}];
-function newChallenge(sn){const d=CHAL[Math.floor(Math.random()*CHAL.length)];
+function newChallenge(sn){const d=G.sprint?CHAL[1]:CHAL[Math.floor(Math.random()*CHAL.length)];
   G.chal={d,stage:sn,c0:G.coins,t0:G.tricks,p0:G.polite,n:0,cleanY:G.y,done:false,need:Math.round(d.need*(1+0.12*(sn%8)))};}
 function chalProgress(){const c=G.chal;return c?Math.min(c.need,Math.max(0,c.d.cur(c))):0;}
 function chalTick(){const c=G.chal;
@@ -1421,9 +1479,11 @@ function update(dt){
   // Скорость зависит от уклона и кофе, а не от удержания экрана.
   p.tuck=lerp(p.tuck||0,p.boost>0?1:0.3,Math.min(1,dt*3));
   if(drag&&drag.pend&&performance.now()-drag.pend.t>150){const i=drag.pend.idx;drag.pend=null;if(p.air>0){drag.swiped=true;tryTrick(i);}}
-  G.base=base*1.1;
+  const ridgePace=stNow.moguls?1+.08*clamp((p.x-195)/45,0,1):1;
+  G.base=base*1.1*ridgePace;
   G.speed=G.base*(p.boost>0?1.65:1)*(p.slow>0?0.62:1)*(p.fall>0?fallSpeedK(p):1);
   G.prevY=G.y;G.y+=G.speed*dt;
+  if(G.sprint)G.y=Math.min(G.y,SPRINT_METERS*20);
   if(snNow!==G.stage){if(G.stage>=0){banner('Этап '+(snNow+1)+': '+stNow.name,stNow.sub);SFX.chime();voice('stage');}G.stage=snNow;if(snNow+1>save.meet.bestStage){save.meet.bestStage=snNow+1;persist();}}
   const Zn=ZONES[zi];
   rivalTick(dt);chaseTick(dt);if(G.mode!=='play')return;chalTick();
@@ -1485,7 +1545,20 @@ function update(dt){
     if(o.type==='npc'){if(o.vy>0)npcAI(o,dt);o.y+=o.vy*dt;o.x=clamp(o.bx+Math.sin(G.t*(o.w||1.3)+o.ph)*o.amp,30,370);}
     if(o.type==='dog'){o.x+=o.vx*dt;if(o.x<-10||o.x>410)o.dead=true;}
     if(o.type==='ball'){o.x+=o.vx*dt;o.h=Math.max(0,o.h-dt*0.3);if(o.x<-10||o.x>410)o.dead=true;}
-    if(o.type==='snowman'){o.cd-=dt;const ahead=o.y-py;if(ahead>40&&ahead<1100&&o.cd<=0){o.cd=rnd(1.0,1.7);const s=o.x<200?1:-1;addObj({type:'ball',x:o.x+s*12,y:o.y-ahead*0.0+rnd(-30,10),vx:s*rnd(170,230),r:8,h:1.3});o.thrown=0.3;}if(o.thrown>0)o.thrown-=dt;}
+    if(o.type==='snowman'){
+      const ahead=o.y-py,side=o.x<200?1:-1;
+      o.cd-=dt;
+      if(o.windup>0){
+        o.windup-=dt;
+        if(o.windup<=0&&ahead>10){
+          addObj({type:'ball',x:o.x+side*12,y:o.y,vx:side*rnd(170,230),r:8,h:1.3});
+          o.thrown=.3;o.cd=1.05;
+        }
+      }else if(ahead>Math.max(80,G.speed*.55)&&ahead<1000&&o.cd<=0){
+        o.windup=.48;if(!o.warned){tone(620,.11,.035,'sine',870);o.warned=true;}
+      }
+      if(o.thrown>0)o.thrown-=dt;
+    }
     if(o.type==='cat'){o.y+=o.vy*dt;if(!o.warned&&o.vy<0&&o.y>py&&o.y-py<900){o.warned=true;banner('⚠ РАТРАК НАВСТРЕЧУ','уходи с его полосы','warn');SFX.warn();}}
     const dx=p.x-o.x,dy=py-o.y,dd=Math.hypot(dx,dy);
     switch(o.type){
@@ -1556,6 +1629,7 @@ function update(dt){
   if(G.y/20-(G.lastHitM||0)>=1500)fisEarn(1);
   const st=runStats();
   for(const m of save.missions){if(!m.got&&st[mdef(m.id).stat]>=m.n){m.got=true;banner('ЗАДАНИЕ ВЫПОЛНЕНО','+'+m.reward+' 🍊','gold');SFX.chime();}}
+  if(G.sprint&&G.mode==='play'&&G.y>=SPRINT_METERS*20){G.failMsg='Финиш! Короткий спуск пройден';gameOver();return;}
   setLoops(Math.min(0.32,G.speed/2200)+(Zn.blizz?0.16:0),p.air>0?0:Math.min(0.3,Math.abs(p.vx)/1300)+0.035,Zn.blizz?650+Math.sin(G.t)*200:420);catAudio();
 }
 function animObjs(dt){
@@ -1567,10 +1641,11 @@ function animObjs(dt){
     m.rotation.y-=m.userData.courseYaw||0;m.rotation.z-=m.userData.courseRoll||0;
     m.position.set(X(o.x),og+(o.type==='ball'?o.h:o.type==='npc'?npcLift(o):0),oz);
     if(m.userData.mixer)m.userData.mixer.update(dt);
+    if(o.type==='snowman')m.rotation.y=Math.PI+(o.x<200?.35:-.35);
     if(o.type==='dog'){const d=m.userData.dog;d.position.y=Math.abs(Math.sin(G.t*14))*(m.userData.mixer?0.035:0.12);d.userData.legs.forEach((l,i)=>l.rotation.x=Math.sin(G.t*14+i*1.6)*0.7);}
-    if(m.userData.arm&&o.type==='snowman')m.userData.arm.rotation.x=o.thrown>0?-2.2:-0.2;
+    if(m.userData.arm&&o.type==='snowman')m.userData.arm.rotation.x=o.thrown>0?-2.2:o.windup>0?1.25:-0.2;
     if(o.type==='yeti'&&m.userData.arm)m.userData.arm.rotation.z=m.userData.yetiSide*(-2.4+Math.sin(G.t*8)*0.5);
-    if(m.userData.worldArm){const a=m.userData.worldArm,s=m.userData.worldArmSide;if(o.type==='snowman'){a.rotation.z=s*(o.thrown>0?1.15:0.06);a.rotation.y=s*(o.thrown>0?-0.7:0);}else if(o.type==='yeti')a.rotation.z=s*(1.5+Math.sin(G.t*8)*0.25);}
+    if(m.userData.worldArm){const a=m.userData.worldArm,s=m.userData.worldArmSide;if(o.type==='snowman'){a.rotation.z=s*(o.thrown>0?1.15:o.windup>0?1.8:0.06);a.rotation.y=s*(o.thrown>0?-0.7:o.windup>0?.65:0);}else if(o.type==='yeti')a.rotation.z=s*(1.5+Math.sin(G.t*8)*0.25);}
     if(m.userData.letter){m.position.y=og+m.userData.baseY+Math.sin(G.t*3)*0.15;}
     if(o.type==='cat'||o.type==='rail')m.rotation.x=-coursePitch(X(o.x),oz);
     if(m.userData.cannon&&Math.random()<0.6){const s=m.userData.cannon;emit(m.position.x+s*0.9,og+3.2,oz,s*rnd(3,6),rnd(0,2),rnd(-1,1),1.2,rnd(0.05,0.1),'#ffffff');}
@@ -1734,14 +1809,15 @@ function drawHUD(){
  else if(G.letterObj&&!G.letterObj.dead&&G.letterObj.y-G.y>0&&G.letterObj.y-G.y<1500)status='Буква «'+G.letterObj.ch+'» '+(G.letterObj.x<p.x?'←':'→');
  drawRaceHUD(hx,{width:W,height:H,safeTop:SAFE_TOP,time:G.t,score:score(),distance:Math.floor(G.y/20),coins:G.coins,
   speed:Math.round(G.speed/20*3.6),lives:p.lives,multiplier:mult(),boost:p.boost>0,
-  stage:(Math.max(0,G.stage)+1)+' · '+st.name,rival,status,warning:!!G.chase,chaseK:G.chase?.k||0});
+  stage:G.sprint?'Финиш · '+Math.max(0,SPRINT_METERS-Math.floor(G.y/20))+' м':(Math.max(0,G.stage)+1)+' · '+st.name,rival,status,warning:!!G.chase,chaseK:G.chase?.k||0});
 }
 
 // ================= FLOW =================
 function clearWorld(){dropMogPatches(true);if(G)for(const o of G.objs)release(o);for(let i=0;i<TRACKN;i++){tmpM.makeScale(0,0,0);trackMesh.setMatrixAt(i,tmpM);}trackMesh.instanceMatrix.needsUpdate=true;
   for(const t of forest){t.userData.z=-rnd(-15,170);t.userData.x=0;}lamps.forEach((l,i)=>l.userData.z=-Math.floor(i/2)*30-(l.userData.side>0?15:0));towers.forEach((t,i)=>t.userData.z=-i*35);}
-function startGame(){initAudio();music('run');hideToast();clearWorld();G=newGame('play');setTimeout(()=>voice('start',true),600);
-  if(!save.meet.coastHint){save.meet.coastHint=1;persist();const g0=G;setTimeout(()=>{if(G===g0&&G.mode==='play')banner('Рули на поворотах · кофе даёт ускорение');},1500);}lastTrackZ=0;$('share').classList.add('hidden');if(save.helmets>0){save.helmets--;G.p.lives=1;persist();}G.letter=collState();G.letterAt=G.letter?letterDist(G.letter.w,G.letter.i):Infinity;for(const m of save.missions)m.got=false;
+const SPRINT_METERS=1200;
+function startGame(sprint=false){initAudio();music('run');hideToast();clearWorld();G=newGame('play');G.sprint=sprint;if(sprint){G.nextY=0;G.nextChaseD=Infinity;}setTimeout(()=>voice('start',true),600);
+  if(!save.meet.coastHint){save.meet.coastHint=1;persist();const g0=G;setTimeout(()=>{if(G===g0&&G.mode==='play')banner('Рули на поворотах · кофе даёт ускорение');},1500);}lastTrackZ=0;$('share').classList.add('hidden');if(save.helmets>0){save.helmets--;G.p.lives=1;persist();}G.letter=G.sprint?null:collState();G.letterAt=G.letter?letterDist(G.letter.w,G.letter.i):Infinity;for(const m of save.missions)m.got=false;
   $('topbtns').classList.remove('hidden');['menu','over','pause'].forEach(id=>$(id).classList.add('hidden'));}
 // ===== рейтинг (сервер Telegram Serverless: подпись игрока проверяет Telegram) =====
 // адрес сервера рекордов (Google Apps Script → «Веб-приложение», заканчивается на /exec)
@@ -1786,8 +1862,8 @@ function gameOver(){
   save.missions=save.missions.map(m=>{const d=mdef(m.id);if(m.got){reward+=m.reward;save.mdone++;lines.push(`<div class="mis done"><span>✓ ${d.t(m.n)}</span><i>+${m.reward}</i></div>`);return null;}
     lines.push(`<div class="mis"><span>${d.t(m.n)}</span><i>${m.reward}</i></div>`);return m;}).filter(Boolean);
   ensureMissions();save.coins+=G.coins+reward;persist();
-  $('oFail').textContent=G.failMsg||'';$('oFis').innerHTML=fisTip(G.failKind);$('oRec').classList.toggle('hidden',!rec);$('oScore').textContent=sc;
-  $('oStats').innerHTML=`Этап ${G.stage+1}: ${stageDef(Math.max(0,G.stage)).name}<br>${Math.floor(G.y/20)} м · ворот ${G.gates} · серия ${G.maxCombo} · трюков ${G.tricks}<br>🍊 +${G.coins}${reward?` · за задания +${reward}`:''}${G.feathers?` · перьев ${G.feathers}`:''} · рекорд <b>${save.best}</b>`;
+  $('oFail').textContent=G.failMsg||'';$('oFis').innerHTML=G.sprint&&G.y===SPRINT_METERS*20?'':fisTip(G.failKind);$('oRec').classList.toggle('hidden',!rec);$('oScore').textContent=sc;
+  $('oStats').innerHTML=`${G.sprint?'Короткий спуск':'Этап '+(G.stage+1)+': '+stageDef(Math.max(0,G.stage)).name}<br>${Math.floor(G.y/20)} м · ворот ${G.gates} · серия ${G.maxCombo} · трюков ${G.tricks}<br>🍊 +${G.coins}${reward?` · за задания +${reward}`:''}${G.feathers?` · перьев ${G.feathers}`:''} · рекорд <b>${save.best}</b>`;
   $('oMis').innerHTML=lines.join('');submitRun(sc);
   // новые танцы, открытые этим заездом
   {const seen=save.meet.danceSeen||['sway'];const fresh=DANCES.filter(d=>d.need()&&!seen.includes(d.id));
@@ -1820,7 +1896,7 @@ $('uMag').onclick=()=>{const c=UPC(save.mag);if(save.coins>=c&&save.mag<MAXU){sa
 $('uBoost').onclick=()=>{const c=UPC(save.boost);if(save.coins>=c&&save.boost<MAXU){save.coins-=c;save.boost++;persist();initAudio();SFX.power();refreshMenu();}};
 $('uHelm').onclick=()=>{if(save.coins>=HELM){save.coins-=HELM;save.helmets++;persist();initAudio();SFX.power();refreshMenu();}};
 document.querySelectorAll('.seg button').forEach(el=>el.onclick=()=>{hero=el.dataset.h;save.hero=hero;persist();if(G)G.waveT=1.6;sayBubble();initAudio();tone(hero==='bear'?262:523,0.2,0.06);refreshMenu();});
-$('bPlay').onclick=startGame;
+$('bPlay').onclick=()=>startGame();$('bSprint').onclick=()=>startGame(true);
 document.querySelectorAll('.pclose').forEach(b=>b.onclick=()=>b.closest('.ui').classList.add('hidden'));
 $('bTasks').onclick=()=>{refreshMenu();$('tasks').classList.remove('hidden');};$('bShop').onclick=()=>{refreshMenu();$('shop').classList.remove('hidden');};$('bSet').onclick=()=>{syncSens();$('settings').classList.remove('hidden');};
 const FIS=[
@@ -1879,7 +1955,7 @@ $('bShClose').onclick=()=>$('share').classList.add('hidden');
 $('bShCopy').onclick=async()=>{try{await navigator.clipboard.writeText(shareText);$('shHint').textContent='Текст скопирован — вставьте его в чат';}catch(e){$('shHint').textContent=shareText;}};
 $('bShSend').onclick=async()=>{if(TG){tgShare();return;}try{const f=shareBlob&&new File([shareBlob],'belaya-sova.png',{type:'image/png'});
   if(f&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:shareText});return;}
-  if(navigator.share){await navigator.share({text:shareText});return;}throw 0;}catch(e){$('shHint').textContent='Здесь отправка не работает — зажмите картинку и сохраните её, или скопируйте текст';}};$('bAgain').onclick=startGame;$('bMenu').onclick=toMenu;
+  if(navigator.share){await navigator.share({text:shareText});return;}throw 0;}catch(e){$('shHint').textContent='Здесь отправка не работает — зажмите картинку и сохраните её, или скопируйте текст';}};$('bAgain').onclick=()=>startGame(G.sprint);$('bMenu').onclick=toMenu;
 $('bPause').onclick=pauseGame;$('bResume').onclick=()=>{$('pause').classList.add('hidden');G.mode='play';};// выход из заезда = конец заезда: показываем итоги и отправляем результат в рейтинг
 $('bQuit').onclick=()=>{if(G&&G.mode==='pause'&&G.y/20>=30){$('pause').classList.add('hidden');G.failMsg='Заезд завершён';G.failKind=null;gameOver();}else toMenu();};
 $('bMute').onclick=()=>{save.muted=!save.muted;persist();initAudio();if(master)master.gain.value=save.muted?0:0.65;if(!save.muted)music(musWant);refreshMenu();};

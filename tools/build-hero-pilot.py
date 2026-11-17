@@ -127,12 +127,12 @@ def turn(n,axis,angle):
     b.rotation_quaternion=Quaternion(local,math.radians(angle))@b.rotation_quaternion
 def smooth(t): return t*t*(3-2*t)
 # time, compression, lateral weight shift, body lean, hand anticipation, airborne height
-keys=[(0,.025,0,9,0,0),(.8,.027,0,9,0,0),(1.5,.038,.035,13,-.005,0),
-      (2.15,.035,-.032,11,.005,0),(2.7,.025,0,9,0,0),
+keys=[(0,.025,0,9,0,0),(.8,.027,0,9,0,0),(1.5,.051,.046,15,-.012,0),
+      (2.15,.051,-.046,15,.012,0),(2.7,.025,0,9,0,0),
       (3.05,.065,0,18,.025,0),(3.25,.009,0,5,-.02,0),
       (3.5,.045,0,8,-.035,.23),(3.7,.05,0,10,-.02,.28),
       (3.98,.018,0,6,.005,.10),(4.08,.018,0,7,.012,0),
-      (4.23,.072,0,22,.025,0),(4.48,.035,0,12,-.01,0),
+      (4.23,.085,0,24,.03,0),(4.48,.042,0,14,-.008,0),
       (4.85,.022,0,8,0,0),(5.3,.025,0,9,0,0),(6,.025,0,9,0,0)]
 FPS=30; END=181
 def sample(t):
@@ -159,6 +159,10 @@ for frame in range(1,END+1):
     bpy.context.view_layer.update()
     errors=[]
     boarddelta=Matrix.Translation((0,0,air+.025+.025*flight))@Matrix.Rotation(math.radians(-12*flight),4,'Y')
+    if OWL:
+        # In the boarder's sideways stance the long axis of the board is local X.
+        edge=math.radians(16)*shift/.046
+        boarddelta=Matrix.Translation((0,0,.06*abs(math.sin(edge))))@boarddelta@Matrix.Rotation(edge,4,'X')
     for side in ['Left','Right']:
         hip=rig.matrix_world@bone(side+'UpLeg').head
         ankle=rig.matrix_world@loc(side+'Foot')+Vector((0,0,air+.025+.025*flight))

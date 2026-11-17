@@ -30,7 +30,7 @@ await doc.transform(
 for (const t of root.listTextures()) {
   const image = sharp(Buffer.from(t.getImage()));
   const { hasAlpha } = await image.metadata();
-  const resized = image.resize({ width: tex, height: tex, fit: 'inside', withoutEnlargement: true });
+  const resized = image.pipelineColourspace('srgb').resize({ width: tex, height: tex, fit: 'inside', withoutEnlargement: true });
   const buf = await (hasAlpha ? resized.png() : resized.jpeg({ quality: 82 })).toBuffer();
   const ext = hasAlpha ? 'png' : 'jpg';
   t.setImage(new Uint8Array(buf)).setMimeType(hasAlpha ? 'image/png' : 'image/jpeg');
