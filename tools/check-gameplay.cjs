@@ -44,7 +44,7 @@ window.__gameTest={
   advance(seconds,control,fps=60){keys.w=control==='hold';keys.s=control==='brake';
     for(let i=0;i<Math.ceil(seconds*fps)&&G.mode==='play';i++)update(1/fps);render(0);return this.state();},
   avalanche(kind,d,control,fps){this.reset(kind,d,34);G.nextChaseD=d;return this.advance(control==='hold'?6:22,control,fps);},
-  coast(kind,seed,fps){this.reset(kind,0,seed);G.nextY=300;return this.advance(75,'release',fps);},
+  coast(kind,seed,fps,x){this.reset(kind,0,seed);G.p.x=G.tx=x;G.nextY=300;return this.advance(75,'release',fps);},
   gates(kind,d,seed,fps){this.reset(kind,d,seed);G.p.tuck=1;keys.w=true;update(1/fps);
     const n0=G.objs.length;addCourse(G.y+G.speed*1.5,1);const target=G.objs.slice(n0).filter(o=>o.type==='gate');
     const seen=new Set();let rivalMissed=0;
@@ -75,7 +75,7 @@ async function browserChecks(){
         }else assert.equal(result.failKind,'avalanche','Coasting or braking must not outrun avalanche');
         avalanches.push({kind,fps,d,control,...result});
       }
-      for(const seed of [1,7,23])coasting.push({kind,fps,seed,...await page.evaluate(args=>__gameTest.coast(...args),[kind,seed,fps])});
+      for(const seed of [1,7,23])for(const x of [20,200,380])coasting.push({kind,fps,seed,x,...await page.evaluate(args=>__gameTest.coast(...args),[kind,seed,fps,x])});
       for(const d of [0,13000,16000]){
         const result=await page.evaluate(args=>__gameTest.gates(...args),[kind,d,54,fps]);
         assert.equal(result.mode,'play');assert.equal(result.passed,result.total,'Player must be able to reach every gate');
