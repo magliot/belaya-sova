@@ -45,7 +45,8 @@
 - [Pages build and deployment](https://github.com/magliot/belaya-sova/actions/runs/44045818268) завершился успешно. Публичный `version.txt` возвращает `2026-11-17f`.
 - Проверен настоящий публичный сайт https://magliot.github.io/belaya-sova/: SHA-256 девяти файлов (страницы, version, course, motion-entry, hero-motion и обе GLB) совпали с байтами Git-коммита. Для сравнения использован `git show`, поскольку рабочие файлы Windows могут иметь CRLF, а опубликованные — LF.
 - На публичном сайте в Chrome 375×812 проверены меню, переключение на Сову, старт, пауза/продолжение, перенаправление preview=motion и загрузка обеих пробных моделей. Ошибок JavaScript и HTTP 4xx/5xx ресурсов игры нет. Отчёт — `art/course-review/public-report.json`, снимки — `course-checks/public/`.
-- [Повторный CI того же кода на main](https://github.com/magliot/belaya-sova/actions/runs/44045819144) запущен автоматически; результат будет уточнён после завершения.
+- [Повторный CI того же кода на main](https://github.com/magliot/belaya-sova/actions/runs/44045819144) завершился успешно, включая все проверки и загрузку пяти artifacts.
+- Коммит фиксации публикации `7585954` синхронизирован в `main` и `codex/curved-course`; его [Pages deployment](https://github.com/magliot/belaya-sova/actions/runs/44046398051) также завершился успешно. Git-дерево `docs/` совпадает с проверенным кодом выпуска `0a79171`.
 
 Основные анимации остаются прежними; пилотные движения проверяются отдельно в `animation-test.html`. Прежний адрес Telegram: `https://t.me/belaya_sovabot/play`.
 Следующий пользовательский шаг — открыть игру прежней кнопкой в Telegram и проверить управление/плавность на своём телефоне. Частота кадров на настоящем iPhone и запуск внутри пользовательского Telegram пока не проверены; браузерные и эмулированные Telegram-проверки их не заменяют.
