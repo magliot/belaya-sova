@@ -70,7 +70,7 @@ Telegram держит старую копию страницы. В начале 
 
 ## Ассеты: модели, звук, картинки
 - 3D-модели делались в **Tripo** (text-to-3D, ~45 кредитов за модель), риг героев — Mixamo-подобный скелет из Tripo.
-- Перед упаковкой GLB сжимать: `node tools/shrink.mjs in.glb out.glb 0.25 512` (упрощение сетки + текстуры 512 JPEG; ресайз через PowerShell System.Drawing — на Windows; на другой ОС замените на sharp/ImageMagick).
+- Перед упаковкой GLB сжимать: `node tools/shrink.mjs in.glb out.glb 0.25 512` (упрощение сетки + текстуры до 512; ресайз через sharp на Windows/Linux/macOS; npm ci --prefix tools).
 - Упаковать: `node tools/pack-models.mjs docs/models/trees.js pine=pine_s.glb fir=fir_s.glb ramp=ramp_s.glb`.
 - `tools/clip.mjs` — вырезать часть модели (так из кресла убрали опору), `profile.mjs`/`probe2.mjs`/`boardaxis.mjs` — замеры габаритов и оси доски.
 - Музыка — Suno (через Syntx), голоса героев — ElevenLabs (через Syntx), картинки — GPT Image (через Syntx). Исходники лежат в архиве переноса, папка `исходники/`.
