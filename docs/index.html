@@ -1152,7 +1152,7 @@ function spawnSeg(){
     case 'ramp':{const x=rnd(90,310);const v=RAMPV[Math.floor(Math.random()*RAMPV.length)];addObj({type:'ramp',x,y,w:v[0],hh:v[1]});for(let i=0;i<4;i++)addObj({type:'coin',x,y:y+60+i*40,r:9,air:1});len+=90;break;}
     case 'kicker':{let x=rnd(110,290);for(let q=0;q<3;q++){const v=RAMPV[Math.floor(Math.random()*RAMPV.length)];addObj({type:'ramp',x,y:y+q*260,w:v[0],hh:v[1]});for(let i=0;i<3;i++)addObj({type:'coin',x,y:y+q*260+60+i*40,r:9,air:1});x=clamp(x+rnd(-70,70),90,310);}len+=520;break;}
     // камень на линии езды героя (+ иногда второй со смещением), мандаринки — в объезд
-    case 'lane':{const px=G.p?G.p.x:200;const x=clamp(laneDue?px+rnd(-10,10):Math.random()<0.6?px+rnd(-25,25):rnd(70,330),50,350);
+    case 'lane':{const px=G.p?G.p.x:200;const x=laneDue?clamp(px+rnd(-10,10),30,370):clamp(Math.random()<0.6?px+rnd(-25,25):rnd(70,330),50,350);
       if(Math.abs(x-px)<22)G.lastLaneY=y;addObj({type:'rock',x,y,r:15});const side=x<200?1:-1;
       for(let i=0;i<3;i++)addObj({type:'coin',x:clamp(x+side*rnd(55,70),40,360),y:y-25+i*28,r:9});
       if(Math.random()<0.45)addObj({type:'rock',x:clamp(x+side*rnd(105,145),50,350),y:y+rnd(120,170),r:15});len+=40;break;}
