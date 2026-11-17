@@ -47,6 +47,7 @@ fs.writeFileSync('docs/animation-test.html',html);
 let portable=html.replace(/<script src="https:\/\/telegram.org\/js\/telegram-web-app.js"><\/script>/,'').replace('<head>','<head><base href="https://magliot.github.io/belaya-sova/">');
 portable=portable.replaceAll('localStorage','previewStorage').replaceAll('sessionStorage','previewStorage');
 const module=fs.readFileSync('docs/hero-motion.js','utf8');portable=portable.replace("'./hero-motion.js'",JSON.stringify('data:text/javascript;base64,'+Buffer.from(module).toString('base64')));
+const courseModule=fs.readFileSync('docs/course.js','utf8');portable=portable.replace("'./course.js'",JSON.stringify('data:text/javascript;base64,'+Buffer.from(courseModule).toString('base64')));
 const b64=Object.fromEntries(['bear','owl'].map(k=>[k,fs.readFileSync('docs/models/studies/'+k+'.glb').toString('base64')]));
 portable=portable.replace('<head>','<head><script>const previewStorage={getItem(){return null},setItem(){},removeItem(){}};window.__MOTION_STUDIES='+JSON.stringify(b64)+';</script>');
 fs.mkdirSync('art/animation-integration',{recursive:true});

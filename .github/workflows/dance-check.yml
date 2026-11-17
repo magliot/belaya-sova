@@ -6,6 +6,8 @@ on:
       - docs/index.html
       - docs/version.txt
       - docs/motion-entry.js
+      - docs/course.js
+      - tools/check-course.mjs
       - docs/hero-motion.js
       - docs/animation-test.html
       - docs/models/studies/**
@@ -45,6 +47,7 @@ jobs:
           node tools/check-dances.cjs
           node tools/check-gameplay.cjs
           node tools/check-assets.cjs
+          node tools/check-course.mjs
           node tools/check-motion-integration.mjs
           node tools/check-motion-browser.cjs
       - uses: actions/upload-artifact@v5
