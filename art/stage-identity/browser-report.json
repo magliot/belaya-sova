@@ -1,0 +1,385 @@
+{
+  "viewport": [
+    375,
+    812
+  ],
+  "scenes": [
+    {
+      "name": "training",
+      "d": 100,
+      "kind": "bear",
+      "counts": {
+        "npc": 3,
+        "coin": 14,
+        "gate": 11,
+        "rock": 1,
+        "fence": 1,
+        "aid": 1,
+        "thermos": 1
+      },
+      "patches": 0,
+      "rolling": false,
+      "peak": 0,
+      "width": 21,
+      "wall": 1.6419560159196793,
+      "fogNear": 45,
+      "fogFar": 150,
+      "triangles": 146609,
+      "calls": 269,
+      "finite": true
+    },
+    {
+      "name": "forest",
+      "d": 2600,
+      "kind": "bear",
+      "counts": {
+        "tree": 15,
+        "coin": 15,
+        "gate": 3,
+        "stageProp": 3,
+        "helmet": 1
+      },
+      "patches": 0,
+      "rolling": false,
+      "peak": 0,
+      "width": 13.5,
+      "wall": 1.7194684278561243,
+      "fogNear": 45,
+      "fogFar": 150,
+      "triangles": 127073,
+      "calls": 205,
+      "finite": true
+    },
+    {
+      "name": "moguls",
+      "d": 5100,
+      "kind": "bear",
+      "counts": {
+        "coin": 24,
+        "stageProp": 16
+      },
+      "patches": 2,
+      "rolling": true,
+      "peak": 1.3380350253341453,
+      "width": 21,
+      "wall": 2.4145357144991966,
+      "fogNear": 45,
+      "fogFar": 150,
+      "triangles": 208540,
+      "calls": 267,
+      "finite": true
+    },
+    {
+      "name": "park",
+      "d": 7580,
+      "kind": "bear",
+      "counts": {
+        "ramp": 3,
+        "rail": 3,
+        "coin": 15,
+        "stageProp": 18,
+        "gate": 3
+      },
+      "patches": 0,
+      "rolling": false,
+      "peak": 0,
+      "width": 21,
+      "wall": 3.7789943175675402,
+      "fogNear": 40,
+      "fogFar": 140,
+      "triangles": 175142,
+      "calls": 335,
+      "finite": true
+    },
+    {
+      "name": "summit",
+      "d": 10100,
+      "kind": "bear",
+      "counts": {
+        "rock": 7,
+        "coin": 34,
+        "snowman": 3,
+        "fence": 1,
+        "thermos": 1,
+        "npc": 3,
+        "magnet": 1,
+        "ramp": 1,
+        "gate": 5
+      },
+      "patches": 1,
+      "rolling": false,
+      "peak": 0.7879602760815463,
+      "width": 21,
+      "wall": 0.11194395270722723,
+      "fogNear": 22,
+      "fogFar": 100,
+      "triangles": 143108,
+      "calls": 210,
+      "finite": true
+    },
+    {
+      "name": "training",
+      "d": 100,
+      "kind": "owl",
+      "counts": {
+        "npc": 3,
+        "gate": 12,
+        "rock": 1,
+        "coin": 4
+      },
+      "patches": 0,
+      "rolling": false,
+      "peak": 0,
+      "width": 21,
+      "wall": 1.6419560159196793,
+      "fogNear": 45,
+      "fogFar": 150,
+      "triangles": 146140,
+      "calls": 268,
+      "finite": true
+    },
+    {
+      "name": "forest",
+      "d": 2600,
+      "kind": "owl",
+      "counts": {
+        "tree": 20,
+        "coin": 20,
+        "gate": 4,
+        "stageProp": 4
+      },
+      "patches": 0,
+      "rolling": false,
+      "peak": 0,
+      "width": 13.5,
+      "wall": 1.7194684278561243,
+      "fogNear": 45,
+      "fogFar": 150,
+      "triangles": 126476,
+      "calls": 193,
+      "finite": true
+    },
+    {
+      "name": "moguls",
+      "d": 5100,
+      "kind": "owl",
+      "counts": {
+        "coin": 24,
+        "stageProp": 16
+      },
+      "patches": 2,
+      "rolling": true,
+      "peak": 1.33669168269899,
+      "width": 21,
+      "wall": 2.4145357144991966,
+      "fogNear": 45,
+      "fogFar": 150,
+      "triangles": 207943,
+      "calls": 255,
+      "finite": true
+    },
+    {
+      "name": "park",
+      "d": 7580,
+      "kind": "owl",
+      "counts": {
+        "ramp": 3,
+        "rail": 3,
+        "coin": 15,
+        "stageProp": 18,
+        "gate": 3
+      },
+      "patches": 0,
+      "rolling": false,
+      "peak": 0,
+      "width": 21,
+      "wall": 3.7789943175675402,
+      "fogNear": 40,
+      "fogFar": 140,
+      "triangles": 174545,
+      "calls": 323,
+      "finite": true
+    },
+    {
+      "name": "summit",
+      "d": 10100,
+      "kind": "owl",
+      "counts": {
+        "rock": 3,
+        "coin": 28,
+        "gate": 4,
+        "ramp": 1,
+        "fence": 1,
+        "npc": 2,
+        "snowman": 1
+      },
+      "patches": 3,
+      "rolling": false,
+      "peak": 0.8261868254707297,
+      "width": 21,
+      "wall": 0.11194395270722723,
+      "fogNear": 22,
+      "fogFar": 100,
+      "triangles": 144134,
+      "calls": 220,
+      "finite": true
+    }
+  ],
+  "rides": [
+    {
+      "kind": "bear",
+      "d": 2600,
+      "fps": 30,
+      "mode": "play",
+      "fail": null,
+      "peak": 0,
+      "maxAbove": 0,
+      "finite": true
+    },
+    {
+      "kind": "bear",
+      "d": 5100,
+      "fps": 30,
+      "mode": "play",
+      "fail": null,
+      "peak": 0.7478169632368494,
+      "maxAbove": 0,
+      "finite": true
+    },
+    {
+      "kind": "bear",
+      "d": 7600,
+      "fps": 30,
+      "mode": "play",
+      "fail": null,
+      "peak": 0,
+      "maxAbove": 0,
+      "finite": true
+    },
+    {
+      "kind": "bear",
+      "d": 2600,
+      "fps": 60,
+      "mode": "play",
+      "fail": null,
+      "peak": 0,
+      "maxAbove": 0,
+      "finite": true
+    },
+    {
+      "kind": "bear",
+      "d": 5100,
+      "fps": 60,
+      "mode": "play",
+      "fail": null,
+      "peak": 0.7870611497104233,
+      "maxAbove": 0,
+      "finite": true
+    },
+    {
+      "kind": "bear",
+      "d": 7600,
+      "fps": 60,
+      "mode": "play",
+      "fail": null,
+      "peak": 0,
+      "maxAbove": 0,
+      "finite": true
+    },
+    {
+      "kind": "owl",
+      "d": 2600,
+      "fps": 30,
+      "mode": "play",
+      "fail": null,
+      "peak": 0,
+      "maxAbove": 0,
+      "finite": true
+    },
+    {
+      "kind": "owl",
+      "d": 5100,
+      "fps": 30,
+      "mode": "play",
+      "fail": null,
+      "peak": 0.7740681624349461,
+      "maxAbove": 0,
+      "finite": true
+    },
+    {
+      "kind": "owl",
+      "d": 7600,
+      "fps": 30,
+      "mode": "play",
+      "fail": null,
+      "peak": 0,
+      "maxAbove": 0,
+      "finite": true
+    },
+    {
+      "kind": "owl",
+      "d": 2600,
+      "fps": 60,
+      "mode": "play",
+      "fail": null,
+      "peak": 0,
+      "maxAbove": 0,
+      "finite": true
+    },
+    {
+      "kind": "owl",
+      "d": 5100,
+      "fps": 60,
+      "mode": "play",
+      "fail": null,
+      "peak": 0.8017716480808246,
+      "maxAbove": 0,
+      "finite": true
+    },
+    {
+      "kind": "owl",
+      "d": 7600,
+      "fps": 60,
+      "mode": "play",
+      "fail": null,
+      "peak": 0,
+      "maxAbove": 0,
+      "finite": true
+    }
+  ],
+  "rails": [
+    {
+      "kind": "bear",
+      "fps": 30,
+      "mode": "play",
+      "height": 0.65,
+      "grinds": 1
+    },
+    {
+      "kind": "bear",
+      "fps": 60,
+      "mode": "play",
+      "height": 0.65,
+      "grinds": 1
+    },
+    {
+      "kind": "owl",
+      "fps": 30,
+      "mode": "play",
+      "height": 0.65,
+      "grinds": 1
+    },
+    {
+      "kind": "owl",
+      "fps": 60,
+      "mode": "play",
+      "height": 0.65,
+      "grinds": 1
+    }
+  ],
+  "helmetAlpha": {
+    "empty": 140073,
+    "two": 287056
+  },
+  "errors": []
+}

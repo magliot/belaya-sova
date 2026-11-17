@@ -55,7 +55,7 @@ vm.runInContext(slice('function objectFrame(','const pickCol='),context);
 vm.runInContext(slice('const v3=new THREE.Vector3();','// меню: нарисованный'),context);
 const hm=context.HEROMODELS.bear,camera=context.camera;
 let frameSamples=0;
-for(const d of [0,35,80,150,240,420,800,2500,7500,13000,19999])for(const x of [20,200,380]){
+for(const d of [0,35,80,150,240,420,800,2500,2600,5100,7500,7580,7900,13000,19999])for(const x of [20,200,380]){
  context.G.y=d*20;context.G.p.x=x;context.G.camX=(x-200)*.05;context.G.camY=courseHeight(d-6.4)+2.3;
  for(let i=0;i<30;i++)context.syncWorld(1/60);
  courseGround(a,(x-200)*.05,-d);assert(a.distanceTo(hm.root.position)<1e-8,'Hero floats or misses the track');

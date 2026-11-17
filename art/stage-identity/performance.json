@@ -1,0 +1,49 @@
+{
+  "viewport": [
+    375,
+    812
+  ],
+  "desktopOnly": true,
+  "results": [
+    {
+      "stage": 1,
+      "gpu": "ANGLE (AMD, AMD Radeon(TM) Graphics (0x0000164C) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "frames": 65,
+      "fps": 60.156029702123924,
+      "medianRenderMs": 5.800000000745058,
+      "p95RenderMs": 10.099999997764826,
+      "maxCalls": 259,
+      "maxTriangles": 225762
+    },
+    {
+      "stage": 2,
+      "gpu": "ANGLE (AMD, AMD Radeon(TM) Graphics (0x0000164C) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "frames": 65,
+      "fps": 60.156029702123924,
+      "medianRenderMs": 3.5,
+      "p95RenderMs": 9.5,
+      "maxCalls": 308,
+      "maxTriangles": 229078
+    },
+    {
+      "stage": 3,
+      "gpu": "ANGLE (AMD, AMD Radeon(TM) Graphics (0x0000164C) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "frames": 65,
+      "fps": 59.13879135078891,
+      "medianRenderMs": 4.5,
+      "p95RenderMs": 7.900000002235174,
+      "maxCalls": 445,
+      "maxTriangles": 200761
+    },
+    {
+      "stage": 4,
+      "gpu": "ANGLE (AMD, AMD Radeon(TM) Graphics (0x0000164C) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "frames": 65,
+      "fps": 60.07697362241175,
+      "medianRenderMs": 4.300000000745058,
+      "p95RenderMs": 5.5,
+      "maxCalls": 323,
+      "maxTriangles": 210888
+    }
+  ]
+}

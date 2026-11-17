@@ -78,6 +78,10 @@ const end=html.lastIndexOf('</script>');html=html.slice(0,end)+debug+html.slice(
   await review.waitForFunction(()=>__g().y/20>17540);await review.locator('[data-r="play"]').click();
   const pausedAt=await review.evaluate(()=>__g().y);await review.waitForTimeout(250);assert.equal(await review.evaluate(()=>__g().y),pausedAt);
   await review.locator('[data-r="step"]').click();assert((await review.evaluate(()=>__g().y))>pausedAt);
+  await review.locator('[data-r="stage"]').selectOption('2');const beforeHeight=await review.evaluate(()=>__g().p.mh);
+  await review.locator('[data-r="x"]').fill('80');await review.locator('[data-r="x"]').dispatchEvent('input');
+  assert(Math.abs((await review.evaluate(()=>__g().p.mh))-beforeHeight)>.1,'Paused lateral inspection must follow the new terrain height');
+  await review.locator('[data-r="x"]').fill('200');await review.locator('[data-r="x"]').dispatchEvent('input');
   await review.locator('[data-r="hero"]').selectOption('owl');
   await review.locator('[data-r="effect"]').selectOption('avalanche');await review.screenshot({path:path.join(out,'course-review.png')});
   await review.locator('[data-r="effect"]').selectOption('coffee');assert.equal(await review.evaluate(()=>__g().p.boost),6);

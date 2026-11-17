@@ -8,6 +8,8 @@ on:
       - docs/motion-entry.js
       - docs/course.js
       - docs/course-review.js
+      - docs/race-hud.js
+      - tools/check-stages.cjs
       - tools/check-driving.cjs
       - tools/check-course.mjs
       - tools/check-course-browser.cjs
@@ -50,6 +52,7 @@ jobs:
           node tools/check-dances.cjs
           node tools/check-gameplay.cjs
           node tools/check-driving.cjs
+          node tools/check-stages.cjs
           node tools/check-assets.cjs
           node tools/check-course.mjs
           node tools/check-course-browser.cjs
@@ -72,6 +75,12 @@ jobs:
         with:
           name: gameplay-phone-check
           path: gameplay-checks
+          retention-days: 7
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: stage-identity-check
+          path: stage-checks
           retention-days: 7
       - uses: actions/upload-artifact@v5
         if: always()

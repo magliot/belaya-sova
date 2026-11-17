@@ -9,10 +9,17 @@ export function courseHeading(z){return -Math.atan(courseDerivative(-z))}
 export function courseGrade(d){return .29+.22*Math.sin(d/42)+.09*Math.sin(d/17+1)}
 export function courseHeight(d){return -.29*d+9.24*(Math.cos(d/42)-1)+1.53*(Math.cos(d/17+1)-Math.cos(1))}
 export function courseBank(z){return .12*Math.tanh(-courseCurvature(-z)*10/.12)}
+// Blend cross-sections at stage boundaries; gameplay coordinates keep their existing scale.
+export function courseTheme(d){const local=((d%20000)+20000)%20000,stage=Math.floor(local/2500),part=local%2500;
+ return {stage,blend:smooth(part/35)*smooth((2500-part)/35)};}
+export function courseWidth(d){const t=courseTheme(d);return t.stage===1?21-7.5*t.blend:21;}
 export function courseCrossHeight(u,z){
  const edge=smooth((Math.abs(u)-9.4)/5.8);
  const drift=3.4+.65*Math.sin(-z/23+(u<0?1.4:0))+.25*Math.cos(-z/9);
- return courseBank(z)*clamp(u,-14,14)+edge*drift;
+ const t=courseTheme(-z);let shoulder=edge*drift;
+ if(t.stage===1)shoulder+=(2.8*smooth((Math.abs(u)-6.6)/5.8)-shoulder)*t.blend;
+ if(t.stage===3)shoulder+=(4.2*smooth((Math.abs(u)-6)/6)-shoulder)*t.blend;
+ return courseBank(z)*clamp(u,-14,14)+shoulder;
 }
 export function courseCrossSlope(u,z){return (courseCrossHeight(u+.05,z)-courseCrossHeight(u-.05,z))/.1}
 // y is the old centre-line height. Keep particle simulations in course space too.
@@ -22,10 +29,10 @@ export function coursePoint(out,u,y,z){
 }
 export function courseGround(out,u,z,above=0){return coursePoint(out,u,courseHeight(-z)+above,z)}
 export function coursePitch(u,z){
- const ahead=courseHeight(-z+.1)+courseCrossHeight(u,z-.1);
- const behind=courseHeight(-z-.1)+courseCrossHeight(u,z+.1);
+ const ahead=courseHeight(-z+.01)+courseCrossHeight(u,z-.01);
+ const behind=courseHeight(-z-.01)+courseCrossHeight(u,z+.01);
  const p=courseDerivative(-z);
- return Math.atan((behind-ahead)/(.2*Math.sqrt(1+p*p)*(1-u*courseCurvature(-z))));
+ return Math.atan((behind-ahead)/(.02*Math.sqrt(1+p*p)*(1-u*courseCurvature(-z))));
 }
 // A short grip response converts lateral acceleration into bounded slip speed (m/s).
 export function courseSlip(d,u,speed){
