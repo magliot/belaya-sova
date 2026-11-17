@@ -688,7 +688,8 @@ const powder=slopePlane(80,240,160,M(0xf2f6fb,{map:powTex}),0);
 // Снежные плечи вылеплены в powder, без накладных полос и пересекающихся поверхностей.
 // горы, долина и море вдали — чтобы было видно, что едем вниз
 const mountains=new THREE.Group();scene.add(mountains);
-const mtMat=new THREE.MeshBasicMaterial({color:0xa9bfd6,fog:false}),mtSnow=new THREE.MeshBasicMaterial({color:0xf2f7ff,fog:false});
+// Снежная шапка лежит на поверхности горы: смещение глубины убирает мерцающую сетку.
+const mtMat=new THREE.MeshBasicMaterial({color:0xa9bfd6,fog:false}),mtSnow=new THREE.MeshBasicMaterial({color:0xf2f7ff,fog:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
 const valMat=new THREE.MeshBasicMaterial({color:0x6f8fa8,fog:false}),seaMat=new THREE.MeshBasicMaterial({color:0x5b86b8,fog:false});
 for(let i=0;i<14;i++){const side=i%2?1:-1;const r=rnd(50,100),h=rnd(50,110),x=side*rnd(90,260),z=-rnd(120,420);
   const c=mk(sharedGeo.cone,mtMat,x,h/2,z,mountains,false);S3(c,r,h,r);const sn=mk(sharedGeo.cone,mtSnow,x,h-h*0.18,z,mountains,false);S3(sn,r*0.36,h*0.36,r*0.36);}
@@ -1035,6 +1036,7 @@ function updEnv(dt,zi){const z=ZONES[zi],k=Math.min(1,dt*0.9);
   env.sky.lerp(tmpC.set(z.sky),k);env.fog.lerp(tmpC.set(z.fog),k);env.sunCol.lerp(tmpC.set(z.sunCol),k);env.mt.lerp(tmpC.set(z.mt),k);
   for(const p of['near','far','hemi','sun','glow','head','snow'])env[p]=lerp(env[p],z[p],k);
   scene.background.copy(env.sky);scene.fog.color.copy(env.fog);scene.fog.near=env.near;scene.fog.far=env.far;hemi.intensity=env.hemi;sun.intensity=env.sun;sun.color.copy(env.sunCol);mtMat.color.copy(env.mt);valMat.color.copy(env.mt).multiplyScalar(0.72);seaMat.color.copy(env.mt).lerp(tmpC.set(0x2f5f9a),zi===2?0:0.55).multiplyScalar(zi>=3?0.6:1);auroraMat.opacity=lerp(auroraMat.opacity,zi===3?0.55:zi===4?0.2:0,k);
+  mtSnow.color.copy(env.mt).lerp(tmpC.set(0xf2f7ff),zi>=3?0.035:zi===2?0.45:0.85);
   glowMat.opacity=env.glow;headlamp.intensity=env.head;bulbMat.color.setRGB(1,0.94,0.7+0.3*(1-env.glow));
   snowGeo.setDrawRange(0,Math.floor(SNOWN*env.snow));}
 

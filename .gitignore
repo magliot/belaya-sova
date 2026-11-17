@@ -1,2 +1,7 @@
 node_modules/
 .tgcloud/
+course-checks/
+dance-checks/
+gameplay-checks/
+asset-checks/
+motion-checks/

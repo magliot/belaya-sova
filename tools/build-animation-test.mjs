@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import {execFileSync} from 'node:child_process';
 fs.mkdirSync('docs/models/studies',{recursive:true});
-for(const [kind,p] of Object.entries({bear:'art/animation-pilot/mishanya-ski-study.glb',owl:'art/owl-animation-pilot/sova-board-study.glb'}))execFileSync(process.execPath,['tools/shrink.mjs',p,'docs/models/studies/'+kind+'.glb','1','512'],{stdio:'inherit'});
+// Code-only updates reuse the checked-in exports without rerunning texture conversion.
+if(!process.argv.includes('--html-only'))for(const [kind,p] of Object.entries({bear:'art/animation-pilot/mishanya-ski-study.glb',owl:'art/owl-animation-pilot/sova-board-study.glb'}))execFileSync(process.execPath,['tools/shrink.mjs',p,'docs/models/studies/'+kind+'.glb','1','512'],{stdio:'inherit'});
 let html=fs.readFileSync('docs/index.html','utf8');
 html=html.replace(/<script>\s*\/\/ Telegram[\s\S]*?<\/script>/,'');
 html=html.replace('<title>Белая Сова · Спуск</title>','<title>Белая Сова · Проба анимации</title>');

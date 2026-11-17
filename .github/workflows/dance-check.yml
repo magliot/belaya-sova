@@ -8,6 +8,7 @@ on:
       - docs/motion-entry.js
       - docs/course.js
       - tools/check-course.mjs
+      - tools/check-course-browser.cjs
       - docs/hero-motion.js
       - docs/animation-test.html
       - docs/models/studies/**
@@ -48,6 +49,7 @@ jobs:
           node tools/check-gameplay.cjs
           node tools/check-assets.cjs
           node tools/check-course.mjs
+          node tools/check-course-browser.cjs
           node tools/check-motion-integration.mjs
           node tools/check-motion-browser.cjs
       - uses: actions/upload-artifact@v5
@@ -67,6 +69,12 @@ jobs:
         with:
           name: gameplay-phone-check
           path: gameplay-checks
+          retention-days: 7
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: course-phone-check
+          path: course-checks
           retention-days: 7
       - uses: actions/upload-artifact@v5
         if: always()
