@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 // Telegram держит старую копию игры: сверяем версию с сервером и при расхождении перезагружаемся (один раз)
-(function(){var VER='2026-11-17a',h=location.hash;
+(function(){var VER='2026-11-17b',h=location.hash;
   fetch('version.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();
     if(!v||v===VER)return;var k='bsova_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
     location.replace(location.pathname+'?v='+encodeURIComponent(v)+h);}).catch(function(){});})();
@@ -1244,10 +1244,11 @@ function chalReset(){if(G.chal&&G.chal.d.k==='clean'&&!G.chal.done)G.chal.cleanY
 // «профи»-руль соперника: проходит каждые ворота по центру, заранее объезжает камни/людей/ёлки/сетки, иногда заезжает на трамплин
 const RIV_AVOID={rock:o=>o.r+20,tree:o=>(o.r||8)*(o.s||1)+20,snowman:o=>o.r+22,cannon:o=>o.r+22,cat:o=>o.w/2+28,mogul:()=>22,aid:()=>22,npc:o=>o.sit||o.stand?34:30,dog:()=>24};
 function rivalSteer(R,dt){const o=R.o;
-  const look=G.objs.filter(q=>q!==o&&!q.dead&&q.m&&q.y>o.y+8&&q.y<o.y+420).sort((a,b)=>a.y-b.y);
+  const lookAhead=Math.max(420,o.vy*1.2); // на скорости заранее видит линию, а не только последние полсекунды до ворот
+  const look=G.objs.filter(q=>q!==o&&!q.dead&&q.m&&q.y>o.y+8&&q.y<o.y+lookAhead).sort((a,b)=>a.y-b.y);
   const g=look.find(q=>q.type==='gate');let tx=g?g.x:(R.tx??o.x),ty=g?g.y:o.y+220;
-  // гоночная линия: в окне ворот (±30 от центра) берём точку, ближайшую к линии на следующие ворота — меньше лишних движений
-  if(g){const g2=look.find(q=>q.type==='gate'&&q!==g);const toward=g2?g2.x:o.bx;tx=clamp(lerp(o.bx,toward,0.5),g.x-30,g.x+30);}
+  // гоночная линия: в окне ворот (±20 от центра) берём точку к следующим воротам, оставляя запас до флагов
+  if(g){const g2=look.find(q=>q.type==='gate'&&q!==g);const toward=g2?g2.x:o.bx;tx=clamp(lerp(o.bx,toward,0.5),g.x-20,g.x+20);}
   if(!g){const rp=look.find(q=>q.type==='ramp'&&q.y<o.y+300);if(rp&&(R.rampPick??(R.rampPick=Math.random()<0.6)))tx=rp.x;else{R.rampPick=null;tx=lerp(tx,200,dt*0.3);}}
   for(let pass=0;pass<2;pass++)for(const q of look){if(q.y>o.y+260)break;
     if(q.type==='fence'){if(tx>q.x1-22&&tx<q.x2+22)tx=q.x1>40?q.x1-30:q.x2+30;continue;}
