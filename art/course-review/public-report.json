@@ -1,0 +1,69 @@
+{
+  "version": "2026-11-17f",
+  "base": "https://magliot.github.io/belaya-sova/",
+  "files": [
+    {
+      "path": "version.txt",
+      "status": 200,
+      "bytes": 12,
+      "sha256": "21bef294e0b3af08400478d852030f1c6db72466391583d0f21df9d52ea823ba"
+    },
+    {
+      "path": "index.html",
+      "status": 200,
+      "bytes": 489292,
+      "sha256": "0005d8145d7061524ad0cac5b877ae3b364b634b28ea95ca8ed3dcde4b0c6a7e"
+    },
+    {
+      "path": "course.js",
+      "status": 200,
+      "bytes": 2070,
+      "sha256": "dfd37ced55c216e6017603feff40488a075f8f31a5f932b7d182a982ceb66c6d"
+    },
+    {
+      "path": "motion-entry.js",
+      "status": 200,
+      "bytes": 575,
+      "sha256": "543870e05d3af7f997e737862e1b5b29a8ec4122470c65c6a0a57975559e1994"
+    },
+    {
+      "path": "hero-motion.js",
+      "status": 200,
+      "bytes": 4281,
+      "sha256": "18b22e501f187c1f669afe3d64703adbfd1bcdb48bb8f2a01d3f86c4678cfbfc"
+    },
+    {
+      "path": "animation-test.html",
+      "status": 200,
+      "bytes": 491895,
+      "sha256": "193628897f91873b3e6cf8c233b967f60151a5d21a6c5156f885eec999f5dd9f"
+    },
+    {
+      "path": "animation-phone.html",
+      "status": 200,
+      "bytes": 488,
+      "sha256": "1530ba4c341dccbe0b196e09582db270fde5edcd3b7c0adbfff52526f3dfe04f"
+    },
+    {
+      "path": "models/studies/bear.glb",
+      "status": 200,
+      "bytes": 937424,
+      "sha256": "73f109a56cdd2986f9d0fe57cb1676b78506d012920c6cf417725afc73ccce54"
+    },
+    {
+      "path": "models/studies/owl.glb",
+      "status": 200,
+      "bytes": 998424,
+      "sha256": "4c75b8bf97208b3b092260885ecff46df4b37d438b800563373fd3d8a397763f"
+    }
+  ],
+  "errors": [],
+  "failed": [],
+  "checks": [
+    "public bytes match release",
+    "main menu and hero switch",
+    "run/pause/resume",
+    "motion redirect and models"
+  ],
+  "telegramDevice": "Not tested inside the user Telegram account"
+}
