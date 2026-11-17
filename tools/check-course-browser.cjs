@@ -40,7 +40,7 @@ window.__courseReview = {
    contextLost:renderer.getContext().isContextLost()};
  },
  step(n){for(let i=0;i<n;i++){update(1/60);render(1/60);}return this.measure();},
- get state(){return {mode:G.mode,x:G.p.x,t:G.t,air:G.p.air,speed:G.speed,tuck:G.tuckIn};},
+ get state(){return {mode:G.mode,x:G.p.x,t:G.t,air:G.p.air,speed:G.speed};},
  get audio(){return {...save.vol};}
 };
 `;
@@ -96,12 +96,12 @@ html = html.slice(0, end) + debug + html.slice(end);
   await page.evaluate(()=>__courseReview.step(30));await page.keyboard.up('ArrowRight');
   assert((await page.evaluate(()=>__courseReview.state.x))>220);
   const pointer={pointerId:1,pointerType:'touch',clientX:200,clientY:500};
+  const beforeTouch=await page.evaluate(()=>__courseReview.state.x);
   await page.locator('#gl').dispatchEvent('pointerdown',pointer);
-  assert.equal(await page.evaluate(()=>__courseReview.state.tuck),1);
   await page.locator('#gl').dispatchEvent('pointermove',{...pointer,clientX:100,clientY:560});
-  assert.equal(await page.evaluate(()=>__courseReview.state.tuck),-1);
+  await page.evaluate(()=>__courseReview.step(18));
+  assert((await page.evaluate(()=>__courseReview.state.x))<beforeTouch);
   await page.locator('#gl').dispatchEvent('pointerup',{...pointer,clientX:100,clientY:560});
-  assert.equal(await page.evaluate(()=>__courseReview.state.tuck),0);
   await page.locator('#bPause').click();
   assert.equal(await page.evaluate(()=>__courseReview.state.mode),'pause');
   await page.screenshot({path:path.join(out,'pause.png')});
@@ -115,6 +115,6 @@ html = html.slice(0, end) + debug + html.slice(end);
   assert.equal(await page.evaluate(()=>__courseReview.state.mode),'play');
   assert.deepEqual(errors,[]);assert.deepEqual(failed,[]);
   fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({viewport:[375,812],desktop:[1280,800],snapshots,errors,failed,visualAcceptance:'Inspect PNG files; phone/Telegram hardware performance requires a device.'},null,2));
-  console.log('PASS: 22 phone course renders, both desktop heroes, start/restart/steering/pause, touch acceleration/braking, saved volume controls, no JS errors or local HTTP failures. Inspect course-checks PNGs.');
+  console.log('PASS: 22 phone course renders, both desktop heroes, start/restart/steering/pause, touch steering, saved volume controls, no JS errors or local HTTP failures. Inspect course-checks PNGs.');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

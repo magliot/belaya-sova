@@ -38,14 +38,14 @@ window.__gameTest={
   ready:()=>HEROMODELS.bear.glb&&HEROMODELS.owl.glb&&['skier','sboy','sitter','ratrak','ramp'].every(k=>NPCM[k]),
   reset(kind,d,seed){clearWorld();hideToast();let state=seed;Math.random=()=>{state=(state*1664525+1013904223)>>>0;return state/4294967296;};
     hero=kind;save.muted=true;save.fis=[1,2,3,4,5,6,7,8,9,10];save.missions=[];
-    for(const k in keys)delete keys[k];drag=null;G=newGame('play');G.y=G.prevY=d*20;G.stage=G.lastSpawnStage=stageAt(d);G.nextY=Infinity;G.nextChaseD=Infinity;
+    for(const k in keys)delete keys[k];drag=null;G=newGame('play');G.y=G.prevY=d*20;G.p.travelHeading=courseHeading(-d);G.stage=G.lastSpawnStage=stageAt(d);G.nextY=Infinity;G.nextChaseD=Infinity;
     $('menu').classList.add('hidden');$('topbtns').classList.remove('hidden');return this.state();},
   state(){return {mode:G.mode,time:G.t,dist:G.y/20,gates:G.gates,failKind:G.failKind||null,chase:!!G.chase,gap:G.chase?(G.y-G.chase.y)/20:null,bonus:G.bonus};},
-  advance(seconds,control,fps=60){keys.w=control==='hold';keys.s=control==='brake';
+  advance(seconds,control,fps=60){drag=control==='free'?null:{};if(control==='slow')G.p.slow=seconds+1;if(control==='coffee')G.p.boost=seconds+1;
     for(let i=0;i<Math.ceil(seconds*fps)&&G.mode==='play';i++)update(1/fps);render(0);return this.state();},
-  avalanche(kind,d,control,fps){this.reset(kind,d,34);G.nextChaseD=d;return this.advance(control==='hold'?6:22,control,fps);},
-  coast(kind,seed,fps,x){this.reset(kind,0,seed);G.p.x=G.tx=x;G.nextY=300;return this.advance(75,'release',fps);},
-  gates(kind,d,seed,fps){this.reset(kind,d,seed);G.p.tuck=1;keys.w=true;update(1/fps);
+  avalanche(kind,d,control,fps){this.reset(kind,d,34);G.nextChaseD=d;return this.advance(22,control,fps);},
+  coast(kind,seed,fps,x){this.reset(kind,0,seed);G.p.x=G.tx=x;return this.advance(30,'free',fps);},
+  gates(kind,d,seed,fps){this.reset(kind,d,seed);drag={};update(1/fps);
     const n0=G.objs.length;addCourse(G.y+G.speed*1.5,1);const target=G.objs.slice(n0).filter(o=>o.type==='gate');
     const seen=new Set();let rivalMissed=0;
     for(let i=0;i<20*fps&&G.mode==='play'&&(target.some(o=>!o.done)||seen.size<target.length);i++){
@@ -66,13 +66,12 @@ async function browserChecks(){
     await page.waitForFunction(()=>window.__gameTest&&__gameTest.ready(),{timeout:60000});
     const avalanches=[],coasting=[],gates=[];
     for(const kind of ['bear','owl'])for(const fps of [30,60]){
-      for(const d of [900,13000])for(const control of ['hold','release','brake']){
+      for(const d of [900,13000])for(const control of ['cruise','coffee','slow']){
         let result=await page.evaluate(args=>__gameTest.avalanche(...args),[kind,d,control,fps]);
-        if(control==='hold'){
+        if(control!=='slow'){
           if(d===900&&fps===60)await page.screenshot({path:path.join(out,kind+'-avalanche.png')});
-          result=await page.evaluate(fps=>__gameTest.advance(15,'hold',fps),fps);
-          assert.equal(result.mode,'play','Holding acceleration must escape avalanche');assert.equal(result.chase,false);
-        }else assert.equal(result.failKind,'avalanche','Coasting or braking must not outrun avalanche');
+          assert.equal(result.mode,'play','Automatic speed must escape avalanche without holding acceleration');assert.equal(result.chase,false);
+        }else assert.equal(result.failKind,'avalanche','Slowed player must remain vulnerable to avalanche');
         avalanches.push({kind,fps,d,control,...result});
       }
       for(const seed of [1,7,23])for(const x of [20,200,380])coasting.push({kind,fps,seed,x,...await page.evaluate(args=>__gameTest.coast(...args),[kind,seed,fps,x])});
@@ -83,7 +82,7 @@ async function browserChecks(){
         gates.push({kind,fps,d,...result});if(d===13000&&fps===60)await page.screenshot({path:path.join(out,kind+'-slalom.png')});
       }
     }
-    assert(coasting.every(r=>r.mode==='crash'&&r.time<35),'An unattended run must require steering within 35 seconds');assert.deepEqual(errors,[]);
+    assert(coasting.every(r=>r.mode==='crash'&&r.failKind==='edge'&&r.time<30),'An unattended run must hit a snowbank even without obstacles');assert.deepEqual(errors,[]);
     const report={viewport:{width:375,height:812},errors,avalanches,coasting,gates};
     fs.writeFileSync(path.join(out,'browser-summary.json'),JSON.stringify(report,null,2));
     console.log('Browser PASS:',avalanches.length,'avalanche cases,',coasting.length,'unattended runs,',gates.length,'player slaloms.');

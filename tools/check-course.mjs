@@ -100,8 +100,8 @@ const steerBlock=slice('  const steerK=','  for(const k of[\'boost\'');
 let playerGates=0,minGateMargin=Infinity;
 for(const fps of [30,60])for(const speed of [230,500,800])for(const steer of [1,1.15])for(const start of [0,80,2500,13000]){
  let seed=19;const math=Object.create(Math);math.random=()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296);
- const G={y:start*20,speed,wind:0,objs:[],lastGateX:200,gateCol:0,p:{x:200,vx:0,ang:0,air:0,fall:0}};
- const ctx={...course,G,Math:math,U:.05,X:context.X,clamp:context.clamp,lerp:context.lerp,h:{steer},sensK:()=>1,rnd:(a,b)=>a+math.random()*(b-a),addObj:o=>G.objs.push(o)};
+ const G={mode:'play',y:start*20,speed,wind:0,objs:[],lastGateX:200,gateCol:0,p:{x:200,vx:0,ang:0,air:0,fall:0}};
+ const ctx={...course,G,COURSE_REVIEW:false,drag:{},keys:{},Math:math,U:.05,X:context.X,clamp:context.clamp,lerp:context.lerp,h:{steer},sensK:()=>1,rnd:(a,b)=>a+math.random()*(b-a),addObj:o=>G.objs.push(o),hit:()=>{throw Error('Steered player hit the edge');}};
  vm.createContext(ctx);vm.runInContext(slice('function addCourse(','function addGate(')+`\nfunction step(dt){const p=G.p,dist=G.y*.05;${steerBlock}}`,ctx);
  let end=G.y+speed*1.5;for(let k=0;k<4;k++)end+=ctx.addCourse(end,1)+700;
  const gates=G.objs.filter(o=>o.type==='gate');let next=0;
@@ -110,4 +110,13 @@ for(const fps of [30,60])for(const speed of [230,500,800])for(const steer of [1,
  }
  G.p.air=1;ctx.step(1/fps);assert.equal(G.p.curveSlip,0,'No surface grip while airborne');
 }
-console.log(JSON.stringify({passed:true,distanceTestedMetres:20000,sceneSamples:frameSamples,playerGates,minGateMargin,maxHeadingDegrees:maxTurn*180/Math.PI,minOffsetMetric:minMetric,gradeRange:[minGrade,maxGrade],browserVisualCheck:'pending'},null,2));
+const unattended=[];
+for(const fps of [30,60])for(const speed of [230,500,800])for(const start of [0,80,150,420,2500,13000]){
+ const G={mode:'play',y:start*20,speed,wind:0,tx:200,p:{x:200,vx:0,ang:0,air:0,fall:0}};
+ const ctx={...course,G,COURSE_REVIEW:false,drag:null,keys:{},Math,U:.05,X:context.X,clamp:context.clamp,lerp:context.lerp,h:{steer:1},sensK:()=>1,hit:kind=>{G.mode='crash';G.failKind=kind;}};
+ vm.createContext(ctx);vm.runInContext(`function step(dt){const p=G.p,dist=G.y*.05;${steerBlock}}`,ctx);
+ let seconds=0;while(G.mode==='play'&&seconds<30){ctx.step(1/fps);G.y+=speed/fps;seconds+=1/fps;}
+ assert.equal(G.failKind,'edge','Releasing input must hit the snowbank without other obstacles');
+ unattended.push({fps,speed,start,seconds});
+}
+console.log(JSON.stringify({passed:true,distanceTestedMetres:20000,sceneSamples:frameSamples,playerGates,minGateMargin,maxHeadingDegrees:maxTurn*180/Math.PI,minOffsetMetric:minMetric,gradeRange:[minGrade,maxGrade],unattendedEdgeCases:unattended.length,maxUnattendedSeconds:Math.max(...unattended.map(r=>r.seconds)),browserVisualCheck:'run check-course-browser.cjs and inspect PNGs'},null,2));

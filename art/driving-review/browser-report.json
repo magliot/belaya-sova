@@ -1,0 +1,174 @@
+{
+  "speeds": [
+    {
+      "kind": "bear",
+      "input": "released",
+      "mode": "play",
+      "d": 13.79444010785269,
+      "speed": 283.0617156580207,
+      "base": 283.0617156580207,
+      "boost": 0,
+      "x": 178.40820801741526
+    },
+    {
+      "kind": "bear",
+      "input": "held",
+      "mode": "play",
+      "d": 13.79444010785269,
+      "speed": 283.0617156580207,
+      "base": 283.0617156580207,
+      "boost": 0,
+      "x": 199.10412912442618
+    },
+    {
+      "kind": "bear",
+      "input": "dragged-down",
+      "mode": "play",
+      "d": 13.79444010785269,
+      "speed": 283.0617156580207,
+      "base": 283.0617156580207,
+      "boost": 0,
+      "x": 199.10412912442618
+    },
+    {
+      "kind": "bear",
+      "input": "keyboard",
+      "mode": "play",
+      "d": 13.79444010785269,
+      "speed": 283.0617156580207,
+      "base": 283.0617156580207,
+      "boost": 0,
+      "x": 178.40820801741526
+    },
+    {
+      "kind": "owl",
+      "input": "released",
+      "mode": "play",
+      "d": 13.79444010785269,
+      "speed": 283.0617156580207,
+      "base": 283.0617156580207,
+      "boost": 0,
+      "x": 178.40820801741526
+    },
+    {
+      "kind": "owl",
+      "input": "held",
+      "mode": "play",
+      "d": 13.79444010785269,
+      "speed": 283.0617156580207,
+      "base": 283.0617156580207,
+      "boost": 0,
+      "x": 199.220521879366
+    },
+    {
+      "kind": "owl",
+      "input": "dragged-down",
+      "mode": "play",
+      "d": 13.79444010785269,
+      "speed": 283.0617156580207,
+      "base": 283.0617156580207,
+      "boost": 0,
+      "x": 199.220521879366
+    },
+    {
+      "kind": "owl",
+      "input": "keyboard",
+      "mode": "play",
+      "d": 13.79444010785269,
+      "speed": 283.0617156580207,
+      "base": 283.0617156580207,
+      "boost": 0,
+      "x": 178.40820801741526
+    }
+  ],
+  "coffee": {
+    "mode": "play",
+    "d": 0.590470826959548,
+    "speed": 441.39378632460443,
+    "base": 267.5113856512754,
+    "boost": 4.483333333333333,
+    "x": 199.96235457126747
+  },
+  "gate": {
+    "before": 0.65,
+    "after": 0.18,
+    "passed": true,
+    "gates": 1
+  },
+  "races": [
+    {
+      "kind": "bear",
+      "fps": 30,
+      "closeFraction": 1,
+      "maxGap": 21.547302038094948
+    },
+    {
+      "kind": "bear",
+      "fps": 60,
+      "closeFraction": 1,
+      "maxGap": 19.34619193772469
+    },
+    {
+      "kind": "owl",
+      "fps": 30,
+      "closeFraction": 1,
+      "maxGap": 24.653520711023067
+    },
+    {
+      "kind": "owl",
+      "fps": 60,
+      "closeFraction": 1,
+      "maxGap": 30.112893826907474
+    }
+  ],
+  "stages": [
+    {
+      "d": 10,
+      "stage": 0,
+      "mode": "pause"
+    },
+    {
+      "d": 2510,
+      "stage": 1,
+      "mode": "pause"
+    },
+    {
+      "d": 5010,
+      "stage": 2,
+      "mode": "pause"
+    },
+    {
+      "d": 7510,
+      "stage": 3,
+      "mode": "pause"
+    },
+    {
+      "d": 10010,
+      "stage": 4,
+      "mode": "pause"
+    },
+    {
+      "d": 12510,
+      "stage": 5,
+      "mode": "pause"
+    },
+    {
+      "d": 15010,
+      "stage": 6,
+      "mode": "pause"
+    },
+    {
+      "d": 17510,
+      "stage": 7,
+      "mode": "pause"
+    }
+  ],
+  "isolated": {
+    "best": "7312",
+    "coins": "410",
+    "cloud": []
+  },
+  "posts": [],
+  "errors": [],
+  "reviewErrors": []
+}
