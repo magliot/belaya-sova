@@ -1,0 +1,14 @@
+{
+  "gpu": "ANGLE (AMD, AMD Radeon(TM) Graphics (0x0000164C) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "viewport": [
+    375,
+    812
+  ],
+  "frames": 55,
+  "wallFps": 58.945529964121555,
+  "renderMedianMs": 4.600000001490116,
+  "renderP95Ms": 7.599999997764826,
+  "maxCalls": 407,
+  "maxTriangles": 234990,
+  "phonePerformance": "Requires a real phone; these are desktop figures."
+}

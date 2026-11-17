@@ -1,0 +1,164 @@
+[
+  {
+    "fps": 30,
+    "speed": 1000,
+    "difficulty": 0,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 35.122,
+    "maxAccel": 620
+  },
+  {
+    "fps": 30,
+    "speed": 1000,
+    "difficulty": 0.5,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 25.285,
+    "maxAccel": 620
+  },
+  {
+    "fps": 30,
+    "speed": 1000,
+    "difficulty": 1,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 15.362,
+    "maxAccel": 620
+  },
+  {
+    "fps": 30,
+    "speed": 1200,
+    "difficulty": 0,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 35.122,
+    "maxAccel": 620
+  },
+  {
+    "fps": 30,
+    "speed": 1200,
+    "difficulty": 0.5,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 25.285,
+    "maxAccel": 620
+  },
+  {
+    "fps": 30,
+    "speed": 1200,
+    "difficulty": 1,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 15.362,
+    "maxAccel": 620
+  },
+  {
+    "fps": 30,
+    "speed": 1400,
+    "difficulty": 0,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 35.122,
+    "maxAccel": 620
+  },
+  {
+    "fps": 30,
+    "speed": 1400,
+    "difficulty": 0.5,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 25.285,
+    "maxAccel": 620
+  },
+  {
+    "fps": 30,
+    "speed": 1400,
+    "difficulty": 1,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 15.362,
+    "maxAccel": 620
+  },
+  {
+    "fps": 60,
+    "speed": 1000,
+    "difficulty": 0,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 34.753,
+    "maxAccel": 620
+  },
+  {
+    "fps": 60,
+    "speed": 1000,
+    "difficulty": 0.5,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 24.842,
+    "maxAccel": 620
+  },
+  {
+    "fps": 60,
+    "speed": 1000,
+    "difficulty": 1,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 14.84,
+    "maxAccel": 620
+  },
+  {
+    "fps": 60,
+    "speed": 1200,
+    "difficulty": 0,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 34.753,
+    "maxAccel": 620
+  },
+  {
+    "fps": 60,
+    "speed": 1200,
+    "difficulty": 0.5,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 24.842,
+    "maxAccel": 620
+  },
+  {
+    "fps": 60,
+    "speed": 1200,
+    "difficulty": 1,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 14.84,
+    "maxAccel": 620
+  },
+  {
+    "fps": 60,
+    "speed": 1400,
+    "difficulty": 0,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 34.753,
+    "maxAccel": 620
+  },
+  {
+    "fps": 60,
+    "speed": 1400,
+    "difficulty": 0.5,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 24.842,
+    "maxAccel": 620
+  },
+  {
+    "fps": 60,
+    "speed": 1400,
+    "difficulty": 1,
+    "gates": 514,
+    "missed": 0,
+    "minMargin": 14.84,
+    "maxAccel": 620
+  }
+]
