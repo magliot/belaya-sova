@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 // Telegram держит старую копию игры: сверяем версию с сервером и при расхождении перезагружаемся (один раз)
-(function(){var VER='2026-11-17a',h=location.hash;
+(function(){var VER='2026-11-17b',h=location.hash;
   fetch('version.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();
     if(!v||v===VER)return;var k='bsova_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
     location.replace(location.pathname+'?v='+encodeURIComponent(v)+h);}).catch(function(){});})();
@@ -1123,7 +1123,9 @@ function spawnSeg(){
   if(d<16){for(let i=0;i<3;i++)addObj({type:'coin',x:200,y:y+i*40,r:9});G.nextY+=len;return;}
   // буква коллекции — своё место, без помех
   if(G.letter&&!G.letterObj&&d>=G.letterAt){spawnLetter(y);G.nextY+=260;return;}
-  let k=pickMix(st.mix);
+  // После длинного свободного участка нужен повод повернуть; камень заранее виден, мандаринки показывают объезд.
+  const laneDue=y-(G.lastLaneY??0)>=Math.max(2400,(G.speed||240)*10);
+  let k=laneDue?'lane':pickMix(st.mix);
   // людей на склоне меньше: часть выпадов людей заменяем воротами/мандаринками, и не больше 3 движущихся впереди
   const PPL={skier:1,board:1,kids:1,sit:1,sbschool:1,walk:1,help:1};
   if(PPL[k]){const ahead=G.objs.filter(o=>o.type==='npc'&&!o.dead&&o.y>G.y&&o.vy>0).length;if(Math.random()<0.15||(ahead>=5&&k!=='sit'&&k!=='help'&&k!=='walk'))k=Math.random()<0.3?'gate':'coins';}
@@ -1150,7 +1152,8 @@ function spawnSeg(){
     case 'ramp':{const x=rnd(90,310);const v=RAMPV[Math.floor(Math.random()*RAMPV.length)];addObj({type:'ramp',x,y,w:v[0],hh:v[1]});for(let i=0;i<4;i++)addObj({type:'coin',x,y:y+60+i*40,r:9,air:1});len+=90;break;}
     case 'kicker':{let x=rnd(110,290);for(let q=0;q<3;q++){const v=RAMPV[Math.floor(Math.random()*RAMPV.length)];addObj({type:'ramp',x,y:y+q*260,w:v[0],hh:v[1]});for(let i=0;i<3;i++)addObj({type:'coin',x,y:y+q*260+60+i*40,r:9,air:1});x=clamp(x+rnd(-70,70),90,310);}len+=520;break;}
     // камень на линии езды героя (+ иногда второй со смещением), мандаринки — в объезд
-    case 'lane':{const px=G.p?G.p.x:200;const x=clamp(Math.random()<0.6?px+rnd(-25,25):rnd(70,330),50,350);addObj({type:'rock',x,y,r:15});const side=x<200?1:-1;
+    case 'lane':{const px=G.p?G.p.x:200;const x=laneDue?clamp(px+rnd(-10,10),30,370):clamp(Math.random()<0.6?px+rnd(-25,25):rnd(70,330),50,350);
+      if(Math.abs(x-px)<22)G.lastLaneY=y;addObj({type:'rock',x,y,r:15});const side=x<200?1:-1;
       for(let i=0;i<3;i++)addObj({type:'coin',x:clamp(x+side*rnd(55,70),40,360),y:y-25+i*28,r:9});
       if(Math.random()<0.45)addObj({type:'rock',x:clamp(x+side*rnd(105,145),50,350),y:y+rnd(120,170),r:15});len+=40;break;}
     case 'mogul':{const n=3+Math.floor(Math.random()*3);for(let i=0;i<n;i++)addObj({type:'mogul',x:rnd(40,360),y:y+rnd(-50,50),r:10});break;}
@@ -1244,10 +1247,11 @@ function chalReset(){if(G.chal&&G.chal.d.k==='clean'&&!G.chal.done)G.chal.cleanY
 // «профи»-руль соперника: проходит каждые ворота по центру, заранее объезжает камни/людей/ёлки/сетки, иногда заезжает на трамплин
 const RIV_AVOID={rock:o=>o.r+20,tree:o=>(o.r||8)*(o.s||1)+20,snowman:o=>o.r+22,cannon:o=>o.r+22,cat:o=>o.w/2+28,mogul:()=>22,aid:()=>22,npc:o=>o.sit||o.stand?34:30,dog:()=>24};
 function rivalSteer(R,dt){const o=R.o;
-  const look=G.objs.filter(q=>q!==o&&!q.dead&&q.m&&q.y>o.y+8&&q.y<o.y+420).sort((a,b)=>a.y-b.y);
+  const lookAhead=Math.max(420,o.vy*1.2); // на скорости заранее видит линию, а не только последние полсекунды до ворот
+  const look=G.objs.filter(q=>q!==o&&!q.dead&&q.m&&q.y>o.y+8&&q.y<o.y+lookAhead).sort((a,b)=>a.y-b.y);
   const g=look.find(q=>q.type==='gate');let tx=g?g.x:(R.tx??o.x),ty=g?g.y:o.y+220;
-  // гоночная линия: в окне ворот (±30 от центра) берём точку, ближайшую к линии на следующие ворота — меньше лишних движений
-  if(g){const g2=look.find(q=>q.type==='gate'&&q!==g);const toward=g2?g2.x:o.bx;tx=clamp(lerp(o.bx,toward,0.5),g.x-30,g.x+30);}
+  // гоночная линия: в окне ворот (±20 от центра) берём точку к следующим воротам, оставляя запас до флагов
+  if(g){const g2=look.find(q=>q.type==='gate'&&q!==g);const toward=g2?g2.x:o.bx;tx=clamp(lerp(o.bx,toward,0.5),g.x-20,g.x+20);}
   if(!g){const rp=look.find(q=>q.type==='ramp'&&q.y<o.y+300);if(rp&&(R.rampPick??(R.rampPick=Math.random()<0.6)))tx=rp.x;else{R.rampPick=null;tx=lerp(tx,200,dt*0.3);}}
   for(let pass=0;pass<2;pass++)for(const q of look){if(q.y>o.y+260)break;
     if(q.type==='fence'){if(tx>q.x1-22&&tx<q.x2+22)tx=q.x1>40?q.x1-30:q.x2+30;continue;}
