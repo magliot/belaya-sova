@@ -1,18 +1,20 @@
 // usage: node shrink.mjs in.glb out.glb ratio texSize
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { weld, simplify, textureCompress, prune, dedup } from '@gltf-transform/functions';
-import { MeshoptSimplifier } from 'meshoptimizer';
-import { spawnSync } from 'child_process';
-import { writeFileSync, readFileSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import { dequantize, weld, simplify, prune, dedup } from '@gltf-transform/functions';
+import { MeshoptDecoder, MeshoptSimplifier } from 'meshoptimizer';
+import sharp from 'sharp';
 
 const [,, inp, out, ratioS, texS] = process.argv;
 const ratio = parseFloat(ratioS), tex = parseInt(texS, 10);
-const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+if (!inp || !out || !(ratio > 0 && ratio <= 1) || !Number.isInteger(tex) || tex < 64 || tex > 4096) {
+  throw new Error('usage: node tools/shrink.mjs in.glb out.glb ratio(0..1) textureSize(64..4096)');
+}
+await MeshoptDecoder.ready;
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder });
 const doc = await io.read(inp);
 const root = doc.getRoot();
+await doc.transform(dequantize());
 for (const e of root.listExtensionsUsed()) if (e.extensionName !== 'KHR_texture_transform') e.dispose();
 for (const m of root.listMaterials()) {
   m.setNormalTexture(null); m.setMetallicRoughnessTexture(null);
@@ -26,13 +28,13 @@ await doc.transform(
   prune(),
 );
 for (const t of root.listTextures()) {
-  const src = join(tmpdir(), 'shr_in_' + process.pid), dst = join(tmpdir(), 'shr_out_' + process.pid + '.jpg');
-  writeFileSync(src, t.getImage());
-  const ps = `Add-Type -AssemblyName System.Drawing;$i=[Drawing.Image]::FromFile('${src}');$b=New-Object Drawing.Bitmap ${tex},${tex};$g=[Drawing.Graphics]::FromImage($b);$g.InterpolationMode='HighQualityBicubic';$g.DrawImage($i,0,0,${tex},${tex});$c=[Drawing.Imaging.ImageCodecInfo]::GetImageEncoders()|?{$_.MimeType -eq 'image/jpeg'};$p=New-Object Drawing.Imaging.EncoderParameters 1;$p.Param[0]=New-Object Drawing.Imaging.EncoderParameter([Drawing.Imaging.Encoder]::Quality,[long]82);$b.Save('${dst}',$c,$p);$i.Dispose()`;
-  const r = spawnSync('powershell', ['-NoProfile', '-Command', ps], { encoding: 'utf8' });
-  if (r.status !== 0) throw new Error(r.stderr);
-  const buf = readFileSync(dst);
-  t.setImage(new Uint8Array(buf)).setMimeType('image/jpeg').setURI(t.getURI().replace(/\.\w+$/, '.jpg'));
+  const image = sharp(Buffer.from(t.getImage()));
+  const { hasAlpha } = await image.metadata();
+  const resized = image.resize({ width: tex, height: tex, fit: 'inside', withoutEnlargement: true });
+  const buf = await (hasAlpha ? resized.png() : resized.jpeg({ quality: 82 })).toBuffer();
+  const ext = hasAlpha ? 'png' : 'jpg';
+  t.setImage(new Uint8Array(buf)).setMimeType(hasAlpha ? 'image/png' : 'image/jpeg');
+  if (t.getURI()) t.setURI(t.getURI().replace(/\.\w+$/, '.' + ext));
 }
 await io.write(out, doc);
 let tris = 0; for (const me of root.listMeshes()) for (const p of me.listPrimitives()) tris += (p.getIndices()?.getCount() ?? 0) / 3;

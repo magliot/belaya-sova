@@ -1,0 +1,240 @@
+{
+  "project": "Белая Сова · Спуск",
+  "status": "generated_8_exported_2_export_blocked",
+  "format": "GLB",
+  "model_alias": "Tripo Studio H3.1",
+  "model_wire": null,
+  "texture_quality": "standard",
+  "pbr": true,
+  "estimated_total_credits": 450,
+  "optimization": {
+    "texture_max_size": 512,
+    "keep_animation": true
+  },
+  "assets": [
+    {
+      "id": "rock_wide",
+      "name": "Широкий заснеженный камень",
+      "face_limit": 2000,
+      "estimated_credits": 45,
+      "prompt": "One broad low granite boulder with an irregular asymmetric silhouette, rounded worn facets, medium dark gray stone, a thick soft white snow cap covering the upper third. Stylized smooth-shaded 3D prop for a family-friendly winter skiing mobile game, readable rounded shapes and clean matte hand-painted textures. Flat stable bottom, roughly 1.4 meters wide and 0.6 meters tall. Single isolated object, no ground plane, no scenery, no text, no glow."
+    },
+    {
+      "id": "rock_tall",
+      "name": "Высокий заснеженный камень",
+      "face_limit": 2000,
+      "estimated_credits": 45,
+      "prompt": "One compact upright granite boulder with an asymmetric chunky silhouette and a slanted top, softly rounded stone facets, medium dark cool-gray rock with a small uneven white snow cap and snow in two creases. Stylized smooth-shaded 3D prop for a family-friendly winter skiing mobile game, clean matte hand-painted textures, easy-to-read shape. Flat stable bottom, roughly 1 meter wide and 0.9 meters tall. Single isolated object, no ground plane, no scenery, no text, no glow."
+    },
+    {
+      "id": "snowman",
+      "name": "Снеговик",
+      "face_limit": 4500,
+      "estimated_credits": 45,
+      "prompt": "A friendly mischievous snowman made of three stacked round white snowballs, black coal eyes and buttons, short orange carrot nose, red cylindrical winter hat, chunky blue scarf. Two simple brown branch arms held outward horizontally from the middle snowball, clear space around the arms so each arm can be animated separately. Cheerful readable face, smooth rounded family-animation style matching a white owl snowboarder and brown bear skier, clean matte hand-painted textures. Full body standing upright, about 2.5 meters tall. Isolated single character, no snow base, no ground, no scene, no text."
+    },
+    {
+      "id": "dog",
+      "name": "Собака",
+      "face_limit": 6000,
+      "estimated_credits": 45,
+      "prompt": "A friendly medium-small brown mountain dog for a family-friendly winter skiing mobile game, soft rounded body, short dense brown fur, floppy darker ears, black rounded nose, expressive dark eyes, slightly raised curved tail and a simple red collar. Stylized smooth-shaded 3D cartoon, clean matte hand-painted textures, appealing and readable at a small screen size. Neutral standing quadruped pose: all four legs straight and clearly separated, paws on one level, tail separated from hind legs, head forward, symmetric relaxed anatomy suitable for automatic quadruped rigging. Full body only, about 0.8 meters tall. No ground, no snow base, no clothing, no props, no text."
+    },
+    {
+      "id": "snow_cannon",
+      "name": "Снежная пушка",
+      "face_limit": 5000,
+      "estimated_credits": 45,
+      "prompt": "One compact ski-resort fan snow cannon: a chunky yellow cylindrical barrel with a dark circular fan opening and a thick protective rim, tilted upward on a gray metal support mast and a stable compact square base. Friendly stylized smooth-shaded winter mobile-game prop, rounded safe-looking edges, simple readable machinery, clean matte hand-painted yellow and dark-gray textures. Full object about 3 meters tall. No emitted snow, no smoke, no particles, no ground, no scenery, no text or logos."
+    },
+    {
+      "id": "gift",
+      "name": "Новогодний подарок",
+      "face_limit": 2000,
+      "estimated_credits": 45,
+      "prompt": "One cheerful red cubic Christmas gift box with softly rounded corners, broad golden ribbon crossing all four sides and a thick sculpted gold bow on the lid. A readable collectible for a family-friendly winter skiing mobile game, polished stylized smooth-shaded 3D cartoon, clean matte hand-painted red and gold textures, simple bold shapes. About 0.5 meters wide. Single isolated object, no base, no ground, no scenery, no text, no particles, no glow."
+    },
+    {
+      "id": "magnet",
+      "name": "Магнит",
+      "face_limit": 1500,
+      "estimated_credits": 45,
+      "prompt": "One thick red horseshoe magnet with two short pale-silver metal tips, an open U-shaped silhouette and generously rounded edges. Friendly bold collectible for a winter skiing mobile game, stylized smooth-shaded 3D cartoon, clean matte red paint and subtle satin silver, readable from all angles, the U opening must remain open. About 0.6 meters tall. Isolated single solid object, no stand, no ground, no text, no electric effects, no glow."
+    },
+    {
+      "id": "golden_feather",
+      "name": "Золотое перо",
+      "face_limit": 2000,
+      "estimated_credits": 45,
+      "prompt": "One thick sculpted golden owl feather with a clear central quill, a slightly curved graceful silhouette and simplified broad feather barbs on both sides. A rare collectible for a friendly winter skiing mobile game, stylized smooth-shaded 3D cartoon, warm rich gold material with soft satin highlights, bold readable shape. True solid three-dimensional feather with thickness, not a flat image card, about 0.8 meters long. Isolated single object, no stand, no ground, no text, no particles, no glow."
+    },
+    {
+      "id": "first_aid",
+      "name": "Аптечка",
+      "face_limit": 2000,
+      "estimated_credits": 45,
+      "prompt": "One compact white first-aid hard case with rounded corners, a sturdy small carry handle and one large clean red plus symbol embossed on the front. Friendly readable rescue collectible for a family winter skiing mobile game, stylized smooth-shaded 3D cartoon, clean matte white plastic and red details, simple bold shapes. Full solid case about 0.6 meters wide. Isolated single object, no ground, no pedestal, no scenery, no writing or lettering."
+    },
+    {
+      "id": "yeti",
+      "name": "Добрый йети",
+      "face_limit": 6000,
+      "estimated_credits": 45,
+      "prompt": "A large friendly white yeti, a gentle cheerful snow creature for a family winter skiing mobile game. Stocky pear-shaped body, thick short white fur represented by broad soft clumps, pale blue-gray oval face, large kind dark eyes, a warm smile, big rounded feet and long rounded arms. Appealing smooth-shaded 3D family-animation style matching a brown bear skier and a white owl snowboarder, clean matte hand-painted textures, readable silhouette, no frightening teeth. Full body standing upright with feet apart and arms held slightly away from the torso, about 3 meters tall. Isolated character, no ground or snow base, no props, no scenery, no text."
+    }
+  ],
+  "api_balance_checked": 0,
+  "actual_credits_consumed": 450,
+  "studio_proposal": {
+    "model": "H3.1",
+    "credits_per_model": 45,
+    "model_count": 10,
+    "estimated_generation_total": 450,
+    "rig_and_animation_included": false,
+    "status": "approved",
+    "approved_budget": 450
+  },
+  "studio_tasks": [
+    {
+      "asset": "rock_wide",
+      "task_id": "de6087b1-aadf-47f8-8810-ecf8e33e8b3f",
+      "status": "ready",
+      "displayed_cost": 45,
+      "balance_after_submission": 2070,
+      "triangles": 14662,
+      "credits_consumed": 45,
+      "export_status": "downloaded_and_optimized",
+      "optimized_triangles": 1905,
+      "optimized_bytes": 109860,
+      "sha256": "9f520ec3a9385c28088c4cfc0016333675a3ae55e9db0c936c3113490a3bbfee",
+      "bundle_key": "rock_wide"
+    },
+    {
+      "asset": "rock_tall",
+      "task_id": "f093b1f2-fcf0-42ad-9579-d7d2fab77979",
+      "status": "ready",
+      "displayed_cost": 45,
+      "balance_after_submission": 2025,
+      "triangles": 14094,
+      "credits_consumed": 45,
+      "export_status": "downloaded_and_optimized",
+      "optimized_triangles": 1972,
+      "optimized_bytes": 83900,
+      "sha256": "a4d158afb71e1ec565d46382ee5b5731b84fa9fa7303ffdac5e12e8cffee7235",
+      "bundle_key": "rock_tall"
+    },
+    {
+      "asset": "snowman",
+      "task_id": "b1338be0-16c1-4330-85d2-f4296ab19d54",
+      "status": "ready",
+      "displayed_cost": 45,
+      "balance_after_submission": 1980,
+      "triangles": 14268,
+      "credits_consumed": 45,
+      "export_status": "downloaded_and_optimized",
+      "optimized_triangles": 4402,
+      "optimized_bytes": 248304,
+      "sha256": "b598b99f0f69d707c82f30db539806060b5b63e3c8fc2e6df8163f33ef219c80",
+      "bundle_key": "snowman"
+    },
+    {
+      "asset": "dog",
+      "task_id": "aeb32125-05d6-4a32-aec1-7489ddf60887",
+      "status": "ready",
+      "displayed_cost": 45,
+      "balance_after_submission": 1935,
+      "triangles": 14254,
+      "credits_consumed": 45,
+      "export_status": "downloaded_and_optimized",
+      "optimized_triangles": 5840,
+      "optimized_bytes": 308112,
+      "sha256": "48c8dc56c2bf058a243347f5aaff8508d221ae6ec2fcb550c1de5d397e542e95",
+      "bundle_key": "dog"
+    },
+    {
+      "asset": "snow_cannon",
+      "task_id": "e6af2b7a-ec14-4411-9d33-5e2efafbf1e9",
+      "status": "ready",
+      "triangles": 14525,
+      "displayed_cost": 45,
+      "balance_after_submission": 1890,
+      "credits_consumed": 45,
+      "export_status": "downloaded_and_optimized",
+      "optimized_triangles": 4937,
+      "optimized_bytes": 207288,
+      "sha256": "30fd5b6eac581c788cef65509e3dc2d3750e3076f276998458e6be42a8648b9a",
+      "bundle_key": "snow_cannon"
+    },
+    {
+      "asset": "gift",
+      "task_id": "023cdbc4-445b-4290-969a-e9f153f6d0d4",
+      "status": "ready",
+      "triangles": 13815,
+      "displayed_cost": 45,
+      "balance_after_submission": 1845,
+      "credits_consumed": 45,
+      "export_status": "downloaded_and_optimized",
+      "optimized_triangles": 1933,
+      "optimized_bytes": 125420,
+      "sha256": "ce72b8fe7988a8463af543eee9f4dfcc29670e8e324e1d52a2de4fc91fc78068",
+      "bundle_key": "gift"
+    },
+    {
+      "asset": "magnet",
+      "task_id": "82c1b256-7a80-4ce6-a26b-8ae84d48f69c",
+      "status": "ready",
+      "triangles": 14595,
+      "displayed_cost": 45,
+      "balance_after_submission": 1800,
+      "credits_consumed": 45,
+      "export_status": "downloaded_and_optimized",
+      "optimized_triangles": 1458,
+      "optimized_bytes": 81524,
+      "sha256": "02ae418b90bb90c34c264002770a66f56bdd753784af674db3f4c9a06b08738b",
+      "bundle_key": "magnet"
+    },
+    {
+      "asset": "golden_feather",
+      "actual_subject": "golden_owl",
+      "task_id": "72a448d9-7990-4402-9654-efd6a0eec1ff",
+      "status": "wrong_subject_saved_as_bonus",
+      "triangles": 14643,
+      "displayed_cost": 45,
+      "balance_after_submission": 1755,
+      "credits_consumed": 45,
+      "export_status": "blocked"
+    },
+    {
+      "asset": "first_aid",
+      "task_id": "4ca7989f-c6b7-4308-8976-03c954a218bb",
+      "status": "ready",
+      "triangles": 14046,
+      "displayed_cost": 45,
+      "balance_after_submission": 1710,
+      "credits_consumed": 45,
+      "export_status": "blocked"
+    },
+    {
+      "asset": "yeti",
+      "task_id": "55ca9a90-eabb-4f49-986b-aab5b9dfe04c",
+      "status": "ready",
+      "triangles": 14908,
+      "displayed_cost": 45,
+      "balance_after_submission": 1665,
+      "credits_consumed": 45,
+      "export_status": "downloaded_and_optimized",
+      "optimized_triangles": 5962,
+      "optimized_bytes": 308516,
+      "sha256": "3d294fcfddadda219207bb945c9958ff2a47f14b7a4e610c09f8c014c5e7de3c",
+      "bundle_key": "yeti"
+    }
+  ],
+  "studio_balance_remaining": 1665,
+  "api_original_plan": {
+    "model_alias": "tripo-p1",
+    "model_wire": "P1-20260311",
+    "estimated_total_credits": 435
+  },
+  "texture_resolution_source": 2048,
+  "export_blocker": "Browser export completed without exposing transferable binary URLs for first_aid and golden_owl; files remain in the Tripo account. No extra credits spent."
+}
