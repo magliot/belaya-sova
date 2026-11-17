@@ -1,0 +1,50 @@
+{
+  "environment": "Desktop Chrome, localhost, 375x812, cache disabled through Chrome DevTools Protocol, Telegram SDK stubbed",
+  "runs": [
+    {
+      "menuMs": 1230,
+      "models": [
+        {
+          "model": "owl.glb?v=2026-11-18a",
+          "bodyBytes": 998736,
+          "downloadFinishedMs": 1763
+        },
+        {
+          "model": "bear.glb?v=2026-11-18a",
+          "bodyBytes": 937636,
+          "downloadFinishedMs": 1771
+        }
+      ]
+    },
+    {
+      "menuMs": 526,
+      "models": [
+        {
+          "model": "bear.glb?v=2026-11-18a",
+          "bodyBytes": 937636,
+          "downloadFinishedMs": 834
+        },
+        {
+          "model": "owl.glb?v=2026-11-18a",
+          "bodyBytes": 998736,
+          "downloadFinishedMs": 842
+        }
+      ]
+    },
+    {
+      "menuMs": 527,
+      "models": [
+        {
+          "model": "bear.glb?v=2026-11-18a",
+          "bodyBytes": 937636,
+          "downloadFinishedMs": 819
+        },
+        {
+          "model": "owl.glb?v=2026-11-18a",
+          "bodyBytes": 998736,
+          "downloadFinishedMs": 1074
+        }
+      ]
+    }
+  ]
+}
