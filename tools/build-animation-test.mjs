@@ -46,7 +46,9 @@ portable=portable.replaceAll('localStorage','previewStorage').replaceAll('sessio
 const module=fs.readFileSync('docs/hero-motion.js','utf8');portable=portable.replace("'./hero-motion.js'",JSON.stringify('data:text/javascript;base64,'+Buffer.from(module).toString('base64')));
 const b64=Object.fromEntries(['bear','owl'].map(k=>[k,fs.readFileSync('docs/models/studies/'+k+'.glb').toString('base64')]));
 portable=portable.replace('<head>','<head><script>const previewStorage={getItem(){return null},setItem(){},removeItem(){}};window.__MOTION_STUDIES='+JSON.stringify(b64)+';</script>');
-fs.mkdirSync('art/animation-integration',{recursive:true});fs.writeFileSync('art/animation-integration/phone-preview.html',portable);
+fs.mkdirSync('art/animation-integration',{recursive:true});
+const portableFrame=`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Белая Сова · Проверка движений</title><style>body{margin:0;background:#203440;display:grid;place-items:center;min-height:100dvh}iframe{width:375px;height:812px;max-width:100vw;max-height:100dvh;border:0;background:#dcefff}</style></head><body><iframe title="Игра · 375×812"></iframe><script>document.querySelector('iframe').srcdoc=new TextDecoder().decode(Uint8Array.from(atob(${JSON.stringify(Buffer.from(portable).toString('base64'))}),c=>c.charCodeAt(0)));</script></body></html>`;
+fs.writeFileSync('art/animation-integration/phone-preview.html',portableFrame);
 console.log('Built isolated game page and portable review; docs/index.html unchanged.');
 
 fs.writeFileSync('docs/animation-phone.html',`<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Белая Сова · Проверка на телефоне</title><style>body{margin:0;background:#203440;display:grid;place-items:center;min-height:100vh}iframe{width:375px;height:812px;max-width:100vw;max-height:100dvh;border:0;background:#dcefff}</style><iframe title="Проверка анимаций 375×812" src="animation-test.html"></iframe></html>`);

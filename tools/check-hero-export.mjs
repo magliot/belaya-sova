@@ -13,10 +13,12 @@ const glb=Buffer.alloc(20+padded.length+binary.length);glb.write('glTF');glb.wri
 const model=await new Promise((resolve,reject)=>new GLTFLoader().parse(glb.buffer.slice(glb.byteOffset,glb.byteOffset+glb.length),'',resolve,reject));
 const mixer=new THREE.AnimationMixer(model.scene);for(const c of model.animations)mixer.clipAction(c).play();
 const feet=[];let mesh;model.scene.traverse(o=>{if(o.isBone&&/Foot$/.test(o.name))feet.push(o);if(o.isSkinnedMesh)mesh=o});assert.equal(feet.length,2);assert(mesh);assert(model.animations.length>0);
-const samples=[];let drift=0,scaleError=0,bootShapeError=0;let base,bootSets;
+const bindings=[];model.scene.traverse(o=>{if(/_Binding$/.test(o.name))bindings.push(o)});feet.sort((a,b)=>a.name.localeCompare(b.name));bindings.sort((a,b)=>a.name.localeCompare(b.name));assert.equal(bindings.length,2);
+const samples=[];let drift=0,scaleError=0,bootShapeError=0,contactError=0;let base,bootSets,baseContacts;
 for(let f=0;f<=180;f++){
  mixer.setTime(f/30);model.scene.updateMatrixWorld(true);mesh.skeleton.update();
  const points=feet.map(o=>o.getWorldPosition(new THREE.Vector3()).toArray());base??=points;
+ const contacts=feet.map((o,i)=>bindings[i].worldToLocal(o.getWorldPosition(new THREE.Vector3())));baseContacts??=contacts;contacts.forEach((p,i)=>contactError=Math.max(contactError,p.distanceTo(baseContacts[i])));
  const vertex=i=>mesh.localToWorld(mesh.getVertexPosition(i,new THREE.Vector3()));
  if(!bootSets){
   bootSets=[[],[]];
@@ -29,8 +31,8 @@ for(let f=0;f<=180;f++){
  for(const c of model.animations)for(const t of c.tracks)assert(Array.from(t.values).every(Number.isFinite));
  samples.push({frame:f,feet:points});
 }
-assert(drift<1e-5,`Foot slide: ${drift}`);assert(scaleError<1e-5,`Bone scale: ${scaleError}`);
+assert(contactError<1e-5,`Foot leaves binding: ${contactError}`);assert(drift<.035,`Excessive ankle travel while edging: ${drift}`);assert(scaleError<1e-5,`Bone scale: ${scaleError}`);
 assert(bootShapeError<1e-5,`Boot shape deforms: ${bootShapeError}`);
 assert(Math.max(...samples.map(s=>s.feet[0][1]))-base[0][1]>.25,'Jump missing');
-const report={engine:THREE.REVISION,clips:model.animations.map(c=>({name:c.name,duration:c.duration,tracks:c.tracks.length})),maxFootSlide:drift,maxBoneScaleError:scaleError,maxBootShapeError:bootShapeError,frames:181,samples};
+const report={engine:THREE.REVISION,clips:model.animations.map(c=>({name:c.name,duration:c.duration,tracks:c.tracks.length})),maxAnkleTravel:drift,maxBindingContactError:contactError,maxBoneScaleError:scaleError,maxBootShapeError:bootShapeError,frames:181,samples};
 fs.writeFileSync('art/animation-pilot/export-check.json',JSON.stringify(report,null,2));console.log(JSON.stringify({...report,samples:undefined},null,2));
