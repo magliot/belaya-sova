@@ -32,6 +32,8 @@ window.goldenCheck={
     }
     animObjs(0);render(0);return {t:G.t,mode:G.mode,score:score(),dist:Math.floor(G.y/20),coins:G.coins,...G.sled,vehicle:playerSled.visible};
   },
+  slowFrames(){drag={};for(let i=0;i<380&&G.mode==='play';i++){G.tx=200;advanceSledFrame(.2);}
+   return {dist:Math.floor(G.y/20),elapsed:G.sled.elapsed,mode:G.mode};},
   pauseSeconds(){const before=G.t;for(let i=0;i<300;i++)update(1/30);return G.t-before;},
   aid(){const o={type:'aid',x:200,y:G.y+2};G.p.x=G.tx=200;drag={};addObj(o);update(1/60);return {model:!!collectibleModels.aid,collected:o.dead,rule:save.fis.includes(9)};}
 };`;
@@ -67,7 +69,7 @@ async function run(){
   await page.evaluate(()=>goldenCheck.drive(8,60));await page.screenshot({path:out+'/sled.png'});
   await page.locator('#bPause').click();assert(Math.abs(await page.evaluate(()=>goldenCheck.pauseSeconds()))<.00001);
   await page.locator('#bResume').click();
-  const result=await page.evaluate(()=>goldenCheck.drive(80,60));assert.equal(result.mode,'over');assert(result.t>=75&&result.t<75.04);
+  const result=await page.evaluate(()=>goldenCheck.drive(80,60));assert.equal(result.mode,'over');assert(Math.abs(result.t-75)<.04);
   assert(result.coins>0&&result.gifts>0&&result.hits>0&&result.score>3000);
   assert(result.dist<=result.t*45+20&&result.score-result.dist<=result.dist*45+3000);
   await page.screenshot({path:out+'/result.png'});await page.locator('#bAgain').click();
@@ -84,7 +86,10 @@ async function run(){
   await early.waitForFunction(()=>window.__g?.()?.sprint&&__g().mode==='play');
   assert.equal(await early.evaluate(()=>JSON.parse(localStorage.getItem('bsova_hero'))),'owl');
   await early.close();
-  assert.deepEqual(errors,[]);fs.writeFileSync(out+'/report.json',JSON.stringify({arms,heavy,aid,miss,caught,result,owl,submissions,errors},null,2));
+  await page.locator('#bAgain').click();await page.evaluate(()=>window.stopFrames=true);
+  const slow=await page.evaluate(()=>goldenCheck.slowFrames());assert.equal(slow.mode,'over');assert.equal(slow.elapsed,75);
+  assert(Math.abs(slow.dist-result.dist)<=1,'A 5 FPS client must cover the same bonus distance');
+  assert.deepEqual(errors,[]);fs.writeFileSync(out+'/report.json',JSON.stringify({arms,heavy,aid,miss,caught,result,owl,slow,submissions,errors},null,2));
   console.log('PASS menu requests, wave, rescue, missed/caught owl, persistent unlock, both sled riders, pause, scoring and finish.');
  }finally{await browser.close();}
 }

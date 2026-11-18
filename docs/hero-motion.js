@@ -17,7 +17,7 @@ export async function attachHeroMotion(h){
  const original=h.holder.children[0],loader=new GLTFLoader();h.motionStatus='loading';
  try{
   const embedded=window.__MOTION_STUDIES?.[h.kind];
-  const gltf=embedded?await new Promise((resolve,reject)=>{const u=Uint8Array.from(atob(embedded),c=>c.charCodeAt(0));loader.parse(u.buffer,'',resolve,reject)}):await loader.loadAsync('models/studies/'+h.kind+'.glb?v=2026-11-18d');
+  const gltf=embedded?await new Promise((resolve,reject)=>{const u=Uint8Array.from(atob(embedded),c=>c.charCodeAt(0));loader.parse(u.buffer,'',resolve,reject)}):await loader.loadAsync('models/studies/'+h.kind+'.glb?v=2026-11-18e');
   const model=gltf.scene;model.visible=false;h.holder.add(model);
   model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.frustumCulled=false;for(const m of (Array.isArray(o.material)?o.material:[o.material])){m.metalness=0;m.roughness=Math.max(.6,m.roughness);}}});
   // Remove the authored jump from the baked translation tracks themselves.

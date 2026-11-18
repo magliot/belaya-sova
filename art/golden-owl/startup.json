@@ -1,0 +1,32 @@
+{
+  "baseline": "9f4d7e7",
+  "current": "e7fbb31",
+  "network": "localhost; raw HTTP including HTML; 6 Mbit/s, 100 ms latency, cold browser cache, same Telegram SDK, Chrome 375x812",
+  "unit": "ms since navigation",
+  "results": [
+    {
+      "kind": "before",
+      "input": 2352.89999999851,
+      "engine": 2352.89999999851,
+      "hero": 18675.79999999702
+    },
+    {
+      "kind": "after",
+      "input": 212.5,
+      "engine": 2233.5,
+      "hero": 4819.29999999702
+    },
+    {
+      "kind": "after",
+      "input": 159.29999999701977,
+      "engine": 2229.60000000149,
+      "hero": 4841.39999999851
+    },
+    {
+      "kind": "before",
+      "input": 2413.5,
+      "engine": 2413.5,
+      "hero": 18874
+    }
+  ]
+}

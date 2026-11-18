@@ -126,7 +126,7 @@
     ]
   },
   "result": {
-    "t": 75.0166666666637,
+    "t": 74.99999999999703,
     "mode": "over",
     "score": 30997,
     "dist": 1162,
@@ -141,19 +141,24 @@
     "vehicle": true
   },
   "owl": {
-    "t": 75.03333333333164,
+    "t": 75.0331333333257,
     "mode": "over",
-    "score": 30998,
+    "score": 29303,
     "dist": 1163,
-    "coins": 114,
+    "coins": 108,
     "elapsed": 75,
-    "hits": 25,
-    "gifts": 31,
+    "hits": 23,
+    "gifts": 30,
     "rows": 42,
-    "chain": 170,
-    "last": 74.76666666666499,
+    "chain": 158,
+    "last": 74.76646666665904,
     "finish": true,
     "vehicle": true
+  },
+  "slow": {
+    "dist": 1162,
+    "elapsed": 75,
+    "mode": "over"
   },
   "submissions": [
     {
@@ -169,8 +174,14 @@
       "hero": "bear"
     },
     {
-      "score": 30998,
+      "score": 29303,
       "dist": 1163,
+      "dur": 75,
+      "hero": "owl"
+    },
+    {
+      "score": 7897,
+      "dist": 1162,
       "dur": 75,
       "hero": "owl"
     }

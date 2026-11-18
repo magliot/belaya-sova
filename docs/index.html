@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 // Telegram держит старую копию игры: сверяем версию с сервером и при расхождении перезагружаемся (один раз)
-(function(){var VER='2026-11-18d',h=location.hash;
+(function(){var VER='2026-11-18e',h=location.hash;
   fetch('version.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();
     if(!v||v===VER)return;var k='bsova_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
     var q=new URLSearchParams(location.search);q.set('v',v);location.replace(location.pathname+'?'+q.toString()+h);}).catch(function(){});})();
@@ -15,7 +15,7 @@
 <link rel="modulepreload" href="vendor/three/build/three.module.min.js">
 <link rel="preload" as="image" href="ui/menu_bg.jpg" fetchpriority="high">
 <script defer src="vendor/telegram-web-app.js"></script>
-<script defer src="motion-entry.js?v=2026-11-18d"></script>
+<script defer src="motion-entry.js?v=2026-11-18e"></script>
 <style>
 /* шрифт Rubik лежит рядом с игрой — без Google Fonts и VPN */
 @font-face{font-family:'Rubik';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/rubik-cyrillic-500-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
@@ -328,12 +328,12 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
 <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.min.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
 <script type="module">
 import * as THREE from 'three';
-import {raceLight} from './trail-visuals.js?v=2026-11-18d';
-import {attachHeroMotion,poseHeroMotion} from './hero-motion.js?v=2026-11-18d';
+import {raceLight} from './trail-visuals.js?v=2026-11-18e';
+import {attachHeroMotion,poseHeroMotion} from './hero-motion.js?v=2026-11-18e';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
-import {courseCenter,courseHeading,courseGrade,courseHeight,courseCrossHeight,courseCrossSlope,coursePoint,courseGround,coursePitch,courseSlip,courseWidth,courseTheme} from './course.js?v=2026-11-18d';
-import {drawRaceHUD} from './race-hud.js?v=2026-11-18d';
+import {courseCenter,courseHeading,courseGrade,courseHeight,courseCrossHeight,courseCrossSlope,coursePoint,courseGround,coursePitch,courseSlip,courseWidth,courseTheme} from './course.js?v=2026-11-18e';
+import {drawRaceHUD} from './race-hud.js?v=2026-11-18e';
 'use strict';
 // Telegram Mini App: есть только при запуске внутри Telegram
 const TG=(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initData)?window.Telegram.WebApp:null;
@@ -1026,7 +1026,7 @@ let patrolModel=null,patrolLoading=false;
 function loadPatrol(){
   if(patrolLoading)return;
   patrolLoading=true;
-  gltfLoader.load('models/forest-patrol.glb?v=2026-11-18d',gltf=>{
+  gltfLoader.load('models/forest-patrol.glb?v=2026-11-18e',gltf=>{
     patrolModel=gltf.scene;patrolModel.traverse(n=>{if(n.isMesh)n.castShadow=true;});
     for(const o of G?.objs||[]){
       if(o.type==='snowmobile'&&o.m){o.m.clear();o.m.add(patrolModel.clone());}
@@ -1676,8 +1676,8 @@ function chaseTick(dt){const d=G.y/20;let C=G.chase;
   if(gap<15&&!(G.p.fall>0)){hit('avalanche',null);if(G.mode==='play')C.y=G.y-420;}
   if(C.t<=0&&G.mode==='play'){G.chase=null;rumble(0);const pts=600*mult();G.bonus+=pts;banner('УШЁЛ ОТ ЛАВИНЫ!','+'+pts,'gold');SFX.feather();}}
 // ================= UPDATE =================
-function update(dt,elapsed=dt){
-  if(G.mode==='play'&&G.sled)G.sled.elapsed=Math.min(SLED_SECONDS,G.sled.elapsed+elapsed);
+function update(dt){
+  if(G.mode==='play'&&G.sled)G.sled.elapsed=Math.min(SLED_SECONDS,G.sled.elapsed+dt);
   G.t+=dt;
   const snNow=stageAt(G.y/20),stNow=stageDef(snNow);
   const zi=G.sled?5:G.mode==='menu'?0:stNow.env;
@@ -1887,7 +1887,7 @@ function update(dt,elapsed=dt){
   if(G.y/20-(G.lastHitM||0)>=1500)fisEarn(1);
   const st=runStats();
   for(const m of save.missions){if(!m.got&&st[mdef(m.id).stat]>=m.n){m.got=true;banner('ЗАДАНИЕ ВЫПОЛНЕНО','+'+m.reward+' 🍊','gold');SFX.chime();}}
-  if(G.sled&&G.sled.elapsed>=SLED_SECONDS){G.failMsg='Финиш! Снежная доставка завершена';gameOver();return;}
+  if(G.sled&&G.sled.elapsed>=SLED_SECONDS-1e-8){G.sled.elapsed=SLED_SECONDS;G.failMsg='Финиш! Снежная доставка завершена';gameOver();return;}
   if(G.sprint&&G.mode==='play'&&G.y>=SPRINT_METERS*20){G.failMsg='Финиш! Короткий спуск пройден';gameOver();return;}
   setLoops(Math.min(0.32,G.speed/2200)+(Zn.blizz?0.16:0),p.air>0?0:Math.min(0.3,Math.abs(p.vx)/1300)+0.035,Zn.blizz?650+Math.sin(G.t)*200:420);catAudio();
 }
@@ -2275,11 +2275,19 @@ function beaconRun(){try{if(!canNet()||!G||!(G.mode==='play'||G.mode==='pause')|
 
 let last=performance.now();
 let reviewRate=1,reviewX=200;
+// Integrate steering and pickups at the same rate even when a GPU draws few frames.
+function advanceSledFrame(elapsed){
+  const duration=Math.min(elapsed,SLED_SECONDS-G.sled.elapsed);
+  if(duration<=0)return;
+  const steps=Math.ceil(duration*60),dt=duration/steps;
+  for(let i=0;i<steps&&G.mode==='play';i++)update(dt);
+}
 function frame(now){const elapsed=Math.max(0,(now-last)/1000),dt=Math.min(.033,elapsed);last=now;if(G){
   if(COURSE_REVIEW&&G.mode!=='menu'){
     if(G.mode==='play'){const n=Math.max(1,Math.ceil(dt*reviewRate*60));for(let i=0;i<n;i++){G.tx=reviewX;update(dt*reviewRate/n);}if(G.y/20>=19999)G.mode='pause';}
     render(G.mode==='play'?dt*reviewRate:0);
-  }else{update(dt,elapsed);render(dt);}}
+  }else if(G.sled&&G.mode==='play'){advanceSledFrame(elapsed);render(Math.min(.25,elapsed));}
+  else{update(dt);render(dt);}}
   requestAnimationFrame(frame);}
 function openCoursePreview(mode){const q=new URLSearchParams(location.search);q.set('preview',mode);q.delete('tgWebAppStartParam');location.href='index.html?'+q.toString()+location.hash;}
 $('bCourseReview').onclick=()=>openCoursePreview('course');
