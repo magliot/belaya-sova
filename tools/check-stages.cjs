@@ -33,7 +33,11 @@ window.__stageTest={
   return {type,kind,fps,collide,fail:G.failKind||null,mode:G.mode,met:save.meet.yeti-met,dx:actor.x-initial[0],dy:actor.y-initial[1]};
  },
  skiSlope(d,ang){
-  hero='bear';G.mode='pause';reviewSeek(d);G.p.ang=ang;const h=HEROMODELS.bear;
+  hero='bear';G.mode='pause';reviewSeek(d);
+  // The ray below measures bare piste. A random mogul would put the skier on a different mesh.
+  for(const o of G.objs)release(o);
+  G.objs=[];dropMogPatches(true);reviewContact();G.tilt=null;
+  G.p.ang=ang;const h=HEROMODELS.bear;
   h.motion.active=false;h.motion.lastT=null;h.motion.state={};
   for(let i=0;i<25;i++){G.t+=1/60;syncWorld(1/60);}
   scene.updateMatrixWorld(true);

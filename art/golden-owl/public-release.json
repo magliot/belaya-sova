@@ -1,0 +1,23 @@
+{
+  "version": "2026-11-18e",
+  "revision": "0e1a168",
+  "hashes": {
+    "version.txt": "688c4befe8234bf33c110ab2482df258a360ee31a02d735e24bb7143b5052ba5",
+    "index.html": "156bf907421acc4898835705c515dbddbaf9733d71dc2d0c071e1af68ff53c26",
+    "models.html": "aaf4b5c76fd03d0b9559bb58c1cac0c94bd74665cbfe9c67d7c95bf460dce55e",
+    "motion-entry.js": "7086d09b5cbf7ecea8ad0e4f1d3099b3c2a70f75764a302d08c2795e9361c314",
+    "hero-motion.js": "fa2b9b7fe39dae2e165f39c800207f799439bb5b72277bfdc1ca37c2e0df5e10",
+    "vendor/telegram-web-app.js": "baa788a6f686f4238db1b82ce8e76470930af7411b18b521ebb95a2c1480a267",
+    "models/bear-menu.glb": "b98c26fde83b7a882f52563216bfea69ab401070801d3e3722cc81e1a4423f43",
+    "models/owl-menu.glb": "07e0fccf510028cf6347a9327144f4ca2570278666f110d83b8a66c8536ab073",
+    "models/studies/bear.glb": "84d89933672e673066425c0814c3c224cfeae1d3a921861ad3315773bd96b6e5",
+    "models/golden-owl.glb": "31b3524d0ed7471c431264c6692070e572a146e2ede80201591ab0aaa606dfbe",
+    "models/rescue-case.glb": "537c4cfc866d4ecfb960e27fcc82ad4270fdcda8eaec98233a3ddcb09904804d",
+    "models/player-sled.glb": "8b668b44cece03f94a44fdbc842244dbaf7823b949c3314f8b2be07cdf9a3aeb"
+  },
+  "cards": 82,
+  "procedural": 29,
+  "startedAndResumed": true,
+  "errors": [],
+  "bad": []
+}
