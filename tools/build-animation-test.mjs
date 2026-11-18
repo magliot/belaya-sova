@@ -46,6 +46,7 @@ portable=portable.replaceAll('localStorage','previewStorage').replaceAll('sessio
 const module=fs.readFileSync('docs/hero-motion.js','utf8');portable=portable.replace(/'\.\/hero-motion\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(module).toString('base64')));
 const courseModule=fs.readFileSync('docs/course.js','utf8');portable=portable.replace(/'\.\/course\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(courseModule).toString('base64')));
 const hudModule=fs.readFileSync('docs/race-hud.js','utf8');portable=portable.replace(/'\.\/race-hud\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(hudModule).toString('base64')));
+const trailModule=fs.readFileSync('docs/trail-visuals.js','utf8');portable=portable.replace(/'\.\/trail-visuals\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(trailModule).toString('base64')));
 const b64=Object.fromEntries(['bear','owl'].map(k=>[k,fs.readFileSync('docs/models/studies/'+k+'.glb').toString('base64')]));
 portable=portable.replace('<head>','<head><script>const previewStorage={getItem(){return null},setItem(){},removeItem(){}};window.__MOTION_STUDIES='+JSON.stringify(b64)+';</script>');
 fs.mkdirSync('art/animation-integration',{recursive:true});

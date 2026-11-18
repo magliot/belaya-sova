@@ -28,7 +28,7 @@ export async function attachHeroMotion(h){
    for(let i=0;i<track.times.length;i++)track.values[i*3+1]-=authoredHeight(track.times[i]-1/30);
   }
   const mixer=new THREE.AnimationMixer(model);gltf.animations.forEach(c=>mixer.clipAction(c).play());
-  const nodes=[];model.traverse(o=>{if(o.isBone||['Left_Ski','Right_Ski','Snowboard','Left_Binding','Right_Binding','Left_Pole','Right_Pole'].includes(o.name))nodes.push({o,position:o.position.clone(),quaternion:o.quaternion.clone()})});
+  const nodes=[];model.traverse(o=>{if(o.isBone||['Left_Ski','Right_Ski','Snowboard','Left_Binding','Right_Binding','Left_Pole','Right_Pole'].includes(o.name))nodes.push({o,position:o.position.clone(),quaternion:o.quaternion.clone(),samplePos:o.position.clone(),sampleRot:o.quaternion.clone()})});
   mixer.setTime(1/30);model.updateWorldMatrix(true,true);
   const grips=[];
   for(const side of ['Left','Right']){
@@ -44,13 +44,16 @@ export function poseHeroMotion(h,p,mode,t){
  const use=mode!=='menu'&&mode!=='crash'&&!(p.fall>0);
  m.model.visible=use;m.original.visible=!use;
  if(!use){m.active=false;m.lastT=null;m.state={};m.model.position.y=0;return false;}
- const dt=m.lastT==null?0:clamp(t-m.lastT,0,.1);if(m.lastT!=null&&t<m.lastT)m.state={};m.lastT=t;
- const sample=motionTime(p,m.state,t);m.mixer.setTime(sample+1/30);
+ const dt=m.lastT==null?0:clamp(t-m.lastT,0,.1);if(m.lastT!=null&&t<m.lastT){m.state={};m.active=false;}m.lastT=t;
+ // The mixer skips unchanged tracks. Return the previous raw sample before evaluating
+ // so an intermediate blend cannot become the next target for a boot, hand or ski.
+ if(m.sampled)for(const n of m.nodes){n.o.position.copy(n.samplePos);n.o.quaternion.copy(n.sampleRot);}
+ const sample=motionTime(p,m.state,t);m.mixer.setTime(sample+1/30);m.sampled=true;
  const alpha=m.active?1-Math.exp(-24*dt):1;
- for(const n of m.nodes){n.position.lerp(n.o.position,alpha);n.quaternion.slerp(n.o.quaternion,alpha);n.o.position.copy(n.position);n.o.quaternion.copy(n.quaternion);}
+ for(const n of m.nodes){n.samplePos.copy(n.o.position);n.sampleRot.copy(n.o.quaternion);n.position.lerp(n.samplePos,alpha);n.quaternion.slerp(n.sampleRot,alpha);n.o.position.copy(n.position);n.o.quaternion.copy(n.quaternion);}
  // The clip is now in place; the parent follows the game's jump trajectory.
- m.model.position.y=0;m.active=true;h.holder.position.y=0;
- h.holder.rotation.set(-(h.slopeTilt||0),h.kind==='owl'?Math.PI/2:Math.PI,0,'YXZ');
+ m.model.position.y=0;m.active=true;h.holder.position.y=h.kind==='bear'?.022:0;
+ h.holder.rotation.set(h.kind==='bear'?0:-(h.slopeTilt||0),h.kind==='owl'?Math.PI/2:Math.PI,0,'YXZ');
  // Smoothing the skeleton and a separate prop can introduce wrist drift.
  // Keep the grip fixed in mitten space after blending, without scaling the shaft.
  m.model.updateWorldMatrix(true,true);

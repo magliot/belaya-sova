@@ -7,13 +7,13 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 // Telegram держит старую копию игры: сверяем версию с сервером и при расхождении перезагружаемся (один раз)
-(function(){var VER='2026-11-18b',h=location.hash;
+(function(){var VER='2026-11-18c',h=location.hash;
   fetch('version.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();
     if(!v||v===VER)return;var k='bsova_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
     var q=new URLSearchParams(location.search);q.set('v',v);location.replace(location.pathname+'?'+q.toString()+h);}).catch(function(){});})();
 </script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="motion-entry.js?v=2026-11-18b"></script>
+<script src="motion-entry.js?v=2026-11-18c"></script>
 <style>
 /* шрифт Rubik лежит рядом с игрой — без Google Fonts и VPN */
 @font-face{font-family:'Rubik';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/rubik-cyrillic-500-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
@@ -299,11 +299,12 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
 <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.min.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
 <script type="module">
 import * as THREE from 'three';
-import {attachHeroMotion,poseHeroMotion} from './hero-motion.js?v=2026-11-18b';
+import {raceLight,racerOpacity} from './trail-visuals.js?v=2026-11-18c';
+import {attachHeroMotion,poseHeroMotion} from './hero-motion.js?v=2026-11-18c';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
-import {courseCenter,courseHeading,courseGrade,courseHeight,courseCrossHeight,courseCrossSlope,coursePoint,courseGround,coursePitch,courseSlip,courseWidth,courseTheme} from './course.js?v=2026-11-18b';
-import {drawRaceHUD} from './race-hud.js?v=2026-11-18b';
+import {courseCenter,courseHeading,courseGrade,courseHeight,courseCrossHeight,courseCrossSlope,coursePoint,courseGround,coursePitch,courseSlip,courseWidth,courseTheme} from './course.js?v=2026-11-18c';
+import {drawRaceHUD} from './race-hud.js?v=2026-11-18c';
 'use strict';
 // Telegram Mini App: есть только при запуске внутри Telegram
 const TG=(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initData)?window.Telegram.WebApp:null;
@@ -667,7 +668,7 @@ function loadWinter(){const sc=document.createElement('script');sc.src='models/w
       mat.metalness=0;mat.roughness=0.88;mat.envMapIntensity=0;mat.emissive=new THREE.Color(0x161616);}}});
     WINTER[k]=holder;WINTER_CLIPS[k]=g.animations;assetGen++;
     const type={rock_wide:'rock',rock_tall:'rock',snow_cannon:'cannon',first_aid:'aid'}[k]||k;
-    for(const pk in pools)if(pk.startsWith(type))pools[pk]=[];
+    for(const pk in pools)if(pk.startsWith(type)||(k==='yeti'&&pk==='mogulYeti'))pools[pk]=[];
   });};sc.onerror=()=>console.warn('winter models unavailable');document.head.appendChild(sc);}
 function winterClone(k){const source=WINTER[k];if(!source)return null;const copy=source.clone(true),map=new Map();
   function pair(a,b){map.set(a,b);for(let i=0;i<a.children.length;i++)pair(a.children[i],b.children[i]);}pair(source,copy);
@@ -829,10 +830,22 @@ const FACT={
     const p=plane(tex,park?2.4:1.6,park?.65:.5,g,0,tall-.18,0,false);p.material.side=THREE.DoubleSide;
     S3(mk(sharedGeo.box,OM.snow,0,tall+.09,0,g,false),park?2.45:1.65,.08,.16);return g;},
   rail(o){return makeParkSurface(o);},
+  snowmobile(){
+    const g=new THREE.Group();
+    if(patrolModel){g.add(patrolModel.clone());return g;}
+    loadPatrol();
+    S3(mk(sharedGeo.box,OM.track,0,.28,.25,g),.8,.45,1.7);
+    S3(mk(sharedGeo.sphLo,OM.orange,0,.65,-.45,g),.57,.35,.8);
+    S3(mk(sharedGeo.sphLo,OM.npcSki,0,1.13,.31,g),.31,.39,.24);
+    S3(mk(sharedGeo.sphLo,OM.snow,0,1.65,.29,g),.23,.23,.23);
+    for(const side of [-1,1])S3(mk(sharedGeo.box,OM.track,side*.52,.09,-.6,g),.15,.1,1.8);
+    return g;
+  },
+  mogulYeti(o){const g=FACT.yeti(o);g.userData.arms=['WinterArmL','WinterArmR'].map(n=>g.getObjectByName(n));return g;},
   airRing(o){
     const group=new THREE.Group(),radius=o.radius;
-    const hoop=mk(new THREE.TorusGeometry(radius,.11,8,48),new THREE.MeshBasicMaterial({color:0xffc348}),0,0,0,group);
-    mk(new THREE.TorusGeometry(radius+.18,.045,5,48),new THREE.MeshBasicMaterial({color:0x9949ba}),0,0,0,group);
+    const hoop=mk(new THREE.TorusGeometry(radius,.047,8,56),new THREE.MeshBasicMaterial({color:0xffc348}),0,0,0,group);
+    group.userData.light=raceLight(group,radius,radius,'ring',canvasTex);
     group.userData.hoop=hoop;return group;
   },
   tree(o){const tk=o&&o.pine?'pine':o&&o.fir?'fir':'tree';if(!NPCM[tk]&&tk==='pine')return buildPine();if(NPCM[tk]){const g=new THREE.Group();const c=NPCM[tk].clone();c.rotation.y=Math.random()*6.28;g.add(c);return g;}return buildTree();},
@@ -845,6 +858,7 @@ const FACT={
       const f=plane(t,0.6,0.45,pz,s*0.31,1.3,0,false);f.material.side=THREE.DoubleSide;f.userData.flap=s;f.userData.flag=true;}
     const line=new THREE.Mesh(new THREE.PlaneGeometry(o.gap*U,0.12),new THREE.MeshBasicMaterial({color:o.col?0x2a6df4:0xe8343b,transparent:true,opacity:0.35,depthWrite:false}));line.rotation.x=-Math.PI/2;line.position.y=0.03;g.add(line);
     const halo=new THREE.Mesh(new THREE.TorusGeometry(half,0.055,4,32,Math.PI),new THREE.MeshBasicMaterial({color:0xffc34d,transparent:true,opacity:0.65,depthWrite:false}));
+    g.userData.light=raceLight(g,half,Math.min(2.8,half),o.col?'blue':'red',canvasTex);
     halo.position.y=0.08;halo.scale.y=Math.min(2.8,half)/half;g.add(halo);
     const disc=new THREE.Mesh(new THREE.PlaneGeometry(o.gap*U+0.5,3),new THREE.MeshBasicMaterial({map:glowTex,color:0xffcf55,transparent:true,opacity:0.45,depthWrite:false,blending:THREE.AdditiveBlending}));
     disc.rotation.x=-Math.PI/2;disc.position.y=0.055;g.add(disc);g.userData.halo=halo;g.userData.gateDisc=disc;g.userData.gate=true;return g;},
@@ -931,6 +945,19 @@ const FACT={
   feather(){const g=new THREE.Group();const sp=new THREE.Sprite(pickGlow);sp.scale.setScalar(2.4);g.add(sp);const f=mk(sharedGeo.sph,OM.gold,0,0.1,0,g);S3(f,0.12,0.42,0.03);f.rotation.z=0.3;
     const q=mk(sharedGeo.cyl,OM.gold,0.08,-0.32,0,g);S3(q,0.015,0.25,0.015);q.rotation.z=0.3;g.userData.spin=true;g.userData.baseY=1.0;return g;},
 };
+let patrolModel=null,patrolLoading=false;
+function loadPatrol(){
+  if(patrolLoading)return;
+  patrolLoading=true;
+  gltfLoader.load('models/forest-patrol.glb?v=2026-11-18c',gltf=>{
+    patrolModel=gltf.scene;patrolModel.traverse(n=>{if(n.isMesh)n.castShadow=true;});
+    for(const o of G?.objs||[]){
+      if(o.type==='snowmobile'&&o.m){o.m.clear();o.m.add(patrolModel.clone());}
+    }
+    pools.snowmobile=[];
+    assetGen++;
+  },undefined,()=>{patrolLoading=false;});
+}
 let assetGen=0;const pools={};const archTexCache={},letterTexCache={};let instrTex=null,aidTex=null;const gateTexCache={};
 function poolKey(o){if(o.type==='stageProp')return 'stageProp_'+o.theme+(o.caption||'')+(o.theme==='forest'?(o.x<200?'_r':'_l'):'');if(o.type==='rail')return 'rail_'+o.w+'_'+o.len+'_'+o.hh;return o.type==='gate'?'gate'+o.col+'_'+Math.round(o.gap):o.type==='npc'?'npc'+o.colHex+'v'+(o.vi||0)+(o.walker?'w':'')+(o.sit?'s':'')+(o.kid?'k':'')+(o.instr?'i':'')+(o.sb?'b':''):o.type==='cat'?'cat'+(o.vy>0?1:0):o.type==='fence'?'fence'+Math.round(o.x2-o.x1):o.type==='cannon'?'cannon'+(o.x<200?1:0):o.type==='arch'?'arch'+o.stage:o.type==='dog'?'dog'+(o.vx>0?1:0):o.type==='snowman'||o.type==='yeti'?o.type+(o.x<200?1:0):o.type==='letter'?'letter'+o.ch+(o.air?1:0):o.type==='tree'?'tree'+(o.pine?'p':o.fir?'f':''):o.type==='ramp'?'ramp'+o.w+'_'+(o.hh||0.75)+(o.park?'_park':''):o.type;}
 // Keep the collision surface and its visible mesh in the same curved course coordinates.
@@ -1138,8 +1165,8 @@ function updEnv(dt,zi){const z=ZONES[zi],k=Math.min(1,dt*0.9);
 const RAMPV=[[60,0.75],[44,0.55],[36,0.75],[30,0.95],[48,1.1],[40,0.9]];// ширина, высота трамплина
 const STAGES=[
   {name:'Учебный склон',sub:'дети и инструкторы — объезжай с запасом',env:0,col:'#2a9d5c',mix:{gate:30,skier:10,board:8,sbschool:6,kids:14,sit:6,walk:4,help:3,ramp:8,mogul:6,fence:4,coins:10}},
-  {name:'Лесная тропа',sub:'узкий коридор между деревьями — выбирай проход',env:0,col:'#1f6b3f',forest:true,speed:0.9,mix:{forestTrail:1}},
-  {name:'Бугры',sub:'крупные гребни и ложбины — выбирай линию',env:0,col:'#377d9a',moguls:true,speed:0.86,mix:{rollers:1}},
+  {name:'Лесная тропа',sub:'три вида деревьев и встречный лесной патруль',env:0,col:'#1f6b3f',forest:true,speed:0.9,mix:{forestTrail:1}},
+  {name:'Бугры',sub:'йети на гребнях · ищи свободную ложбину',env:0,col:'#377d9a',moguls:true,speed:0.86,mix:{rollers:1}},
   {name:'Сноупарк',sub:'три высоты прыжков · мандаринки и кольца в полёте',env:1,col:'#7b3fe4',park:true,mix:{parkLine:1}},
   {name:'Вершина · метель',sub:'ветер сносит, снеговики кидаются',env:2,col:'#5d7a99',mix:{gate:22,snowman:16,mogulBit:8,skier:8,board:6,sit:8,help:4,mogul:6,fence:8,coins:10,cat:8}},
   {name:'Чёрная трасса',sub:'самая быстрая — держись!',env:0,col:'#111111',speed:1.15,mix:{gate:28,mogulBit:8,skier:10,board:8,fence:12,cannon:8,walk:4,mogul:6,ramp:6,coins:10,cat:10}},
@@ -1189,7 +1216,14 @@ const MOG={patches:[]};const mogMat=new THREE.MeshLambertMaterial({vertexColors:
 function bumpH(P,x,y){let h=0;for(const b of P.b){const dx=(x-b.x)/(b.Rx||b.R),dy=(y-b.y)/(b.Ry||b.R);const d2=dx*dx+dy*dy;if(d2<1){const c=Math.cos(Math.sqrt(d2)*Math.PI/2);const v=b.A*c*c;h=P.rolling?h+v:Math.max(h,v);}}if(P.rolling){const k=clamp((Math.abs(x-mogulValley(y))-18)/48,0,1);h*=.12+.88*k*k*(3-2*k);}return h;}
 function mogAt(x,y){for(const P of MOG.patches)if(y>=P.y0&&y<=P.y1)return bumpH(P,x,y);return 0;}
 function addMogulPatch(y0,rows,diff){const rolling=stageDef(stageAt(y0/20)).moguls;const sx=rnd(48,56),sy=rolling?175:rnd(44,52);const P={y0,y1:y0+rows*sy+(rolling?180:50),b:[],rolling:!!rolling};
-  if(rolling){for(let r=0;r<rows;r++){const shift=r%2?35:-35;for(const x of [110,290])P.b.push({x:x+shift,y:y0+150+r*sy,Rx:115,Ry:150,A:rnd(1.05,1.35)});}}
+  if(rolling){
+    const field=Math.floor(y0%(STAGE_LEN*20)/2340)%2;
+    for(let row=0;row<rows;row++){
+      const shift=(row%2?1:-1)*(field?49:30),paired=field&&row%3===1;
+      for(const x of [110,290])P.b.push({x:x+shift,y:y0+150+row*sy+(paired&&x>200?45:0),
+        Rx:paired?94:115,Ry:paired?135:150,A:rnd(1.05,paired?1.50:1.35)});
+    }
+  }
   else for(let r=0;r<rows;r++){const off=r%2?sx/2:0;for(let x=26+off;x<=376;x+=sx)P.b.push({x:x+rnd(-5,5),y:y0+30+r*sy+rnd(-4,4),R:rnd(27,33),A:rnd(0.4,0.6)*(1+diff*0.4)});}
   const W=400*U,L=(P.y1-P.y0)*U,ny=Math.max(8,Math.round(L/(rolling?0.5:0.22)));const g=new THREE.PlaneGeometry(W,L,rolling?56:80,ny);const pos=g.attributes.position;
   const col=new Float32Array(pos.count*3),cT=new THREE.Color(rolling?0xaccbe2:0xb9cfe8),cC=new THREE.Color(0xffffff),cc=new THREE.Color();
@@ -1197,7 +1231,7 @@ function addMogulPatch(y0,rows,diff){const rolling=stageDef(stageAt(y0/20)).mogu
     const fade=rolling?180:30,edge=Math.min(1,(yy-P.y0)/fade,(P.y1-yy)/fade);cc.copy(cT).lerp(cC,1-(1-Math.min(1,h/(rolling?1.4:0.45)))*edge*0.85);col[i*3]=cc.r;col[i*3+1]=cc.g;col[i*3+2]=cc.b;}
   g.setAttribute('color',new THREE.BufferAttribute(col,3));
   g.computeVertexNormals();const m=new THREE.Mesh(g,mogMat);m.receiveShadow=true;m.frustumCulled=false;scene.add(m);P.mesh=m;MOG.patches.push(P);return P;}
-function dropMogPatches(all){MOG.patches=MOG.patches.filter(P=>{if(all||P.y1<G.y-320){scene.remove(P.mesh);P.mesh.geometry.dispose();return false;}return true;});}
+function dropMogPatches(all){MOG.patches=MOG.patches.filter(P=>{if(all||P.y1<G.y-320){scene.remove(P.mesh);P.tracks?.geometry.dispose();P.mesh.geometry.dispose();return false;}return true;});}
 function objectFrame(o){const m=o.m,z=Z(o.y),u=X(o.x);m.userData.courseYaw=courseHeading(z);m.userData.courseRoll=['gate','ramp','rail','mogul','cat','fence','npc','sit','kids'].includes(o.type)?Math.atan(courseCrossSlope(u,z)):0;m.rotation.y+=m.userData.courseYaw;m.rotation.z+=m.userData.courseRoll;}
 function placeObj(o){if(o.park||o.type==='rail'){fitParkSurface(o);return;}const z=Z(o.y);courseGround(o.m.position,X(o.x),z,mogAt(o.x,o.y));if(o.type==='ramp'||o.type==='mogul'||o.type==='cat')o.m.rotation.x=-coursePitch(X(o.x),z);objectFrame(o);}
 
@@ -1261,22 +1295,64 @@ function parkBoxHeight(o,y){return o.hh*Math.max(0,Math.min(1,(y-o.y+o.len/2)/40
 function coinTrail(x,y,count,spacing){
   for(let i=0;i<count;i++)addObj({type:'coin',x,y:y+i*spacing,r:9});
 }
-function forestSection(y){
+function forestSection(y,patrol){
   const side=Math.floor(y/1000)%2?1:-1;
   const rewardX=200+side*83,wideX=200-side*64;
   // The close pair frames the reward line. The opposite lane has a wider exit.
-  for(const [x,dy,scale] of [[28,0,1.55],[372,60,1.65],[200+side*28,430,1.35],
-      [200+side*128,470,1.4],[200-side*164,530,1.5]]){
-    addObj({type:'tree',x,y:y+dy,r:12,s:scale,fir:true});
+  for(const [x,dy,scale,kind] of [[200+side*172,0,.77,'pine'],[200-side*172,60,1.30,'tree'],
+      [200+side*28,430,1.1,'fir'],[200+side*128,470,1.08,'tree'],[200-side*164,530,1.34,'fir']]){
+    addObj({type:'tree',x,y:y+dy,r:kind==='pine'?18:12,s:scale,pine:kind==='pine',fir:kind==='fir'});
+  }
+  const section=Math.floor(y%(STAGE_LEN*20)/1000);
+  if(patrol??(section%3===0)){
+    addTrailActor('snowmobile',y+265,side);
   }
   coinTrail(rewardX,y+100,6,105);
   addObj({type:'gate',x:wideX,y:y+650,gap:112,col:side>0?1:0});
   addObj({type:'stageProp',theme:'forest',x:side>0?365:35,y:y+65});
   return 1000;
 }
+// Author motion by approach distance so a paused seek and a live run show the same crossing.
+function trailActorAt(o,playerY){
+  const t=clamp((playerY-o.marker+800)/1050,0,1);
+  if(o.type==='snowmobile'){
+    o.x=200+o.side*(58+12*t);o.y=o.marker+165-210*t;
+  }else{
+    o.x=200+o.side*(137-100*t);o.y=o.marker+32*t;
+  }
+  o.stride=t;
+}
+const printMaterial=new THREE.MeshBasicMaterial({color:0x80a7bb,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2});
+function addYetiTracks(patch,marker,side){
+  const vertices=[];
+  function pad(cx,cy,w,h){
+    const pts=[];
+    for(let i=0;i<10;i++){
+      const a=i*Math.PI/5,x=cx+w*Math.cos(a),y=cy+h*Math.sin(a);
+      courseGround(terrainPoint,X(x),Z(y),mogAt(x,y)+.046);pts.push(terrainPoint.toArray());
+    }
+    for(let i=1;i<9;i++)vertices.push(...pts[0],...pts[i],...pts[i+1]);
+  }
+  for(let i=0;i<8;i++){
+    const x=200+side*(150-i*16),y=marker-75+i*12+(i%2?7:-7);
+    pad(x,y,4.5,6);for(const toe of [-1,0,1])pad(x-side*4,y+toe*3.5,1.65,1.8);
+  }
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+  patch.tracks=new THREE.Mesh(geo,printMaterial);patch.mesh.add(patch.tracks);
+}
+function addTrailActor(type,marker,side){
+  const o={type,marker,side};
+  trailActorAt(o,G.y);addObj(o);
+}
 function mogulValley(y){return 120+28*Math.sin(y/460);}
 function rollerSection(y,diff){
   const P=addMogulPatch(y,12,diff);
+  const section=Math.floor(y%(STAGE_LEN*20)/2340);
+  if(section%2===0){
+    const side=section%4===0?1:-1,marker=y+1040;
+    addTrailActor('mogulYeti',marker,side);
+    addYetiTracks(P,marker,side);
+  }
   for(let r=0;r<12;r++){
     const row=y+150+r*175;
     if(r%3===0){
@@ -1334,7 +1410,7 @@ function parkSection(y,shortTier){
 function sprintSection(y){
   const block=Math.round(y/1500);
   if(block===16){addObj({type:'finish',x:200,y});G.nextY=Infinity;return;}
-  if([3,8,12].includes(block))forestSection(y);
+  if([3,8,12].includes(block))forestSection(y,block===3);
   else if([5,10,14].includes(block))parkSection(y,[5,10,14].indexOf(block));
   else if(block===2||block===9){
     coinTrail(200,y,4,100);
@@ -1495,7 +1571,7 @@ function chalTick(){const c=G.chal;
 function chalReset(){if(G.chal&&G.chal.d.k==='clean'&&!G.chal.done)G.chal.cleanY=G.y;}
 // Соперник держится рядом, меняет лидерство и плавно догоняет после ускорения игрока от кофе.
 // «профи»-руль соперника: проходит каждые ворота по центру, заранее объезжает камни/людей/ёлки/сетки, иногда заезжает на трамплин
-const RIV_AVOID={rock:o=>o.r+20,tree:o=>(o.r||8)*(o.s||1)+20,snowman:o=>o.r+22,cannon:o=>o.r+22,cat:o=>o.w/2+28,mogul:()=>22,aid:()=>22,npc:o=>o.sit||o.stand?34:30,dog:()=>24};
+const RIV_AVOID={snowmobile:()=>40,mogulYeti:()=>46,rock:o=>o.r+20,tree:o=>(o.r||8)*(o.s||1)+20,snowman:o=>o.r+22,cannon:o=>o.r+22,cat:o=>o.w/2+28,mogul:()=>22,aid:()=>22,npc:o=>o.sit||o.stand?34:30,dog:()=>24};
 function rivalSteer(R,dt){const o=R.o;
   const lookAhead=Math.max(420,o.vy*1.2); // на скорости заранее видит линию, а не только последние полсекунды до ворот
   const look=G.objs.filter(q=>q!==o&&!q.dead&&q.m&&q.y>o.y+8&&q.y<o.y+lookAhead).sort((a,b)=>a.y-b.y);
@@ -1549,7 +1625,7 @@ function rivalSay(kind){const R=G.rival,rk=rivalKind();const L=RIVAL_SAY[kind][r
   G.rSay={txt,until:G.t+2.6,pos:R&&R.pos?R.pos:G.rLast};
   if(AC&&!save.muted){if(rk==='owl'){tone(720,0.13,0.05,'sine',880);tone(560,0.2,0.05,'sine',680,0.16);}else{tone(190,0.16,0.07,'triangle',250);tone(150,0.26,0.06,'triangle',120,0.16);}}}
 function rivalSync(){const rk=rivalKind(),rm=HEROMODELS[rk];const R=G.rival;
-  if(!R||!R.o.m||R.o.dead||!rm.glb||G.mode==='menu'){if(R&&R.o.m)R.o.m.visible=true;return;}
+  if(!R||!R.o.m||R.o.dead||!rm.glb||G.mode==='menu'){if(R&&R.o.m)R.o.m.visible=false;return;}
   const o=R.o;o.m.visible=false;const z=Z(o.y);
   // трюки — на трамплинах (npcAI) и изредка эффектный прыжок на ровном (раз в 20–35 с, когда впереди чисто)
   if(R.hopT==null)R.hopT=G.t+rnd(20,35);
@@ -1559,8 +1635,11 @@ function rivalSync(){const rk=rivalKind(),rm=HEROMODELS[rk];const R=G.rival;
   const y=Hz(z)+mogAt(o.x,o.y)+npcLift(o);
   R.ang=lerp(R.ang||0,clamp((o.vx||0)/340,-1,1),0.15);const ang=R.ang;
   rm.root.visible=true;coursePoint(rm.root.position,X(o.x),y,z);
-  // поправка на перспективу: впереди он дальше от камеры и кажется меньше — слегка увеличиваем (до +35%), чтобы на глаз был одного роста с игроком
-  {const hp=HEROMODELS[hero].root.position;const dp=camera.position.distanceTo(hp)||1,dr=camera.position.distanceTo(rm.root.position);rm.root.scale.setScalar(clamp(dr/dp,1,1.35));}const tilt=Math.atan(Math.tan(coursePitch(X(o.x),z))-(o.surfaceSlope||0));rm.root.rotation.set(-tilt,courseHeading(z)-ang*0.45,Math.atan(courseCrossSlope(X(o.x),z))-ang*0.32,'YXZ');
+  const gap=(o.y-G.y)*U,across=Math.abs(o.x-G.p.x)*U;
+  const separation=clamp(Math.max(across/3.8,Math.max(0,gap-1,-gap-5)/6),0,1);
+  racerOpacity(rm,lerp(.07,.42,separation));rm.root.scale.setScalar(1);
+  const tilt=Math.atan(Math.tan(coursePitch(X(o.x),z))-(o.surfaceSlope||0));rm.root.rotation.set(-tilt,courseHeading(z),Math.atan(courseCrossSlope(X(o.x),z)),'YXZ');
+  rm.root.rotateY(-ang*.45);if(rk==='owl')rm.root.rotateZ(-ang*.32);
   const tr=o.air>0?TRICKS[R.trick||0].f(k):[0,0,0];rm.pivot.rotation.set(tr[0],tr[1],tr[2]);const cy=0.6;pivC.set(0,cy,0).applyEuler(rm.pivot.rotation);rm.pivot.position.set(-pivC.x,cy-pivC.y,-pivC.z);
   rm.slopeTilt=o.surfaceSlope?0:coursePitch(X(o.x),z)*0.55;R.fp=R.fp||{air:0,ang:0,fall:0,trick:0,tuck:0.3,airT:0,airMax:1};R.fp.air=o.air>0?1:0;R.fp.airT=o.airT||0;R.fp.airMax=o.airMax||1;R.fp.ang=ang;poseGlb(rm,R.fp,'play',G.t);
   R.pos=rm.root.position;G.rLast=rm.root.position.clone();
@@ -1651,6 +1730,18 @@ function update(dt){
   for(const o of G.objs){
     if(o.dead)continue;
     if(o.type==='npc'){if(o.vy>0)npcAI(o,dt);o.y+=o.vy*dt;o.x=clamp(o.bx+Math.sin(G.t*(o.w||1.3)+o.ph)*o.amp,30,370);}
+    if(o.type==='snowmobile'||o.type==='mogulYeti'){
+      const prevX=o.x,prevY=o.y;trailActorAt(o,py);
+      const before=G.prevY-prevY,after=py-o.y;
+      const crossing=clamp(-before/(after-before||1),0,1);
+      const clearance=o.type==='snowmobile'?38:22;
+      const width=o.type==='snowmobile'?22:29;
+      if(before<=clearance&&after>=-clearance&&Math.abs(lerp(oldX,p.x,crossing)-lerp(prevX,o.x,crossing))<width&&
+         (!p.air||flightHeight(p,py)<(o.type==='snowmobile'?1.8:2.7)))hit(o.type,o);
+      if(o.type==='mogulYeti'&&!o.dead&&!G.yetiRun&&!COURSE_REVIEW&&G.mode==='play'&&before<=clearance&&after>clearance){
+        G.yetiRun=true;save.meet.yeti++;persist();
+      }
+    }
     if(o.type==='dog'){o.x+=o.vx*dt;if(o.x<-10||o.x>410)o.dead=true;}
     if(o.type==='ball'){o.x+=o.vx*dt;o.h=Math.max(0,o.h-dt*0.3);if(o.x<-10||o.x>410)o.dead=true;}
     if(o.type==='snowman'){
@@ -1764,6 +1855,16 @@ function animObjs(dt){
     m.rotation.y-=m.userData.courseYaw||0;m.rotation.z-=m.userData.courseRoll||0;
     m.position.set(X(o.x),og+(o.type==='ball'?o.h:o.type==='npc'?npcLift(o):0),oz);
     if(m.userData.mixer)m.userData.mixer.update(dt);
+    if(o.type==='snowmobile'){
+      m.rotation.set(coursePitch(X(o.x),oz),Math.PI+o.side*.06,0,'YXZ');
+    }
+    if(o.type==='mogulYeti'){
+      const phase=o.stride*Math.PI*10,step=Math.sin(phase);
+      m.position.y+=.14*Math.abs(step);
+      m.rotation.set(.04,o.side*(Math.PI-.95)+step*.11,step*.055,'YXZ');
+      m.userData.arms.forEach((arm,i)=>{if(arm)arm.rotation.x=step*(i?-.57:.57);});
+      if(m.userData.arm)m.userData.arm.rotation.x=step*.55;
+    }
     if(o.type==='snowman')m.rotation.y=Math.PI+(o.x<200?.35:-.35);
     if(o.type==='dog'){const d=m.userData.dog;d.position.y=Math.abs(Math.sin(G.t*14))*(m.userData.mixer?0.035:0.12);d.userData.legs.forEach((l,i)=>l.rotation.x=Math.sin(G.t*14+i*1.6)*0.7);}
     if(m.userData.arm&&o.type==='snowman')m.userData.arm.rotation.x=o.thrown>0?-2.2:o.windup>0?1.25:-0.2;
@@ -1777,9 +1878,15 @@ function animObjs(dt){
     if(m.userData.spin){m.rotation.y+=dt*2.5;m.position.y=og+m.userData.baseY+Math.sin(G.t*3+o.x)*0.08;}
     if(o.airHeight!=null)m.position.y=og+o.airHeight;
     else if(o.type==='coin'&&o.air)m.position.y=og+1.8;
-    if(o.type==='airRing')m.userData.hoop.material.color.setHex(o.passed?0x94f3bc:0xffc348);
+    if(o.type==='airRing'){
+      const aura=m.userData.light;
+      aura.rotation.z=G.t*.32+o.y*.002;
+      aura.material.opacity=o.passed?.32:.88+.12*Math.sin(G.t*2.4);
+      m.userData.hoop.material.color.setHex(o.passed?0x91ffd4:0xfff5ba);
+    }
     if(o.type==='gate'){m.children.forEach(c=>{if(c.userData.flag)c.rotation.y=Math.sin(G.t*4+o.x+c.position.x)*0.25;});
       if(m.userData.halo){const a=o.done?(o.ok?0.18:0.04):0.58+0.12*Math.sin(G.t*2.5-o.y*0.003);m.userData.halo.material.opacity=a;
+        m.userData.light.material.opacity=o.done?.16:.92+.08*Math.sin(G.t*2.5-o.y*.003);
         m.userData.halo.material.color.set(o.done&&o.ok?0x8ae9ad:0xffd46a);m.userData.gateDisc.material.opacity=o.done?0.05:0.4;}}
     if(o.type==='cat')m.traverse(c=>{if(c.userData.beacon)c.visible=Math.sin(G.t*12)>0;});
     if(m.userData.gate)m.traverse(c=>{if(c.userData.flap)c.rotation.y=Math.sin(G.t*5+o.y)*0.25;});
@@ -1802,7 +1909,7 @@ function hit(kind,o){
     if(o)o.dead=true;SFX.crash();SFX.shield();voice('helmet',true);vibe([60,40,90]);burst3(X(p.x),0.6,Z(G.y),30,'#ffffff',6);
     banner('КАСКА СПАСЛА!',p.lives?'Упал, но встаю! Касок осталось: '+p.lives:'Касок больше нет — осторожно!','warn');return;}
   G.mode='crash';G.crashT=0;G.shake=0.6;SFX.crash();voice('crash',true);vibe([60,40,120]);burst3(X(p.x),0.5,Z(G.y),40,'#ffffff',7);
-  G.failKind=kind;G.failMsg=kind==='landing'?'Не докрутил трюк!':kind==='npc'?'Столкновение! Держи дистанцию':kind==='cat'?'Ратрак — не трамплин!':kind==='sit'?'Наехал на сидящего сноубордиста!':kind==='kids'?'Ой! Дети — объезжай с запасом':kind==='fence'?'Сетка! Тут трасса сужается':kind==='cannon'?'Снежная пушка — не для объятий':kind==='tree'?'Ёлка на краю трассы!':kind==='snowman'?'Обнял снеговика…':kind==='rock'?'Камень! Смотри вперёд':kind==='avalanche'?'Лавина догнала!':HEROES[hero].fails[Math.floor(Math.random()*HEROES[hero].fails.length)];
+  G.failKind=kind;G.failMsg=kind==='snowmobile'?'Столкновение со снегоходом':kind==='mogulYeti'?'Йети пересёк твою линию!':kind==='landing'?'Не докрутил трюк!':kind==='npc'?'Столкновение! Держи дистанцию':kind==='cat'?'Ратрак — не трамплин!':kind==='sit'?'Наехал на сидящего сноубордиста!':kind==='kids'?'Ой! Дети — объезжай с запасом':kind==='fence'?'Сетка! Тут трасса сужается':kind==='cannon'?'Снежная пушка — не для объятий':kind==='tree'?'Ёлка на краю трассы!':kind==='snowman'?'Обнял снеговика…':kind==='rock'?'Камень! Смотри вперёд':kind==='avalanche'?'Лавина догнала!':HEROES[hero].fails[Math.floor(Math.random()*HEROES[hero].fails.length)];
   if(kind==='edge')G.failMsg='Снежный борт! Рули на поворотах';
   setLoops(0,0,null);
 }
@@ -1843,13 +1950,15 @@ function syncWorld(dt){
     const z0=Math.ceil(z/TOWER_STEP)*TOWER_STEP,f=(z0-z)/TOWER_STEP,x=LIFT_X[c.userData.up?0:1];liftAnchor(liftA,x,z0);liftAnchor(liftB,x,z0-TOWER_STEP);c.position.lerpVectors(liftA,liftB,f);c.rotation.y=courseHeading(z);}
   // герой
   for(const k in HEROMODELS){HEROMODELS[k].root.visible=(k===hero);if(HEROMODELS[k].poles)HEROMODELS[k].poles.forEach(q=>q.g.visible=(k===hero));}
-  const hm=HEROMODELS[hero];
+  const hm=HEROMODELS[hero];racerOpacity(hm,1);
   coursePoint(hm.root.position,px,gy+(p.air>0?flightHeight(p,G.y):p.rampH+(G.mode==='menu'?0:p.mh)),pz);hm.root.scale.setScalar(hm.glb?1:0.8);
   if(G.mode==='menu'){const dn=G.dance&&G.t<G.dance.until;
     if(dn){menuVel=0;menuYaw=lerp(menuYaw,0,Math.min(1,dt*6));}else if(!menuDrag){menuYaw+=menuVel;menuVel*=0.94;}
     // в «Танце чемпиона» герой кружится каждые 2 секунды
     const spin=dn&&G.dance.id==='champ'?(()=>{const k=((G.t-G.dance.t0)%2)/2;return k<0.4?k/0.4*Math.PI*2:0;})():0;
-    hm.root.rotation.set(0,menuYaw+spin+(dn?0:Math.sin(G.t*0.4)*0.12),0);}else{const mSl=p.air>0||p.hop>0?0:(mogAt(p.x,G.y+5)-mogAt(p.x,G.y-5))/(10*U);const tg=(coursePitch(px,pz)-Math.atan(mSl))*(p.air>0?0.3:1);G.tilt=p.surfaceSlope&&!p.air?Math.atan(Math.tan(coursePitch(px,pz))-p.surfaceSlope):lerp(G.tilt==null?tg:G.tilt,tg,Math.min(1,dt*5));hm.root.rotation.set(-G.tilt,courseHeading(pz)-p.ang*0.45,Math.atan(courseCrossSlope(px,pz))-p.ang*0.32,'YXZ');}hm.slopeTilt=G.mode==='menu'||p.surfaceSlope?0:(G.tilt||0)*0.55;
+    hm.root.rotation.set(0,menuYaw+spin+(dn?0:Math.sin(G.t*0.4)*0.12),0);}else{const mSl=p.air>0||p.hop>0?0:(mogAt(p.x,G.y+5)-mogAt(p.x,G.y-5))/(10*U);const tg=(coursePitch(px,pz)-Math.atan(mSl))*(p.air>0?0.3:1);G.tilt=p.surfaceSlope&&!p.air?Math.atan(Math.tan(coursePitch(px,pz))-p.surfaceSlope):lerp(G.tilt==null?tg:G.tilt,tg,Math.min(1,dt*5));const crossMog=hero==='bear'&&!p.air&&!p.hop?(mogAt(p.x+4,G.y)-mogAt(p.x-4,G.y))/(8*U):0;
+    hm.root.rotation.set(-G.tilt,courseHeading(pz),Math.atan(courseCrossSlope(px,pz)+crossMog),'YXZ');
+    hm.root.rotateY(-p.ang*.45);if(hero==='owl')hm.root.rotateZ(-p.ang*.32);}hm.slopeTilt=G.mode==='menu'||p.surfaceSlope?0:(G.tilt||0)*0.55;
   {const tr=p.trick>0?TRICKS[p.tt||0].f(p.trick):[0,0,0];const fp=G.mode==='play'?fallPose(p):null;
    hm.pivot.rotation.set((G.mode==='crash'?p.tumble:0)+tr[0]+(fp?fp.rx:0),tr[1],tr[2]+(p.wob>0?Math.sin(G.t*16)*0.07:0)+(fp?fp.rz:0));
    const cy=0.6;pivC.set(0,cy,0).applyEuler(hm.pivot.rotation);hm.pivot.position.set(-pivC.x,cy-pivC.y+(fp?fp.dy:0),-pivC.z);}
@@ -2042,7 +2151,7 @@ function fisEarn(n){if(!G||G.mode!=='play'||save.fis.includes(n))return;save.fis
 function renderFis(){$('fisList').innerHTML=FIS.map((r,i)=>{const ok=save.fis.includes(i+1);return '<li class="'+(ok?'ok':'no')+'"><b>'+(ok?'✓ ':'')+r[0]+'</b> — '+r[1]+(ok?'':'<br><small>🔒 как получить: '+FIS_HOW[i]+'</small>')+'</li>';}).join('');
   $('bFis').innerHTML='📜 Правила FIS: <b>'+save.fis.length+'/10</b>';$('fisCnt').textContent='Собрано '+save.fis.length+' из 10';}
 renderFis();
-const FIS_BY={npc:4,sit:6,kids:2,cat:8,fence:8,tree:2,snowman:1,cannon:8,landing:2};
+const FIS_BY={snowmobile:8,mogulYeti:2,npc:4,sit:6,kids:2,cat:8,fence:8,tree:2,snowman:1,cannon:8,landing:2};
 function fisTip(kind){const n=FIS_BY[kind]||1+Math.floor(Math.random()*10);return '<b>Правило FIS №'+n+'. '+FIS[n-1][0]+'</b> — '+FIS[n-1][1];}
 $('bColl').onclick=()=>{renderColl();$('coll').classList.remove('hidden');};$('bCollClose').onclick=()=>$('coll').classList.add('hidden');
 function renderColl(){

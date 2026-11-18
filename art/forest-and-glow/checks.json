@@ -1,0 +1,549 @@
+{
+  "viewport": [
+    375,
+    812
+  ],
+  "encounters": [
+    {
+      "type": "snowmobile",
+      "kind": "owl",
+      "fps": 30,
+      "collide": false,
+      "fail": null,
+      "mode": "play",
+      "met": 0,
+      "dx": -4.243592695888509,
+      "dy": -74.26287217804929
+    },
+    {
+      "type": "snowmobile",
+      "kind": "owl",
+      "fps": 30,
+      "collide": true,
+      "fail": "snowmobile",
+      "mode": "crash",
+      "met": 0,
+      "dx": -2.5679051829708897,
+      "dy": -44.938340701992274
+    },
+    {
+      "type": "snowmobile",
+      "kind": "owl",
+      "fps": 60,
+      "collide": false,
+      "fail": null,
+      "mode": "play",
+      "met": 0,
+      "dx": -4.239676355835542,
+      "dy": -74.19433622711949
+    },
+    {
+      "type": "snowmobile",
+      "kind": "owl",
+      "fps": 60,
+      "collide": true,
+      "fail": "snowmobile",
+      "mode": "crash",
+      "met": 0,
+      "dx": -2.487597518917511,
+      "dy": -43.53295658105344
+    },
+    {
+      "type": "snowmobile",
+      "kind": "bear",
+      "fps": 30,
+      "collide": false,
+      "fail": null,
+      "mode": "play",
+      "met": 0,
+      "dx": -4.243592695888509,
+      "dy": -74.26287217804929
+    },
+    {
+      "type": "snowmobile",
+      "kind": "bear",
+      "fps": 30,
+      "collide": true,
+      "fail": "snowmobile",
+      "mode": "crash",
+      "met": 0,
+      "dx": -2.5679051829708897,
+      "dy": -44.938340701992274
+    },
+    {
+      "type": "snowmobile",
+      "kind": "bear",
+      "fps": 60,
+      "collide": false,
+      "fail": null,
+      "mode": "play",
+      "met": 0,
+      "dx": -4.239676355835542,
+      "dy": -74.19433622711949
+    },
+    {
+      "type": "snowmobile",
+      "kind": "bear",
+      "fps": 60,
+      "collide": true,
+      "fail": "snowmobile",
+      "mode": "crash",
+      "met": 0,
+      "dx": -2.487597518917511,
+      "dy": -43.53295658105344
+    },
+    {
+      "type": "mogulYeti",
+      "kind": "owl",
+      "fps": 30,
+      "collide": false,
+      "fail": null,
+      "mode": "play",
+      "met": 1,
+      "dx": -36.49189656958052,
+      "dy": 11.67740690226492
+    },
+    {
+      "type": "mogulYeti",
+      "kind": "owl",
+      "fps": 30,
+      "collide": true,
+      "fail": "mogulYeti",
+      "mode": "crash",
+      "met": 0,
+      "dx": -24.9567201917622,
+      "dy": 7.986150461365469
+    },
+    {
+      "type": "mogulYeti",
+      "kind": "owl",
+      "fps": 60,
+      "collide": false,
+      "fail": null,
+      "mode": "play",
+      "met": 1,
+      "dx": -35.53530102331254,
+      "dy": 11.371296327459277
+    },
+    {
+      "type": "mogulYeti",
+      "kind": "owl",
+      "fps": 60,
+      "collide": true,
+      "fail": "mogulYeti",
+      "mode": "crash",
+      "met": 0,
+      "dx": -23.9189856921231,
+      "dy": 7.654075421480229
+    },
+    {
+      "type": "mogulYeti",
+      "kind": "bear",
+      "fps": 30,
+      "collide": false,
+      "fail": null,
+      "mode": "play",
+      "met": 1,
+      "dx": -36.49189656958052,
+      "dy": 11.67740690226492
+    },
+    {
+      "type": "mogulYeti",
+      "kind": "bear",
+      "fps": 30,
+      "collide": true,
+      "fail": "mogulYeti",
+      "mode": "crash",
+      "met": 0,
+      "dx": -24.9567201917622,
+      "dy": 7.986150461365469
+    },
+    {
+      "type": "mogulYeti",
+      "kind": "bear",
+      "fps": 60,
+      "collide": false,
+      "fail": null,
+      "mode": "play",
+      "met": 1,
+      "dx": -35.53530102331254,
+      "dy": 11.371296327459277
+    },
+    {
+      "type": "mogulYeti",
+      "kind": "bear",
+      "fps": 60,
+      "collide": true,
+      "fail": "mogulYeti",
+      "mode": "crash",
+      "met": 0,
+      "dx": -23.9189856921231,
+      "dy": 7.654075421480229
+    }
+  ],
+  "trailShots": [
+    {
+      "type": "snowmobile",
+      "d": 2504.25,
+      "visible": true,
+      "species": [
+        "pine",
+        "tree",
+        "fir"
+      ],
+      "trackPrints": false,
+      "model": true
+    },
+    {
+      "type": "mogulYeti",
+      "d": 5040,
+      "visible": true,
+      "species": [],
+      "trackPrints": true,
+      "model": true
+    }
+  ],
+  "ghosts": [
+    {
+      "kind": "bear",
+      "close": 0.07,
+      "far": 0.42,
+      "casts": false,
+      "restored": true
+    },
+    {
+      "kind": "owl",
+      "close": 0.07,
+      "far": 0.42,
+      "casts": false,
+      "restored": true
+    }
+  ],
+  "skiContact": [
+    {
+      "d": 60,
+      "ang": 0,
+      "mins": [
+        0.007402453653696739,
+        0.006802547461738584
+      ]
+    },
+    {
+      "d": 60,
+      "ang": -0.8,
+      "mins": [
+        0.007600779500492649,
+        0.007222008643573474
+      ]
+    },
+    {
+      "d": 60,
+      "ang": 0.8,
+      "mins": [
+        0.007236736522518328,
+        0.006835733356243878
+      ]
+    },
+    {
+      "d": 100,
+      "ang": 0,
+      "mins": [
+        0.00752358713199186,
+        0.008611540770694148
+      ]
+    },
+    {
+      "d": 100,
+      "ang": -0.8,
+      "mins": [
+        0.008079653382687013,
+        0.008612124860242432
+      ]
+    },
+    {
+      "d": 100,
+      "ang": 0.8,
+      "mins": [
+        0.007386457355728737,
+        0.009168812021954409
+      ]
+    },
+    {
+      "d": 160,
+      "ang": 0,
+      "mins": [
+        0.0027893453401759416,
+        0.00298470207327739
+      ]
+    },
+    {
+      "d": 160,
+      "ang": -0.8,
+      "mins": [
+        0.003224667335800291,
+        0.0034628835892220877
+      ]
+    },
+    {
+      "d": 160,
+      "ang": 0.8,
+      "mins": [
+        0.0031533652799851097,
+        0.003231426484859412
+      ]
+    },
+    {
+      "d": 2510,
+      "ang": 0,
+      "mins": [
+        0.0028556983824046256,
+        0.0030032104280053318
+      ]
+    },
+    {
+      "d": 2510,
+      "ang": -0.8,
+      "mins": [
+        0.003121831213434234,
+        0.0032176170253706005
+      ]
+    },
+    {
+      "d": 2510,
+      "ang": 0.8,
+      "mins": [
+        0.0033902716994589355,
+        0.0037367481523915558
+      ]
+    }
+  ],
+  "sprints": [
+    {
+      "hero": "bear",
+      "fps": 30,
+      "sprint": true,
+      "mode": "over",
+      "d": 1200,
+      "time": 69.96666666666526,
+      "coffee": true,
+      "jump": true,
+      "windup": true,
+      "ball": true,
+      "motion": true,
+      "finish": true,
+      "rings": 3,
+      "tricks": 3
+    },
+    {
+      "hero": "owl",
+      "fps": 60,
+      "sprint": true,
+      "mode": "over",
+      "d": 1200,
+      "time": 69.99999999999731,
+      "coffee": true,
+      "jump": true,
+      "windup": true,
+      "ball": true,
+      "motion": true,
+      "finish": true,
+      "rings": 3,
+      "tricks": 3
+    }
+  ],
+  "errors": [],
+  "skiContactBefore": [
+    {
+      "d": 60,
+      "ang": 0,
+      "result": [
+        {
+          "ski": "Left_Ski",
+          "min": -0.11228319200305137,
+          "max": 0.14567857580538757
+        },
+        {
+          "ski": "Right_Ski",
+          "min": -0.11271058244889076,
+          "max": 0.14514084368960312
+        }
+      ]
+    },
+    {
+      "d": 60,
+      "ang": -0.8,
+      "result": [
+        {
+          "ski": "Left_Ski",
+          "min": -0.16207196984110084,
+          "max": 0.10030548296992592
+        },
+        {
+          "ski": "Right_Ski",
+          "min": -0.05687613001401104,
+          "max": 0.2053496679484752
+        }
+      ]
+    },
+    {
+      "d": 60,
+      "ang": 0.8,
+      "result": [
+        {
+          "ski": "Left_Ski",
+          "min": -0.06238000444000136,
+          "max": 0.21899507527537665
+        },
+        {
+          "ski": "Right_Ski",
+          "min": -0.1692102154404047,
+          "max": 0.11223683149086128
+        }
+      ]
+    },
+    {
+      "d": 100,
+      "ang": 0,
+      "result": [
+        {
+          "ski": "Left_Ski",
+          "min": -0.13050964294170342,
+          "max": 0.19373607705235685
+        },
+        {
+          "ski": "Right_Ski",
+          "min": -0.12960031837820907,
+          "max": 0.19405656034764007
+        }
+      ]
+    },
+    {
+      "d": 100,
+      "ang": -0.8,
+      "result": [
+        {
+          "ski": "Left_Ski",
+          "min": -0.19233812812385764,
+          "max": 0.13156301797246783
+        },
+        {
+          "ski": "Right_Ski",
+          "min": -0.07725643457764875,
+          "max": 0.24662649495009958
+        }
+      ]
+    },
+    {
+      "d": 100,
+      "ang": 0.8,
+      "result": [
+        {
+          "ski": "Left_Ski",
+          "min": -0.06613287118813815,
+          "max": 0.23228404267609193
+        },
+        {
+          "ski": "Right_Ski",
+          "min": -0.17780293495734156,
+          "max": 0.11932805440951455
+        }
+      ]
+    },
+    {
+      "d": 160,
+      "ang": 0,
+      "result": [
+        {
+          "ski": "Left_Ski",
+          "min": -0.03909984656314691,
+          "max": 0.05840761993908927
+        },
+        {
+          "ski": "Right_Ski",
+          "min": -0.03901682639153137,
+          "max": 0.05833545601609558
+        }
+      ]
+    },
+    {
+      "d": 160,
+      "ang": -0.8,
+      "result": [
+        {
+          "ski": "Left_Ski",
+          "min": -0.10362497530338999,
+          "max": 0.048793848420942254
+        },
+        {
+          "ski": "Right_Ski",
+          "min": -0.02605475971006399,
+          "max": 0.12514639887595536
+        }
+      ]
+    },
+    {
+      "d": 160,
+      "ang": 0.8,
+      "result": [
+        {
+          "ski": "Left_Ski",
+          "min": 0.005076436177347432,
+          "max": 0.08201385004922201
+        },
+        {
+          "ski": "Right_Ski",
+          "min": -0.06904348177103259,
+          "max": 0.00882408385615463
+        }
+      ]
+    },
+    {
+      "d": 2510,
+      "ang": 0,
+      "result": [
+        {
+          "ski": "Left_Ski",
+          "min": -0.05825252337058373,
+          "max": 0.08628752495712888
+        },
+        {
+          "ski": "Right_Ski",
+          "min": -0.05819450097078516,
+          "max": 0.08643689029156576
+        }
+      ]
+    },
+    {
+      "d": 2510,
+      "ang": -0.8,
+      "result": [
+        {
+          "ski": "Left_Ski",
+          "min": -0.11376925132231008,
+          "max": 0.054782191483013776
+        },
+        {
+          "ski": "Right_Ski",
+          "min": -0.02977105367438071,
+          "max": 0.13891598384350345
+        }
+      ]
+    },
+    {
+      "d": 2510,
+      "ang": 0.8,
+      "result": [
+        {
+          "ski": "Left_Ski",
+          "min": -0.017607361365662655,
+          "max": 0.12479932605185695
+        },
+        {
+          "ski": "Right_Ski",
+          "min": -0.10041427690248383,
+          "max": 0.04223519916979512
+        }
+      ]
+    }
+  ]
+}

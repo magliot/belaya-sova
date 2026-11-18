@@ -5,6 +5,59 @@ let html=fs.readFileSync('docs/index.html','utf8').replace('function frame(now){
 const debug=`
 window.__stageTest={
  ready:()=>HEROMODELS.bear.motion&&HEROMODELS.owl.motion&&NPCM.tree&&NPCM.ramp&&WINTER.snowman,
+ loadPatrol,patrolReady:()=>!!patrolModel&&WINTER.yeti&&NPCM.fir&&NPCM.pine,
+ trailShot(type){
+  const start=type==='snowmobile'?2500:5000;
+  hero='bear';G.mode='pause';reviewX=200;reviewSeek(start);
+  const first=G.objs.find(o=>o.type===type);
+  if(!first)throw Error('Missing first '+type);
+  const d=first.marker/20-(type==='snowmobile'?9:12);
+  reviewX=200+first.side*23;reviewSeek(d);
+  const actor=G.objs.find(o=>o.type===type&&o.marker===first.marker);
+  const pos=actor.m.position.clone();pos.y+=1;pos.project(camera);
+  const forest=new Set(G.objs.filter(o=>o.type==='tree').map(o=>o.pine?'pine':o.fir?'fir':'tree'));
+  const result={type,d,visible:Math.abs(pos.x)<.94&&Math.abs(pos.y)<.94&&pos.z<1,
+   species:[...forest],trackPrints:MOG.patches.some(p=>p.tracks),model:type==='snowmobile'?!!actor.m.getObjectByName('Forest_patrol')||!!actor.m.getObjectByName('Forest patrol'):actor.m.userData.worldAsset==='yeti'};
+  reviewX=200;return result;
+ },
+ encounter(type,kind,fps,collide){
+  hero=kind;G.mode='pause';reviewX=200;reviewSeek(type==='snowmobile'?2500:5000);
+  const first=G.objs.find(o=>o.type===type);
+  reviewSeek(first.marker/20-12);
+  const actor=G.objs.find(o=>o.type===type&&o.marker===first.marker);
+  const x=collide?200+actor.side*(type==='snowmobile'?67:60):200-actor.side*34;
+  const met=save.meet.yeti,initial=[actor.x,actor.y];G.p.x=G.tx=x;G.mode='play';G.nextChaseD=Infinity;
+  G.p.lives=0;drag={};
+  for(let i=0;i<fps*5&&G.mode==='play'&&G.y<first.marker+130;i++){G.tx=x;update(1/fps);}
+  return {type,kind,fps,collide,fail:G.failKind||null,mode:G.mode,met:save.meet.yeti-met,dx:actor.x-initial[0],dy:actor.y-initial[1]};
+ },
+ ghost(kind){
+  hero=kind;G.mode='pause';reviewSeek(7520);G.mode='play';update(1/60);
+  const o=G.rival.o;o.x=G.p.x;o.y=G.y;render(0);
+  const other=rivalKind(),r=HEROMODELS[other],state=r.ghost;
+  const ratio=()=>{const [old,ghost]=state.materials.entries().next().value;return ghost.opacity/old.opacity;};
+  const close=ratio();o.y=G.y+180;render(0);const far=ratio();
+  const casts=state.meshes.some(e=>e.mesh.castShadow);
+  hero=other;render(0);const restored=state.meshes.every(e=>e.mesh.material===e.base&&e.mesh.castShadow===e.shadow);
+  return {kind,close,far,casts,restored};
+ },
+ skiSlope(d,ang){
+  hero='bear';G.mode='pause';reviewSeek(d);G.p.ang=ang;const h=HEROMODELS.bear;
+  h.motion.active=false;h.motion.lastT=null;h.motion.state={};
+  for(let i=0;i<25;i++){G.t+=1/60;syncWorld(1/60);}
+  scene.updateMatrixWorld(true);
+  const ray=new THREE.Raycaster(),down=new THREE.Vector3(0,-1,0),mins=[];
+  for(const name of ['Left_Ski','Right_Ski']){
+   let lowest=Infinity;h.motion.model.getObjectByName(name).traverse(m=>{
+    if(!m.isMesh)return;const positions=m.geometry.attributes.position;
+    for(let i=0;i<positions.count;i+=2){
+     const v=m.localToWorld(new THREE.Vector3().fromBufferAttribute(positions,i)),above=v.clone();above.y+=4;
+     ray.set(above,down);const hit=ray.intersectObject(piste,false)[0];if(hit)lowest=Math.min(lowest,v.y-hit.point.y);
+    }
+   });mins.push(lowest);
+  }
+  return {d,ang,mins};
+ },
  isSprint:()=>G.sprint,
  sprint(fps){
   drag={};let coffee=false,jump=false,windup=false,ball=false,motion=false,finish=false;
@@ -79,6 +132,8 @@ const at=html.lastIndexOf('</script>');html=html.slice(0,at)+debug+html.slice(at
   await page.route('**/test-stages.html',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:html}));
   await page.goto('http://127.0.0.1:8766/test-stages.html',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.__stageTest?.ready(),null,{timeout:60000});
+  await page.evaluate(()=>__stageTest.loadPatrol());
+  await page.waitForFunction(()=>__stageTest.patrolReady(),null,{timeout:60000});
   const sprints=[];
   for(const [kind,fps] of [['bear',30],['owl',60]]){
    await page.locator('[data-h="'+kind+'"]').click();
@@ -132,7 +187,28 @@ const at=html.lastIndexOf('</script>');html=html.slice(0,at)+debug+html.slice(at
    await page.evaluate(args=>__stageTest.park(...args),[kind,60,2,false,'',phase]);
    await page.screenshot({path:path.join(out,kind+'-park-'+phase+'.png')});
   }
-  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({viewport:[375,812],scenes,rides,rails,sprints,flights,landmark,helmetAlpha:{empty,two},errors},null,2));
-  console.log('PASS: distinct forest/mogul/park geometry and layouts, summit visibility, large HUD with drawn helmets, 12 twenty-second runs, four rideable-box cases, 24 air lines and three missed lines, no JS errors.');
+  const encounters=[],trailShots=[],ghosts=[],skiContact=[];
+  for(const type of ['snowmobile','mogulYeti']){
+   const shot=await page.evaluate(type=>__stageTest.trailShot(type),type);
+   assert(shot.visible&&shot.model,JSON.stringify(shot));
+   if(type==='snowmobile')assert.equal(shot.species.length,3);else assert(shot.trackPrints);
+   trailShots.push(shot);await page.screenshot({path:path.join(out,type+'.png')});
+   for(const kind of ['owl','bear'])for(const fps of [30,60])for(const collide of [false,true]){
+    const run=await page.evaluate(args=>__stageTest.encounter(...args),[type,kind,fps,collide]);
+    assert(Math.abs(run.dx)+Math.abs(run.dy)>10,JSON.stringify(run));
+    assert.equal(run.fail,collide?type:null,JSON.stringify(run));
+    assert.equal(run.met,type==='mogulYeti'&&!collide?1:0);encounters.push(run);
+   }
+  }
+  for(const kind of ['bear','owl']){
+   const state=await page.evaluate(k=>__stageTest.ghost(k),kind);
+   assert(state.close<.10&&state.far<.5&&state.far>state.close&&!state.casts&&state.restored,JSON.stringify(state));ghosts.push(state);
+  }
+  for(const d of [60,100,160,2510])for(const angle of [0,-.8,.8]){
+   const sample=await page.evaluate(args=>__stageTest.skiSlope(...args),[d,angle]);
+   assert(sample.mins.every(v=>Math.abs(v)<.018),JSON.stringify(sample));skiContact.push(sample);
+  }
+  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({viewport:[375,812],scenes,rides,rails,sprints,flights,landmark,encounters,trailShots,ghosts,skiContact,helmetAlpha:{empty,two},errors},null,2));
+  console.log('PASS: distinct forest/mogul/park geometry and layouts, summit visibility, large HUD with drawn helmets, 12 twenty-second runs, four rideable-box cases, 24 air lines, 3 misses, 16 trail encounter cases, both ghost roles and 12 ski contact poses; no JS errors.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

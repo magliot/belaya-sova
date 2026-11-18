@@ -9,6 +9,8 @@ on:
       - docs/course.js
       - docs/course-review.js
       - docs/race-hud.js
+      - docs/trail-visuals.js
+      - docs/models/forest-patrol.glb
       - tools/check-stages.cjs
       - tools/check-driving.cjs
       - tools/check-course.mjs
