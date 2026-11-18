@@ -1,0 +1,110 @@
+{
+  "version": "2026-11-18b",
+  "base": "https://magliot.github.io/belaya-sova/",
+  "files": [
+    {
+      "path": "version.txt",
+      "status": 200,
+      "bytes": 12,
+      "sha256": "8d5adb5721575158a714fce4c866dcd6a0f4b42bdde85a0c391fa141f7700c47"
+    },
+    {
+      "path": "index.html",
+      "status": 200,
+      "bytes": 501597,
+      "sha256": "254e966a889d10454cca400c931a125291ceac6a1855c3e05af2c5cd1e61d362"
+    },
+    {
+      "path": "course.js",
+      "status": 200,
+      "bytes": 2641,
+      "sha256": "3b1fce8a029ce902b18f5b8fcfea04d24d06ec8f9d4ffa258105ae69e37a79f9"
+    },
+    {
+      "path": "motion-entry.js",
+      "status": 200,
+      "bytes": 637,
+      "sha256": "274d3f581e21d7a4893bce9feb0f1da185d452280c4f2d431a98f97037bc3377"
+    },
+    {
+      "path": "hero-motion.js",
+      "status": 200,
+      "bytes": 4284,
+      "sha256": "f10f0d0642b4a49cfc3e7005f4639cf0df3ed2b5c78dff9e99654d91f3fc7a3f"
+    },
+    {
+      "path": "animation-test.html",
+      "status": 200,
+      "bytes": 504030,
+      "sha256": "5cd50e30d53eb9c7806a0c90189accab6c95a08024442a8cd4627bff5fccc6f2"
+    },
+    {
+      "path": "animation-phone.html",
+      "status": 200,
+      "bytes": 488,
+      "sha256": "1530ba4c341dccbe0b196e09582db270fde5edcd3b7c0adbfff52526f3dfe04f"
+    },
+    {
+      "path": "models/studies/bear.glb",
+      "status": 200,
+      "bytes": 937636,
+      "sha256": "38729ed2d6ed78984155ebb97d20b2606d0311bad99359bf1725bc2b034ad65d"
+    },
+    {
+      "path": "models/studies/owl.glb",
+      "status": 200,
+      "bytes": 998736,
+      "sha256": "6c228892dca25430f595cb0ca88d0cd7a86b33a80ead0e404eeebb31a922af75"
+    },
+    {
+      "path": "course-review.js",
+      "status": 200,
+      "bytes": 4257,
+      "sha256": "363b47826b076e4034cdd1f4f28b822b8c11f619e7db0c9e7903c3ce0df304f6"
+    },
+    {
+      "path": "race-hud.js",
+      "status": 200,
+      "bytes": 3743,
+      "sha256": "66e4ff0f7682521d971da1c65bf3c1730668ef3b0df530aa320a6e2cb843b441"
+    }
+  ],
+  "errors": [],
+  "failed": [],
+  "stageChecks": [
+    {
+      "stage": 1,
+      "trees": 15,
+      "rings": 0,
+      "mh": 0
+    },
+    {
+      "stage": 2,
+      "trees": 0,
+      "rings": 0,
+      "mh": 0.4788044830093735
+    },
+    {
+      "stage": 3,
+      "trees": 0,
+      "rings": 2,
+      "mh": 0,
+      "airRingViaFrameButton": true
+    },
+    {
+      "stage": 4,
+      "trees": 0,
+      "rings": 0,
+      "mh": 0
+    }
+  ],
+  "checks": [
+    "public bytes match release",
+    "sprint launch, pause, quit",
+    "main menu and hero switch",
+    "run/pause/resume",
+    "motion redirect and models",
+    "settings course-review entry, stage seek and exit"
+  ],
+  "telegramDevice": "Not tested inside the user Telegram account"
+}

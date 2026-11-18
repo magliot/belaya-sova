@@ -1,0 +1,14 @@
+{
+  "summary": "Короткий спуск\n1200 м · ворот 24 · серия 27 · трюков 3 · колец 3\n🍊 +39 · за задания +60 · рекорд 7190\n💃 Открыт танец «Победный дэб»! Меню → Танцы",
+  "finish": "Финиш! Короткий спуск пройден",
+  "meters": 1200,
+  "rings": 3,
+  "coins": 39,
+  "lives": 1,
+  "gameSeconds": 70.15780000000176,
+  "controls": "pointer and keyboard",
+  "coffee": true,
+  "air": true,
+  "snowball": true,
+  "errors": []
+}
