@@ -6,7 +6,7 @@ const out='motion-checks';fs.mkdirSync(out,{recursive:true});
  try{
   const page=await browser.newPage({viewport:{width:375,height:812},deviceScaleFactor:1});
   const errors=[],posts=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.method()==='POST')posts.push(r.url())});
-  await page.route('https://telegram.org/js/telegram-web-app.js',route=>route.fulfill({contentType:'text/javascript',body:`
+  await page.route('**/vendor/telegram-web-app.js',route=>route.fulfill({contentType:'text/javascript',body:`
    window.__cloudCalls=[];window.Telegram={WebApp:{initData:'synthetic-browser-test',initDataUnsafe:{start_param:'motion',user:{id:991,first_name:'Test'}},platform:'ios',
    ready(){},expand(){},disableVerticalSwipes(){},setHeaderColor(){},setBackgroundColor(){},setBottomBarColor(){},isVersionAtLeast(){return false},onEvent(){},enableClosingConfirmation(){},disableClosingConfirmation(){},
    BackButton:{onClick(){},show(){},hide(){}},HapticFeedback:{impactOccurred(){}},

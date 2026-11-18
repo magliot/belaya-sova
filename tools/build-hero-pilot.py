@@ -144,6 +144,9 @@ audit=[]
 for frame in range(1,END+1):
     bpy.context.scene.frame_set(frame); t=(frame-1)/FPS
     comp,shift,lean,hand,air=sample(t)
+    if not OWL:
+        shift*=.55
+        lean*=.70
     # One continuous arc: no artificial pauses at intermediate height keys.
     if 3.25<t<4.08:
         u=(t-3.25)/(.83);air=4*.28*u*(1-u);flight=math.sin(math.pi*u)**2
@@ -153,7 +156,7 @@ for frame in range(1,END+1):
     b=bone('Hips'); m=rest[b.name].copy(); m.translation+=Vector((shift*.3 if OWL else shift,.012+(shift*.7 if OWL else 0),-comp+air+.025)); b.matrix=m
     turn('Spine',(1,0,0),lean*.5); turn('Spine1',(1,0,0),lean*.3); turn('Spine2',(1,0,0),lean*.2)
     turn('Neck',(1,0,0),-lean*.35); turn('Head',(1,0,0),-lean*.35)
-    turn('Spine2',(0,1,0),-shift*90)
+    turn('Spine2',(0,1,0),-shift*(90 if OWL else 30))
     if OWL:
         turn('Spine2',(0,0,1),10);turn('Neck',(0,0,1),20);turn('Head',(0,0,1),35)
     bpy.context.view_layer.update()
@@ -190,7 +193,7 @@ for frame in range(1,END+1):
         errors.append(((rig.matrix_world@bone(side+'Foot').head)-ankle).length)
         upper=rig.matrix_world@bone(side+'Arm').head
         sign=1 if side=='Left' else -1
-        wrist=Vector((sign*(.255+.025*flight)+shift*.6,-.115+hand,.445-comp*.65+air+.075*flight))
+        wrist=Vector((sign*(.294+.015*flight)+shift*.6,-.115+hand,.445-comp*.65+air+.075*flight))
         if OWL:wrist=Vector((sign*(.32+.025*flight)+shift*.3,-.075+shift*.7,.505-comp*.6+air+.045*flight))
         l1=(loc(side+'ForeArm')-loc(side+'Arm')).length; l2=(loc(side+'Hand')-loc(side+'ForeArm')).length
         if (wrist-upper).length>l1+l2-.002: wrist=upper+(wrist-upper).normalized()*(l1+l2-.002)

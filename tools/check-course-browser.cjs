@@ -7,6 +7,7 @@ const out = path.resolve(process.env.COURSE_CHECK_OUT || 'course-checks');
 fs.mkdirSync(out, { recursive: true });
 const source = fs.readFileSync('docs/index.html', 'utf8');
 const debug = `
+loadHero('bear');loadHero('owl');loadTrackAssets();
 window.__courseReview = {
  ready:()=>HEROMODELS.bear.glb&&HEROMODELS.owl.glb&&['skier','ramp','tree'].every(k=>NPCM[k]),
  snapshot(kind,d,phase='ride'){
@@ -54,7 +55,7 @@ html = html.slice(0, end) + debug + html.slice(end);
   const errors=[], failed=[], snapshots=[];
   page.on('pageerror', e=>errors.push(e.message));
   page.on('response', r=>{if(r.status()>=400 && r.url().startsWith('http://127.0.0.1:8766/'))failed.push([r.status(),r.url()]);});
-  await page.route('https://telegram.org/js/telegram-web-app.js',r=>r.fulfill({contentType:'text/javascript',body:''}));
+  await page.route('**/vendor/telegram-web-app.js',r=>r.fulfill({contentType:'text/javascript',body:''}));
   await page.route('**/test-course.html',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:html}));
   await page.addInitScript(()=>window.__freeze=true);
   await page.goto('http://127.0.0.1:8766/test-course.html',{waitUntil:'domcontentloaded'});

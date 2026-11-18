@@ -1,4 +1,5 @@
 """Build the low-poly forest patrol in Blender. Local +Y points towards the nose."""
+import sys
 import bpy
 from math import radians
 from mathutils import Vector
@@ -88,6 +89,7 @@ for side in (-1,1):
     link('Suspension brace',(side*.39,-.10,.45),(side*.54,.64,.13),.04,steel)
     ellipse('Light',(side*.24,1.01,.76),(.115,.09,.072),lamp)
     box('Side stripe',(side*.50,.43,.73),(.028,.39,.049),ivory,-8)
+    if '--player' in sys.argv: continue
     hip=(side*.18,-.65,.84);knee=(side*.30,-.18,.70);boot=(side*.38,-.29,.48)
     link('Trouser',hip,knee,.115,ink);link('Shin',knee,boot,.096,jacket)
     ellipse('Boot',boot,(.12,.20,.084),ink)
@@ -96,22 +98,24 @@ for side in (-1,1):
     ellipse('Glove',hand,(.09,.10,.085),ink)
 link('Handlebar',(-.37,.04,1.12),(.37,.04,1.12),.029,steel)
 link('Column',(0,.19,.81),(0,.04,1.12),.042,ink)
-torso=ellipse('Driver', (0,-.53,1.12),(.29,.22,.38),jacket)
-torso.rotation_euler.x=radians(-14)
-ellipse('Safety bib',(0,-.49,1.29),(.256,.207,.15),orange)
-ellipse('Helmet',(0,-.40,1.65),(.215,.22,.235),ivory)
-ellipse('Goggles',(0,-.24,1.67),(.201,.10,.11),ink)
-ellipse('Goggle lens',(0,-.205,1.68),(.17,.088,.072),ice)
+if '--player' not in sys.argv:
+    torso=ellipse('Driver', (0,-.53,1.12),(.29,.22,.38),jacket)
+    torso.rotation_euler.x=radians(-14)
+    ellipse('Safety bib',(0,-.49,1.29),(.256,.207,.15),orange)
+    ellipse('Helmet',(0,-.40,1.65),(.215,.22,.235),ivory)
+    ellipse('Goggles',(0,-.24,1.67),(.201,.10,.11),ink)
+    ellipse('Goggle lens',(0,-.205,1.68),(.17,.088,.072),ice)
 box('Tail lamp',(0,-1.40,.54),(.28,.04,.065),orange)
 
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.join()
 obj=bpy.context.object
-obj.name='Forest patrol'
+obj.name='Player sled' if '--player' in sys.argv else 'Forest patrol'
 # Recalculate normals after joining hand-lofted sections.
 bpy.ops.object.mode_set(mode='EDIT')
 bpy.ops.mesh.select_all(action='SELECT')
 bpy.ops.mesh.normals_make_consistent(inside=False)
 bpy.ops.object.mode_set(mode='OBJECT')
 target=Path(__file__).resolve().parents[1]/'docs/models/forest-patrol.glb'
+if '--player' in sys.argv: target=target.with_name('player-sled.glb')
 bpy.ops.export_scene.gltf(filepath=str(target),export_format='GLB',export_animations=False)

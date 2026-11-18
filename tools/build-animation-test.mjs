@@ -7,13 +7,14 @@ let html=fs.readFileSync('docs/index.html','utf8');
 html=html.replace(/<script>\s*\/\/ Telegram[\s\S]*?<\/script>/,'');
 html=html.replace('<title>Белая Сова · Спуск</title>','<title>Белая Сова · Проба анимации</title>');
 // Keep native Telegram sizing and controls, but isolate all test progress.
-html=html.replace(/<script src="motion-entry\.js[^"]*"><\/script>/,'');
+html=html.replace(/<script (?:defer )?src="motion-entry\.js[^"]*"><\/script>/,'');
 html=html.replaceAll("CloudStorage.setItem('save'","CloudStorage.setItem('motion_test_save'");
 html=html.replaceAll("CloudStorage.getItem('save'","CloudStorage.getItem('motion_test_save'");
 html=html.replace("const SKEY='bsova_'","const SKEY='bsova_motion_test_'");
 html=html.replace(/const API_URL=[^;]+;/,"const API_URL='';");
 html=html.replace("function frame(now){","function frame(now){if(window.__motionPause){last=now;requestAnimationFrame(frame);return;}");
 const testUI=`
+loadHero('bear');loadHero('owl');loadTrackAssets();
 const testPanel=document.createElement('div');testPanel.id='motion-test-controls';
 testPanel.style.cssText='position:fixed;bottom:calc(var(--sb, 0px) + 8px);left:max(8px, calc((100vw - 544px)/2));right:max(8px, calc((100vw - 544px)/2));z-index:9999;background:#ffffffeb;padding:8px;border-radius:12px;color:#243f4f;font:11px system-ui';
 testPanel.innerHTML='<div id="motion-test-status" style="margin-bottom:6px">Загрузка новых движений…</div><div style="display:flex;gap:4px;flex-wrap:wrap"><button id="test-bear">Мишаня</button><button id="test-owl">Сова</button><button id="test-ride">Стойка</button><button id="test-left">Влево</button><button id="test-right">Вправо</button><button id="test-air">Прыжок</button><button id="test-land">Посадка</button><button id="test-play">Играть</button></div>';
@@ -41,7 +42,7 @@ const end=html.lastIndexOf('</script>');html=html.slice(0,end)+testUI+html.slice
 fs.writeFileSync('docs/animation-test.html',html);
 // Portable browser review: public original assets, embedded new study GLBs.
 // Separate in-memory storage avoids saves on a data-document's opaque origin.
-let portable=html.replace(/<script src="https:\/\/telegram.org\/js\/telegram-web-app.js"><\/script>/,'').replace('<head>','<head><base href="https://magliot.github.io/belaya-sova/">');
+let portable=html.replace(/<script (?:defer )?src="vendor\/telegram-web-app\.js"><\/script>/,'').replace('<head>','<head><base href="https://magliot.github.io/belaya-sova/">');
 portable=portable.replaceAll('localStorage','previewStorage').replaceAll('sessionStorage','previewStorage');
 const module=fs.readFileSync('docs/hero-motion.js','utf8');portable=portable.replace(/'\.\/hero-motion\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(module).toString('base64')));
 const courseModule=fs.readFileSync('docs/course.js','utf8');portable=portable.replace(/'\.\/course\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(courseModule).toString('base64')));

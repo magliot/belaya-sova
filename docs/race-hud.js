@@ -31,7 +31,6 @@ export function drawRaceHUD(c,d){
   rr(-11,-2,22,7,3);c.fillStyle='#315274';c.fill();rr(-8,-1,8,2,1);c.fillStyle='#a4ddf3';c.fill();
   c.strokeStyle='#385b7a';c.lineWidth=1.5;c.beginPath();c.moveTo(-8,6);c.quadraticCurveTo(0,14,8,6);c.stroke();c.restore();}
  c.font='700 11px Rubik,system-ui,sans-serif';plate(10,top+90,Math.min(W*.56,c.measureText(d.stage).width+20),21);label(d.stage,20,top+101,11,'#315777','left',700);
- if(d.rival){plate(W-120,top+90,110,21);label(d.rival,W-20,top+101,11,'#315777','right',700);}
  if(d.status){c.font='700 11px Rubik,system-ui,sans-serif';const w=Math.min(W-24,c.measureText(d.status).width+20);
   rr(12,top+116,w,21,9);c.fillStyle=d.warning?'rgba(255,239,228,.88)':'rgba(255,248,234,.8)';c.fill();label(d.status,22,top+127,11,d.warning?'#ad412b':'#89531f','left',700);}
  if(d.warning){c.fillStyle='rgba(183,62,45,.25)';c.fillRect(12,H-8,W-24,2);c.fillStyle='#b63e2d';c.fillRect(12,H-8,(W-24)*d.chaseK,2);}

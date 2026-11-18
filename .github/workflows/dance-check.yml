@@ -10,7 +10,8 @@ on:
       - docs/course-review.js
       - docs/race-hud.js
       - docs/trail-visuals.js
-      - docs/models/forest-patrol.glb
+      - docs/models/*.glb
+      - tools/check-golden-run.cjs
       - tools/check-stages.cjs
       - tools/check-driving.cjs
       - tools/check-course.mjs
@@ -54,6 +55,7 @@ jobs:
           node tools/check-dances.cjs
           node tools/check-gameplay.cjs
           node tools/check-driving.cjs
+          node tools/check-golden-run.cjs
           node tools/check-stages.cjs
           node tools/check-assets.cjs
           node tools/check-course.mjs

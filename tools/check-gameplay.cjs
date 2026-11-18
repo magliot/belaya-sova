@@ -1,39 +1,8 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
 const out=path.resolve(process.env.GAME_CHECK_OUT||'gameplay-checks');fs.mkdirSync(out,{recursive:true});
 const source=fs.readFileSync('docs/index.html','utf8');
-const steering=source.slice(source.indexOf('const RIV_AVOID='),source.indexOf('function rivalTick('));
-const course=source.slice(source.indexOf('function addCourse('),source.indexOf('function addGate('));
-function random(seed){let state=seed;return()=>{state=(state*1664525+1013904223)>>>0;return state/4294967296;};}
-function rivalGrid(){
-  const rows=[];
-  for(const fps of [30,60])for(const speed of [230,350,500,650,800,950])for(const difficulty of [0,0.5,1]){
-    let gates=0,missed=0,minMargin=Infinity,maxAccel=0;
-    for(let seed=1;seed<=12;seed++){
-      const math=Object.create(Math);math.random=random(seed);
-      const G={objs:[],speed:speed/1.17*1.25,lastGateX:200,gateCol:0};
-      const c={G,Math:math,clamp:(v,a,b)=>Math.max(a,Math.min(b,v)),lerp:(a,b,t)=>a+(b-a)*t,
-        rnd:(a,b)=>a+math.random()*(b-a),addObj:o=>G.objs.push({...o,m:{}})};
-      vm.createContext(c);vm.runInContext(steering+'\n'+course,c);
-      let end=Math.max(400,speed*1.4);for(let i=0;i<8;i++)end+=c.addCourse(end,difficulty)+700;
-      const o={type:'npc',rival:true,y:0,x:200,bx:200,vy:speed,amp:0,vx:0,m:{}};G.objs.push(o);
-      const R={o},track=G.objs.filter(q=>q.type==='gate');let next=0;
-      while(o.y<end){
-        const prev=o.y,vx=o.vx;c.rivalSteer(R,1/fps);o.y+=speed/fps;o.x=o.bx;
-        maxAccel=Math.max(maxAccel,Math.abs(o.vx-vx)*fps);
-        const gate=track[next];if(gate&&prev<gate.y&&o.y>=gate.y){
-          const margin=gate.gap/2-Math.abs(o.x-gate.x);minMargin=Math.min(minMargin,margin);gates++;if(margin<=0)missed++;next++;
-        }
-      }
-    }
-    rows.push({fps,speed,difficulty,gates,missed,minMargin:+minMargin.toFixed(3),maxAccel:+maxAccel.toFixed(3)});
-  }
-  fs.writeFileSync(path.join(out,'rival-grid.json'),JSON.stringify(rows,null,2));
-  assert(rows.every(r=>r.missed===0),'Rival misses gates on a generated course');
-  assert(rows.every(r=>r.maxAccel<=620.001),'Rival changes direction abruptly');
-  console.log('Rival:',rows.reduce((n,r)=>n+r.gates,0),'gates; zero misses; 30/60 fps; speeds 230–950.');
-  return rows;
-}
 const debug=`
+loadHero('bear');loadHero('owl');loadTrackAssets();
 window.__gameTest={
   ready:()=>HEROMODELS.bear.glb&&HEROMODELS.owl.glb&&['skier','sboy','sitter','ratrak','ramp'].every(k=>NPCM[k]),
   reset(kind,d,seed){clearWorld();hideToast();let state=seed;Math.random=()=>{state=(state*1664525+1013904223)>>>0;return state/4294967296;};
@@ -47,11 +16,9 @@ window.__gameTest={
   coast(kind,seed,fps,x){this.reset(kind,0,seed);G.p.x=G.tx=x;return this.advance(30,'free',fps);},
   gates(kind,d,seed,fps){this.reset(kind,d,seed);drag={};update(1/fps);
     const n0=G.objs.length;addCourse(G.y+G.speed*1.5,1);const target=G.objs.slice(n0).filter(o=>o.type==='gate');
-    const seen=new Set();let rivalMissed=0;
-    for(let i=0;i<20*fps&&G.mode==='play'&&(target.some(o=>!o.done)||seen.size<target.length);i++){
-      const next=target.find(o=>!o.done);G.tx=next?next.x:200;const prev=G.rival?G.rival.o.y:null;update(1/fps);
-      if(prev!==null&&G.rival){const r=G.rival.o;for(const gate of target)if(!seen.has(gate)&&prev<gate.y&&r.y>=gate.y){seen.add(gate);if(Math.abs(r.x-gate.x)>=gate.gap/2)rivalMissed++;}}
-    }render(0);return {...this.state(),total:target.length,passed:target.filter(o=>o.ok).length,rivalPassed:seen.size-rivalMissed,rivalMissed};}
+    for(let i=0;i<20*fps&&G.mode==='play'&&target.some(o=>!o.done);i++){
+      const next=target.find(o=>!o.done);G.tx=next?next.x:200;update(1/fps);
+    }render(0);return {...this.state(),total:target.length,passed:target.filter(o=>o.ok).length};}
 };
 `;
 async function browserChecks(){
@@ -78,7 +45,6 @@ async function browserChecks(){
       for(const d of [0,13000,16000]){
         const result=await page.evaluate(args=>__gameTest.gates(...args),[kind,d,54,fps]);
         assert.equal(result.mode,'play');assert.equal(result.passed,result.total,'Player must be able to reach every gate');
-        assert.equal(result.rivalMissed,0,'Rival misses a gate in the running game');assert.equal(result.rivalPassed,result.total);
         gates.push({kind,fps,d,...result});if(d===13000&&fps===60)await page.screenshot({path:path.join(out,kind+'-slalom.png')});
       }
     }
@@ -88,4 +54,4 @@ async function browserChecks(){
     console.log('Browser PASS:',avalanches.length,'avalanche cases,',coasting.length,'unattended runs,',gates.length,'player slaloms.');
   }finally{await browser.close();fs.rmSync('docs/test-gameplay.html',{force:true});}
 }
-(async()=>{rivalGrid();if(!process.argv.includes('--rival-only'))await browserChecks();})().catch(e=>{console.error(e);process.exitCode=1;});
+(async()=>{await browserChecks();})().catch(e=>{console.error(e);process.exitCode=1;});

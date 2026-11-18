@@ -49,38 +49,3 @@ export function raceLight(group,rx,ry,palette,canvasTex){
   group.add(light);
   return light;
 }
-
-// Swap only this rider's meshes. Shared materials on the player and the scenery stay intact.
-export function racerOpacity(h,opacity){
-  if(opacity===1&&!h.ghost)return;
-  const state=h.ghost??={meshes:[],seen:new WeakSet(),materials:new Map(),enabled:false};
-  if(!state.scanned||state.motion!==h.motion){
-    state.scanned=true;state.motion=h.motion;
-    function ghostMaterial(mat){
-      if(!state.materials.has(mat)){
-        const clone=mat.clone();clone.transparent=true;clone.depthWrite=false;
-        clone.color?.lerp(new THREE.Color(0xa2cce8),.22);
-        state.materials.set(mat,clone);
-      }
-      return state.materials.get(mat);
-    }
-    function scan(mesh){
-      if(!mesh.isMesh||state.seen.has(mesh))return;
-      state.seen.add(mesh);
-      const base=mesh.material,ghost=Array.isArray(base)?base.map(ghostMaterial):ghostMaterial(base);
-      state.meshes.push({mesh,base,ghost,shadow:mesh.castShadow});
-      if(state.enabled){mesh.material=ghost;mesh.castShadow=false;}
-    }
-    h.root.traverse(scan);
-    h.poles?.forEach(p=>p.g.traverse(scan));
-  }
-  const enabled=opacity<1;
-  if(enabled!==state.enabled){
-    for(const entry of state.meshes){
-      entry.mesh.material=enabled?entry.ghost:entry.base;
-      entry.mesh.castShadow=enabled?false:entry.shadow;
-    }
-    state.enabled=enabled;
-  }
-  if(enabled)for(const [base,ghost] of state.materials)ghost.opacity=base.opacity*opacity;
-}

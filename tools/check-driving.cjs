@@ -4,6 +4,7 @@ const {chromium}=require(process.env.DANCE_BROWSER_MODULE||'playwright');
 const out=path.resolve('driving-checks');fs.mkdirSync(out,{recursive:true});
 let html=fs.readFileSync('docs/index.html','utf8').replace('function frame(now){','function frame(now){if(window.__freeze)return;');
 const debug=`
+loadHero('bear');loadHero('owl');loadTrackAssets();
 window.__drivingTest={
  ready:()=>HEROMODELS.bear.glb&&HEROMODELS.owl.glb,
  reset(kind='bear',d=0){clearWorld();hideToast();hero=kind;save.muted=true;save.missions=[];save.fis=[1,2,3,4,5,6,7,8,9,10];
@@ -14,10 +15,8 @@ window.__drivingTest={
  coffee(){this.reset();drag={};addObj({type:'thermos',x:200,y:8,r:12});return this.step(2);},
  gate(){this.reset();drag={};const o={type:'gate',x:200,y:80,gap:140,col:0};addObj(o);const before=o.m.userData.halo.material.opacity;
   this.step(30);return {before,after:o.m.userData.halo.material.opacity,passed:o.ok,gates:G.gates};},
- race(kind,fps){this.reset(kind);drag={};const samples=[];let coffeeAt=null;
-  for(let i=0;i<100*fps;i++){if(i===30*fps){G.p.boost=4.5;coffeeAt=G.t;}update(1/fps);
-   if(i%fps===0&&G.rival)samples.push({t:G.t,gap:(G.rival.o.y-G.y)/20,boost:G.p.boost});}
-  render(0);return {samples,coffeeAt,mode:G.mode};},
+ solo(kind,fps){this.reset(kind);drag={};this.step(20*fps,fps);
+  return {mode:G.mode,otherVisible:HEROMODELS[kind==='bear'?'owl':'bear'].root.visible,npcs:G.objs.filter(o=>o.type==='npc').length};},
  hud(){this.reset();drag={};this.step(1);G.chase={y:G.y-300,t:18,k:.9};G.rSay={txt:'Длинная реплика соперника, которая раньше закрывала склон',until:G.t+100};
   addObj({type:'gate',x:200,y:G.y+180,gap:140,col:0});updEnv(2,0);animObjs(0);banner('Испытание выполнено · +300','','gold');render(0);}
 };
@@ -28,7 +27,7 @@ const end=html.lastIndexOf('</script>');html=html.slice(0,end)+debug+html.slice(
  try{
   const page=await browser.newPage({viewport:{width:375,height:812},hasTouch:true});const errors=[];
   page.on('pageerror',e=>errors.push(e.message));
-  await page.route('https://telegram.org/js/telegram-web-app.js',r=>r.fulfill({body:''}));
+  await page.route('**/vendor/telegram-web-app.js',r=>r.fulfill({body:''}));
   await page.route('**/test-driving.html',r=>r.fulfill({contentType:'text/html; charset=utf-8',body:html}));
   await page.addInitScript(()=>window.__freeze=true);
   await page.goto('http://127.0.0.1:8766/test-driving.html',{waitUntil:'domcontentloaded'});
@@ -48,13 +47,8 @@ const end=html.lastIndexOf('</script>');html=html.slice(0,end)+debug+html.slice(
   const gate=await page.evaluate(()=>__drivingTest.gate());assert(gate.passed&&gate.gates===1);assert(gate.after<gate.before/2);
   const races=[];
   for(const kind of ['bear','owl'])for(const fps of [30,60]){
-   const r=await page.evaluate(args=>__drivingTest.race(...args),[kind,fps]);assert.equal(r.mode,'play');
-   const ordinary=r.samples.filter(s=>s.t<30||s.t>45);
-   const close=ordinary.filter(s=>Math.abs(s.gap)<18).length/ordinary.length;
-   assert(close>.9,'Rival must stay nearby for most of the run');
-   assert(r.samples.some(s=>s.gap>1)&&r.samples.some(s=>s.gap<-1),'Both heroes must have opportunities to lead');
-   assert(r.samples.filter(s=>s.t>45).every(s=>Math.abs(s.gap)<18),'Rival must recover after coffee without cancelling the boost');
-   races.push({kind,fps,closeFraction:close,maxGap:Math.max(...r.samples.map(s=>Math.abs(s.gap)))});
+   const r=await page.evaluate(args=>__drivingTest.solo(...args),[kind,fps]);
+   assert.deepEqual(r,{mode:'play',otherVisible:false,npcs:0});races.push({kind,fps,...r});
   }
   await page.evaluate(()=>__drivingTest.hud());
   const toast=await page.locator('#toast .tt').boundingBox();assert(toast.height<30&&toast.y>700,'Notifications must stay out of the central view');
@@ -64,7 +58,7 @@ const end=html.lastIndexOf('</script>');html=html.slice(0,end)+debug+html.slice(
   const review=await browser.newPage({viewport:{width:375,height:812}}),posts=[],reviewErrors=[];
   review.on('pageerror',e=>reviewErrors.push(e.message));review.on('request',r=>{if(r.method()==='POST')posts.push(r.url());});
   await review.addInitScript(()=>{localStorage.setItem('bsova_tg991_best','7312');localStorage.setItem('bsova_tg991_coins','410');});
-  await review.route('https://telegram.org/js/telegram-web-app.js',r=>r.fulfill({body:
+  await review.route('**/vendor/telegram-web-app.js',r=>r.fulfill({body:
    "window.__cloud=[];window.Telegram={WebApp:{initData:'test',initDataUnsafe:{user:{id:991},start_param:'course'},platform:'web',ready(){},expand(){},onEvent(){},enableClosingConfirmation(){},disableClosingConfirmation(){},isVersionAtLeast(){return false},BackButton:{onClick(){},show(){},hide(){}},CloudStorage:{getItem(k,cb){__cloud.push(['get',k]);cb(null,null)},setItem(k){__cloud.push(['set',k])}}}};"}));
   await review.goto('http://127.0.0.1:8766/?preview=course',{waitUntil:'domcontentloaded'});
   await review.locator('#course-review').waitFor();
@@ -91,6 +85,6 @@ const end=html.lastIndexOf('</script>');html=html.slice(0,end)+debug+html.slice(
   assert.equal(isolated.best,'7312');assert.equal(isolated.coins,'410');assert.deepEqual(isolated.cloud,[]);assert.deepEqual(posts,[]);assert.deepEqual(reviewErrors,[]);
   await review.locator('[data-r="exit"]').click();await review.waitForURL(/preview=play/);assert.equal(await review.locator('#course-review').count(),0);
   fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({speeds,coffee,gate,races,stages,isolated,posts,errors,reviewErrors},null,2));
-  console.log('PASS: automatic speed for both heroes and all gestures; stronger collected coffee; close rival and catch-up; glowing gate; compact HUD; 8 review stages, pause/step/seek, isolated Telegram saves and no score posts.');
+  console.log('PASS: automatic speed for both heroes and all gestures; stronger collected coffee; solo play for both heroes; glowing gate; compact HUD; 8 review stages, pause/step/seek, isolated Telegram saves and no score posts.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -5,6 +5,7 @@ const { chromium } = require(process.env.DANCE_BROWSER_MODULE || 'playwright');
 const out = path.resolve('dance-checks');
 fs.mkdirSync(out, { recursive: true });
 const debug = `
+loadHero('bear');loadHero('owl');
 window.__danceTest={
   ready:()=>HEROMODELS.bear.glb&&HEROMODELS.owl.glb,
   prepare(){save.meet.feathers=3;save.meet.gifts=20;save.best=5000;save.fis=[1,2,3,4,5,6,7,8,9,10];},

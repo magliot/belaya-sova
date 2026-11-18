@@ -42,13 +42,13 @@ const context={THREE,...course,console,Math,Number,Array,
  towers:Array.from({length:9},(_,i)=>{const t=new THREE.Group();t.userData={z:-35*i,cab:[new THREE.Mesh(new THREE.CylinderGeometry()),new THREE.Mesh(new THREE.CylinderGeometry())]};t.add(...t.userData.cab);return t}),
  chairs:[Object.assign(new THREE.Group(),{userData:{up:true,z:-12}})],
  HEROMODELS:{bear:{root:new THREE.Group(),pivot:new THREE.Group(),glb:true,kind:'bear'}},
- TRICKS:[{f:()=>[0,0,0]}],pivC:new THREE.Vector3(),fallPose:()=>null,poseGlb:()=>{},rivalSync:()=>{},racerOpacity:()=>{},
+ TRICKS:[{f:()=>[0,0,0]}],pivC:new THREE.Vector3(),fallPose:()=>null,poseGlb:()=>{},playerSled:new THREE.Group(),
  sun:new THREE.DirectionalLight(),headlamp:new THREE.SpotLight(),
  SNOWN:2,snowGeo:new THREE.BufferGeometry().setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3)),snowPts:new THREE.Group(),
  camera:new THREE.PerspectiveCamera(70,375/812,.1,500),
  G:{mode:'play',y:0,t:0,camX:0,camY:2.4,wind:0,shake:0,p:{x:200,ang:0,air:0,alt:0,rampH:0,mh:0,trick:0,inv:0}},
 };
-vm.createContext(context);
+context.playerSled.visible=false;vm.createContext(context);
 vm.runInContext(slice('const terrainPoint=','const piste='),context);
 vm.runInContext('var piste=slopePlane(21,240,160,new THREE.MeshBasicMaterial(),.02);var powder=slopePlane(80,240,160,new THREE.MeshBasicMaterial(),0);',context);
 vm.runInContext(slice('function objectFrame(','const pickCol='),context);
