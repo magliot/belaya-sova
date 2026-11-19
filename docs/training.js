@@ -8,6 +8,19 @@ export function trainingRow(seed,n){
  const offset=560+Math.floor(r(9)*260),open=200-side*(52+r(6)*34);
  const kind=n===0?'tube':n===1?'gate':n%12===2?'snowman':n%12===7?'cat':n%6===4?'rest':
    n%3===0?'tube':r(2)<.48?'gate':r(3)<.52?'tube':'snowman';
+ // A lesson uses the first metres of its row; the original obstacle keeps its slot.
+ // Moving partners share a rhythm and leave the central lane clear.
+ const lessonSide=-side,at=y+(n===0?332:180)+Math.floor(r(40)*58),phase=r(41)*Math.PI*2;
+ const pupil=(dy,offset,vy,details)=>obj('npc',200+lessonSide*offset,at-y+dy,{
+   vy,lessonStart:at,amp:vy?11:0,w:.9,ph:phase,vi:Math.floor(r(42)*2),...details});
+ if(n%5===0){
+   pupil(0,n===0?88:104,42,{kid:true});pupil(88,n===0?103:94,42,{instr:true});
+ }else if(n%5===1){
+   pupil(-40,109,49,{sb:true});pupil(48,146,0,{sb:true,kid:true,stand:true,face:lessonSide*.85});
+   pupil(95,129,0,{sb:true,instr:true,stand:true,face:Math.PI+lessonSide*.7});
+ }else if(n%5===3&&r(43)<.68){
+   pupil(0,151,0,{sit:true});pupil(47,127,0,{stand:true});
+ }
  if(!n)coins(200,220,4);
  if(kind==='tube'){
   const marker=y+offset,route=Math.floor(r(14)*3);

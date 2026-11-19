@@ -54,7 +54,7 @@
 | 48 | Трамплин сноупарка | C | [Фигуры сноупарка](sheets/15-snowpark.jpg) |
 | 49 | Один бугор | A / B / C | [Фигуры сноупарка](sheets/15-snowpark.jpg) |
 | 50 | Поле гребней | A / B / C | [Фигуры сноупарка](sheets/15-snowpark.jpg) |
-| 51 | Дальний посёлок | C | [Дальний план и склон](sheets/16-distance-and-slope.jpg) |
+| 51 | Дальний посёлок | Вариант C снят с игрового фона. | [Дальний план и склон](sheets/16-distance-and-slope.jpg) |
 | 52 | Горы и долина | A / B / C | [Дальний план и склон](sheets/16-distance-and-slope.jpg) |
 | 53 | Полотно трассы | Все три для разных локаций. | [Дальний план и склон](sheets/16-distance-and-slope.jpg) |
 | 54 | Северное сияние | A / B / C | [Дальний план и склон](sheets/16-distance-and-slope.jpg) |

@@ -22,7 +22,6 @@ def cutout(im,threshold=18):
     img=im.copy();img.putalpha(alpha);return img
 def save(img,name):
     img.save(out/(name+'.webp'),quality=91,method=6)
-lodge=cutout(cell(16,4,0,2));save(lodge.crop(lodge.getbbox()),'village-51c')
 for i,suffix in enumerate('abc'):
     im=cell(16,4,1,i);cut=cutout(im,16);rgba=np.array(cut);h,w=rgba.shape[:2]
     # Continue the snowy foot of each ridge down to the terrain silhouette.

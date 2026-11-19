@@ -841,6 +841,24 @@ const FACT={
     contact.rotation.x=-Math.PI/2;contact.position.y=.035;root.add(contact);return root;},
   boundaryPole(){const g=new THREE.Group();S3(mk(sharedGeo.cyl,M(0x196ea2),0,.55,0,g),.05,1.10,.05);
     S3(mk(sharedGeo.cyl,OM.snow,0,.90,0,g),.052,.16,.052);return g;},
+  entrySign(o){
+    const g=new THREE.Group(),inset=o.x<200?6.85:-6.85;
+    const paint={forest:'#126042',moguls:'#8d4319',park:'#334e98'}[o.theme];
+    const key='entry_'+o.theme;
+    const tex=archTexCache[key]??=canvasTex(680,226,(c,w,h)=>{
+      c.fillStyle=paint;c.fillRect(0,0,w,h);
+      c.strokeStyle='#fff0c9';c.lineWidth=9;c.strokeRect(9,9,w-18,h-18);
+      c.fillStyle='#fff';c.font='900 145px system-ui';c.textAlign='center';c.textBaseline='middle';
+      c.fillText(o.caption,w/2,h*.48,w-64);
+    });
+    const timber=M(0x66452d);
+    S3(mk(sharedGeo.box,timber,0,2.75,0,g),.34,5.68,.34);
+    S3(mk(sharedGeo.box,timber,inset/2,5.29,0,g),Math.abs(inset)+.48,.32,.36);
+    const face=plane(tex,6.55,2.8,g,inset,3.93,.21,false);face.name='entryFace';
+    S3(mk(sharedGeo.box,timber,inset,3.93,.04,g),6.72,2.95,.24);
+    S3(mk(sharedGeo.box,OM.snow,inset,5.47,.08,g),6.76,.14,.34);
+    return g;
+  },
   stageProp(o){const g=new THREE.Group(),park=o.theme==='park',forest=o.theme==='forest';
     const color=park?'#23457b':forest?'#35603f':'#b77837',caption=o.caption||(forest?'ЛЕС':park?'ПАРК':'БУГРЫ');
     const key='marker_'+o.theme+caption;
@@ -875,7 +893,7 @@ const FACT={
     group.userData.light=raceLight(group,radius,radius,['ring-blue','ring','ring-ice'][style],canvasTex);
     group.userData.hoop=hoop;return group;
   },
-  tree(o){const family=o.pine?20:o.fir?21:19;const c=kit['tree'+family+'ABC'[o.treeStyle??0]].clone();const g=new THREE.Group();g.add(c);c.rotation.y=(o.y*.13)%6.28;return g;},
+  tree(o){const family=o.pine?20:o.fir?21:19;const c=kit['tree'+family+'ABC'[o.treeStyle??0]].clone();const g=new THREE.Group();g.add(c);c.position.y-=.09;c.rotation.y=(o.y*.13)%6.28;return g;},
   rock(o){const wide=o.rockWide??true,m=winterScenery(wide?'rock_wide':'rock_tall');m.children[0].scale.multiply(new THREE.Vector3(wide?1.23:.74,wide?.70:1.27,wide?1.03:.81));m.rotation.y=(o.y*.07)%6.28;return m;},
   mogul(o){const g=new THREE.Group(),id=o.profile??0;
     const m=mk(sharedGeo.sph,OM.mog,0,0,0,g);S3(m,[.8,.78,.72][id],[.37,.62,.52][id],[.72,.84,.95][id]);
@@ -955,7 +973,7 @@ const playerSled=new THREE.Group();scene.add(playerSled);playerSled.visible=fals
 function loadPlayerSled(){return cached('sled',async()=>{const g=await gltfLoader.loadAsync('models/player-sled.glb');tintModels(g.scene);playerSled.add(g.scene);});}
 let patrolModel=null;function loadPatrol(){return cached('patrol',async()=>{const g=await gltfLoader.loadAsync('models/forest-patrol.glb');patrolModel=g.scene;tintModels(patrolModel);patrolModel.traverse(n=>{if(n.isMesh)n.castShadow=true;});});}
 let assetGen=0;const pools={};const archTexCache={},letterTexCache={};let instrTex=null,aidTex=null;const gateTexCache={};
-function poolKey(o){if(o.type==='mogul')return 'mogul'+(o.profile??0);if(o.type==='rock')return o.rockWide?'rockA':'rockB';if(o.type==='airRing')return 'airRing_'+(o.ringStyle||0)+'_'+o.radius;if(o.variant)return o.type+':'+o.variant;if(o.type==='stageProp')return 'stageProp_'+o.theme+(o.caption||'')+(o.theme==='forest'?(o.x<200?'_r':'_l'):'');if(o.type==='rail')return 'rail_'+o.w+'_'+o.len+'_'+o.hh;return o.type==='gate'?'gate'+o.col+'_'+Math.round(o.gap):o.type==='npc'?'npc'+o.colHex+'v'+(o.vi||0)+(o.walker?'w':'')+(o.sit?'s':'')+(o.kid?'k':'')+(o.instr?'i':'')+(o.sb?'b':''):o.type==='cat'?'cat'+(o.vy>0?1:0):o.type==='fence'?'fence'+(o.fenceStyle||0)+'_'+Math.round(o.x2-o.x1):o.type==='cannon'?'cannon'+(o.x<200?1:0):o.type==='arch'?'arch'+o.stage:o.type==='dog'?'dog'+(o.vx>0?1:0):o.type==='snowman'||o.type==='yeti'?o.type+(o.x<200?1:0):o.type==='letter'?'letter'+o.ch+(o.air?1:0):o.type==='tree'?'tree'+(o.pine?'p':o.fir?'f':'')+(o.treeStyle??0):o.type==='ramp'?'ramp'+o.w+'_'+(o.hh||0.75)+(o.park?'_park':''):o.type;}
+function poolKey(o){if(o.type==='entrySign')return 'entry_'+o.theme+'_'+Math.sign(o.x-200);if(o.type==='mogul')return 'mogul'+(o.profile??0);if(o.type==='rock')return o.rockWide?'rockA':'rockB';if(o.type==='airRing')return 'airRing_'+(o.ringStyle||0)+'_'+o.radius;if(o.variant)return o.type+':'+o.variant;if(o.type==='stageProp')return 'stageProp_'+o.theme+(o.caption||'')+(o.theme==='forest'?(o.x<200?'_r':'_l'):'');if(o.type==='rail')return 'rail_'+o.w+'_'+o.len+'_'+o.hh;return o.type==='gate'?'gate'+o.col+'_'+Math.round(o.gap):o.type==='npc'?'npc'+o.colHex+'v'+(o.vi||0)+(o.walker?'w':'')+(o.sit?'s':'')+(o.kid?'k':'')+(o.instr?'i':'')+(o.sb?'b':''):o.type==='cat'?'cat'+(o.vy>0?1:0):o.type==='fence'?'fence'+(o.fenceStyle||0)+'_'+Math.round(o.x2-o.x1):o.type==='cannon'?'cannon'+(o.x<200?1:0):o.type==='arch'?'arch'+o.stage:o.type==='dog'?'dog'+(o.vx>0?1:0):o.type==='snowman'||o.type==='yeti'?o.type+(o.x<200?1:0):o.type==='letter'?'letter'+o.ch+(o.air?1:0):o.type==='tree'?'tree'+(o.pine?'p':o.fir?'f':'')+(o.treeStyle??0):o.type==='ramp'?'ramp'+o.w+'_'+(o.hh||0.75)+(o.park?'_park':''):o.type;}
 // Keep the collision surface and its visible mesh in the same curved course coordinates.
 function parkHeight(o,y){
   if(o.type==='rail')return parkBoxHeight(o,y);
@@ -1314,21 +1332,20 @@ function coinTrail(x,y,count,spacing){
 function forestSection(y,patrol){
   const sectionId=Math.floor(y/1000),seed=G.seed??19,roll=k=>courseRoll(seed,sectionId,k);
   const side=roll(31)>.5?1:-1;
-  const rewardX=200+side*(70+roll(32)*21),wideX=200-side*(48+roll(33)*30);
-  // The close pair frames the reward line. The opposite lane has a wider exit.
-  const glade=roll(39)<.30;
-  for(const [x,dy,scale,kind] of [[200+side*172,0,.77,'pine'],[200-side*172,60,1.30,'tree'],
-      [200+side*(16+roll(34)*22),385+roll(35)*85,1.1,'fir'],[200+side*(120+roll(36)*24),455+roll(37)*84,1.08,'tree'],[200-side*164,530,1.34,'fir']]){
-    if(glade&&Math.abs(x-200)<50)continue;
-    addObj({type:'tree',x,y:y+dy,r:kind==='pine'?18:12,s:scale,pine:kind==='pine',fir:kind==='fir'});
-  }
   const section=Math.floor(y%(STAGE_LEN*20)/1000);
-  if(patrol??(section%3===0)){
-    addTrailActor('snowmobile',y+265,side);
-  }
-  coinTrail(rewardX,y+100,6,105);
-  if(roll(38)<.23)addObj({type:'gate',x:wideX,y:y+690,gap:112,col:side>0?1:0});
-  addObj({type:'stageProp',theme:'forest',x:side>0?365:35,y:y+65});
+  // Keep a clear approach to each stage entrance and to the overhead sign.
+  if(section===49){coinTrail(200,y+70,3,100);return 1000;}
+  const line=200-side*(21+roll(32)*16),jitter=Math.round(roll(35)*46);
+  const plant=(shoulder,offset,dy,scale,kind)=>addObj({type:'tree',x:200+shoulder*offset,y:y+dy,
+    r:kind==='pine'?18:12,s:scale,pine:kind==='pine',fir:kind==='fir'});
+  plant(side,145,260+jitter,.97,'pine');
+  plant(side,101+roll(34)*14,328+jitter,.83,'fir');
+  plant(side,161,409+jitter,1.13,'tree');
+  plant(-side,148,750-jitter,1.02,'tree');
+  if(roll(39)>.30)plant(-side,121,822-jitter,.88,'fir');
+  if(patrol??(section%3===0))addTrailActor('snowmobile',y+265,side);
+  for(let i=0;i<6;i++)addObj({type:'coin',x:200+(line-200)*Math.sin((i+1)*Math.PI/8),y:y+78+i*94,r:9});
+  if(roll(38)<.23)addObj({type:'gate',x:line,y:y+558,gap:112,col:side>0?1:0});
   return 1000;
 }
 // Author motion by approach distance so a paused seek and a live run show the same crossing.
@@ -1363,6 +1380,8 @@ function addTrailActor(type,marker,side){
 }
 function mogulValley(y){return 120+28*Math.sin(y/460);}
 function rollerSection(y,diff){
+  const remaining=(stageAt(y/20)+1)*STAGE_LEN*20-y;
+  if(remaining<2340){coinTrail(200,y+100,Math.min(5,Math.floor(remaining/150)),125);return remaining;}
   const P=addMogulPatch(y,12,diff);
   const section=Math.floor(y%(STAGE_LEN*20)/2340);
   if(section%2===0){
@@ -1519,6 +1538,20 @@ function streamLandmarks(){
     else addObj({type:id,x,y,r:12,w:60,hh:.75,cd:0});
   }
 }
+// Stage entrances follow course metres independently of the length of obstacle rows.
+function streamStageEntries(){
+  if(G.tubing||G.sled||G.sprint||G.mode==='menu')return;
+  G.entryStage??=Math.max(1,Math.ceil((G.y/20-10)/STAGE_LEN));
+  while(G.entryStage*STAGE_LEN*20<=G.y+AHEAD){
+    const n=G.entryStage++,y=n*STAGE_LEN*20,st=stageDef(n);
+    const theme=st.forest?'forest':st.moguls?'moguls':st.park?'park':null;
+    if(theme){
+      const side=courseRoll(G.seed??19,n,47)<.5?-1:1;
+      addObj({type:'entrySign',theme,caption:st.forest?'ЛЕС':st.moguls?'БУГРЫ':'СНОУПАРК',x:200+side*143,y:y-840});
+    }
+    addObj({type:'arch',x:200,y,stage:n%STAGES.length});
+  }
+}
 function spawnSeg(){
   streamLandmarks();
   const y=G.nextY,d=y/20,diff=Math.min(1,d/3000);
@@ -1529,7 +1562,7 @@ function spawnSeg(){
   if(G.sprint){sprintSection(y);return;}
   if(G.mode==='menu'){addGate(y,diff);G.nextY+=len;return;}
   const fixedRows=G.seed!=null&&(sn===0||st.forest||st.park);
-  if(sn!==G.lastSpawnStage){G.lastSpawnStage=sn;if(sn>0){addObj({type:'arch',x:200,y,stage:sn%STAGES.length});if(!fixedRows){G.nextY+=140;return;}}}
+  if(sn!==G.lastSpawnStage){G.lastSpawnStage=sn;if(sn>0&&!fixedRows&&!st.moguls){G.nextY+=140;return;}}
   if(sn%8===4&&d-sn*STAGE_LEN<75){
     const landmarkY=(sn*STAGE_LEN+55)*20;
     if(y<=landmarkY){addObj({type:'snowman',x:266,y:landmarkY,r:16,cd:0});coinTrail(166,landmarkY-250,5,90);}
@@ -1542,6 +1575,7 @@ function spawnSeg(){
   if(sn===0&&G.seed!=null){
     for(const side of [-1,1])addObj({type:'boundaryPole',x:200+side*196,y:y+170});
     const n=Math.floor(y/ROW);for(const o of trainingRow(G.seed,n)){
+      if(o.type==='npc'){addSkier(o.y,o.x,o.vy,o);continue;}
       if(o.type==='tube'||o.small)trainingActorAt(o,G.y);
       addObj(o);
     }G.nextY=(n+1)*ROW;return;
@@ -1781,12 +1815,15 @@ function update(dt){
     if(Math.abs(pz-lastTrackZ)>0.28){lastTrackZ=pz;const yaw=p.ang*0.45;if(hero==='bear'){addTrack(px-0.2,pz,yaw,.16);addTrack(px+0.2,pz,yaw,.16);}else addTrack(px,pz,yaw,0.42);}
     if(Math.abs(p.vx)>150){for(let i=0;i<2;i++)emit(px-Math.sign(p.vx)*0.3,Hz(pz)+0.15,pz+0.4,-Math.sign(p.vx)*rnd(1,3),rnd(1,3),rnd(0.5,2),0.5,rnd(0.03,0.07),'#ffffff');}
   }
-  while(G.nextY<G.y+AHEAD)spawnSeg();
+  streamStageEntries();while(G.nextY<G.y+AHEAD)spawnSeg();
   if(MOG.patches.length&&MOG.patches[0].y1<G.y-320)dropMogPatches(false);
   const py=G.y;p.rampH=0;p.surfaceSlope=0;
   for(const o of G.objs){
     if(o.dead)continue;
-    if(o.type==='npc'){if(o.vy>0)npcAI(o,dt);o.y+=o.vy*dt;o.x=clamp(o.bx+Math.sin(G.t*(o.w||1.3)+o.ph)*o.amp,30,370);}
+    if(o.type==='npc'&&(o.lessonStart==null||py>=o.lessonStart-640)){
+      if(o.vy>0)npcAI(o,dt);
+      o.y+=o.vy*dt;o.x=clamp(o.bx+Math.sin(G.t*(o.w||1.3)+o.ph)*o.amp,30,370);
+    }
     if(o.type==='snowmobile'||o.type==='mogulYeti'){
       const prevX=o.x,prevY=o.y;trailActorAt(o,py);
       const before=G.prevY-prevY,after=py-o.y;
@@ -2036,14 +2073,19 @@ function syncWorld(dt){
   landscape.update(-pz,!!G.tubing,G.sled?5:stageDef(Math.max(0,G.stage)).env);aurora.position.set(courseCenter(-pz),gy+70,pz-260);
   for(const t of forest){if(t.userData.z>pz+18)t.userData.z-=185;const td=-t.userData.z;const dense=G.tubing?tubeLocation(td)===1:courseTheme(td).stage===1;
     const clearing=Math.max(0,t.side*Math.cos(t.userData.z/(dense?61:95)));
-    t.userData.x=t.side*(forestEdge(t.userData.z)+t.off*(dense?.28:1)+(G.tubing?(dense?-3:13):0)+(Math.floor(t.kind/3)===1?.8:0)+clearing*11);
-    if(G.tubing&&dense)t.userData.x=t.side*(7.8+t.off*.41+clearing*2.1);
-    const viewSite=Math.round((td-112)/430);
-    const viewSide=viewSite%2?-1:1;
-    const clearingWeight=1-THREE.MathUtils.smoothstep(Math.abs(td-112-viewSite*430),22,83);
-    if(t.side===viewSide)t.userData.x+=viewSide*24*clearingWeight;
-    const size=t.s*(dense?1.35:1)*(1-.5*clearing);
-    tmpE.set(0,t.rot,0);tmpQ.setFromEuler(tmpE);tmpM.compose(courseGround(tmpP,t.userData.x,t.userData.z),tmpQ,tmpS.set(size,size,size));forestIM[t.kind].setMatrixAt(t.idx,tmpM);}
+    let offset,size;
+    if(G.tubing){
+      offset=dense?7.8+t.off*.41+clearing*2.1:forestEdge(t.userData.z)+t.off+13+clearing*11;
+      size=t.s*(dense?1.35:1)*(1-.5*clearing);
+    }else{
+      const gap=(1+Math.cos(td*(Math.PI*2/46)+t.side*1.9+(G.seed??0)%23))*.5;
+      const boundary=Math.round(td/STAGE_LEN)*STAGE_LEN-td;
+      const approach=boundary>=-12&&boundary<=85;
+      offset=approach?25+t.off*.35:(dense?11.8:15)+t.off*.55+gap*(dense?11:7);
+      size=t.s*(dense?1.17:1)*(1-.42*gap);
+    }
+    t.userData.x=t.side*Math.min(35.5,offset);
+    tmpE.set(0,t.rot,0);tmpQ.setFromEuler(tmpE);tmpM.compose(courseGround(tmpP,t.userData.x,t.userData.z,-.08),tmpQ,tmpS.set(size,size,size));forestIM[t.kind].setMatrixAt(t.idx,tmpM);}
   forestIM.forEach(im=>im.instanceMatrix.needsUpdate=true);
   const night=G.tubing?0:env.glow;
   for(const l of lamps){if(l.userData.z>pz+18)l.userData.z-=180;const z=l.userData.z;courseGround(l.position,l.userData.side*11.6,z);l.rotation.y=courseHeading(z);}
@@ -2381,7 +2423,7 @@ function reviewSeek(d){if(!trackReady||HEROMODELS[hero].motionStatus!=='ready'||
  }
  G.camX=X(reviewX);G.camY=courseHeight(d-6.4)+2.3;lastTrackZ=Z(G.y);
  for(const t of forest)t.userData.z-=d;for(const l of lamps)l.userData.z-=d;for(const t of towers)t.userData.z-=d;
- chairs.forEach((c,i)=>c.userData.z=-d-15-i*12);while(G.nextY<G.y+AHEAD)spawnSeg();
+ chairs.forEach((c,i)=>c.userData.z=-d-15-i*12);streamStageEntries();while(G.nextY<G.y+AHEAD)spawnSeg();
  document.querySelectorAll('.ui').forEach(el=>el.classList.add('hidden'));$('topbtns').classList.add('hidden');
  reviewContact();updEnv(2,G.tubing?(d>=742?1:0):G.sled?5:stageDef(G.stage).env);animObjs(0);render(0);}
 // ================= TELEGRAM =================
