@@ -4,7 +4,9 @@ from pathlib import Path
 from mathutils import Vector
 bpy.ops.wm.read_factory_settings(use_empty=True);bpy.context.preferences.filepaths.save_version=0
 def color(n,rgb):
-    m=bpy.data.materials.new(n);m.diffuse_color=(*rgb,1);return m
+    m=bpy.data.materials.new(n);m.use_nodes=True;m.diffuse_color=(*rgb,1)
+    shader=m.node_tree.nodes.get('Principled BSDF');shader.inputs['Base Color'].default_value=(*rgb,1)
+    shader.inputs['Roughness'].default_value=.83;return m
 fur=color('Ivory fur',(.88,.93,1));shadow=color('Blue underfur',(.52,.65,.84));face=color('Glacier blue',(.22,.39,.68));ink=color('Midnight eyes',(.025,.035,.069));teeth=color('Snow teeth',(1,.97,.90))
 parts=[]
 def oval(p,s,m,rot=0):

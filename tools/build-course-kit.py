@@ -7,7 +7,12 @@ bpy.context.preferences.filepaths.save_version=0
 palette={}
 def mat(name,rgb):
     if name not in palette:
-        m=bpy.data.materials.new(name);m.diffuse_color=(*rgb,1);palette[name]=m
+        m=bpy.data.materials.new(name);m.use_nodes=True;m.diffuse_color=(*rgb,1)
+        bs=m.node_tree.nodes.get('Principled BSDF');bs.inputs['Base Color'].default_value=(*rgb,1)
+        bs.inputs['Roughness'].default_value=.73
+        if name=='Turquoise':
+            bs.inputs['Emission Color'].default_value=(*rgb,1);bs.inputs['Emission Strength'].default_value=.42
+        palette[name]=m
     return palette[name]
 snow=mat('Snow light',(.89,.96,1));shade=mat('Snow shadow',(.52,.72,.89))
 pine=mat('Blue spruce',(.025,.15,.12));leaf=mat('Needle tips',(.065,.28,.16));wood=mat('Larch',(.36,.163,.071))
@@ -19,7 +24,9 @@ def beam(a,b,r,m,r2=None):
     a,b=Vector(a),Vector(b);bpy.ops.mesh.primitive_cone_add(vertices=8,radius1=r,radius2=r if r2 is None else r2,depth=(a-b).length,location=(a+b)/2)
     o=bpy.context.object;o.rotation_euler=(b-a).to_track_quat('Z','Y').to_euler();return part(o,m)
 def oval(pos,scale,m,sub=1):
-    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=sub,location=pos);o=bpy.context.object;o.scale=scale;return part(o,m)
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=sub,location=pos);o=bpy.context.object;o.scale=scale
+    for face in o.data.polygons:face.use_smooth=True
+    return part(o,m)
 done=[]
 def pack(name):
     parts=[o for o in bpy.context.scene.objects if o not in done];bpy.ops.object.select_all(action='DESELECT')
@@ -48,8 +55,8 @@ for family in [19,20,21]:
                 for k in range(7):
                     a=k*math.tau/7+j*.71;rr=r*(.62+.15*rng.random())
                     x=sway*t*t+math.cos(a)*rr;y=math.sin(a)*rr
-                    q=oval((x,y,z+.02*h),(r*.61,r*.42,r*.53),leaf if k%3==0 else pine);q.rotation_euler.z=a
-                    q=oval((x,y,z+.096*h),(r*.61,r*.43,r*(.61 if variant==1 else .45)),snow if k%4 else shade);q.rotation_euler.z=a
+                    q=oval((x,y,z+.02*h),(r*.61,r*.42,r*.53),leaf if k%3==0 else pine,2);q.rotation_euler.z=a
+                    q=oval((x,y,z+.096*h),(r*.61,r*.43,r*(.48 if variant==1 else .36)),snow if k%4 else shade,2);q.rotation_euler.z=a
             beam((sway,0,h*.78),(sway+.04,0,h),.105*h,snow,0)
         pack(f'tree{family}{"ABC"[variant]}')
 # C: lattice lift tower and sheave assemblies at exactly the existing cable elevation.

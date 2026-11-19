@@ -7,6 +7,10 @@ window.__assetTest={
   ready:()=>trackReady&&Object.keys(WINTER).length===8&&collectibleModels.aid&&HEROMODELS.bear.glb&&HEROMODELS.owl.glb,
   check(){
     this.previewActors={};
+    for(const [label,item,min] of [['cannon',kit.cannon25A,3],['spruce',kit.tree19C,3],['yeti',WINTER.yeti,4],['magnet',kit.magnet34B,3]]){
+      const colors=new Set();item.traverse(o=>{if(o.isMesh)for(const m of [o.material].flat())colors.add(m.color.getHex());});
+      if(colors.size<min)throw Error(label+' loses its material colors after export');
+    }
     const caps={rock_wide:2000,rock_tall:2000,snowman:4500,dog:6000,snow_cannon:5000,gift:2000,magnet:1500,yeti:6000};
     const models=[];
     for(const [k,cap] of Object.entries(caps)){

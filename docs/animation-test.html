@@ -583,8 +583,7 @@ const NPC_VAR={skier:{src:[345,15,0.5,0.3],to:[[215,1,1],[135,0.9,0.9],[275,0.9,
   sitter:{src:[75,165,0.25,0.15],to:[[210,1.3,1.2],[355,1.6,1.25],[25,1.6,1.4],[280,1.3,1.2],[190,1.3,1.25]]},
   // сноубордисты: мальчик (синяя куртка), мужчина (зелёная), тренер (жёлтая)
   sboy:{src:[182,252,0.32,0.24],to:[[332,1.06,1.08]]},
-  sman:{src:[95,175,0.3,0.2],to:[[215,1,1],[0,1,0.95],[280,0.9,1],[28,1,1.05],[195,0.9,0.95],[45,1,1.1]]},
-  sinstr:{src:[36,66,0.4,0.35],to:[[22,1,1],[0,0.95,0.95],[95,0.9,0.95],[330,0.85,1.05]]}};
+  sman:{src:[95,175,0.3,0.2],to:[[215,1,1]]}};
 // базовый поворот сноубордиста, чтобы доска шла вдоль склона (из оси доски в модели)
 const SB_YAW={sboy:0.78,sman:2.3,sinstr:2.48};
 function hueTex(tex,src,to){const im=tex.image;const w=im.width,h=im.height;const cv2=document.createElement('canvas');cv2.width=w;cv2.height=h;const x=cv2.getContext('2d');x.drawImage(im,0,0);const d=x.getImageData(0,0,w,h);const a=d.data;
@@ -655,9 +654,10 @@ function winterActor(k,o){const g=winterScenery(k);if(!g)return null;const c=g.c
   return g;}
 const kit={},courseTextures={};
 async function loadCourseKit(){
- const [gltf,...fx]=await Promise.all([gltfLoader.loadAsync('models/course-kit.glb'),...['yeti-print-56c','snow-chips-58a'].map(n=>new THREE.TextureLoader().loadAsync('art/slope/'+n+'.webp'))]);
+ const [gltf,...fx]=await Promise.all([gltfLoader.loadAsync('models/course-kit.glb'),...['yeti-print-56c','snow-chips-58a','snowball-57b'].map(n=>new THREE.TextureLoader().loadAsync('art/slope/'+n+'.webp'))]);
  const pack=gltf.scene;
  courseTextures.foot=fx[0];courseTextures.chips=fx[1];
+ courseTextures.ball=new THREE.SpriteMaterial({map:fx[2],transparent:true,depthWrite:false});
  printMaterial.map=fx[0];printMaterial.needsUpdate=true;
  flakeTex.colorSpace=THREE.SRGBColorSpace;fx.forEach(t=>t.colorSpace=THREE.SRGBColorSpace);
  for(const o of pack.children){kit[o.name]=o;o.traverse(m=>{if(m.isMesh)m.castShadow=true;});}
@@ -684,7 +684,7 @@ function loadTraining(){return cached('training',async()=>{
  }
 });}
 let trackReady=false,loadEpoch=0,modalLoad=false;
-function loadTrackAssets(k=hero){return Promise.all([loadRig(k),cached('course',async()=>{await Promise.all([loadProps(),...Object.keys(NPC_PACKS).map(loadNpc),loadWinter(),loadCollectibles(),loadPatrol(),loadTraining(),loadCourseKit(),loadHudArt(),landscape.load()]);trackReady=true;})]);}
+function loadTrackAssets(k=hero){return Promise.all([loadRig(k),cached('course',async()=>{await Promise.all([loadProps(),...Object.keys(NPC_PACKS).map(loadNpc),loadWinter(),loadCollectibles(),loadPatrol(),loadTraining(),cached('slope-kit',loadCourseKit),loadHudArt(),cached('painted-landscape',landscape.load)]);trackReady=true;})]);}
 const assetPanel=document.getElementById('assetWait'),assetMsg=document.getElementById('assetMessage'),assetRetry=document.getElementById('assetRetry');
 function waitForAssets(work,next,quiet=false){const token=++loadEpoch;if(!quiet)modalLoad=true;assetPanel.hidden=quiet;assetRetry.hidden=true;assetMsg.textContent='Готовим спуск…';return Promise.resolve().then(work).then(()=>{if(token===loadEpoch){modalLoad=false;assetPanel.hidden=true;next();}},err=>{if(token!==loadEpoch)return;console.warn('Загрузка моделей',err);assetMsg.textContent='Не удалось загрузить модели. Проверьте соединение.';assetPanel.hidden=false;assetRetry.hidden=false;assetRetry.onclick=()=>waitForAssets(work,next);});}
 function menuHero(k){if(modalLoad)return;return waitForAssets(()=>loadHero(k),()=>{},true);}
@@ -871,7 +871,7 @@ const FACT={
     group.userData.hoop=hoop;return group;
   },
   tree(o){const family=o.pine?20:o.fir?21:19;const c=kit['tree'+family+'ABC'[o.treeStyle??0]].clone();const g=new THREE.Group();g.add(c);c.rotation.y=(o.y*.13)%6.28;return g;},
-  rock(o){const wide=o.rockWide??true,m=winterScenery(wide?'rock_wide':'rock_tall');m.scale.set(wide?1.23:.74,wide?.70:1.27,wide?1.03:.81);m.rotation.y=(o.y*.07)%6.28;return m;},
+  rock(o){const wide=o.rockWide??true,m=winterScenery(wide?'rock_wide':'rock_tall');m.children[0].scale.multiply(new THREE.Vector3(wide?1.23:.74,wide?.70:1.27,wide?1.03:.81));m.rotation.y=(o.y*.07)%6.28;return m;},
   mogul(o){const g=new THREE.Group(),id=o.profile??0;
     const m=mk(sharedGeo.sph,OM.mog,0,0,0,g);S3(m,[.8,.78,.72][id],[.37,.62,.52][id],[.72,.84,.95][id]);
     m.rotation.z=[0,-.18,.12][id];m.receiveShadow=true;
@@ -899,7 +899,7 @@ const FACT={
     const disc=new THREE.Mesh(new THREE.PlaneGeometry(o.gap*U+0.5,3),new THREE.MeshBasicMaterial({map:glowTex,color:0xffcf55,transparent:true,opacity:0.45,depthWrite:false,blending:THREE.AdditiveBlending}));
     disc.rotation.x=-Math.PI/2;disc.position.y=0.055;g.add(disc);g.userData.halo=halo;g.userData.gateDisc=disc;g.userData.gate=true;return g;},
   ramp(o){if(o.park)return makeParkSurface(o);const g=new THREE.Group();const c=NPCM.ramp.clone();c.scale.multiply(new THREE.Vector3(o.w*U,(o.hh||0.75)*1.12,3.3));c.traverse(q=>{if(q.isMesh)q.receiveShadow=true;});g.add(c);return g;},
-  npc(o){const sbk=o.sb&&!o.sit?(o.kid?'sboy':o.instr?'sinstr':'sman'):null;const vk=sbk&&NPCM[sbk]?sbk:o.sit?'sitter':o.kid?'kid':'skier';const vv=NPCV[vk];const gm=vv?vv[vk==='sman'?1:vk==='sinstr'?0:(o.vi||0)%vv.length]:NPCM[vk];
+  npc(o){const sbk=o.sb&&!o.sit?(o.kid?'sboy':o.instr?'sinstr':'sman'):null;const vk=sbk&&NPCM[sbk]?sbk:o.sit?'sitter':o.kid?'kid':'skier';const vv=NPCV[vk];const gm=vv?vv[vk==='sman'?Math.min(1,vv.length-1):(o.vi||0)%vv.length]:NPCM[vk];
     if(gm&&vk===sbk){// сноубордист: тело поворачиваем в animObjs (едет боком или стоит лицом к группе)
       const g=new THREE.Group();const body=new THREE.Group();const c=gm.clone();body.add(c);g.add(body);g.userData.glb=true;g.userData.body=body;g.userData.sbYaw=SB_YAW[vk];
       if(o.instr){const t=instrTex||(instrTex=label('ИНСТРУКТОР',{bg:'#ffd200',fg:'#0f2c52',w:256,h:64,font:'900 34px system-ui,sans-serif',r:10}));const pl=plane(t,0.24,0.06,body,0,1.0,-0.3,false);pl.rotation.set(0.3,Math.PI,0);pl.material.side=THREE.DoubleSide;}
@@ -931,7 +931,9 @@ const FACT={
   dog(o){return winterActor('dog',o);},
   snowman(o){return o.variant?trainingCast[o.variant].clone():winterActor('snowman',o);},
   aid(){return studioPickup('aid',.90);},
-  ball(){const g=new THREE.Group();mk(snowballGeo,M(0xe7f4ff),0,0,0,g).scale.setScalar(.17);return g;},
+  ball(){const g=new THREE.Group();mk(snowballGeo,M(0xe7f4ff),0,0,0,g).scale.setScalar(.15);
+    const flakes=new THREE.Sprite(courseTextures.ball);flakes.scale.set(.36,.31,1);flakes.position.y=.018;
+    g.add(flakes);return g;},
   gift(){return winterPickup('gift',0.7,1.5);},
   letter(o){const g=new THREE.Group();const gl=new THREE.Sprite(pickGlow);gl.scale.setScalar(3.2);g.add(gl);
     const t=letterTexCache[o.ch]||(letterTexCache[o.ch]=canvasTex(256,256,(x,w,h)=>{const gr=x.createRadialGradient(128,110,20,128,128,124);gr.addColorStop(0,'#fff3a0');gr.addColorStop(1,'#e8a400');x.fillStyle=gr;x.beginPath();for(let j=0;j<6;j++){const a=j*Math.PI/3;const px=128+117*Math.cos(a),py=128+117*Math.sin(a);if(j)x.lineTo(px,py);else x.moveTo(px,py);}x.closePath();x.fill();
@@ -1185,7 +1187,8 @@ function collState(){let w=0;while(w<WORDS.length&&save.coll.filter(c=>c.w===w).
 const letterDist=(w,i)=>1500+i*1500+w*500;
 
 // ================= GAME STATE =================
-let G=null,hero=save.hero in HEROES?save.hero:'bear';
+const reviewHero=COURSE_REVIEW&&new URLSearchParams(location.search).get('hero');
+let G=null,hero=reviewHero==='owl'||reviewHero==='bear'?reviewHero:save.hero in HEROES?save.hero:'bear';
 const rawSeed=new URLSearchParams(location.search).get('seed');
 const pinnedSeed=rawSeed!==null&&/^[0-9]{1,10}$/.test(rawSeed)&&Number(rawSeed)<=0xffffffff?Number(rawSeed):null;
 const pickSeed=()=>pinnedSeed??crypto.getRandomValues(new Uint32Array(1))[0];
