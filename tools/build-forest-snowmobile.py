@@ -89,7 +89,21 @@ for side in (-1,1):
     link('Suspension brace',(side*.39,-.10,.45),(side*.54,.64,.13),.04,steel)
     ellipse('Light',(side*.24,1.01,.76),(.115,.09,.072),lamp)
     box('Side stripe',(side*.50,.43,.73),(.028,.39,.049),ivory,-8)
-    if '--player' in sys.argv: continue
+    if '--player' in sys.argv:
+        for index in range(4):
+            y=-1.12+index*.31
+            ellipse('Bogey wheel',(side*.325,y,.29),(.059,.155,.156),ink)
+            ellipse('Hub',(side*.38,y,.29),(.019,.073,.073),steel)
+        for index in range(6):
+            y=.25+index*.068
+            link('Intake louvre',(side*.539,y,.66),(side*.52,y+.052,.78),.017,ink)
+        link('Orange shock',(side*.34,.37,.53),(side*.54,.64,.16),.061,orange)
+        link('Runner loop',(side*.54,1.28,.13),(side*.54,1.47,.34),.031,ink)
+        link('Runner loop',(side*.54,1.47,.34),(side*.54,1.56,.30),.031,ink)
+        box('Footboard',(side*.44,-.53,.49),(.22,1.05,.065),steel)
+        for bar in range(5):box('Boot grip',(side*.44,-.85+bar*.15,.53),(.21,.035,.02),ink)
+        ellipse('Amber cushion',(side*.235,-1.03,.67),(.11,.29,.09),orange)
+        continue
     hip=(side*.18,-.65,.84);knee=(side*.30,-.18,.70);boot=(side*.38,-.29,.48)
     link('Trouser',hip,knee,.115,ink);link('Shin',knee,boot,.096,jacket)
     ellipse('Boot',boot,(.12,.20,.084),ink)
@@ -106,6 +120,10 @@ if '--player' not in sys.argv:
     ellipse('Goggles',(0,-.24,1.67),(.201,.10,.11),ink)
     ellipse('Goggle lens',(0,-.205,1.68),(.17,.088,.072),ice)
 box('Tail lamp',(0,-1.40,.54),(.28,.04,.065),orange)
+if '--player' in sys.argv:
+    hull('Black hood',[(.36,.35,.98,1.02),(.67,.38,.94,1.01),(1.13,.17,.76,.83)],ink)
+    hull('Tail apron',[(-1.46,.38,.46,.62),(-1.16,.44,.49,.69),(-.98,.38,.55,.68)],orange)
+    box('Rear reflector',(0,-1.46,.58),(.23,.018,.039),lamp)
 
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.join()
@@ -117,5 +135,7 @@ bpy.ops.mesh.select_all(action='SELECT')
 bpy.ops.mesh.normals_make_consistent(inside=False)
 bpy.ops.object.mode_set(mode='OBJECT')
 target=Path(__file__).resolve().parents[1]/'docs/models/forest-patrol.glb'
-if '--player' in sys.argv: target=target.with_name('player-sled.glb')
+if '--player' in sys.argv:
+    target=target.with_name('player-sled.glb')
+    bpy.ops.wm.save_as_mainfile(filepath=str(target.parents[1].parent/'art/golden-owl/player-sled.blend'),compress=True)
 bpy.ops.export_scene.gltf(filepath=str(target),export_format='GLB',export_animations=False)

@@ -7,6 +7,7 @@ export function motionTime(p,state,t){
  const airborne=p.air>0;
  if(state.wasAir&&!airborne)state.landed=t;
  state.wasAir=airborne;
+ if(airborne&&p.trick>0&&p.style!=null)return 6+p.style+clamp(p.trick,0,.999);
  if(airborne)return 3.25+.83*clamp((p.airT||0)/(p.airMax||1),0,.999);
  if(state.landed!=null&&t-state.landed<.77)return 4.08+Math.max(0,t-state.landed);
  if((p.rampH||0)>.025)return 2.7+.35*clamp(p.rampH/.4,0,1);

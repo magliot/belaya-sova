@@ -28,9 +28,10 @@ window.goldenCheck={
         for(const type of ['pointerdown','pointerup'])cv.dispatchEvent(new PointerEvent(type,{pointerId:1,clientX:170,clientY:540}));
         taps++;drag={};
       }
-      if(photo&&G.y>o.y-145){render(0);break;}
+      const poseShot=typeof photo==='number'&&G.p.trick>=.47&&G.p.trick<=.64&&G.p.style===photo-1;
+      if(poseShot||(photo===true&&G.y>o.y-145)){render(0);break;}
     }
-    return {hero,caught:!!o.dead,unlock:!!save.meet.prizeFeather,tricks:G.tricks,taps,d:o.y/20,boost};
+    return {hero,caught:!!o.dead,unlock:!!save.meet.prizeFeather,tricks:G.tricks,taps,d:o.y/20,earned:G.bonus,boost};
   },
   end(){gameOver();},
   drive(seconds,fps){
@@ -50,7 +51,7 @@ window.goldenCheck={
       update(1/60);phases.add(tubeLocation(G.y/20));
       if(i%60===0){syncWorld(1/60);shown||=G.tubing.model.visible&&!HEROMODELS[hero].root.visible;}
     }
-    return {phases:[...phases],shown,mode:G.mode,coins:G.coins,gates:G.gates,time:G.tubing.elapsed};
+    return {phases:[...phases],shown,mode:G.mode,coins:G.coins,gates:G.gates,score:score(),dist:Math.floor(G.y/20),time:G.tubing.elapsed};
   },
   pauseSeconds(){const before=G.t;for(let i=0;i<300;i++)update(1/30);return G.t-before;},
   aid(){const o={type:'aid',x:200,y:G.y+2};G.p.x=G.tx=200;drag={};addObj(o);update(1/60);return {model:!!collectibleModels.aid,collected:o.dead,rule:save.fis.includes(9)};}
@@ -84,11 +85,16 @@ async function run(){
   const miss=[];
   for(const [count,side] of [[0,0],[1,0],[2,35]]){const r=await page.evaluate(args=>goldenCheck.meet(...args),[count,30,side]);assert(!r.caught&&!r.unlock,JSON.stringify(r));miss.push(r);}
   await page.evaluate(()=>goldenCheck.meet(2,60,0,false,'owl',true));await page.screenshot({path:out+'/feather.png'});
+  for(const kind of ['bear','owl'])for(const style of [1,2]){
+    await page.evaluate(args=>goldenCheck.meet(...args),[2,60,0,false,kind,style]);
+    await page.screenshot({path:out+'/'+kind+'-trick-'+style+'.png'});
+  }
   const caught=[];
   for(const kind of ['owl','bear'])for(const fps of [30,60])for(const boosted of [false,true]){
     const r=await page.evaluate(args=>goldenCheck.meet(...args),[2,fps,0,boosted,kind]);
     assert(r.caught&&r.unlock&&r.tricks===2,JSON.stringify(r));caught.push(r);
   }
+  assert(caught.every(r=>r.earned>miss[0].earned),JSON.stringify({caught,miss}));
   await page.evaluate(()=>goldenCheck.end());await page.locator('#bSledResult').click();await page.waitForFunction(()=>goldenCheck.sledReady());
   await page.evaluate(()=>goldenCheck.drive(8,60));await page.screenshot({path:out+'/sled.png'});
   await page.locator('#bPause').click();assert(Math.abs(await page.evaluate(()=>goldenCheck.pauseSeconds()))<.00001);
@@ -117,6 +123,7 @@ async function run(){
   await page.waitForFunction(()=>!!__g().tubing);
   const tubing=await page.evaluate(()=>goldenCheck.tubeRun());
   assert(tubing.shown&&tubing.coins>0&&tubing.gates>0&&tubing.mode==='over'&&tubing.time===75,JSON.stringify(tubing));
+  assert(tubing.dist<=tubing.time*45+20&&tubing.score-tubing.dist<=tubing.dist*45+3000);
   assert.deepEqual(tubing.phases,[0,1,2]);await page.locator('#bAgain').click();
   assert(await page.evaluate(()=>!!__g().tubing));
   const legacy=await browser.newPage();
@@ -128,7 +135,7 @@ async function run(){
     await page.waitForFunction(d=>window.__g?.()?.mode==='pause'&&__g().y===d*20,d);
     await page.locator('[data-r="fold"]').click();await page.screenshot({path:out+'/'+ride+'-'+d+'.png'});
   }
-  assert.deepEqual(errors,[]);fs.writeFileSync(out+'/report.json',JSON.stringify({arms,heavy,aid,miss,caught,result,owl,slow,submissions,errors},null,2));
+  assert.deepEqual(errors,[]);fs.writeFileSync(out+'/report.json',JSON.stringify({arms,heavy,aid,miss,caught,result,owl,slow,tubing,submissions,errors},null,2));
   console.log('PASS menu, feather with two tricks, three misses, persistent sled unlock, both riders, pause, scoring and finish.');
  }finally{await browser.close();}
 }

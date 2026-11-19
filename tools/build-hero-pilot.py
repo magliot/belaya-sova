@@ -231,7 +231,7 @@ keys=[(0,.025,0,9,0,0),(.8,.027,0,9,0,0),(1.5,.051,.046,15,-.012,0),
       (3.98,.018,0,6,.005,.10),(4.08,.018,0,7,.012,0),
       (4.23,.085,0,24,.03,0),(4.48,.042,0,14,-.008,0),
       (4.85,.022,0,8,0,0),(5.3,.025,0,9,0,0),(6,.025,0,9,0,0)]
-FPS=30; END=181
+FPS=30; END=241
 def sample(t):
     for a,b in zip(keys,keys[1:]):
         if a[0]<=t<=b[0]:
@@ -241,6 +241,10 @@ audit=[]
 for frame in range(1,END+1):
     bpy.context.scene.frame_set(frame); t=(frame-1)/FPS
     comp,shift,lean,hand,air=sample(t)
+    style=0 if t<7 else 1
+    trick=math.sin(math.pi*(t%1))**2 if t>=6 else 0
+    if OWL:lean+=28*trick;comp+=.075*trick
+    else:lean+=8*trick;comp+=.022*trick
     if OWL and 4.08<t<4.60:comp+=.027*math.sin(math.pi*(t-4.08)/.52)**2
     if not OWL:
         shift*=.78
@@ -259,6 +263,9 @@ for frame in range(1,END+1):
     turn('Spine',(1,0,0),lean*.5); turn('Spine1',(1,0,0),lean*.3); turn('Spine2',(1,0,0),lean*.2)
     turn('Neck',(1,0,0),-lean*.35); turn('Head',(1,0,0),-lean*.35)
     turn('Spine2',(0,1,0),-shift*(90 if OWL else 55))
+    if trick:
+        if OWL:turn('Spine2',(0,1,0),(16 if style==0 else -16)*trick)
+        elif style==0:turn('Spine',(0,0,1),-21*trick)
     if OWL:
         turn('Spine2',(0,0,1),10);turn('Neck',(0,0,1),20);turn('Head',(0,0,1),35)
     bpy.context.view_layer.update()
@@ -268,6 +275,8 @@ for frame in range(1,END+1):
         # In the boarder's sideways stance the long axis of the board is local X.
         edge=math.radians(21)*shift/.046
         boarddelta=Matrix.Translation((0,0,.06*abs(math.sin(edge))))@boarddelta@Matrix.Rotation(edge,4,'X')
+        tuck=.19 if style==0 else .221
+        boarddelta=Matrix.Translation((0,0,tuck*trick))@Matrix.Rotation(math.radians((17 if style==0 else -2)*trick),4,'X')@boarddelta
     for side in ['Left','Right']:
         hip=rig.matrix_world@bone(side+'UpLeg').head
         ankle=rig.matrix_world@loc(side+'Foot')+Vector((0,0,air+.025+.025*flight))
@@ -286,6 +295,12 @@ for frame in range(1,END+1):
             lift=.047*abs(math.sin(edge))+.021*(math.cos(edge)-1)
             bank=Matrix.Translation(contact+Vector((0,0,lift)))@Matrix.Rotation(edge,4,'Y')@Matrix.Translation(-contact)
             footmatrix=bank@footmatrix
+            if trick:
+                angle=math.radians(trick*(27 if style==0 else sign*23))
+                pivot=Vector((0,0,.10)) if style==0 else hip
+                axis='Z' if style==0 else 'Y'
+                twist=Matrix.Translation(pivot)@Matrix.Rotation(angle,4,axis)@Matrix.Translation(-pivot)
+                footmatrix=twist@footmatrix
             ankle=footmatrix.translation.copy()
             knee=solve(hip,ankle,l1,l2,Vector((0,-1,0)))
             aim(side+'UpLeg',hip,knee);bpy.context.view_layer.update()
@@ -299,6 +314,14 @@ for frame in range(1,END+1):
         # an absolute, unreachable wrist target straightened one sleeve in a carve.
         wrist=upper+Vector((sign*(.064+.020*flight),-.115+hand*.35+sign*shift*.30,-.069+.021*flight+sign*shift*.22))
         if OWL:wrist=Vector((sign*(.345+.035*flight)+shift*.3,-.075+shift*.7,.505-comp*.6+air+.045*flight))
+        if OWL and trick:
+            grabbing=(side=='Right') if style==0 else (side=='Left')
+            if grabbing:
+                edge=Vector((sign*.10,-.066+(-.157 if style==0 else .157),.016))
+                wrist=wrist.lerp(boarddelta@edge,trick)
+            else:wrist+=Vector((sign*.08,0,.09))*trick
+        if not OWL and trick:
+            wrist+=Vector((sign*(.10 if style==1 else .025),sign*.09 if style==0 else 0,.11 if style==1 else .045))*trick
         l1=(loc(side+'ForeArm')-loc(side+'Arm')).length; l2=(loc(side+'Hand')-loc(side+'ForeArm')).length
         if not OWL:
             # The imported left and right forearms have different lengths. Matching

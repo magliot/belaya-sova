@@ -368,7 +368,7 @@ renderer.setPixelRatio(Math.min(1.5,window.devicePixelRatio||1));
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 const scene=new THREE.Scene();
-const camera=new THREE.PerspectiveCamera(70,1,0.1,500);
+const camera=new THREE.PerspectiveCamera(70,1,0.1,1250);
 const hemi=new THREE.HemisphereLight(0xe6f2ff,0x9fb3c8,1.2);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xffffff,2);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
 {const c=sun.shadow.camera;c.left=-16;c.right=16;c.top=16;c.bottom=-16;c.near=1;c.far=70;}sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.02;
@@ -691,12 +691,27 @@ const mountains=new THREE.Group();scene.add(mountains);
 // Снежная шапка лежит на поверхности горы: смещение глубины убирает мерцающую сетку.
 const mtMat=new THREE.MeshBasicMaterial({color:0xa9bfd6,fog:false}),mtSnow=new THREE.MeshBasicMaterial({color:0xf2f7ff,fog:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
 const valMat=new THREE.MeshBasicMaterial({color:0x6f8fa8,fog:false}),seaMat=new THREE.MeshBasicMaterial({color:0x5b86b8,fog:false});
-for(let i=0;i<14;i++){const side=i%2?1:-1;const r=rnd(50,100),h=rnd(50,110),x=side*rnd(90,260),z=-rnd(120,420);
-  const c=mk(sharedGeo.cone,mtMat,x,h/2,z,mountains,false);S3(c,r,h,r);const sn=mk(sharedGeo.cone,mtSnow,x,h-h*0.18,z,mountains,false);S3(sn,r*0.36,h*0.36,r*0.36);}
+// Continuous foothills leave a central opening down to the water.
+for(const [depth,height,offset] of [[-830,126,31],[-570,88,83],[-310,79,17]]){
+  const geo=new THREE.PlaneGeometry(1600,260,96,12);geo.rotateX(-Math.PI/2);
+  const position=geo.attributes.position,colors=[];
+  for(let i=0;i<position.count;i++){
+    const x=position.getX(i),z=position.getZ(i),ridge=Math.max(0,1-Math.abs(z/130));
+    const valley=depth===-830?.78:clamp((Math.abs(x)-85)/145,0,1);
+    const peak=.8+.22*Math.sin((x+offset)/39)+.14*Math.sin((x-offset)/17)+.045*Math.sin(x/7);
+    const h=height*peak*valley*ridge;
+    position.setY(i,h-3);const snow=clamp((h/height-.27)*2.1,0,1);
+    const light=.72+.23*snow+.06*Math.sin(x*.09+ridge*5);
+    colors.push(light,light+.025,Math.min(1,light+.066));
+  }
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+  const layer=new THREE.Mesh(geo,mtSnow);layer.position.z=depth;mountains.add(layer);
+}
+mtSnow.vertexColors=true;
 {const v=mk(new THREE.PlaneGeometry(1400,750),valMat,0,0,-240,mountains,false);v.rotation.x=-Math.PI/2;
  const sea=mk(new THREE.PlaneGeometry(1400,600),seaMat,0,-0.5,-700,mountains,false);sea.rotation.x=-Math.PI/2;
- const vf=new THREE.MeshBasicMaterial({color:0x3f5f58,fog:false});for(let i=0;i<60;i++){const t=mk(sharedGeo.cone,vf,rnd(-260,260),3,-rnd(190,460),mountains,false);S3(t,rnd(4,9),rnd(8,14),rnd(4,9));}
- const hm=new THREE.MeshBasicMaterial({color:0xd9c9b8,fog:false}),roof=new THREE.MeshBasicMaterial({color:0x8a4b3a,fog:false});
+ const vf=new THREE.MeshBasicMaterial({color:0x84999c,fog:false});for(let i=0;i<60;i++){const t=mk(sharedGeo.cone,vf,rnd(-260,260),3,-rnd(190,460),mountains,false);S3(t,rnd(4,9),rnd(8,14),rnd(4,9));}
+ const hm=new THREE.MeshBasicMaterial({color:0xd9c9b8,fog:false}),roof=new THREE.MeshBasicMaterial({color:0xb08977,fog:false});
  for(let i=0;i<70;i++){const x=rnd(-140,140),z=-rnd(400,480),w=rnd(3,6),h=rnd(3,7);S3(mk(sharedGeo.box,hm,x,h/2,z,mountains,false),w,h,w);const r=mk(sharedGeo.cone,roof,x,h+1,z,mountains,false);S3(r,w*0.8,2,w*0.8);r.rotation.y=Math.PI/4;}}
 
 // лес по краям (переиспользуется)
@@ -1045,7 +1060,15 @@ function music(k){musWant=k;if(!AC||save.muted)return;if(musKey===k&&musSrc)retu
   const b=k&&VOX['music_'+k];if(!b||b==='loading')return;const s=AC.createBufferSource();s.buffer=b;s.loop=true;const g=AC.createGain();g.gain.value=0;g.gain.setTargetAtTime(1,t,0.5);s._g=g;s.connect(g).connect(musBus);s.start();musSrc=s;musKey=k;}
 // ратрак: мотор нарастает с приближением, при проезде рядом — гудок
 function catAudio(){if(!AC||!engG)return;let best=null,bd=1e9;for(const o of G.objs){if(o.dead||o.type!=='cat')continue;const d=Math.hypot((G.p.x-o.x)*1.6,G.y-o.y);if(d<bd){bd=d;best=o;}}
-  const t=AC.currentTime;const k=best?Math.max(0,1-bd/900):0;engG.gain.setTargetAtTime(save.muted?0:0.22*k*k,t,0.12);
+  const t=AC.currentTime;
+  if(G.sled){
+    const pulse=.78+.22*Math.sin(G.t*24);
+    engG.gain.setTargetAtTime(save.muted?0:.077*pulse,t,.028);
+    engP?.pan.setTargetAtTime(0,t,.14);
+    engO.forEach((o,i)=>o.frequency.setTargetAtTime((i?57:38)*(.83+G.speed/850),t,.09));
+    return;
+  }
+  const k=best?Math.max(0,1-bd/900):0;engG.gain.setTargetAtTime(save.muted?0:0.22*k*k,t,0.12);
   if(best){if(engP)engP.pan.setTargetAtTime(clamp((best.x-G.p.x)/160,-0.9,0.9),t,0.1);const rate=1+k*0.25;engO.forEach((o,i)=>o.frequency.setTargetAtTime((i?69:46)*rate,t,0.2));
     // гудок: встречный — заранее, попутный — когда обгоняешь
     if(!best.honk&&((best.vy<0&&best.y>G.y&&best.y-G.y<420)||(Math.abs(best.y-G.y)<90&&Math.abs(best.x-G.p.x)<170))){best.honk=1;SFX.horn();}}}
@@ -1066,7 +1089,7 @@ const tmpC=new THREE.Color();
 function updEnv(dt,zi){const z=ZONES[zi],k=Math.min(1,dt*0.9);
   env.sky.lerp(tmpC.set(z.sky),k);env.fog.lerp(tmpC.set(z.fog),k);env.sunCol.lerp(tmpC.set(z.sunCol),k);env.mt.lerp(tmpC.set(z.mt),k);
   for(const p of['near','far','hemi','sun','glow','head','snow'])env[p]=lerp(env[p],z[p],k);
-  scene.background.copy(env.sky);scene.fog.color.copy(env.fog);scene.fog.near=env.near;scene.fog.far=env.far;hemi.intensity=env.hemi;sun.intensity=env.sun;sun.color.copy(env.sunCol);mtMat.color.copy(env.mt);valMat.color.copy(env.mt).multiplyScalar(0.72);seaMat.color.copy(env.mt).lerp(tmpC.set(0x2f5f9a),zi===2?0:0.55).multiplyScalar(zi===3||zi===4?0.6:1);auroraMat.opacity=lerp(auroraMat.opacity,zi===3?0.55:zi===4?0.2:0,k);
+  scene.background.copy(env.sky);scene.fog.color.copy(env.fog);scene.fog.near=env.near;scene.fog.far=env.far;hemi.intensity=env.hemi;sun.intensity=env.sun;sun.color.copy(env.sunCol);mtMat.color.copy(env.mt);valMat.color.copy(env.mt).lerp(env.fog,.57);seaMat.color.copy(env.mt).lerp(tmpC.set(0x2f5f9a),zi===2?0:0.55).multiplyScalar(zi===3||zi===4?0.6:1);auroraMat.opacity=lerp(auroraMat.opacity,zi===3?0.55:zi===4?0.2:0,k);
   mtSnow.color.copy(env.mt).lerp(tmpC.set(0xf2f7ff),zi===3||zi===4?0.035:zi===2?0.45:0.85);
   glowMat.opacity=env.glow;headlamp.intensity=env.head;bulbMat.color.setRGB(1,0.94,0.7+0.3*(1-env.glow));
   snowGeo.setDrawRange(0,Math.floor(SNOWN*env.snow));}
@@ -1528,6 +1551,7 @@ function tryTrick(idx){const p=G.p;if(p.air>0&&p.trick<=0){const left=p.airMax-p
   let tt;if(idx!=null&&fits(idx))tt=idx;else if(idx!=null){const alt=[0,3,5].filter(fits);tt=alt.length?alt[Math.floor(Math.random()*alt.length)]:null;}
   else{const ok=TRICKS.map((t,i)=>i).filter(i=>fits(i)&&i!==p.lastT);tt=ok.length?ok[Math.floor(Math.random()*ok.length)]:null;}
   if(tt==null){addText(p.x,G.y,'Не успеешь!','#c0392b',15);return;}p.tt=tt;p.lastT=tt;p.trick=0.0001;
+  p.style=tt===5?p.spin%2:null;
   if(p.parkFlight?.trickLine)p.parkFlight.trickAt??=G.y;
   SFX.trick();}}
 
@@ -1911,7 +1935,7 @@ function syncWorld(dt){
     hm.root.rotation.set(0,menuYaw+spin+(dn?0:Math.sin(G.t*0.4)*0.12),0);}else{const mSl=p.air>0||p.hop>0?0:(mogAt(p.x,G.y+5)-mogAt(p.x,G.y-5))/(10*U);const tg=(coursePitch(px,pz)-Math.atan(mSl))*(p.air>0?0.3:1);G.tilt=p.surfaceSlope&&!p.air?Math.atan(Math.tan(coursePitch(px,pz))-p.surfaceSlope):lerp(G.tilt==null?tg:G.tilt,tg,Math.min(1,dt*5));const crossMog=hero==='bear'&&!p.air&&!p.hop?(mogAt(p.x+4,G.y)-mogAt(p.x-4,G.y))/(8*U):0;
     hm.root.rotation.set(-G.tilt,courseHeading(pz),Math.atan(courseCrossSlope(px,pz)+crossMog),'YXZ');
     hm.root.rotateY(-p.ang*.45);if(hero==='owl')hm.root.rotateZ(-p.ang*.32);}hm.slopeTilt=G.mode==='menu'||p.surfaceSlope?0:(G.tilt||0)*0.55;
-  {const tr=p.trick>0?TRICKS[p.tt||0].f(p.trick):[0,0,0];const fp=G.mode==='play'?fallPose(p):null;
+  {const tr=p.trick>0&&p.style==null?TRICKS[p.tt||0].f(p.trick):[0,0,0];const fp=G.mode==='play'?fallPose(p):null;
    hm.pivot.rotation.set((G.mode==='crash'?p.tumble:0)+tr[0]+(fp?fp.rx:0),tr[1],tr[2]+(p.wob>0?Math.sin(G.t*16)*0.07:0)+(fp?fp.rz:0));
    const cy=0.6;pivC.set(0,cy,0).applyEuler(hm.pivot.rotation);hm.pivot.position.set(-pivC.x,cy-pivC.y+(fp?fp.dy:0),-pivC.z);}
   if(hm.glb){if(G.waveT>0)G.waveT=Math.max(0,G.waveT-dt);hm.root.visible=!(p.inv>0&&!p.boost&&!(p.fall>0)&&Math.floor(G.t*14)%2);poseGlb(hm,p,G.mode,G.t);}
@@ -1933,7 +1957,8 @@ function syncWorld(dt){
   }
   // свет
   coursePoint(sun.position,px+6,gy+16,pz+4);courseGround(sun.target.position,px,pz-6);
-  coursePoint(headlamp.position,px,gy+2.6+p.alt*2.3,pz+0.5);courseGround(headlamp.target.position,px+p.ang*3,pz-14);
+  if(G.sled)headlamp.intensity=18+92*clamp((Math.cos(G.y/20/53)-.18)*2.5,0,1);
+  coursePoint(headlamp.position,px,gy+(G.sled?.85:2.6)+p.alt*2.3,pz+(G.sled?-1:.5));courseGround(headlamp.target.position,px+p.ang*3,pz-14);
   // снег вокруг камеры
   const sp=snowGeo.attributes.position.array;const fall=env.snow>0.6?3.5:1.2;
   for(let i=0;i<SNOWN;i++){let y=sp[i*3+1]-fall*dt*(0.6+(i%7)*0.1);let x=sp[i*3]+(G.wind*0.06+Math.sin(G.t+i)*0.3)*dt;let z=sp[i*3+2];
@@ -2212,7 +2237,7 @@ function reviewContact(){
 function reviewSeek(d){if(!trackReady||HEROMODELS[hero].motionStatus!=='ready'||(reviewRide==='sled'&&!playerSled.children.length))return waitForAssets(()=>Promise.all([loadTrackAssets(),reviewRide==='sled'?loadPlayerSled():null]),()=>reviewSeek(d));d=clamp(Number(d)||0,0,reviewRide?1161:19999);const playing=G?.mode==='play';clearWorld();hideToast();G=newGame(playing?'play':'pause');
  G.seed=reviewSeed;useCourse(reviewRide==='sled'?null:reviewSeed);G.y=G.prevY=d*20;G.stage=G.lastSpawnStage=stageAt(d);G.nextY=Math.max(G.stage*STAGE_LEN*20,G.y-500);G.nextChaseD=Infinity;G.p.x=G.tx=reviewX;G.p.travelHeading=courseHeading(-d);
  const st=stageDef(G.stage),span=G.stage===0?ROW:st.forest?1000:st.park?1500:st.moguls?2340:0,start=G.stage*STAGE_LEN*20;
- if(reviewRide){initBonus(reviewRide);G.bonusRide.elapsed=(Math.sqrt(270**2+2*(80/75)*G.y)-270)/(80/75);G.t=G.bonusRide.elapsed;const row=reviewRide==='sled'?620:660;G.nextY=Math.max(0,Math.floor(G.y/row)-1)*row;G.bonusRide.rows=G.nextY/row;}
+ if(reviewRide){initBonus(reviewRide);G.bonusRide.elapsed=(Math.sqrt(270**2+2*(80/75)*G.y)-270)/(80/75);G.t=G.bonusRide.elapsed;G.speed=270+80*G.t/75;const row=reviewRide==='sled'?620:660;G.nextY=Math.max(0,Math.floor(G.y/row)-1)*row;G.bonusRide.rows=G.nextY/row;}
  else if(span)G.nextY=start+Math.max(0,Math.floor((G.y-start)/span)-1)*span;
  G.camX=X(reviewX);G.camY=courseHeight(d-6.4)+2.3;lastTrackZ=Z(G.y);
  for(const t of forest)t.userData.z-=d;for(const l of lamps)l.userData.z-=d;for(const t of towers)t.userData.z-=d;

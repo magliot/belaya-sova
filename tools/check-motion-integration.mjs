@@ -101,11 +101,48 @@ for(const kind of ['bear','owl'])for(const fps of [30,60]){
  assert(maxContactError<.012,`${kind}: foot/binding drift ${maxContactError}`);
  assert(maxGripError<.012,`${kind}: grip drift ${maxGripError}`);
  assert(maxScaleError<1e-5);
+ const tricks=[];
+ for(const style of [0,1]){
+  m.active=false;m.state={};m.lastT=null;
+  poseHeroMotion(h,{air:1,airT:.5,airMax:1,trick:.5,tt:5,style},'play',20+style);
+  m.model.updateWorldMatrix(true,true);
+  const errors=feet.map((f,i)=>relative(f,bindings[i]).distanceTo(baseContacts[i]));
+  assert(Math.max(...errors)<.012,JSON.stringify({kind,style,errors}));
+  if(kind==='bear'){
+   for(let i=0;i<2;i++)assert(relative(poles[i],hands[i]).distanceTo(baseGrips[i])<.001);
+   tricks.push({style,footGap:Math.max(...errors),stance:point(feet[0]).distanceTo(point(feet[1]))});
+  }else{
+   const wrist=hands[style===0?1:0],local=m.contact.deck.worldToLocal(point(wrist));
+   const deck=m.contact.deck,sign=style===0?1:-1,faces=[];
+   deck.traverse(mesh=>{
+    if(!mesh.isMesh)return;
+    const geo=mesh.geometry,idx=geo.index,position=geo.attributes.position;
+    const vertex=i=>deck.worldToLocal(mesh.localToWorld(new THREE.Vector3().fromBufferAttribute(position,idx?idx.getX(i):i)));
+    for(let i=0;i<(idx?.count??position.count);i+=3){
+     const tri=new THREE.Triangle(vertex(i),vertex(i+1),vertex(i+2));
+     if([tri.a,tri.b,tri.c].every(v=>v.z*sign>.11&&Math.abs(v.x)<.38))faces.push(tri);
+    }
+   });
+   let edgeGap=Infinity;const v=new THREE.Vector3(),nearest=new THREE.Vector3();
+   m.model.traverse(mesh=>{
+    if(!mesh.isSkinnedMesh)return;
+    mesh.skeleton.update();const hand=mesh.skeleton.bones.indexOf(wrist);
+    const {skinIndex,skinWeight}=mesh.geometry.attributes;
+    for(let i=0;i<skinIndex.count;i++){
+     if(!['getX','getY','getZ','getW'].some(get=>skinIndex[get](i)===hand&&skinWeight[get](i)>.35))continue;
+     deck.worldToLocal(mesh.localToWorld(mesh.getVertexPosition(i,v)));
+     for(const face of faces)edgeGap=Math.min(edgeGap,v.distanceTo(face.closestPointToPoint(v,nearest)));
+    }
+   });
+   tricks.push({style,footGap:Math.max(...errors),edgeGap,wrist:local.toArray()});
+   assert(edgeGap<.022,JSON.stringify(tricks));
+  }
+ }
  assert.equal(poseHeroMotion(h,{},'menu',8),false);assert(original.visible);assert(!m.model.visible);
  assert.equal(poseHeroMotion(h,{air:0},'play',0),true);assert(!original.visible);assert(m.model.visible);
  assert.equal(poseHeroMotion(h,{fall:1},'play',.1),false);assert(original.visible);
  assert.equal(poseHeroMotion(h,{},'crash',.2),false);
- results.push({kind,fps,maxContactError,maxGripError,localFootHeightRange:maxY-minY,maxScaleError});
+ results.push({kind,fps,maxContactError,maxGripError,localFootHeightRange:maxY-minY,maxScaleError,tricks});
 }
 fs.mkdirSync('art/animation-integration',{recursive:true});
 fs.writeFileSync('art/animation-integration/runtime-check.json',JSON.stringify({engine:THREE.REVISION,results},null,2));

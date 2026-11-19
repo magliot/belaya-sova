@@ -190,7 +190,7 @@
     },
     {
       "frame": 32,
-      "foot_target_error": 2.3853496601554932e-08,
+      "foot_target_error": 1.862645149230957e-08,
       "height": 0,
       "compression": 0.03322222222222222
     },
@@ -220,7 +220,7 @@
     },
     {
       "frame": 37,
-      "foot_target_error": 2.1073424255447017e-08,
+      "foot_target_error": 1.0536712127723509e-08,
       "height": 0,
       "compression": 0.0415539358600583
     },
@@ -328,7 +328,7 @@
     },
     {
       "frame": 55,
-      "foot_target_error": 2.8125324976707808e-08,
+      "foot_target_error": 2.3853496601554932e-08,
       "height": 0,
       "compression": 0.051
     },
@@ -376,13 +376,13 @@
     },
     {
       "frame": 63,
-      "foot_target_error": 1.8445125148015432e-08,
+      "foot_target_error": 1.78901224511662e-08,
       "height": 0,
       "compression": 0.051
     },
     {
       "frame": 64,
-      "foot_target_error": 2.7008354663848877e-08,
+      "foot_target_error": 3.140366692112268e-08,
       "height": 0,
       "compression": 0.051
     },
@@ -418,7 +418,7 @@
     },
     {
       "frame": 70,
-      "foot_target_error": 1.7071424778386354e-08,
+      "foot_target_error": 7.87848807670578e-09,
       "height": 0,
       "compression": 0.046253193087903835
     },
@@ -460,7 +460,7 @@
     },
     {
       "frame": 77,
-      "foot_target_error": 2.1073424255447017e-08,
+      "foot_target_error": 1.666000468656264e-08,
       "height": 0,
       "compression": 0.030715557781673498
     },
@@ -478,13 +478,13 @@
     },
     {
       "frame": 80,
-      "foot_target_error": 1.666000468656264e-08,
+      "foot_target_error": 1.4901161193847656e-08,
       "height": 0,
       "compression": 0.026053399003812233
     },
     {
       "frame": 81,
-      "foot_target_error": 2.1073424255447017e-08,
+      "foot_target_error": 1.666000468656264e-08,
       "height": 0,
       "compression": 0.02527492556418177
     },
@@ -526,7 +526,7 @@
     },
     {
       "frame": 88,
-      "foot_target_error": 1.862645149230957e-08,
+      "foot_target_error": 1.3431725187092979e-08,
       "height": 0,
       "compression": 0.04925655976676384
     },
@@ -556,7 +556,7 @@
     },
     {
       "frame": 93,
-      "foot_target_error": 2.1073424255447017e-08,
+      "foot_target_error": 1.666000468656264e-08,
       "height": 0,
       "compression": 0.0638981481481481
     },
@@ -568,7 +568,7 @@
     },
     {
       "frame": 95,
-      "foot_target_error": 7.450580596923828e-09,
+      "foot_target_error": 2.7877519926234643e-08,
       "height": 0,
       "compression": 0.04393518518518516
     },
@@ -628,7 +628,7 @@
     },
     {
       "frame": 105,
-      "foot_target_error": 1.5359765386647212e-08,
+      "foot_target_error": 3.3527612686157227e-08,
       "height": 0.21604812825599595,
       "compression": 0.04325066666666668
     },
@@ -748,7 +748,7 @@
     },
     {
       "frame": 125,
-      "foot_target_error": 2.006130221163669e-08,
+      "foot_target_error": 2.2351741790771484e-08,
       "height": 0,
       "compression": 0.04009469416181696
     },
@@ -760,7 +760,7 @@
     },
     {
       "frame": 127,
-      "foot_target_error": 1.666000468656264e-08,
+      "foot_target_error": 1.862645149230957e-08,
       "height": 0,
       "compression": 0.08990475481655309
     },
@@ -790,7 +790,7 @@
     },
     {
       "frame": 132,
-      "foot_target_error": 2.1073424255447017e-08,
+      "foot_target_error": 1.4901161193847656e-08,
       "height": 0,
       "compression": 0.08680398211443485
     },
@@ -1084,6 +1084,366 @@
     },
     {
       "frame": 181,
+      "foot_target_error": 2.2351741790771484e-08,
+      "height": 0,
+      "compression": 0.025
+    },
+    {
+      "frame": 182,
+      "foot_target_error": 2.499000702984396e-08,
+      "height": 0,
+      "compression": 0.025819464972482283
+    },
+    {
+      "frame": 183,
+      "foot_target_error": 2.3853496601554932e-08,
+      "height": 0,
+      "compression": 0.028242045338402445
+    },
+    {
+      "frame": 184,
+      "foot_target_error": 2.006130221163669e-08,
+      "height": 0,
+      "compression": 0.032161862710939425
+    },
+    {
+      "frame": 185,
+      "foot_target_error": 2.006130221163669e-08,
+      "height": 0,
+      "compression": 0.03740760226154289
+    },
+    {
+      "frame": 186,
+      "foot_target_error": 2.1400163496054816e-08,
+      "height": 0,
+      "compression": 0.04375000000000006
+    },
+    {
+      "frame": 187,
+      "foot_target_error": 3.0719530773294423e-08,
+      "height": 0,
+      "compression": 0.05091186271093952
+    },
+    {
+      "frame": 188,
+      "foot_target_error": 1.666000468656264e-08,
+      "height": 0,
+      "compression": 0.05858018262746301
+    },
+    {
+      "frame": 189,
+      "foot_target_error": 4.344397704933063e-08,
+      "height": 0,
+      "compression": 0.066419817372537
+    },
+    {
+      "frame": 190,
+      "foot_target_error": 1.666000468656264e-08,
+      "height": 0,
+      "compression": 0.0740881372890605
+    },
+    {
+      "frame": 191,
+      "foot_target_error": 3.0719530773294423e-08,
+      "height": 0,
+      "compression": 0.08124999999999993
+    },
+    {
+      "frame": 192,
+      "foot_target_error": 3.414284955677271e-08,
+      "height": 0,
+      "compression": 0.08759239773845709
+    },
+    {
+      "frame": 193,
+      "foot_target_error": 3.0719530773294423e-08,
+      "height": 0,
+      "compression": 0.09283813728906057
+    },
+    {
+      "frame": 194,
+      "foot_target_error": 1.666000468656264e-08,
+      "height": 0,
+      "compression": 0.09675795466159756
+    },
+    {
+      "frame": 195,
+      "foot_target_error": 3.161013638317052e-08,
+      "height": 0,
+      "compression": 0.09918053502751772
+    },
+    {
+      "frame": 196,
+      "foot_target_error": 3.0719530773294423e-08,
+      "height": 0,
+      "compression": 0.1
+    },
+    {
+      "frame": 197,
+      "foot_target_error": 3.161013638317052e-08,
+      "height": 0,
+      "compression": 0.09918053502751772
+    },
+    {
+      "frame": 198,
+      "foot_target_error": 1.666000468656264e-08,
+      "height": 0,
+      "compression": 0.09675795466159756
+    },
+    {
+      "frame": 199,
+      "foot_target_error": 3.0719530773294423e-08,
+      "height": 0,
+      "compression": 0.0928381372890606
+    },
+    {
+      "frame": 200,
+      "foot_target_error": 3.414284955677271e-08,
+      "height": 0,
+      "compression": 0.08759239773845712
+    },
+    {
+      "frame": 201,
+      "foot_target_error": 3.0719530773294423e-08,
+      "height": 0,
+      "compression": 0.08124999999999995
+    },
+    {
+      "frame": 202,
+      "foot_target_error": 1.666000468656264e-08,
+      "height": 0,
+      "compression": 0.0740881372890605
+    },
+    {
+      "frame": 203,
+      "foot_target_error": 4.344397704933063e-08,
+      "height": 0,
+      "compression": 0.06641981737253701
+    },
+    {
+      "frame": 204,
+      "foot_target_error": 1.666000468656264e-08,
+      "height": 0,
+      "compression": 0.05858018262746301
+    },
+    {
+      "frame": 205,
+      "foot_target_error": 3.0719530773294423e-08,
+      "height": 0,
+      "compression": 0.05091186271093952
+    },
+    {
+      "frame": 206,
+      "foot_target_error": 2.1400163496054816e-08,
+      "height": 0,
+      "compression": 0.04375000000000006
+    },
+    {
+      "frame": 207,
+      "foot_target_error": 2.006130221163669e-08,
+      "height": 0,
+      "compression": 0.03740760226154291
+    },
+    {
+      "frame": 208,
+      "foot_target_error": 2.006130221163669e-08,
+      "height": 0,
+      "compression": 0.03216186271093942
+    },
+    {
+      "frame": 209,
+      "foot_target_error": 2.3853496601554932e-08,
+      "height": 0,
+      "compression": 0.028242045338402452
+    },
+    {
+      "frame": 210,
+      "foot_target_error": 2.499000702984396e-08,
+      "height": 0,
+      "compression": 0.025819464972482286
+    },
+    {
+      "frame": 211,
+      "foot_target_error": 2.2351741790771484e-08,
+      "height": 0,
+      "compression": 0.025
+    },
+    {
+      "frame": 212,
+      "foot_target_error": 2.3853496601554932e-08,
+      "height": 0,
+      "compression": 0.025819464972482283
+    },
+    {
+      "frame": 213,
+      "foot_target_error": 7.450580596923828e-09,
+      "height": 0,
+      "compression": 0.028242045338402445
+    },
+    {
+      "frame": 214,
+      "foot_target_error": 1.7071424778386354e-08,
+      "height": 0,
+      "compression": 0.032161862710939425
+    },
+    {
+      "frame": 215,
+      "foot_target_error": 1.666000468656264e-08,
+      "height": 0,
+      "compression": 0.03740760226154289
+    },
+    {
+      "frame": 216,
+      "foot_target_error": 2.1073424255447017e-08,
+      "height": 0,
+      "compression": 0.04375000000000006
+    },
+    {
+      "frame": 217,
+      "foot_target_error": 2.006130221163669e-08,
+      "height": 0,
+      "compression": 0.05091186271093952
+    },
+    {
+      "frame": 218,
+      "foot_target_error": 3.094458528950093e-08,
+      "height": 0,
+      "compression": 0.05858018262746301
+    },
+    {
+      "frame": 219,
+      "foot_target_error": 4.029517556127894e-08,
+      "height": 0,
+      "compression": 0.066419817372537
+    },
+    {
+      "frame": 220,
+      "foot_target_error": 3.650024149988857e-08,
+      "height": 0,
+      "compression": 0.0740881372890605
+    },
+    {
+      "frame": 221,
+      "foot_target_error": 3.817286627724617e-08,
+      "height": 0,
+      "compression": 0.08124999999999993
+    },
+    {
+      "frame": 222,
+      "foot_target_error": 1.666000468656264e-08,
+      "height": 0,
+      "compression": 0.08759239773845709
+    },
+    {
+      "frame": 223,
+      "foot_target_error": 2.2351741790771484e-08,
+      "height": 0,
+      "compression": 0.09283813728906057
+    },
+    {
+      "frame": 224,
+      "foot_target_error": 7.11715712194994e-08,
+      "height": 0,
+      "compression": 0.09675795466159756
+    },
+    {
+      "frame": 225,
+      "foot_target_error": 2.3039648079970816e-08,
+      "height": 0,
+      "compression": 0.09918053502751772
+    },
+    {
+      "frame": 226,
+      "foot_target_error": 3.414284955677271e-08,
+      "height": 0,
+      "compression": 0.1
+    },
+    {
+      "frame": 227,
+      "foot_target_error": 2.3039648079970816e-08,
+      "height": 0,
+      "compression": 0.09918053502751772
+    },
+    {
+      "frame": 228,
+      "foot_target_error": 7.11715712194994e-08,
+      "height": 0,
+      "compression": 0.09675795466159756
+    },
+    {
+      "frame": 229,
+      "foot_target_error": 2.2351741790771484e-08,
+      "height": 0,
+      "compression": 0.0928381372890606
+    },
+    {
+      "frame": 230,
+      "foot_target_error": 1.666000468656264e-08,
+      "height": 0,
+      "compression": 0.08759239773845712
+    },
+    {
+      "frame": 231,
+      "foot_target_error": 3.817286627724617e-08,
+      "height": 0,
+      "compression": 0.08124999999999995
+    },
+    {
+      "frame": 232,
+      "foot_target_error": 3.650024149988857e-08,
+      "height": 0,
+      "compression": 0.0740881372890605
+    },
+    {
+      "frame": 233,
+      "foot_target_error": 4.029517556127894e-08,
+      "height": 0,
+      "compression": 0.06641981737253701
+    },
+    {
+      "frame": 234,
+      "foot_target_error": 3.094458528950093e-08,
+      "height": 0,
+      "compression": 0.05858018262746301
+    },
+    {
+      "frame": 235,
+      "foot_target_error": 2.006130221163669e-08,
+      "height": 0,
+      "compression": 0.05091186271093952
+    },
+    {
+      "frame": 236,
+      "foot_target_error": 2.1073424255447017e-08,
+      "height": 0,
+      "compression": 0.04375000000000006
+    },
+    {
+      "frame": 237,
+      "foot_target_error": 1.666000468656264e-08,
+      "height": 0,
+      "compression": 0.03740760226154291
+    },
+    {
+      "frame": 238,
+      "foot_target_error": 1.7071424778386354e-08,
+      "height": 0,
+      "compression": 0.03216186271093942
+    },
+    {
+      "frame": 239,
+      "foot_target_error": 7.450580596923828e-09,
+      "height": 0,
+      "compression": 0.028242045338402452
+    },
+    {
+      "frame": 240,
+      "foot_target_error": 2.3853496601554932e-08,
+      "height": 0,
+      "compression": 0.025819464972482286
+    },
+    {
+      "frame": 241,
       "foot_target_error": 2.2351741790771484e-08,
       "height": 0,
       "compression": 0.025
