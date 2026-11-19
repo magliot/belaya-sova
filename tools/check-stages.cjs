@@ -131,7 +131,7 @@ window.__stageTest={
  rail(kind,fps){clearWorld();hero=kind;save.missions=[];G=newGame('play');G.y=G.prevY=7600*20;G.stage=G.lastSpawnStage=3;G.nextY=G.nextChaseD=Infinity;drag={};
   addObj({type:'rail',x:200,y:G.y+200,w:46,len:200,hh:.65});let height=0;
   for(let i=0;i<3*fps&&G.mode==='play';i++){G.tx=200;update(1/fps);height=Math.max(height,G.p.rampH);}render(0);return {kind,fps,mode:G.mode,height,grinds:G.grinds||0};},
- helmetAlpha(n){G.p.lives=n;render(0);const a=hx.getImageData(W-110,10+SAFE_TOP+48,100,42).data;let sum=0;for(let i=3;i<a.length;i+=4)sum+=a[i];return sum;}
+ helmetAlpha(n){G.p.lives=n;render(0);const w=Math.min(156,W*.42),k=w/302;const a=hx.getImageData((W-w)/2+28*k,10+SAFE_TOP+140*k,139*k,44*k).data;let sum=0;for(let i=0;i<a.length;i+=4)if(a[i+1]<145)sum++;return sum;}
 };
 `;
 const at=html.lastIndexOf('</script>');html=html.slice(0,at)+debug+html.slice(at);

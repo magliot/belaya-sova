@@ -4,7 +4,7 @@ const out=path.resolve('asset-checks');fs.mkdirSync(out,{recursive:true});
 const debug=`
 loadHero('bear');loadHero('owl');loadTrackAssets();
 window.__assetTest={
-  ready:()=>Object.keys(WINTER).length===8&&collectibleModels.aid&&HEROMODELS.bear.glb&&HEROMODELS.owl.glb,
+  ready:()=>trackReady&&Object.keys(WINTER).length===8&&collectibleModels.aid&&HEROMODELS.bear.glb&&HEROMODELS.owl.glb,
   check(){
     this.previewActors={};
     const caps={rock_wide:2000,rock_tall:2000,snowman:4500,dog:6000,snow_cannon:5000,gift:2000,magnet:1500,yeti:6000};

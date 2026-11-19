@@ -20,9 +20,9 @@ export function mountCourseReview(api){
  el('x').value=api.state().lane;
  api.stages.forEach((name,i)=>el('stage').add(new Option((i+1)+' · '+name,String(i))));
  if(api.ride){
-  el('distance').max=el('seek').max=1161;
+  el('distance').max=el('seek').max=api.ride==='sprint'?1199:1161;
   el('stage').hidden=el('effect').hidden=true;
-  box.querySelector('header strong').textContent=(api.ride==='sled'?'Снегоход':'Плюшки')+' · осмотр';
+  box.querySelector('header strong').textContent=(api.ride==='sprint'?'Короткий спуск':api.ride==='sled'?'Снегоход':'Плюшки')+' · осмотр';
  }
  el('stage').onchange=()=>api.seek(+el('stage').value*2500+10);
  for(const id of ['seek','distance'])el(id).onchange=()=>api.seek(+el(id).value);

@@ -78,7 +78,7 @@ async function run(){
   await page.goto('http://127.0.0.1:8766/test-gold.html');await page.waitForFunction(()=>goldenCheck.heroReady());
   await page.evaluate(()=>window.stopFrames=true);
   const heavy=requests.filter(r=>/models\/(?:owl-menu|studies|npc|trees|props|winter|sounds)/.test(r));
-  assert.deepEqual(heavy,[]);assert(!(await page.locator('#bSled').isVisible()));
+  assert.deepEqual(heavy,[]);assert(await page.locator('#bSled').isDisabled());
   const arms=[];for(const t of [.02,.2,.55,.9,1.35,1.58])arms.push(await page.evaluate(t=>goldenCheck.menu(t),t));
   await page.evaluate(()=>goldenCheck.menu(.6));await page.screenshot({path:out+'/wave.png'});
   assert(arms.every(({hand,center,held})=>held&&Math.abs(hand[0]-center[0])>.18),'Both poles must stay in the raised and resting gloves, clear of the jacket');
@@ -131,7 +131,7 @@ async function run(){
   const legacy=await browser.newPage();
   await legacy.addInitScript(()=>localStorage.setItem('bsova_meet',JSON.stringify({goldenOwl:true})));
   await legacy.goto('http://127.0.0.1:8766/');await legacy.locator('#bSled').waitFor();
-  assert(!(await legacy.locator('#bTube').isVisible()));await legacy.close();
+  assert(await legacy.locator('#bTube').isDisabled());await legacy.close();
   for(const [ride,d] of [['tubing',100],['tubing',490],['tubing',985],['sled',420]]){
     await page.goto('http://127.0.0.1:8766/?preview=course&ride='+ride+'&seed=1911&at='+d);
     await page.waitForFunction(d=>window.__g?.()?.mode==='pause'&&__g().y===d*20,d);

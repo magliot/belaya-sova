@@ -79,7 +79,10 @@ hull('Rear track',[(-1.42,.31,.17,.43),(-1.23,.34,.065,.53),(-.05,.34,.065,.51),
 for i in range(8):
     box('Track tread',(0,-1.24+i*.155,.09),(.72,.048,.055),steel)
 hull('Deck',[(-1.45,.43,.43,.51),(-.95,.52,.42,.61),(.52,.54,.40,.67),(.94,.32,.48,.65)],ink)
-hull('Cowling',[(-.16,.43,.51,.78),(.24,.56,.50,.98),(.76,.51,.48,.90),(1.18,.25,.52,.73)],orange)
+patrol='--player' not in sys.argv
+rescue=paint('Turquoise rescue panel',(.015,.54,.54))
+cherry=paint('Patrol coral',(.84,.028,.027))
+hull('Cowling',[(-.16,.43,.51,.78),(.24,.56,.50,.98),(.76,.51,.48,.90),(1.18,.25,.52,.73)],ivory if patrol else orange)
 hull('Saddle',[(-1.22,.30,.52,.67),(-.9,.34,.55,.84),(-.18,.26,.60,.91),(.03,.22,.62,.80)],ink)
 hull('Windscreen',[(.30,.39,.97,1.30),(.44,.43,.90,1.26),(.72,.35,.89,1.04)],ice)
 for side in (-1,1):
@@ -112,8 +115,13 @@ for side in (-1,1):
     ellipse('Glove',hand,(.09,.10,.085),ink)
 link('Handlebar',(-.37,.04,1.12),(.37,.04,1.12),.029,steel)
 link('Column',(0,.19,.81),(0,.04,1.12),.042,ink)
-if '--player' not in sys.argv:
-    torso=ellipse('Driver', (0,-.53,1.12),(.29,.22,.38),jacket)
+if patrol:
+    for side in [-1,1]:
+        box('Rescue pannier',(side*.42,-.96,.81),(.26,.65,.46),rescue)
+        box('Cross horizontal',(side*.556,-.96,.84),(.018,.30,.074),ivory)
+        box('Cross vertical',(side*.558,-.96,.84),(.020,.076,.26),ivory)
+        box('Hood slash',(side*.43,.60,.74),(.20,.56,.086),cherry,-12)
+    torso=ellipse('Driver', (0,-.53,1.12),(.29,.22,.38),cherry)
     torso.rotation_euler.x=radians(-14)
     ellipse('Safety bib',(0,-.49,1.29),(.256,.207,.15),orange)
     ellipse('Helmet',(0,-.40,1.65),(.215,.22,.235),ivory)
@@ -138,4 +146,5 @@ target=Path(__file__).resolve().parents[1]/'docs/models/forest-patrol.glb'
 if '--player' in sys.argv:
     target=target.with_name('player-sled.glb')
     bpy.ops.wm.save_as_mainfile(filepath=str(target.parents[1].parent/'art/golden-owl/player-sled.blend'),compress=True)
+if patrol:bpy.ops.wm.save_as_mainfile(filepath=str(target.parents[1].parent/'art/course-kit/patrol-13c.blend'),compress=True)
 bpy.ops.export_scene.gltf(filepath=str(target),export_format='GLB',export_animations=False)
