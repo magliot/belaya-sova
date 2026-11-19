@@ -12,7 +12,9 @@ export function courseRoll(seed,index,stream=0){
  return ((n^(n>>>15))>>>0)/4294967296;
 }
 let route=null,tailStart=0,tailX=0,lastD=NaN,cx=0,dx=0,ddx=0;
-export function configureCourse(seed){
+let tubingCourse=false;
+export function configureCourse(seed,tubing=false){
+ tubingCourse=tubing;
  lastD=NaN;route=null;if(seed==null)return;
  route=[];let d=0,x=0,i=0,side=courseRoll(seed,0)>.5?1:-1;
  const add=(length,end)=>{route.push({d,length,x,delta:end-x});d+=length;x=end;};
@@ -56,13 +58,14 @@ export function courseBank(z){return .12*Math.tanh(-courseCurvature(-z)*10/.12)}
 // Blend cross-sections at stage boundaries; gameplay coordinates keep their existing scale.
 export function courseTheme(d){const local=((d%20000)+20000)%20000,stage=Math.floor(local/2500),part=local%2500;
  return {stage,blend:smooth(part/35)*smooth((2500-part)/35)};}
-export function courseWidth(d){const t=courseTheme(d);return t.stage===1?21-7.5*t.blend:21;}
+export function courseWidth(d){if(tubingCourse)return 16.2;const t=courseTheme(d);return t.stage===1?21-7.5*t.blend:21;}
 export function courseCrossHeight(u,z){
  const edge=smooth((Math.abs(u)-9.4)/5.8);
  const drift=3.4+.65*Math.sin(-z/23+(u<0?1.4:0))+.25*Math.cos(-z/9);
  const t=courseTheme(-z);let shoulder=edge*drift;
  if(t.stage===1)shoulder+=(2.8*smooth((Math.abs(u)-6.6)/5.8)-shoulder)*t.blend;
  if(t.stage===3)shoulder+=(4.2*smooth((Math.abs(u)-6)/6)-shoulder)*t.blend;
+ if(tubingCourse){const x=Math.abs(u);shoulder+=.67*smooth((x-7.3)/.95)*(1-smooth((x-8.3)/1.6));}
  return courseBank(z)*clamp(u,-14,14)+shoulder;
 }
 export function courseCrossSlope(u,z){return (courseCrossHeight(u+.05,z)-courseCrossHeight(u-.05,z))/.1}

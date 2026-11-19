@@ -20,7 +20,8 @@ for(let s=0;s<256;s++){
   assert(Math.abs(courseDerivative(2499.999)-courseDerivative(2500.001))<.0001);
   assert(Math.abs(courseCenter(2499.999)-courseCenter(2500.001))<.002);
   const actors=layout(s);
-  assert.equal(actors.filter(o=>o.small).length,3);
+  const machines=actors.filter(o=>o.small);
+  assert.equal(machines.length,3);assert.equal(new Set(machines.map(o=>o.variant)).size,2);
   assert.equal(new Set(actors.filter(o=>o.type==='snowman').map(o=>o.variant)).size,3);
   assert(actors.every(o=>o.y>=0&&o.y<40*ROW&&o.x>20&&o.x<380));
   for(const o of actors.filter(o=>o.type==='tube'||o.small)){

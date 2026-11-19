@@ -34,6 +34,17 @@ window.trainingCheck={
     }
     return {hero,d:G.y/20,mode:G.mode,stage:G.stage,fail:G.failKind,costumes:[...costumes]};
   },
+  details(){
+    const machine=new THREE.Box3().setFromObject(trainingCast.cat12A).getSize(new THREE.Vector3()).multiplyScalar(.62);
+    const coats=NPCV.sboy.length;
+    const series=seed=>{
+      G.seed=seed;G.speed=300;G.lastGateX=200;G.gateCol=0;
+      const start=G.objs.length;addCourse(40000,.75);
+      return G.objs.slice(start).filter(o=>o.type==='gate').map(o=>[o.x,o.y]);
+    };
+    const result={width:machine.x,length:machine.z,coats,rides:[1911,1911,1912].map(series)};
+    return result;
+  },
   get ready(){return !modalLoad&&HEROMODELS[hero].glb;}
 };`;
 (async()=>{
@@ -64,11 +75,15 @@ window.trainingCheck={
       const descent=await page.evaluate(fps=>trainingCheck.finishTraining(fps),fps);
       assert(descent.mode==='play'&&descent.stage===1,JSON.stringify(descent));
       assert.equal(descent.costumes.filter(k=>k.startsWith('snow')).length,3);
-      descents.push(descent);
-      for(const [name,d,x] of [['snowman',145,125],['ratrak',469,150],['forest',2571,200]]){
+      assert(descent.costumes.includes('cat12A'));descents.push(descent);
+      for(const [name,d,x] of [['snowman',145,125],['ratrak',469,150],['cat12A',1214,245],['slalom',78,148],['forest',2571,200]]){
         await page.evaluate(args=>trainingCheck.seek(...args),[d,x]);
         await page.screenshot({path:path.join(out,hero+'-'+name+'.png')});
       }
+      const {width,length,coats,rides}=await page.evaluate(()=>trainingCheck.details());
+      assert(Math.abs(width-46*.05)<.18&&Math.abs(length-74*.05)<.28,JSON.stringify({width,length}));
+      assert.equal(coats,2);assert.deepEqual(rides[0],rides[1]);assert.notDeepEqual(rides[0],rides[2]);
+      for(const gates of rides)for(let i=1;i<gates.length;i++)assert(gates[i][1]-gates[i-1][1]>=300);
     }
   }
   await page.goto(local+'/?preview=course&seed=1911&at=148',{waitUntil:'domcontentloaded'});

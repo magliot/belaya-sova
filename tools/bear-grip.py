@@ -13,7 +13,8 @@ def fit_gloves(rig,body,material):
     pad=material('Knuckle reinforcement',(.060,.076,.094),.06,.55)
     cuff=material('Glove cuff',(.022,.029,.042),0,.82)
     red=material('Safety vermilion',(.88,.11,.022),.05,.38)
-    alloy=material('Brushed pole alloy',(.26,.35,.43),.54,.4)
+    alloy=material('Carbon shaft',(.052,.066,.083),.35,.44)
+    enamel=material('05A red enamel',(.72,.018,.023),.18,.40)
     grip=material('Pole grip rubber',(.014,.019,.027),0,.83)
     objects=[];bases={}
     for side,sign in [('Left',1),('Right',-1)]:
@@ -79,7 +80,20 @@ def fit_gloves(rig,body,material):
         lathe('Grip',[(-.057,.010),(-.048,.014),(.031,.014),(.045,.017),(.049,.012)],grip)
         lathe('GripCap',[(.046,.016),(.051,.016),(.054,.011)],red)
         lathe('Shaft',[(-.46,.002),(-.43,.004),(-.18,.005),(-.045,.006)],alloy)
-        lathe('Band',[(-.17,.0056),(-.144,.0056)],red)
+        lathe('Band',[(-.237,.0056),(-.116,.0061)],enamel)
+        lathe('Ferrule',[(-.136,.0063),(-.129,.0063)],alloy)
+        # Webbing doubled back from the grip cap, on the outside of the mitten.
+        verts=[];faces=[];sections=24
+        for i in range(sections):
+            t=i/(sections-1);a=t*math.tau
+            x=sign*(.009+.065*math.sin(a/2));y=.018*math.sin(a)
+            z=.046-.085*math.sin(a/2)**1.4
+            for dx,dy in [(-.0025,-.0035),(.0025,-.0035),(.0025,.0035),(-.0025,.0035)]:
+                verts.append((x+dx,y+dy,z))
+        for i in range(sections-1):
+            for j in range(4):
+                a=i*4+j;b=i*4+(j+1)%4;faces.append((a,b,b+4,a+4))
+        mesh('WristStrap',verts,faces,enamel,pole)
         lathe('Basket',[(-.43,.007),(-.424,.022),(-.418,.022),(-.415,.006)],cuff)
     bm.to_mesh(body.data);bm.free();body.data.update()
     return objects,bases

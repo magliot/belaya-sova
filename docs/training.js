@@ -17,7 +17,7 @@ export function trainingRow(seed,n){
     from:[132,54,141][route],to:[42,91,-17][route]};
   obj('tube',200+side*85,offset,m);coins(open,offset-175,4);
  }else if(kind==='cat'){
-  obj('cat',200+side*96,offset,{marker:y+offset,small:true,side,vy:60,w:46,h:74});coins(open,offset-145,4);
+  obj('cat',200+side*96,offset,{marker:y+offset,small:true,variant:(Math.floor(n/12)+seed)%2===0?'cat12A':undefined,side,vy:60,w:46,h:74});coins(open,offset-145,4);
  }else if(kind==='gate'){
   obj('gate',open,offset,{gap:118,col:n%2});coins(open,offset-160,3);
  }else if(kind==='snowman'){

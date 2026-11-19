@@ -79,6 +79,47 @@ for i,(name,scarf,hat) in enumerate([('snow26A',blue,red),('snow26B',red,rubber)
   for j in range(10):
    a=j*math.pi/10;b=(j+1)*math.pi/10;link((.267*math.cos(a),0,1.29+.27*math.sin(a)),(.267*math.cos(b),0,1.29+.27*math.sin(b)),.030,hat)
  pack(name)
+# Short-cab groomer 12A. Its nose points along -Y (+Z in the GLB).
+def block(pos,size,material,bevel=.06,tilt=0):
+ bpy.ops.mesh.primitive_cube_add(size=1,location=pos);o=bpy.context.object;o.dimensions=size
+ bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+ o.rotation_euler.x=tilt
+ mod=o.modifiers.new('Rolled edges','BEVEL');mod.width=bevel;mod.segments=2
+ bpy.ops.object.modifier_apply(modifier=mod.name)
+ return finish(o,material)
+steel=mat('Blade steel',(.27,.37,.45));glass=mat('Deep blue windscreen',(.035,.16,.24))
+for side in [-1,1]:
+ x=side*1.02
+ block((x,.10,.49),(.67,3.64,.88),rubber,.28)
+ for j in range(4):
+  wheel=cyl((x+side*.24,-1.02+j*.73,.49),.34,.23,steel);wheel.rotation_euler.y=math.pi/2
+ for j in range(15):
+  for z in [.10,.88]:block((x,-1.42+j*.216,z),(.72,.095,.105),navy,.018)
+ link((side*.70,-1.02,.56),(side*1.13,-1.99,.36),.11,steel)
+block((0,.02,1.01),(2.13,3.26,.47),red,.13)
+block((0,.90,1.48),(1.63,1.42,.63),red,.15)
+for j in range(5):block((0,.54+j*.18,1.81),(1.11,.08,.065),rubber,.016)
+block((0,-.56,1.85),(1.75,1.49,1.55),red,.20)
+block((0,-1.27,1.99),(1.48,.14,.91),glass,.10,-.13)
+block((0,.18,2.14),(1.38,.07,.61),glass,.08)
+block((0,.225,2.15),(.05,.05,.64),rubber,.015)
+for side in [-1,1]:
+ block((side*.61,1.62,1.56),(.28,.075,.14),amber,.025)
+for side in [-1,1]:
+ block((side*.86,-.53,2.03),(.09,1.17,.77),glass,.07)
+ block((side*.61,-1.33,1.46),(.35,.15,.23),snow,.04)
+ block((side*.74,-1.19,2.54),(.19,.23,.13),snow,.025)
+block((0,-.53,2.61),(1.83,1.54,.15),snow,.07)
+cyl((0,-.40,2.76),.16,.21,amber)
+# Five panels follow the concave blade. A bright cutting edge outlines its footprint.
+for j in range(-2,3):
+ x=j*.66;y=-2.0-.09*j*j;tilt=j*.17
+ for z,width,height,m in [(.56,.18,.84,steel),(.19,.21,.095,snow)]:
+  panel=block((x,y,z),(.735,width,height),m,.045,-.12);panel.rotation_euler.z=tilt
+cat=pack('cat12A')
+# Match the established machine's length, then apply the same small-vehicle scale in game.
+cat.scale=(1.10,1.38,1.26)
+bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
 # Objects start at their local origin, with Z=0 on snow. Separate only in the editable sheet.
 actors=list(bpy.context.scene.objects)
 with tempfile.TemporaryDirectory() as staging:

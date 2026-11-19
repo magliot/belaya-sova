@@ -579,7 +579,7 @@ const NPC_VAR={skier:{src:[345,15,0.5,0.3],to:[[215,1,1],[135,0.9,0.9],[275,0.9,
   kid:{src:[38,68,0.45,0.4],to:[[205,1,0.95],[120,0.9,0.85],[22,1,1],[285,0.85,0.9],[340,0.9,1]]},
   sitter:{src:[75,165,0.25,0.15],to:[[210,1.3,1.2],[355,1.6,1.25],[25,1.6,1.4],[280,1.3,1.2],[190,1.3,1.25]]},
   // сноубордисты: мальчик (синяя куртка), мужчина (зелёная), тренер (жёлтая)
-  sboy:{src:[205,250,0.35,0.25],to:[[0,1,1.05],[130,0.9,0.95],[28,1,1.1],[290,0.9,1],[175,0.9,1],[330,0.9,1.05]]},
+  sboy:{src:[182,252,0.32,0.24],to:[[332,1.06,1.08]]},
   sman:{src:[95,175,0.3,0.2],to:[[215,1,1],[0,1,0.95],[280,0.9,1],[28,1,1.05],[195,0.9,0.95],[45,1,1.1]]},
   sinstr:{src:[36,66,0.4,0.35],to:[[22,1,1],[0,0.95,0.95],[95,0.9,0.95],[330,0.85,1.05]]}};
 // базовый поворот сноубордиста, чтобы доска шла вдоль склона (из оси доски в модели)
@@ -653,7 +653,7 @@ function winterActor(k,o){const g=winterScenery(k);if(!g)return null;const c=g.c
 const trainingCast={};
 function loadTraining(){return cached('training',async()=>{
  const group=(await gltfLoader.loadAsync('models/training-cast.glb')).scene;
- for(const k of ['tube60B','tube60C','tube61A','tube61C','snow26A','snow26B','snow26C']){
+ for(const k of ['tube60B','tube60C','tube61A','tube61C','snow26A','snow26B','snow26C','cat12A']){
   const m=group.getObjectByName(k);if(!m)throw Error('Missing training model: '+k);
   m.traverse(o=>{if(o.isMesh)o.castShadow=true});trainingCast[k]=m;
  }
@@ -708,6 +708,23 @@ for(const [depth,height,offset] of [[-830,126,31],[-570,88,83],[-310,79,17]]){
   const layer=new THREE.Mesh(geo,mtSnow);layer.position.z=depth;mountains.add(layer);
 }
 mtSnow.vertexColors=true;
+// The distant sky and water change as the tubing route opens onto the bay.
+const tubeSky=new THREE.Mesh(new THREE.SphereGeometry(1040,40,16),new THREE.ShaderMaterial({
+  side:THREE.BackSide,depthWrite:false,uniforms:{dusk:{value:0}},
+  vertexShader:'varying vec3 direction; void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+  fragmentShader:`varying vec3 direction;uniform float dusk;
+    void main(){
+      vec3 dir=normalize(direction);float h=smoothstep(-.12,.44,dir.y);
+      vec3 day=mix(vec3(.83,.92,1.),vec3(.15,.44,.86),h);
+      vec3 evening=mix(vec3(1.,.59,.32),vec3(.30,.24,.54),h);
+      vec3 sky=mix(day,evening,dusk);
+      float r=length(dir-normalize(vec3(.12,.068,-1.)));
+      sky+=dusk*(vec3(1.,.44,.13)*exp(-11.*r)+vec3(1.,.85,.58)*(1.-smoothstep(.013,.015,r)));
+      gl_FragColor=vec4(sky,1.);
+      #include <colorspace_fragment>
+    }`
+}));
+tubeSky.renderOrder=-100;tubeSky.visible=false;scene.add(tubeSky);
 {const v=mk(new THREE.PlaneGeometry(1400,750),valMat,0,0,-240,mountains,false);v.rotation.x=-Math.PI/2;
  const sea=mk(new THREE.PlaneGeometry(1400,600),seaMat,0,-0.5,-700,mountains,false);sea.rotation.x=-Math.PI/2;
  const vf=new THREE.MeshBasicMaterial({color:0x84999c,fog:false});for(let i=0;i<60;i++){const t=mk(sharedGeo.cone,vf,rnd(-260,260),3,-rnd(190,460),mountains,false);S3(t,rnd(4,9),rnd(8,14),rnd(4,9));}
@@ -819,19 +836,40 @@ const FACT={
   snowmobile(){const g=new THREE.Group();g.add(patrolModel.clone());return g;},
   mogulYeti(o){const g=FACT.yeti(o);g.userData.arms=['WinterArmL','WinterArmR'].map(n=>g.getObjectByName(n));return g;},
   airRing(o){
-    const group=new THREE.Group(),radius=o.radius;
-    const hoop=mk(new THREE.TorusGeometry(radius,.047,8,56),new THREE.MeshBasicMaterial({color:0xffc348}),0,0,0,group);
-    group.userData.light=raceLight(group,radius,radius,'ring',canvasTex);
+    const group=new THREE.Group(),radius=o.radius,style=o.ringStyle||0;
+    const paint=[0x205bba,0xffbe53,0x28c8bc][style];
+    const hoop=mk(new THREE.TorusGeometry(radius,.085,8,64),M(paint),0,0,0,group);
+    // Pooled rings animate their rim colour independently.
+    hoop.material=hoop.material.clone();group.userData.rimColor=paint;
+    if(style!==1){
+      const trim=M(style===0?0xf9af38:0xc6f4ff);
+      const count=style===0?6:9,arc=style===0?.21:.29;
+      const geometry=new THREE.TorusGeometry(radius+.015,.112,6,6,arc);
+      for(let j=0;j<count;j++){
+        const section=mk(geometry,trim,0,0,0,group);section.rotation.z=j*2*Math.PI/count-arc/2;
+      }
+    }
+    group.userData.light=raceLight(group,radius,radius,['ring-blue','ring','ring-ice'][style],canvasTex);
     group.userData.hoop=hoop;return group;
   },
   tree(o){const c=NPCM[o.pine?'pine':o.fir?'fir':'tree'].clone();c.rotation.y=Math.random()*6.28;return c;},
   rock(){const m=winterScenery(Math.random()<.55?'rock_wide':'rock_tall');m.rotation.y=Math.random()*6.28;return m;},
   mogul(){const g=new THREE.Group();const m=mk(sharedGeo.sph,OM.mog,0,0,0,g);S3(m,0.8,0.42,0.7);m.receiveShadow=true;return g;},
   gate(o){const g=new THREE.Group();const half=o.gap/2*U;const col=o.col?'#2a6df4':'#e8343b';
-    const t=gateTexCache[col]||(gateTexCache[col]=canvasTex(256,192,(x,w,h)=>{x.fillStyle=col;x.fillRect(0,0,w,h);x.fillStyle='rgba(255,255,255,.18)';x.fillRect(0,0,w,26);x.fillStyle='#fff';x.font='900 64px system-ui,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('EMCO',w/2,h/2+8);}));
-    for(const s of[-1,1]){const pz=new THREE.Group();pz.position.x=s*half;g.add(pz);
-      for(const k of[0,1]){const px=s*k*0.62;S3(mk(sharedGeo.cyl,OM.pole,px,0.8,0,pz),0.03,1.6,0.03);S3(mk(sharedGeo.sph,OM.snow,px,0.02,0,pz,false),0.12,0.06,0.12);S3(mk(sharedGeo.sph,M(0xffd200),px,1.62,0,pz,false),0.045,0.045,0.045);}
-      const f=plane(t,0.6,0.45,pz,s*0.31,1.3,0,false);f.material.side=THREE.DoubleSide;f.userData.flap=s;f.userData.flag=true;}
+    const t=gateTexCache[col]||(gateTexCache[col]=canvasTex(128,128,(ctx,w,h)=>{
+      ctx.fillStyle=col;ctx.fillRect(0,0,w,h);ctx.translate(w/2,h/2);ctx.strokeStyle='white';ctx.lineWidth=6;ctx.lineCap='round';
+      for(let i=0;i<6;i++){ctx.rotate(Math.PI/3);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-38);
+        ctx.moveTo(-10,-21);ctx.lineTo(0,-30);ctx.lineTo(10,-21);ctx.stroke();}
+    }));
+    const padded=M(o.col?0x2260c6:0xc92d3a);
+    for(const side of [-1,1]){
+      const x=side*(half+.14);
+      S3(mk(sharedGeo.cyl,padded,x,.84,0,g),.16,1.64,.16);
+      S3(mk(sharedGeo.cyl,OM.snow,x,.66,0,g),.164,.15,.164);
+      S3(mk(sharedGeo.sph,OM.snow,x,1.65,0,g),.175,.11,.175);
+      const f=plane(t,.50,.62,g,x-side*.37,1.16,0,false);
+      f.material.side=THREE.DoubleSide;f.userData.flap=side;f.userData.flag=true;
+    }
     const line=new THREE.Mesh(new THREE.PlaneGeometry(o.gap*U,0.12),new THREE.MeshBasicMaterial({color:o.col?0x2a6df4:0xe8343b,transparent:true,opacity:0.35,depthWrite:false}));line.rotation.x=-Math.PI/2;line.position.y=0.03;g.add(line);
     const halo=new THREE.Mesh(new THREE.TorusGeometry(half,0.055,4,32,Math.PI),new THREE.MeshBasicMaterial({color:0xffc34d,transparent:true,opacity:0.65,depthWrite:false}));
     g.userData.light=raceLight(g,half,Math.min(2.8,half),o.col?'blue':'red',canvasTex);
@@ -847,7 +885,7 @@ const FACT={
     const g=new THREE.Group();const c=gm.clone();c.rotation.y=o.walker?0:Math.PI;g.add(c);g.userData.glb=true;
       if(o.instr){const t=instrTex||(instrTex=label('ИНСТРУКТОР',{bg:'#ffd200',fg:'#0f2c52',w:256,h:64,font:'900 34px system-ui,sans-serif',r:10}));const pl=plane(t,0.22,0.055,g,0,0.93,0.29,false);pl.rotation.x=-0.35;pl.material.side=THREE.DoubleSide;}
     return g;},
-  cat(o){const fz0=o.vy>0?-1:1;const g=new THREE.Group();const c=NPCM.ratrak.clone();c.rotation.y=fz0<0?Math.PI:0;g.add(c);const H=NPCM.ratrak.userData.h;
+  cat(o){const fz0=o.vy>0?-1:1;const g=new THREE.Group();const c=(o.variant?trainingCast[o.variant]:NPCM.ratrak).clone();c.rotation.y=fz0<0?Math.PI:0;g.add(c);const H=o.variant?3.61:NPCM.ratrak.userData.h;
       const b=mk(sharedGeo.sphLo,OM.beacon,0,H+0.12,fz0*0.6,g,false);b.scale.setScalar(0.2);b.userData.beacon=true;const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xffb000,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));gl.scale.setScalar(1.6);gl.position.copy(b.position);gl.userData.beacon=true;g.add(gl);
       for(const s of[-1,1]){const hl=mk(sharedGeo.sphLo,new THREE.MeshBasicMaterial({color:0xfff6c0}),s*1.0,H*0.62,fz0*1.2,g,false);hl.scale.set(0.16,0.1,0.05);}
       g.userData.glb=true;return g;},
@@ -882,7 +920,7 @@ const playerSled=new THREE.Group();scene.add(playerSled);playerSled.visible=fals
 function loadPlayerSled(){return cached('sled',async()=>{const g=await gltfLoader.loadAsync('models/player-sled.glb');tintModels(g.scene);playerSled.add(g.scene);});}
 let patrolModel=null;function loadPatrol(){return cached('patrol',async()=>{const g=await gltfLoader.loadAsync('models/forest-patrol.glb');patrolModel=g.scene;tintModels(patrolModel);patrolModel.traverse(n=>{if(n.isMesh)n.castShadow=true;});});}
 let assetGen=0;const pools={};const archTexCache={},letterTexCache={};let instrTex=null,aidTex=null;const gateTexCache={};
-function poolKey(o){if(o.variant)return o.type+':'+o.variant;if(o.type==='stageProp')return 'stageProp_'+o.theme+(o.caption||'')+(o.theme==='forest'?(o.x<200?'_r':'_l'):'');if(o.type==='rail')return 'rail_'+o.w+'_'+o.len+'_'+o.hh;return o.type==='gate'?'gate'+o.col+'_'+Math.round(o.gap):o.type==='npc'?'npc'+o.colHex+'v'+(o.vi||0)+(o.walker?'w':'')+(o.sit?'s':'')+(o.kid?'k':'')+(o.instr?'i':'')+(o.sb?'b':''):o.type==='cat'?'cat'+(o.vy>0?1:0):o.type==='fence'?'fence'+Math.round(o.x2-o.x1):o.type==='cannon'?'cannon'+(o.x<200?1:0):o.type==='arch'?'arch'+o.stage:o.type==='dog'?'dog'+(o.vx>0?1:0):o.type==='snowman'||o.type==='yeti'?o.type+(o.x<200?1:0):o.type==='letter'?'letter'+o.ch+(o.air?1:0):o.type==='tree'?'tree'+(o.pine?'p':o.fir?'f':''):o.type==='ramp'?'ramp'+o.w+'_'+(o.hh||0.75)+(o.park?'_park':''):o.type;}
+function poolKey(o){if(o.type==='airRing')return 'airRing_'+(o.ringStyle||0)+'_'+o.radius;if(o.variant)return o.type+':'+o.variant;if(o.type==='stageProp')return 'stageProp_'+o.theme+(o.caption||'')+(o.theme==='forest'?(o.x<200?'_r':'_l'):'');if(o.type==='rail')return 'rail_'+o.w+'_'+o.len+'_'+o.hh;return o.type==='gate'?'gate'+o.col+'_'+Math.round(o.gap):o.type==='npc'?'npc'+o.colHex+'v'+(o.vi||0)+(o.walker?'w':'')+(o.sit?'s':'')+(o.kid?'k':'')+(o.instr?'i':'')+(o.sb?'b':''):o.type==='cat'?'cat'+(o.vy>0?1:0):o.type==='fence'?'fence'+Math.round(o.x2-o.x1):o.type==='cannon'?'cannon'+(o.x<200?1:0):o.type==='arch'?'arch'+o.stage:o.type==='dog'?'dog'+(o.vx>0?1:0):o.type==='snowman'||o.type==='yeti'?o.type+(o.x<200?1:0):o.type==='letter'?'letter'+o.ch+(o.air?1:0):o.type==='tree'?'tree'+(o.pine?'p':o.fir?'f':''):o.type==='ramp'?'ramp'+o.w+'_'+(o.hh||0.75)+(o.park?'_park':''):o.type;}
 // Keep the collision surface and its visible mesh in the same curved course coordinates.
 function parkHeight(o,y){
   if(o.type==='rail')return parkBoxHeight(o,y);
@@ -1098,7 +1136,7 @@ function updEnv(dt,zi){const z=ZONES[zi],k=Math.min(1,dt*0.9);
 
 const RAMPV=[[60,0.75],[44,0.55],[36,0.75],[30,0.95],[48,1.1],[40,0.9]];// ширина, высота трамплина
 const STAGES=[
-  {name:'Учебный склон',sub:'дети и инструкторы — объезжай с запасом',env:0,col:'#2a9d5c',mix:{gate:30,skier:10,board:8,sbschool:6,kids:14,sit:6,walk:4,help:3,ramp:8,mogul:6,fence:4,coins:10}},
+  {name:'Учебный склон',sub:'плюшки выезжают на склон — оставляй место для объезда',env:0,col:'#2a9d5c',mix:{gate:30,skier:10,board:8,sbschool:6,kids:14,sit:6,walk:4,help:3,ramp:8,mogul:6,fence:4,coins:10}},
   {name:'Лесная тропа',sub:'три вида деревьев и встречный лесной патруль',env:0,col:'#1f6b3f',forest:true,speed:0.9,mix:{forestTrail:1}},
   {name:'Бугры',sub:'йети на гребнях · ищи свободную ложбину',env:0,col:'#377d9a',moguls:true,speed:0.86,mix:{rollers:1}},
   {name:'Сноупарк',sub:'три высоты прыжков · мандаринки и кольца в полёте',env:1,col:'#7b3fe4',park:true,mix:{parkLine:1}},
@@ -1124,7 +1162,7 @@ const rawSeed=new URLSearchParams(location.search).get('seed');
 const pinnedSeed=rawSeed!==null&&/^[0-9]{1,10}$/.test(rawSeed)&&Number(rawSeed)<=0xffffffff?Number(rawSeed):null;
 const pickSeed=()=>pinnedSeed??crypto.getRandomValues(new Uint32Array(1))[0];
 let reviewSeed=pinnedSeed??19;
-function useCourse(seed){configureCourse(seed);piste.userData.cz=powder.userData.cz=NaN;}
+function useCourse(seed,tubing=false){configureCourse(seed,tubing);piste.userData.cz=powder.userData.cz=NaN;}
 function newGame(mode){
   const g={mode,t:0,y:0,prevY:0,speed:240,tx:200,
     p:{x:200,vx:0,ang:0,rampH:0,surfaceSlope:0,parkFlight:null,launchH:0,air:0,airT:0,airMax:1,trick:0,spin:0,lives:0,boost:0,magnet:0,slow:0,wob:0,inv:0,tumble:0,alt:0,fall:0,fallSide:1,fallB:0,mh:0,mvz:0,hop:0},
@@ -1338,11 +1376,12 @@ function parkSection(y,shortTier){
   const prizeLine=shortTier==null&&section%9===2;
   if(shortTier==null&&section%9===3)return 1500; // landing area of the preceding high line
   const line=prizeLine?{...PARK_LINES[2],span:1740}:trickLine?{...PARK_LINES[1],span:760}:PARK_LINES[tier];
-  const side=n%2?1:-1,x=200+side*[24,46,55][tier],rampY=y+310;
+  const side=shortTier==null?(courseRoll(G.seed??19,n,88)<.5?1:-1):(n%2?1:-1);
+  const x=200+side*[24,46,55][tier],rampY=y+310;
   const lip=rampY+line.len/2;
   addObj({type:'ramp',park:true,trickLine:trickLine||prizeLine,prizeLine,x,y:rampY,...line});
   const target=(type,t,dx=0,upper=false)=>addObj({type,x:x+dx,y:lip+t*line.span,air:1,
-    needsTrick:upper&&type==='airRing',airHeight:arcHeight(line.hh,line.lift,t)+.9+(upper?2.7*Math.sin(Math.PI*t):0),radius:1.55,points:line.ring,r:10});
+    ringStyle:type==='airRing'?tier:undefined,needsTrick:upper&&type==='airRing',airHeight:arcHeight(line.hh,line.lift,t)+.9+(upper?2.7*Math.sin(Math.PI*t):0),radius:1.55,points:line.ring,r:10});
   target('coin',.16);target('coin',.31);target('airRing',prizeLine?.43:trickLine?.68:.48,side*tier*5,trickLine||prizeLine);
   if(prizeLine)target('feather',.76,0,true);
   let reward='coin';
@@ -1388,14 +1427,18 @@ function tubingSection(y){
   if(row%3===1)addObj({type:'gate',x,y:y+365,gap:phase===1?94:122,col:row%2});
   if(row%4===3)addObj({type:'gift',x,y:y+435,r:12});
   if(phase===1){
-    for(const side of [-1,1])addObj({type:'tree',x:200+side*(165+courseRoll(G.seed,row,60+side)*22),y:y+240,s:1.2,r:10,fir:side>0,pine:side<0});
+    for(const side of [-1,1]){
+      const roll=courseRoll(G.seed,row,60+side);
+      addObj({type:'tree',x:200+side*(146+roll*25),y:y+90+roll*310,s:1.4,r:11,fir:roll>.59,pine:roll<.44});
+      addObj({type:'tree',x:200+side*(193+roll*12),y:y+460,s:1.6,r:11,pine:true});
+    }
   }
   G.nextY+=660;
 }
 function initBonus(kind){
   G.bonusRide={kind,elapsed:0,hits:0,gifts:0,rows:0,chain:0,last:-Infinity};G.nextY=0;
   if(kind==='sled'){G.sled=G.bonusRide;return;}
-  G.tubing=G.bonusRide;mountPlayerTube();
+  G.tubing=G.bonusRide;lift.visible=false;for(const lamp of lamps)lamp.visible=false;mountPlayerTube();
 }
 function mountPlayerTube(){
   if(G.tubing.model)scene.remove(G.tubing.model);
@@ -1406,7 +1449,8 @@ function sledSection(y){
   const row=G.sled.rows++,lanes=[135,200,265];
   // Telegraph the next target with fruit. Alternate wide arcs, slalom and a gift rush.
   const phase=Math.min(2,Math.floor(row/9)),pattern=[[1,0,1,2],[0,1,2,1],[2,1,0,2,1,0]][phase];
-  const x=lanes[pattern[row%pattern.length]];
+  const lane=pattern[row%pattern.length];
+  const x=lanes[courseRoll(G.seed,phase,87)<.5?lane:2-lane];
   if(row===0||row===9||row===18)addObj({type:'stageProp',theme:'forest',x:45,y:y+200,caption:['ДОСТАВКА','СЛАЛОМ','ПОДАРКИ'][phase]});
   for(let i=0;i<3;i++)addObj({type:'coin',x,y:y+100+i*75,r:9});
   addObj({type:row%3===2?'gift':'snowman',x,y:y+370,r:16,cd:Infinity});
@@ -1509,12 +1553,22 @@ function spawnLetter(y){
   if(air){addObj({type:'ramp',x,y,w:66});const o={type:'letter',x,y:y+170,ch:L.ch,air:true,r:14};addObj(o);G.letterObj=o;}
   else{addObj({type:'fence',x:(12+x-36)/2,x1:12,x2:x-36,y:y+120});addObj({type:'fence',x:(x+36+388)/2,x1:x+36,x2:388,y:y+120});const o={type:'letter',x,y:y+120,ch:L.ch,air:false,r:14};addObj(o);G.letterObj=o;}
 }
-// слалом: серия 4–7 ворот, строго по очереди влево-вправо от плавной линии; расстояние между воротами — под текущую скорость (≈1.1 с хода)
-function addCourse(y,diff){const n=4+Math.floor(Math.random()*4);const sp=Math.max(230,(G.speed||250)*1.15);const gap=Math.round(124-diff*34);
-  let cx=clamp(G.lastGateX||200,130,270);const off=rnd(48,62+diff*18);let side=Math.random()<.5?-1:1;
-  for(let i=0;i<n;i++){cx=clamp(cx+rnd(-25,25),130,270);const gx=clamp(cx+side*off,72,328);G.gateCol^=1;
-    addObj({type:'gate',x:gx,y:y+i*sp,gap,col:G.gateCol,done:false,ok:false,last:i===n-1});if(Math.random()<0.25)addObj({type:'coin',x:gx,y:y+i*sp,r:9});side=-side;G.lastGateX=gx;}
-  return (n-1)*sp+sp*0.9;}
+// Mix sweeps and short straight pairs. Wide transfers get more approach time.
+function addCourse(y,diff){
+  const row=Math.floor(y),roll=k=>courseRoll(G.seed??19,row,k);
+  const n=4+Math.floor(roll(0)*4),speed=Math.max(240,G.speed||250),gap=Math.round(124-diff*34);
+  let lastX=clamp(G.lastGateX||200,82,318),side=roll(1)<.5?-1:1,at=y;
+  for(let i=0;i<n;i++){
+    const k=4*i+2,direct=i>0&&roll(k)<.25;
+    const centre=164+roll(k+1)*72,amplitude=42+roll(k+2)*(26+diff*14);
+    const x=direct?clamp(lastX+(roll(k+2)-.5)*32,78,322):clamp(centre+side*amplitude,78,322);
+    if(i)at+=speed*(1.02+Math.abs(x-lastX)/250+roll(k+3)*.35);
+    G.gateCol^=1;addObj({type:'gate',x,y:at,gap,col:G.gateCol,done:false,ok:false,last:i===n-1});
+    if(roll(k+31)<.26)addObj({type:'coin',x,y:at,r:9});
+    if(!direct)side=-side;lastX=x;
+  }
+  G.lastGateX=lastX;return at-y+speed*.95;
+}
 function addGate(y,diff){const gap=Math.round(112-diff*44);let gx=G.lastGateX+(Math.random()<.5?-1:1)*rnd(55,135);if(gx<75||gx>325)gx=G.lastGateX-(gx-G.lastGateX);gx=clamp(gx,75,325);G.lastGateX=gx;G.gateCol^=1;
   addObj({type:'gate',x:gx,y,gap,col:G.gateCol,done:false,ok:false});if(Math.random()<0.3)addObj({type:'coin',x:gx,y:y,r:9});}
 function coinLine(y){if(Math.random()<0.35)return;let x=rnd(70,330);const dx=rnd(-14,14);for(let i=0;i<3;i++){addObj({type:'coin',x:clamp(x,40,360),y:y+i*32,r:9});x+=dx;}}
@@ -1552,6 +1606,7 @@ function tryTrick(idx){const p=G.p;if(p.air>0&&p.trick<=0){const left=p.airMax-p
   else{const ok=TRICKS.map((t,i)=>i).filter(i=>fits(i)&&i!==p.lastT);tt=ok.length?ok[Math.floor(Math.random()*ok.length)]:null;}
   if(tt==null){addText(p.x,G.y,'Не успеешь!','#c0392b',15);return;}p.tt=tt;p.lastT=tt;p.trick=0.0001;
   p.style=tt===5?p.spin%2:null;
+  p.trickName=p.style==null?TRICKS[tt].n:(hero==='bear'?['Shifty','Spread eagle']:['Indy','Melon'])[p.style];
   if(p.parkFlight?.trickLine)p.parkFlight.trickAt??=G.y;
   SFX.trick();}}
 
@@ -1647,7 +1702,7 @@ function update(dt){
       p.airT=p.airMax*clamp((G.y-p.parkFlight.start)/p.parkFlight.span,0,1);
     }
     else p.airT+=dt;
-    if(p.trick>0){const TT=TRICKS[p.tt||0];p.trick+=dt/(h.trickT*TT.t);if(p.trick>=1){p.trick=0;p.spin++;G.tricks++;const pts=Math.round(TT.pts*mult()*(stNow.park?2:1)*(p.spin>1?1.5:1));G.bonus+=pts;addText(p.x,G.y,(p.spin>1?'Комбо! ':'')+TT.n+'! +'+pts,'#8e44ad',18);SFX.trickDone();if(Math.random()<0.45)voice('jump');}}
+    if(p.trick>0){const TT=TRICKS[p.tt||0];p.trick+=dt/(h.trickT*TT.t);if(p.trick>=1){p.trick=0;p.spin++;G.tricks++;const pts=Math.round(TT.pts*mult()*(stNow.park?2:1)*(p.spin>1?1.5:1));G.bonus+=pts;addText(p.x,G.y,(p.spin>1?'Комбо! ':'')+p.trickName+'! +'+pts,'#8e44ad',18);SFX.trickDone();if(Math.random()<0.45)voice('jump');}}
     if(p.airT>=p.airMax){p.air=0;p.parkFlight=null;
       if(p.trick>=0.7){p.trick=0;p.spin++;G.tricks++;const pts=Math.round(TRICKS[p.tt||0].pts*mult()*(stNow.park?2:1));G.bonus+=pts;addText(p.x,G.y,'Еле докрутил! +'+pts,'#8e44ad',16);SFX.land();}
       else if(p.trick>0){p.trick=0;p.wob=0.6;p.slow=0.5;G.combo=0;SFX.wobble();vibe(50);addText(p.x,G.y,'Кривое приземление — серия сброшена','#c0392b',15);}
@@ -1836,9 +1891,9 @@ function animObjs(dt){
       const aura=m.userData.light;
       aura.rotation.z=G.t*.32+o.y*.002;
       aura.material.opacity=o.passed?.32:.88+.12*Math.sin(G.t*2.4);
-      m.userData.hoop.material.color.setHex(o.passed?0x91ffd4:0xfff5ba);
+      m.userData.hoop.material.color.setHex(o.passed?0x91ffd4:m.userData.rimColor);
     }
-    if(o.type==='gate'){m.children.forEach(c=>{if(c.userData.flag)c.rotation.y=Math.sin(G.t*4+o.x+c.position.x)*0.25;});
+    if(o.type==='gate'){
       if(m.userData.halo){const a=o.done?(o.ok?0.18:0.04):0.58+0.12*Math.sin(G.t*2.5-o.y*0.003);m.userData.halo.material.opacity=a;
         m.userData.light.material.opacity=o.done?.16:.92+.08*Math.sin(G.t*2.5-o.y*.003);
         m.userData.halo.material.color.set(o.done&&o.ok?0x8ae9ad:0xffd46a);m.userData.gateDisc.material.opacity=o.done?0.05:0.4;}}
@@ -1905,14 +1960,22 @@ function syncWorld(dt){
   if(G.mode!=='menu'){
   // земля и окружение
   const snap=Math.round(pz/12)*12-96;fitPlane(piste,snap);fitPlane(powder,snap);
+  tubeSky.visible=!!G.tubing;
+  if(G.tubing){
+    tubeSky.position.set(courseCenter(-pz),gy,pz);
+    const dusk=THREE.MathUtils.smoothstep(-pz,690,790);
+    tubeSky.material.uniforms.dusk.value=dusk;
+    seaMat.color.lerp(tmpC.set(0xe6a184),dusk*.7);
+  }
   mountains.position.set(courseCenter(-pz),gy-95,pz);aurora.position.set(courseCenter(-pz),gy+70,pz-260);
   for(const t of forest){if(t.userData.z>pz+18)t.userData.z-=185;const td=-t.userData.z;const dense=G.tubing?tubeLocation(td)===1:courseTheme(td).stage===1;
     const clearing=Math.max(0,t.side*Math.cos(t.userData.z/(dense?61:95)));
     t.userData.x=t.side*(forestEdge(t.userData.z)+t.off*(dense?.28:1)+(G.tubing?(dense?-3:13):0)+(t.kind===1?.8:0)+clearing*11);
+    if(G.tubing&&dense)t.userData.x=t.side*(7.8+t.off*.41+clearing*2.1);
     const size=t.s*(dense?1.35:1)*(1-.5*clearing);
     tmpE.set(0,t.rot,0);tmpQ.setFromEuler(tmpE);tmpM.compose(courseGround(tmpP,t.userData.x,t.userData.z),tmpQ,tmpS.set(size,size,size));forestIM[t.kind].setMatrixAt(t.idx,tmpM);}
   forestIM.forEach(im=>im.instanceMatrix.needsUpdate=true);
-  const night=env.glow;
+  const night=G.tubing?0:env.glow;
   for(const l of lamps){if(l.userData.z>pz+18)l.userData.z-=180;const z=l.userData.z;courseGround(l.position,l.userData.side*11.6,z);l.rotation.y=courseHeading(z);}
   beamMat.opacity=night*0.35;
   if(night>0.3){const near=lamps.filter(l=>l.userData.z<pz+6&&l.userData.z>pz-50).sort((a,b)=>Math.abs(a.userData.z-pz+12)-Math.abs(b.userData.z-pz+12));
@@ -2033,10 +2096,10 @@ function drawHUD(){
 }
 
 // ================= FLOW =================
-function clearWorld(){if(G?.tubing?.model)scene.remove(G.tubing.model);dropMogPatches(true);if(G)for(const o of G.objs)release(o);for(let i=0;i<TRACKN;i++){tmpM.makeScale(0,0,0);trackMesh.setMatrixAt(i,tmpM);}trackMesh.instanceMatrix.needsUpdate=true;
+function clearWorld(){lift.visible=true;tubeSky.visible=false;for(const lamp of lamps)lamp.visible=true;if(G?.tubing?.model)scene.remove(G.tubing.model);dropMogPatches(true);if(G)for(const o of G.objs)release(o);for(let i=0;i<TRACKN;i++){tmpM.makeScale(0,0,0);trackMesh.setMatrixAt(i,tmpM);}trackMesh.instanceMatrix.needsUpdate=true;
   for(const t of forest){t.userData.z=-rnd(-15,170);t.userData.x=0;}lamps.forEach((l,i)=>l.userData.z=-Math.floor(i/2)*30-(l.userData.side>0?15:0));towers.forEach((t,i)=>t.userData.z=-i*35);}
 const SPRINT_METERS=1200;
-function startGame(sprint=false,ride=null){const sled=ride==='sled';if((sled&&!sledUnlocked())||(ride==='tubing'&&!save.meet.prizeFeather))return;initAudio();if(!trackReady||HEROMODELS[hero].motionStatus!=='ready'||(sled&&!playerSled.children.length))return waitForAssets(()=>Promise.all([loadTrackAssets(),sled?loadPlayerSled():null]),()=>startGame(sprint,ride));music('run');hideToast();clearWorld();G=newGame('play');last=performance.now();G.seed=sprint||sled?null:pickSeed();useCourse(G.seed);if(G.seed!=null){reviewSeed=G.seed;G.nextY=0;}G.sprint=sprint;
+function startGame(sprint=false,ride=null){const sled=ride==='sled';if((sled&&!sledUnlocked())||(ride==='tubing'&&!save.meet.prizeFeather))return;initAudio();if(!trackReady||HEROMODELS[hero].motionStatus!=='ready'||(sled&&!playerSled.children.length))return waitForAssets(()=>Promise.all([loadTrackAssets(),sled?loadPlayerSled():null]),()=>startGame(sprint,ride));music('run');hideToast();clearWorld();G=newGame('play');last=performance.now();G.seed=sprint?null:pickSeed();useCourse(G.seed,ride==='tubing');if(G.seed!=null){reviewSeed=G.seed;G.nextY=0;}G.sprint=sprint;
   if(ride){initBonus(ride);banner(sled?'Сбивай снеговиков и собирай подарки':'Собирай мандаринки и проходи ворота','','gold');}
   if(sprint){G.nextY=0;G.nextChaseD=Infinity;}setTimeout(()=>voice('start',true),600);
   if(!G.bonusRide&&!save.meet.coastHint){save.meet.coastHint=1;persist();const g0=G;setTimeout(()=>{if(G===g0&&G.mode==='play')banner('Рули на поворотах · кофе даёт ускорение');},1500);}lastTrackZ=0;$('share').classList.add('hidden');if(!G.bonusRide&&save.helmets>0){save.helmets--;G.p.lives=1;persist();}G.letter=G.sprint||G.bonusRide?null:collState();G.letterAt=G.letter?letterDist(G.letter.w,G.letter.i):Infinity;for(const m of save.missions)m.got=false;
@@ -2097,7 +2160,7 @@ function gameOver(){
     if(fresh.length){save.meet.danceSeen=seen.concat(fresh.map(d=>d.id));persist();$('oStats').innerHTML+='<br><b style="color:#ff6a00">💃 Открыт танец «'+fresh.map(d=>d.name).join('», «')+'»!</b> Меню → Танцы';}}$('topbtns').classList.add('hidden');$('over').classList.remove('hidden');
 }
 function pauseGame(){if(!G||G.mode!=='play')return;G.mode='pause';drag=null;setLoops(0,0,null);if(COURSE_REVIEW)return;syncSens();
-  $('courseNumber').textContent=G.seed==null?'':'Учебный склон № '+G.seed;
+  $('courseNumber').textContent=G.seed==null?'':'Трасса № '+G.seed;
   $('pause').classList.remove('hidden');}
 function toMenu(){useCourse(null);music('menu');hideToast();clearWorld();G=newGame('menu');['over','pause','topbtns','coll','share','tasks','shop','settings','top','dances'].forEach(id=>$(id).classList.add('hidden'));$('menu').classList.remove('hidden');refreshMenu();}
 const PHR={bear:['Каска надета — можно ехать!','Объезжай с запасом — так по правилам FIS!','Я сношу сугробы одним махом!','Мандаринки сами себя не соберут!'],
@@ -2235,7 +2298,7 @@ function reviewContact(){
  G.camX=X(p.x);G.camY=courseHeight(G.y/20-6.4)+2.3+p.mh*.35+rise;
 }
 function reviewSeek(d){if(!trackReady||HEROMODELS[hero].motionStatus!=='ready'||(reviewRide==='sled'&&!playerSled.children.length))return waitForAssets(()=>Promise.all([loadTrackAssets(),reviewRide==='sled'?loadPlayerSled():null]),()=>reviewSeek(d));d=clamp(Number(d)||0,0,reviewRide?1161:19999);const playing=G?.mode==='play';clearWorld();hideToast();G=newGame(playing?'play':'pause');
- G.seed=reviewSeed;useCourse(reviewRide==='sled'?null:reviewSeed);G.y=G.prevY=d*20;G.stage=G.lastSpawnStage=stageAt(d);G.nextY=Math.max(G.stage*STAGE_LEN*20,G.y-500);G.nextChaseD=Infinity;G.p.x=G.tx=reviewX;G.p.travelHeading=courseHeading(-d);
+ G.seed=reviewSeed;useCourse(reviewSeed,reviewRide==='tubing');G.y=G.prevY=d*20;G.stage=G.lastSpawnStage=stageAt(d);G.nextY=Math.max(G.stage*STAGE_LEN*20,G.y-500);G.nextChaseD=Infinity;G.p.x=G.tx=reviewX;G.p.travelHeading=courseHeading(-d);
  const st=stageDef(G.stage),span=G.stage===0?ROW:st.forest?1000:st.park?1500:st.moguls?2340:0,start=G.stage*STAGE_LEN*20;
  if(reviewRide){initBonus(reviewRide);G.bonusRide.elapsed=(Math.sqrt(270**2+2*(80/75)*G.y)-270)/(80/75);G.t=G.bonusRide.elapsed;G.speed=270+80*G.t/75;const row=reviewRide==='sled'?620:660;G.nextY=Math.max(0,Math.floor(G.y/row)-1)*row;G.bonusRide.rows=G.nextY/row;}
  else if(span)G.nextY=start+Math.max(0,Math.floor((G.y-start)/span)-1)*span;

@@ -5,8 +5,10 @@ const lights = new Map();
 // One transparent drawing per palette. The middle stays clear even close to the camera.
 function lightTexture(palette, canvasTex) {
   if (lights.has(palette)) return lights.get(palette);
-  const ring = palette === 'ring';
-  const colors = ring ? ['#883eff','#ff48a5','#ffcd55','#75ffeb','#883eff']
+  const ring = palette.startsWith('ring');
+  const colors = palette==='ring-ice' ? ['#128eaa','#32efd9','#dbfffd','#74d7ff','#128eaa']
+    : palette==='ring-blue' ? ['#2248a6','#47a4ff','#ffd57a','#428cff','#2248a6']
+    : ring ? ['#883eff','#ff48a5','#ffcd55','#75ffeb','#883eff']
     : palette === 'blue' ? ['#245eed','#38d4ff','#eaffef','#38d4ff','#245eed']
     : ['#d72d5b','#ff8b49','#fff497','#ff8b49','#d72d5b'];
   const tex = canvasTex(512,512,(ctx,w,h)=>{
@@ -45,7 +47,7 @@ export function raceLight(group,rx,ry,palette,canvasTex){
   const material=new THREE.MeshBasicMaterial({map:lightTexture(palette,canvasTex),
     transparent:true,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
   const light=new THREE.Mesh(new THREE.PlaneGeometry(rx*512/192,ry*512/192),material);
-  light.position.set(0,palette==='ring'?0:.08,.025);
+  light.position.set(0,palette.startsWith('ring')?0:.08,.025);
   group.add(light);
   return light;
 }
