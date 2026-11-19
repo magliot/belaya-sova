@@ -33,10 +33,7 @@ window.__assetTest={
       const before=m.userData.worldArm.quaternion.clone();o.thrown=1;G.t=.3;animObjs(0);
       gestures.push({kind,motion:before.angleTo(m.userData.worldArm.quaternion)});this.previewActors[kind]=m;}
     G=oldG;
-    const fallback=[];
-    for(const kind of ['dog','snowman','yeti']){const src=WINTER[kind];delete WINTER[kind];const m=FACT[kind]({x:60,vx:120});WINTER[kind]=src;
-      fallback.push({kind,ok:kind==='dog'?m.userData.dog.userData.legs.length===4:!!m.userData.arm});}
-    return {models,animation,gestures,fallback};
+    return {models,animation,gestures};
   },
   preview(k,t=0){
     if(!this.view){const sc=new THREE.Scene();sc.background=new THREE.Color(0xeaf5ff);sc.add(new THREE.HemisphereLight(0xffffff,0xb0c7db,2));
@@ -65,9 +62,9 @@ const end=html.lastIndexOf('</script>');html=html.slice(0,end)+debug+html.slice(
     assert(result.animation.independent,'Dog instances share a skeleton');assert(result.animation.toeMotion>.02,'Dog feet stay still');
     assert(result.animation.headMotion<1e-5,'Running distorts the dog head');
     for(const g of result.gestures)assert(g.motion>.02,`${g.kind}: gesture stays still`);
-    for(const f of result.fallback)assert(f.ok,`${f.kind}: fallback broken`);
+
     for(const m of result.models){await page.evaluate(k=>__assetTest.preview(k,.65/4),m.k);await page.screenshot({path:path.join(out,m.k+'.png')});}
     assert.deepEqual(errors,[],'JavaScript errors');fs.writeFileSync(path.join(out,'summary.json'),JSON.stringify({viewport:{width:375,height:812},errors,...result},null,2));
-    console.log('PASS: eight winter models, mobile triangle budgets, independent dog rigs, running feet, gestures and procedural fallback.');
+    console.log('PASS: eight winter models, mobile triangle budgets, independent dog rigs, running feet, gestures.');
   }finally{await browser.close();fs.rmSync('docs/test.html',{force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -8,3 +8,4 @@ motion-checks/
 driving-checks/
 stage-checks/
 golden-checks/
+*.blend1

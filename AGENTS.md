@@ -9,6 +9,9 @@
 ```
 docs/                 ← САЙТ ИГРЫ (GitHub Pages публикует эту папку как есть)
   index.html          ← вся игра: HTML + CSS + JS-модуль (~1820 строк, очень длинные строки — читать кусками)
+  review/             ← видео до/после и контрольные кадры браузера и Unity
+  models.html         ← визуальный каталог моделей и штатных объектов из кода
+  models/studies/     ← игровые GLB для движения героев на склоне
   version.txt         ← версия для автообновления в Telegram (см. «Выпуск версии»)
   race-hud.js         ← крупный счёт с сиянием, рисованные мандаринки и три отдельные каски
   models/*.js         ← 3D-модели GLB, упакованные в base64: window.__GLB[key]="…"
@@ -23,6 +26,7 @@ docs/                 ← САЙТ ИГРЫ (GitHub Pages публикует э�
 server/apps-script/Code.gs ← РАБОЧИЙ сервер рекордов (Google Apps Script + Google Таблица)
 tgcloud/, tgcloud.jsonc, package.json ← запасной сервер на Telegram Serverless (не запущен: лист ожидания)
 tools/                ← скрипты подготовки ассетов (сжатие GLB, обрезка, упаковка, локальный сервер)
+unity/OwlSlope/       ← отдельный сравнительный пилот Unity 6.3 LTS / URP
 handoff/              ← отчёт о работе, план, инструкции по сервисам
 ```
 Сборки нет: правишь `docs/index.html` → проверяешь локально → `git push` → через 1–2 минуты игра обновлена.
@@ -39,7 +43,7 @@ node tools/serve.cjs docs 8766      # затем открыть http://localhost
 |---|---|
 | начало `<script type="module">` | `TG` (Telegram WebApp), `TGU` (пользователь), `PLAYER` (имя), `SKEY` — префикс сохранений `bsova_tg<id>_` (у каждого Telegram-аккаунта свои) |
 | RENDERER | three.js сцена, камера, `resize()` |
-| HEROES / ГЕРОИ ИЗ TRIPO | процедурные герои-заглушки и `makeGlbHero()` — герой из GLB со скелетом Mixamo. Позы — `rotB(h,bone,ax,ay,az)` поверх позы покоя; `poseGlb()` (езда, прыжок, меню), `poseFall()` (падение), `danceGlb()` (танцы). У этого скелета подъём **левой руки = +z, правой = −z** |
+| HEROES / ГЕРОИ ИЗ TRIPO | `loadHero()` и `makeGlbHero()` — выбранный герой меню из GLB. Для спуска `loadTrackAssets()` ждёт его запечённую анимацию и модели склона; при ошибке доступен повтор. Позы — `rotB(h,bone,ax,ay,az)` поверх позы покоя; `poseGlb()` (езда, прыжок, меню), `poseFall()` (падение), `danceGlb()` (танцы). У этого скелета подъём **левой руки = +z, правой = −z** |
 | танцы | `DANCES` — 5 танцев-наград в меню, условия открытия, «отправить в чат» |
 | SCENERY | склон, лес (InstancedMesh), подъёмник, фонари, горы |
 | OBJECT FACTORIES | `FACT.<type>(o)` строит 3D-объект: gate, ramp, npc, cat (ратрак), rock, tree, fence, snowman, coin, helmet… Пул объектов `acquire/release` |

@@ -3,9 +3,9 @@ const {chromium}=require(process.env.DANCE_BROWSER_MODULE||'playwright');
 const out=path.resolve('stage-checks');fs.mkdirSync(out,{recursive:true});
 let html=fs.readFileSync('docs/index.html','utf8').replace('function frame(now){','function frame(now){if(window.__freeze)return;');
 const debug=`
-loadHero('bear');loadHero('owl');loadTrackAssets();
+loadTrackAssets('bear');loadTrackAssets('owl');
 window.__stageTest={
- ready:()=>HEROMODELS.bear.motion&&HEROMODELS.owl.motion&&NPCM.tree&&NPCM.ramp&&WINTER.snowman,
+ ready:()=>trackReady&&HEROMODELS.bear.motion&&HEROMODELS.owl.motion&&NPCM.tree&&NPCM.ramp&&WINTER.snowman,
  loadPatrol,patrolReady:()=>!!patrolModel&&WINTER.yeti&&NPCM.fir&&NPCM.pine,
  trailShot(type){
   const start=type==='snowmobile'?2500:5000;

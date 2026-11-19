@@ -5,7 +5,7 @@
       "kind": "bear",
       "fps": 30,
       "maxContactError": 0.005768097821311393,
-      "maxGripError": 3.5354328361705813e-16,
+      "maxGripError": 3.279728596386677e-16,
       "localFootHeightRange": 0.029326508445027155,
       "maxScaleError": 0.000002086162567138672
     },
@@ -13,24 +13,24 @@
       "kind": "bear",
       "fps": 60,
       "maxContactError": 0.0059118720215825165,
-      "maxGripError": 3.4170530014036113e-16,
+      "maxGripError": 3.2701723108674163e-16,
       "localFootHeightRange": 0.02941665309421493,
       "maxScaleError": 0.000002086162567138672
     },
     {
       "kind": "owl",
       "fps": 30,
-      "maxContactError": 0.006494615490127839,
+      "maxContactError": 0.007214546554570976,
       "maxGripError": 0,
-      "localFootHeightRange": 0.048054088932167116,
+      "localFootHeightRange": 0.04805408545018694,
       "maxScaleError": 0.000004410743713378906
     },
     {
       "kind": "owl",
       "fps": 60,
-      "maxContactError": 0.006673880814096825,
+      "maxContactError": 0.007479880496113669,
       "maxGripError": 0,
-      "localFootHeightRange": 0.04814937612610448,
+      "localFootHeightRange": 0.04814937083156748,
       "maxScaleError": 0.000004410743713378906
     }
   ]

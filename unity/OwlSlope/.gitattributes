@@ -1,0 +1,6 @@
+# Unity writes empty serialized fields with a trailing space.
+*.asset whitespace=-blank-at-eol
+*.meta whitespace=-blank-at-eol
+*.unity whitespace=-blank-at-eol
+*.mat whitespace=-blank-at-eol
+*.fbx binary

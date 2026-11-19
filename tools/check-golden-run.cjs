@@ -11,8 +11,8 @@ window.goldenCheck={
   },
   heroReady:()=>!!HEROMODELS[hero].glb,
 
-  sledReady:()=>playerSled.children.length===1&&!!playerSled.children[0].isGroup,
-  ready:()=>!!collectibleModels.aid&&!!collectibleModels.goldenOwl&&!!HEROMODELS[hero].motion,
+  sledReady:()=>G.mode==='play'&&G.sled&&playerSled.children.length===1&&!!playerSled.children[0].isGroup,
+  ready:()=>trackReady&&G.mode==='play'&&!!collectibleModels.aid&&!!collectibleModels.goldenOwl&&!!HEROMODELS[hero].motion,
   meet(catchBird,fps){
     const o={type:'goldenOwl',anchor:2200,y:2200,x:200,side:1};
     clearWorld();G=newGame('play');G.y=G.prevY=1700;G.nextY=G.nextChaseD=Infinity;drag={};
@@ -74,7 +74,7 @@ async function run(){
   assert(result.dist<=result.t*45+20&&result.score-result.dist<=result.dist*45+3000);
   await page.screenshot({path:out+'/result.png'});await page.locator('#bAgain').click();
   assert(await page.evaluate(()=>!!__g().sled));await page.reload();await page.locator('#bSled').waitFor();
-  await page.locator('.seg [data-h="owl"]').click();await page.locator('#bSled').click();await page.evaluate(()=>window.stopFrames=true);
+  await page.locator('.seg [data-h="owl"]').click();await page.locator('#bSled').click();await page.waitForFunction(()=>goldenCheck.sledReady());await page.evaluate(()=>window.stopFrames=true);
   const owl=await page.evaluate(()=>goldenCheck.drive(90,30));assert.equal(owl.mode,'over');assert(owl.hits>0&&owl.gifts>0);
   await page.waitForTimeout(100);
   for(const [hero,run] of [['bear',result],['owl',owl]])assert(submissions.some(s=>s.hero===hero&&s.score===run.score&&s.dist===run.dist&&s.dur===75));

@@ -2,7 +2,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {chromium}=require(process.env.DANCE_BROWSER_MODULE||'playwright');
 
-const groups=['Модели','Объекты из кода','Запасные формы'];
+const groups=['Модели','Объекты из кода'];
 const cards=[];
 function item(group,id,title,note,source,params={}){
   cards.push({group,id,title,note,source,params});
@@ -41,6 +41,12 @@ const imported=[
   ['goldenOwl','Летящая золотая сова','Модель из Tripo Studio, парит над трассой. Поимка открывает снегоход.']
 ];
 for(const [id,title,note] of imported)item(0,id,title,note,id);
+const notes={
+ bear:'Меню: в поднятой лапе появился просвет. На спуске следующий акцент — яркие манжеты и читаемая пара лыж.',owl:'Тёмный шлем и холодная тень отделяют белую голову от снега. Следующим проходом усилить разницу силуэтов двух кантов.',
+ skier:'Выделить плечи одним пятном и сделать палки темнее снега.',kid:'Сохранить низкий рост, дать шлему единый яркий цвет для чтения издалека.',sitter:'Подчеркнуть тёмной полосой нижний край куртки: сидячая фигура низко над снегом.',sboy:'Развести руки и корпус в профиль; окрасить нос доски.',sman:'Укрупнить контрастные перчатки: из-за спины райдер похож на лыжника.',sinstr:'Постоянная яркая спинка отличит ведущего от группы при смене вариантов куртки.',
+ ratrak:'Оставить широкий отвал; подчеркнуть полосой его опасные углы.',snowmobile:'Отделить тёмную гусеницу от костюма водителя; яркую фару сохранить.',sled:'Отличить нос снегохода игрока от патрульного по окраске капота.',chair:'Утолстить силуэт сиденья, оставить открытым просвет под подвесом.',tower:'Оставить тёмный контур опоры, добавить цвет у основания на высоте игрока.',tree:'Разделить белые ярусы более тёмными промежутками.',pine:'Высокий силуэт работает по краю дороги; не увеличивать ширину ветвей.',fir:'Сохранить просветы между ветвями; на солнце затемнить нижнюю хвою.',ramp:'Обозначить нос и линию отрыва одним контрастным цветом.',
+ rock_wide:'Низкий край почти теряется: затемнить боковую грань под снежной шапкой.',rock_tall:'Сильный вертикальный контур; усилить переход от шапки к камню.',snowman:'Шарф и шляпа помогают распознаванию; сделать жест броска крупнее.',dog:'Дать движение хвосту: направление перебежки должно читаться сбоку.',yeti:'Затемнить кончики лап; расширить первый шаг перед пересечением следов.',snow_cannon:'Разнести по тону ствол и основание; оставить тёмное отверстие сопла.',
+ mandarin:'Сохранить цельное оранжевое пятно, укрупнить зелёный лист.',cocoa:'Яркая кружка читается по цвету; расширить просвет ручки.',helmet:'Добавить контрастную полосу вдоль шлема, чтобы отличать его от валюты.',gift:'Сделать бант шире: мелкие ленты теряются на дистанции.',magnet:'Подчеркнуть светлые наконечники и открытый промежуток между ними.',aid:'Белый кейс на снегу нуждается в более широкой цветной полосе по торцу.',goldenOwl:'Сохранить золотые крылья и след; подчеркнуть мах крыла при смене направления.'};
 const authored=[
  ['gate-red','Красные ворота','Стойки и флаги можно заменить модульной моделью. Ореол и ширина прохода меняются в игре.','gate',{gap:120,col:0}],
  ['gate-blue','Синие ворота','Вторая расцветка слаломной пары.','gate',{gap:120,col:1}],
@@ -73,29 +79,11 @@ const authored=[
  ['particles','Снежные частицы','Снегопад, брызги и салюты используют частицы.','particles'],
 ];
 for(const [id,title,note,source,params] of authored)item(1,id,title,note,source,params);
-for(const [key,title,params] of [
- ['bear','Мишаня'],['owl','Сова'],['npc','Лыжник',{colHex:0x1859ab}],['npc','Сидящий лыжник',{sit:true,colHex:0xa64e31}],
- ['npc','Ребёнок',{kid:true,colHex:0x445599}],['cat','Ратрак',{vy:10}],['tree','Ель'],['tree','Сосна',{pine:true}],
- ['ramp','Трамплин',{w:100,hh:.8}],['rock','Валун'],['dog','Собака'],['snowman','Снеговик'],['yeti','Йети'],
- ['snowmobile','Патруль'],['cannon','Пушка'],['aid','Аптечка'],['gift','Подарок'],
- ['coin','Мандаринка'],['helmet','Каска'],['thermos','Кофе'],['magnet','Магнит'],['chair','Кресло'],['tower','Опора'],
- ])item(2,'reserve-'+key+'-'+cards.length,title,'Форма из кода до загрузки основной модели.',key,params);
-
 function studio(){
-  const fallback=new Map();
+  const effects=new Map();
   const args=c=>({type:c.source,x:140,y:0,vx:90,vy:90,w:80,stage:1,colHex:0x3679aa,...c.params});
   function make(c){
     const k=c.source,o=args(c);o.h=100;o.w=c.params.w||80;
-    if(c.group===2){
-      if(k==='bear')return buildBear().root;
-      if(k==='owl')return buildOwl().root;
-      if(k==='tower'||k==='chair'){
-        const model=(k==='tower'?towers:chairs)[0].clone();
-        if(k==='tower')model.children.slice(-2).forEach(q=>model.remove(q));
-        return model;
-      }
-      return FACT[k](o);
-    }
     if(k==='bear'||k==='owl'){
       const h=HEROMODELS[k];poseGlb(h,{air:0,ang:0},'menu',0);
       return h.holder;
@@ -128,23 +116,25 @@ function studio(){
   const sc=new THREE.Scene();sc.background=new THREE.Color(0xdbe8ee);
   sc.add(new THREE.HemisphereLight(0xffffff,0xb2bdca,1.9));
   const sun=new THREE.DirectionalLight(0xfff4df,2.2);sun.position.set(-3,5,4);sc.add(sun);
-  const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setSize(320,230);
+  const studioRenderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});studioRenderer.setSize(320,230);
   const cam=new THREE.PerspectiveCamera(33,320/230,.001,10000);
   return {
     async setup(cards){
-      for(const c of cards.filter(c=>c.group===2))fallback.set(c.id,make(c));
-      loadHero('bear');loadHero('owl');loadTrackAssets();loadPatrol();loadPlayerSled();
+      await Promise.all([loadTrackAssets('owl'),loadTrackAssets('bear'),loadPlayerSled()]);
     },
     ready(){return HEROMODELS.owl.glb&&HEROMODELS.bear.glb&&Object.keys(NPCM).length===13&&Object.keys(WINTER).length===8&&Object.keys(PROPS).length===3&&Object.keys(collectibleModels).length===2&&patrolModel&&playerSled.children.length===1;},
+    slope(c){hero=c.id==='bear'?'bear':'owl';reviewSeek(200);for(const o of G.objs)if(o.m)o.m.visible=false;G.p.x=200;render(1/30);
+      const anchor=new THREE.Group();if(!['bear','owl'].includes(c.id)){let m=c.id==='ramp'?FACT.ramp({w:75,hh:.8}):make(c);anchor.add(m);scene.add(anchor);courseGround(anchor.position,2,-208);if(['aid','mandarin','cocoa','helmet','gift','magnet','goldenOwl','chair'].includes(c.id))anchor.position.y+=c.id==='chair'?2:.9;}
+      renderer.render(scene,camera);const img=renderer.domElement.toDataURL('image/webp',.86);scene.remove(anchor);return img;},
     shot(c){
       if(c.source==='hud'){
         const el=document.createElement('canvas');el.width=375;el.height=145;const ctx=el.getContext('2d');ctx.fillStyle='#dbe8ee';ctx.fillRect(0,0,375,145);
         drawRaceHUD(ctx,{width:375,height:812,safeTop:0,time:1,score:2160,distance:380,coins:24,speed:52,lives:2,multiplier:2,stage:'Лесная тропа'});return el.toDataURL('image/webp',.9);
       }
       if(c.source==='particles'){
-        const g=new THREE.Group();for(let i=0;i<50;i++){const q=new THREE.Mesh(partMesh.geometry,new THREE.MeshBasicMaterial({color:i%3?0xffffff:0xffc454}));q.position.set(Math.sin(i*3)*i/50,Math.sin(i*7)*i/55,Math.cos(i)*.4);q.scale.setScalar(.045);g.add(q);}fallback.set(c.id,g);
+        const g=new THREE.Group();for(let i=0;i<50;i++){const q=new THREE.Mesh(partMesh.geometry,new THREE.MeshBasicMaterial({color:i%3?0xffffff:0xffc454}));q.position.set(Math.sin(i*3)*i/50,Math.sin(i*7)*i/55,Math.cos(i)*.4);q.scale.setScalar(.045);g.add(q);}effects.set(c.id,g);
       }
-      const m=fallback.get(c.id)||make(c);
+      const m=effects.get(c.id)||make(c);
       const parent=m.parent,old=m.position.clone();sc.add(m);m.position.set(0,0,0);m.visible=true;m.updateMatrixWorld(true);
       const box=new THREE.Box3().setFromObject(m),center=box.getCenter(new THREE.Vector3()),size=box.getSize(new THREE.Vector3());
       const radius=Math.max(size.x/1.25,size.y,size.z*.85,.1)*2.5;
@@ -152,7 +142,7 @@ function studio(){
       if(['owl','bear','goldenOwl','feather','aid'].includes(c.source))dir.set(.26,.16,c.source==='bear'||c.source==='owl'?-1:1).normalize();
       if(['snow','track','yeti-tracks','rollers'].includes(c.source))dir.set(.32,.96,.75).normalize();
       cam.position.copy(center).addScaledVector(dir,radius);cam.lookAt(center);cam.near=radius/1000;cam.far=radius*10;cam.updateProjectionMatrix();
-      renderer.render(sc,cam);const img=renderer.domElement.toDataURL('image/webp',.85);
+      studioRenderer.render(sc,cam);const img=studioRenderer.domElement.toDataURL('image/webp',.85);
       sc.remove(m);if(parent)parent.add(m);m.position.copy(old);return img;
     }
   };
@@ -160,18 +150,19 @@ function studio(){
 async function main(){
  const browser=await chromium.launch({args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  try{
-  const page=await browser.newPage();const html=fs.readFileSync('docs/index.html','utf8').replace(/requestAnimationFrame\(frame\);\s*<\/script>/, 'window.sheet=('+studio.toString()+')();\n</script>');
+  const page=await browser.newPage({viewport:{width:375,height:667},deviceScaleFactor:1});const html=fs.readFileSync('docs/index.html','utf8').replace(/requestAnimationFrame\(frame\);\s*<\/script>/, 'window.sheet=('+studio.toString()+')();\n</script>');
   await page.route('**/sheet-preview.html',r=>r.fulfill({body:html,contentType:'text/html; charset=utf-8'}));
   await page.route('**/vendor/telegram-web-app.js',r=>r.fulfill({body:''}));
   page.on('pageerror',console.error);await page.goto('http://127.0.0.1:8766/sheet-preview.html');
   await page.evaluate(cs=>sheet.setup(cs),cards);await page.waitForFunction(()=>sheet.ready(),null,{timeout:90000});
-  fs.mkdirSync('docs/ui/models',{recursive:true});
+  fs.mkdirSync('docs/ui/models/slope',{recursive:true});
   for(const c of cards){
+    if(!c.group){const slope=await page.evaluate(c=>sheet.slope(c),c);fs.writeFileSync(path.join('docs/ui/models/slope',c.id+'.webp'),Buffer.from(slope.split(',')[1],'base64'));}
     const img=await page.evaluate(c=>sheet.shot(c),c).catch(e=>{throw Error(c.id+': '+e.message)});
     fs.writeFileSync(path.join('docs/ui/models',c.id+'.webp'),Buffer.from(img.split(',')[1],'base64'));
   }
   const tmpl=fs.readFileSync('tools/model-sheet.template.html','utf8');
-  const card=c=>`<figure data-group="${c.group}"><img src="ui/models/${c.id}.webp" loading="lazy" alt=""><figcaption><small>${groups[c.group]}</small><h2>${c.title}</h2><p>${c.note}</p></figcaption></figure>`;
+  const card=c=>`<figure data-group="${c.group}"><img src="ui/models/${c.id}.webp" loading="lazy" alt=""><figcaption><small>${groups[c.group]}</small><h2>${c.title}</h2><p>${c.note}</p>${c.group===0?`<p>${notes[c.id]}</p><a href="ui/models/slope/${c.id}.webp">На трассе · 375×667</a>${['owl','bear'].includes(c.id)?` · <a href="review/${c.id==='bear'?'bear-menu':'owl-menu-after'}.jpg">Меню</a>`:''}`:''}</figcaption></figure>`;
   fs.writeFileSync('docs/models.html',tmpl.replace('<!--CARDS-->',cards.map(card).join('\n')));
   console.log(cards.length+' previews');
  }finally{await browser.close();}

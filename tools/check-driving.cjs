@@ -4,9 +4,9 @@ const {chromium}=require(process.env.DANCE_BROWSER_MODULE||'playwright');
 const out=path.resolve('driving-checks');fs.mkdirSync(out,{recursive:true});
 let html=fs.readFileSync('docs/index.html','utf8').replace('function frame(now){','function frame(now){if(window.__freeze)return;');
 const debug=`
-loadHero('bear');loadHero('owl');loadTrackAssets();
+loadTrackAssets('bear');loadTrackAssets('owl');
 window.__drivingTest={
- ready:()=>HEROMODELS.bear.glb&&HEROMODELS.owl.glb,
+ ready:()=>trackReady&&HEROMODELS.bear.motion&&HEROMODELS.owl.motion,
  reset(kind='bear',d=0){clearWorld();hideToast();hero=kind;save.muted=true;save.missions=[];save.fis=[1,2,3,4,5,6,7,8,9,10];
   for(const k in keys)delete keys[k];drag=null;G=newGame('play');G.y=G.prevY=d*20;G.p.travelHeading=courseHeading(-d);G.stage=G.lastSpawnStage=stageAt(d);G.nextY=G.nextChaseD=Infinity;
   G.camY=courseHeight(d-6.4)+2.3;document.querySelectorAll('.ui').forEach(el=>el.classList.add('hidden'));$('topbtns').classList.remove('hidden');},
@@ -61,7 +61,7 @@ const end=html.lastIndexOf('</script>');html=html.slice(0,end)+debug+html.slice(
   await review.route('**/vendor/telegram-web-app.js',r=>r.fulfill({body:
    "window.__cloud=[];window.Telegram={WebApp:{initData:'test',initDataUnsafe:{user:{id:991},start_param:'course'},platform:'web',ready(){},expand(){},onEvent(){},enableClosingConfirmation(){},disableClosingConfirmation(){},isVersionAtLeast(){return false},BackButton:{onClick(){},show(){},hide(){}},CloudStorage:{getItem(k,cb){__cloud.push(['get',k]);cb(null,null)},setItem(k){__cloud.push(['set',k])}}}};"}));
   await review.goto('http://127.0.0.1:8766/?preview=course',{waitUntil:'domcontentloaded'});
-  await review.locator('#course-review').waitFor();
+  await review.locator('#course-review').waitFor();await review.waitForFunction(()=>__g()?.mode==='pause');
   const stages=[];
   for(let i=0;i<8;i++){
    await review.locator('[data-r="stage"]').selectOption(String(i));
@@ -76,7 +76,7 @@ const end=html.lastIndexOf('</script>');html=html.slice(0,end)+debug+html.slice(
   await review.locator('[data-r="x"]').fill('80');await review.locator('[data-r="x"]').dispatchEvent('input');
   assert(Math.abs((await review.evaluate(()=>__g().p.mh))-beforeHeight)>.1,'Paused lateral inspection must follow the new terrain height');
   await review.locator('[data-r="x"]').fill('200');await review.locator('[data-r="x"]').dispatchEvent('input');
-  await review.locator('[data-r="hero"]').selectOption('owl');
+  await review.locator('[data-r="hero"]').selectOption('owl');await review.locator('#assetWait').waitFor({state:'hidden'});
   await review.locator('[data-r="effect"]').selectOption('avalanche');await review.screenshot({path:path.join(out,'course-review.png')});
   await review.locator('[data-r="effect"]').selectOption('coffee');assert.equal(await review.evaluate(()=>__g().p.boost),6);
   await review.locator('[data-r="seek"]').fill('1234');await review.locator('[data-r="seek"]').dispatchEvent('change');
