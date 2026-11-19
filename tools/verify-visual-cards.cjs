@@ -34,7 +34,7 @@ window.cardShot=(id,index,d,x)=>{
   else if(id===15||id===16||id===17){if(lift.visible&&towers.some(t=>t.userData.glb)&&chairs.some(c=>c.userData.glb))observed=['chair','tower16C','cable'][id-15];}
   else if(id===18){if(lamps.some(l=>l.getObjectByName('lamp18'+'ABC'[index])))observed='lamp18'+'ABC'[index];}
   else if(id>=19&&id<=21){const k='tree'+id+'ABC'[index];if(G.objs.some(o=>o.type==='tree'&&o.m?.getObjectByName(k)&&Math.abs(o.y-G.y)<500)&&kit[k]&&forestIM[(id-19)*3+index].visible&&forestIM[(id-19)*3+index].count>0)observed=k;}
-  else if(id===50||id===56){if(MOG.patches.some(p=>id===50?p.mesh:p.tracks))observed=id===50?'рельеф':'отпечатки';}
+  else if(id===50||id===56){if((id===50?MOG.patches.some(p=>p.mesh):G.objs.some(o=>o.prints?.geometry.drawRange.count>0)))observed=id===50?'рельеф':'отпечатки';}
   else if([52,54,62].includes(id)){const order={52:-12,54:-4,62:-9+index}[id];const layers=mountains.children.filter(o=>o.renderOrder===order&&o.visible&&o.material.map?.image&&o.material.opacity>.05);if(id===52||id===54){
       const variant='abc'[index]+'.webp';
       const seen=layers.find(o=>(o.material.map.image.currentSrc||o.material.map.image.src).endsWith(variant)&&Math.abs(o.getWorldPosition(new THREE.Vector3()).project(camera).x)<1);
@@ -42,7 +42,7 @@ window.cardShot=(id,index,d,x)=>{
     }else if(layers.length)observed='слои · '+layers.length;}
   else if(id===55){if(trackI)observed='двойной след';}
   else if(id===58){if(landingSpray.visible&&landingSpray.material.map)observed='снежная крошка';}
-  else if(id===53){if(index===1?G.objs.some(o=>o.type==='sideNet'):index===0?G.objs.some(o=>o.type==='boundaryPole'):piste.geometry.attributes.color.array.some(n=>n<.5))observed='полотно';}
+  else if(id===53){if(index===1?MOG.patches.some(p=>p.rolling)&&!G.objs.some(o=>o.type==='sideNet'):index===0?G.objs.some(o=>o.type==='boundaryPole'):piste.geometry.attributes.color.array.some(n=>n<.5))observed='полотно';}
   else if(id===59){if(hud.width)observed='HUD';}
   else if(HEROMODELS[hero].motion&&HEROMODELS[hero].root.visible)observed=hero;
   const c=document.createElement('canvas');c.width=240;c.height=520;const ctx=c.getContext('2d');ctx.drawImage(cv,0,0,240,520);ctx.drawImage(hud,0,0,240,520);

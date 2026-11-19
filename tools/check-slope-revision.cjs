@@ -34,7 +34,7 @@ window.slopeQA={
       headlights:first('cat')?.m.children.filter(c=>c.isSprite&&!c.userData.beacon&&c.material.blending===THREE.AdditiveBlending).length,
       evening:G.zone===4||stageDef(G.stage).env===4,hemi:hemi.intensity};
   },
-  animate(n){G.mode='play';drag={};for(let i=0;i<n;i++)update(1/60);render(0);}
+  animate(n){G.mode='play';drag={};for(let i=0;i<n;i++){update(1/60);syncWorld(1/60);}render(0);return shells.some(s=>s.visible&&s.material.opacity>.5);}
 };`;
 (async()=>{
   fs.mkdirSync(out,{recursive:true});
@@ -62,7 +62,7 @@ window.slopeQA={
       if(d===12504)assert(s.types.filter(t=>t==='rock').length>=4);
       if(d===15024)assert(s.twin&&s.yetis.length);
       if(d===15215)assert.equal(s.headlights,2);
-      if(d===17525){assert(s.evening&&s.hemi>.8);await p.evaluate(()=>slopeQA.animate(22));}
+      if(d===17525){assert(s.evening&&s.hemi>.8);assert(await p.evaluate(()=>slopeQA.animate(22)));}
       for(const [route,leaps,prints] of s.yetis){routes.add(route);jumps||=leaps;assert(prints);}
       if([70,2555,5035,7510,12504,15024,15215,17525].includes(d))await p.screenshot({path:out+'/'+d+'.jpg'});
     }
