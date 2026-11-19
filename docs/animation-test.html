@@ -324,7 +324,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
 <script type="module">
 import * as THREE from 'three';
 import {raceLight} from './trail-visuals.js?v=2026-11-19a';
-import {attachHeroMotion,poseHeroMotion,boardSurfaceLift} from './hero-motion.js?v=2026-11-19c';
+import {attachHeroMotion,poseHeroMotion,boardSurfaceLift} from './hero-motion.js?v=2026-11-19d';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {courseCenter,courseHeading,courseGrade,courseHeight,courseCrossHeight,courseCrossSlope,coursePoint,courseGround,coursePitch,courseSlip,courseWidth,courseTheme} from './course.js?v=2026-11-19a';
@@ -409,19 +409,11 @@ const EQM={};
 function eqMats(){if(EQM.ski)return EQM;const side=new THREE.MeshStandardMaterial({color:0x2a0c0c,roughness:0.6}),bot=new THREE.MeshStandardMaterial({color:0x16171b,roughness:0.7});
   const mk2=(url,flip)=>new THREE.MeshStandardMaterial({map:texFromData(url,flip),transparent:true,alphaTest:0.4,roughness:0.45,metalness:0.05});
   EQM.ski=[side,side,mk2(EQTEX.ski,true),bot,side,side];EQM.board=[side,side,mk2(EQTEX.board,false),bot,side,side];
-  EQM.shaft=new THREE.MeshStandardMaterial({color:0x15161a,roughness:0.4,metalness:0.4});EQM.red=new THREE.MeshStandardMaterial({color:0xd0202a,roughness:0.4,metalness:0.3});
-  EQM.grip=new THREE.MeshStandardMaterial({color:0x111111,roughness:0.9});return EQM;}
+  return EQM;}
 function buildSki(){const m=eqMats();const g=new THREE.Group();const s=new THREE.Mesh(bentStrip(1.2,0.1,0.018,28,0.15,0.075,0.05,0.015),m.ski);s.rotation.y=Math.PI/2;s.castShadow=true;g.add(s);return g;}
 function buildBoard(){const m=eqMats();const g=new THREE.Group();const b=new THREE.Mesh(bentStrip(1.0,0.3,0.02,32,0.12,0.05,0.12,0.05),m.board);b.castShadow=true;g.add(b);
   for(const x of[-0.2,0.2]){const bd=new THREE.Mesh(sharedGeo.box,M(0x111318));bd.scale.set(0.12,0.05,0.26);bd.position.set(x,0.035,0);g.add(bd);const st=new THREE.Mesh(sharedGeo.box,M(0x1f5fe0));st.scale.set(0.13,0.02,0.27);st.position.set(x,0.07,0);g.add(st);}return g;}
-function buildPole(){const m=eqMats();const g=new THREE.Group();
-  const shaft=new THREE.Mesh(new THREE.CylinderGeometry(0.011,0.009,1,10),m.shaft);g.add(shaft);
-  const band=new THREE.Mesh(new THREE.CylinderGeometry(0.0125,0.0125,0.3,10),m.red);g.add(band);
-  const grip=new THREE.Mesh(new THREE.CapsuleGeometry(0.022,0.1,4,10),m.grip);g.add(grip);
-  const basket=new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.045,0.01,16),m.grip);g.add(basket);
-  const tip=new THREE.Mesh(new THREE.ConeGeometry(0.008,0.05,8),m.shaft);tip.rotation.x=Math.PI;g.add(tip);
-  g.userData={shaft,band,grip,basket,tip};g.traverse(o=>{if(o.isMesh)o.castShadow=true;});return g;}
-function sizePole(g,L){const u=g.userData;u.shaft.scale.y=L;u.shaft.position.y=L/2;u.band.position.y=L*0.42;u.grip.position.y=L-0.04;u.basket.position.y=0.07;u.tip.position.y=0.02;}
+
 // ================= ГЕРОИ ИЗ TRIPO (GLB) =================
 const gltfLoader=new GLTFLoader();
 const _qa=new THREE.Quaternion(),_qb=new THREE.Quaternion(),_qr=new THREE.Quaternion(),_eu=new THREE.Euler(),_va=new THREE.Vector3();
@@ -431,11 +423,11 @@ function makeGlbHero(kind,gltf){
   const model=gltf.scene;holder.add(model);const SC=kind==='bear'?1.3:1.32;holder.scale.setScalar(SC);
   holder.rotation.y=Math.PI+(kind==='owl'?0.55:0);
   const bones={};model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.frustumCulled=false;const m=o.material;if(m){m.metalness=0;m.roughness=Math.max(0.6,m.roughness??0.6);m.envMapIntensity=0;}}
-    if(o.isBone){bones[o.name.replace(/^mixamorig:?/,'')]=o;o.userData.rest=o.quaternion.clone();}});
+    if(o.isBone){bones[o.name.replace(/^mixamorig:?/,'')]=o;o.userData.rest=o.quaternion.clone();if(o.userData.skiReady)o.userData.readyQ=new THREE.Quaternion().fromArray(o.userData.skiReady);}});
   const h={root,pivot,holder,bones,kind,glb:true,SC,baseY:0};
   // снаряжение — в пространстве героя (pivot), всегда на снегу под ногами
   if(kind==='bear'){h.skis=[buildSki(),buildSki()];h.skis.forEach(g=>pivot.add(g));
-    h.poles=[];for(const side of['Left','Right']){const g=buildPole();scene.add(g);h.poles.push({g,hand:bones[side+'Hand'],side:side==='Left'?-1:1});}}
+    h.heldPoles=['Left','Right'].map(side=>model.getObjectByName(side+'_Pole'));}
   else{h.board=buildBoard();pivot.add(h.board);}
   root.traverse(o=>{if(o.isMesh)o.castShadow=true;});
   root.updateMatrixWorld(true);h.restFoot=footY(h);
@@ -443,10 +435,10 @@ function makeGlbHero(kind,gltf){
 }
 function footY(h){h.root.updateMatrixWorld(true);let y=0,n=0;for(const k of['LeftFoot','RightFoot']){const b=h.bones[k];if(!b)continue;b.getWorldPosition(_va);h.pivot.worldToLocal(_va);y+=_va.y;n++;}return n?y/n:0;}
 // поворот кости на углы (x,y,z) в пространстве модели, поверх позы родителя
-function rotB(h,name,ax,ay,az){const b=h.bones[name];if(!b)return;
+function rotB(h,name,ax,ay,az,base){const b=h.bones[name];if(!b)return;
   b.parent.updateWorldMatrix(true,false);b.parent.getWorldQuaternion(_qa);h.holder.getWorldQuaternion(_qb);
   _qr.setFromEuler(_eu.set(ax,ay,az));const Rw=_qb.clone().multiply(_qr).multiply(_qb.clone().invert());
-  b.quaternion.copy(_qa.clone().invert().multiply(Rw).multiply(_qa).multiply(b.userData.rest));}
+  b.quaternion.copy(_qa.clone().invert().multiply(Rw).multiply(_qa).multiply(base||b.userData.rest));}
 // ===== танцы-награды (позы по костям, работают и у Мишани, и у Совы) =====
 const DANCES=[
   {id:'sway',icon:'🎄',name:'Ёлочка',need:()=>true,cond:()=>'Открыт сразу'},
@@ -518,15 +510,13 @@ function poseGlb(h,p,mode,t){
     const br=Math.sin(t*2)*0.03;rotB(h,'Spine',br,0,0);rotB(h,'Head',-0.05,Math.sin(t*0.9)*0.35,0);
     const wave=(G.waveT||0)>0;
     if(h.kind==='bear'){
-      // Open the shoulder first. Keep the mitten outside the jacket throughout the greeting.
       const progress=wave?clamp(Math.min((1.6-G.waveT)*3.2,G.waveT*3.2),0,1):0;
       const lift=progress*progress*(3-2*progress);
-      rotB(h,'LeftArm',-.08,0,.10);
-      rotB(h,'LeftForeArm',-.16,0,0);
-      // Wave from the elbow; keep the shoulder down and the mitten clear of the face.
-      rotB(h,'RightArm',-.08-.16*lift,0,-.10-.48*lift);
-      rotB(h,'RightForeArm',-.16-.10*lift,0,-1.57*lift);
-      rotB(h,'RightHand',-.12*lift,.18*lift,-(.44+.22*Math.sin(t*8))*lift);
+      for(const side of ['Left','Right'])for(const part of ['Arm','ForeArm','Hand']){
+        const name=side+part,b=h.bones[name];if(!b?.userData.readyQ)continue;
+        const salute=side==='Right'&&part==='ForeArm'?lift:0;
+        rotB(h,name,-.27*salute,0,-.09*salute,b.userData.readyQ);
+      }
     }
     else{const f=wave?Math.sin(t*14)*0.5:Math.sin(t*2.5)*0.08;rotB(h,'LeftArm',0,0,0.15+f);rotB(h,'RightArm',0,0,-0.15-f);}
   }else if(h.kind==='bear'){
@@ -550,22 +540,15 @@ function poseGlb(h,p,mode,t){
   h.holder.position.y=0;const fy=footY(h);h.holder.position.y=h.restFoot-fy+(h._bounce||0);
   // лыжи/доска под ногами, палки от руки к снегу
   h.root.updateMatrixWorld(true);const fp=[];for(const k of['LeftFoot','RightFoot']){const bn=h.bones[k];bn.getWorldPosition(_va);h.pivot.worldToLocal(_va);fp.push(_va.clone());}
-  // в меню герой без снаряжения: лыжи/палки/доска воткнуты в снег рядом (menuGear)
+  // в меню лыжи и доска стоят рядом, палки Мишани находятся в перчатках
   if(h.skis)h.skis.forEach(g=>g.visible=!menu);if(h.board)h.board.visible=!menu;
   if(h.skis){h.skis.forEach((g,i)=>{g.position.set(fp[i].x,0.025,fp[i].z-0.1);});}
   if(h.board){const a=fp[0],c=fp[1];h.board.position.set((a.x+c.x)/2,0.025,(a.z+c.z)/2);h.board.rotation.y=-Math.atan2(c.z-a.z,c.x-a.x);}
-  if(h.poles){for(const pl of h.poles){if(!pl.hand)continue;pl.g.visible=h.root.visible&&!menu;pl.hand.getWorldPosition(_va);const H=_va.clone();
-      const loc=h.pivot.worldToLocal(H.clone());
-      // земля: упор в снег; прыжок: прижаты назад вдоль корпуса; падение: торчат в стороны и болтаются
-      const tl=crash?new THREE.Vector3(loc.x+pl.side*0.75,loc.y+0.15+Math.sin(t*15+pl.side)*0.35,loc.z+0.25+Math.cos(t*11+pl.side)*0.3)
-        :air?new THREE.Vector3(loc.x+pl.side*0.1,loc.y-0.32,loc.z+0.95)
-        :new THREE.Vector3(loc.x+pl.side*0.12,0.03,loc.z+0.45+Math.sin(t*4)*0.08);
-      const tip=h.pivot.localToWorld(tl);
-      const d=tip.clone().sub(H);const L=d.length()+0.06;pl.g.position.copy(tip);pl.g.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().negate().normalize());sizePole(pl.g,L);}}
+  h.heldPoles?.forEach(pl=>{if(pl)pl.visible=!G.sled&&!(menu&&G.dance&&G.t<G.dance.until);});
 }
 const pendingAssets=new Map();
 function cached(key,work){if(!pendingAssets.has(key))pendingAssets.set(key,Promise.resolve().then(work).catch(e=>{pendingAssets.delete(key);throw e;}));return pendingAssets.get(key);}
-function loadHero(k){return cached('menu:'+k,async()=>{const g=await gltfLoader.loadAsync('models/'+k+'-menu.glb'+(k==='bear'?'?v=2026-11-19c':''));const h=makeGlbHero(k,g);tintModels(h.holder,k);scene.remove(HEROMODELS[k].root);HEROMODELS[k]=h;scene.add(h.root);h.root.visible=false;return h;});}
+function loadHero(k){return cached('menu:'+k,async()=>{const g=await gltfLoader.loadAsync('models/'+k+'-menu.glb'+(k==='bear'?'?v=2026-11-19d':''));const h=makeGlbHero(k,g);tintModels(h.holder,k);scene.remove(HEROMODELS[k].root);HEROMODELS[k]=h;scene.add(h.root);h.root.visible=false;return h;});}
 function loadRig(k){return cached('rig:'+k,async()=>{const h=await loadHero(k);await attachHeroMotion(h);if(h.motionStatus!=='ready')throw Error('Не загружена анимация: '+k);tintModels(h.motion.model,k);});}
 async function loadPack(file,keys,install){return cached(file,async()=>{await new Promise((ok,fail)=>{const sc=document.createElement('script');sc.src=file;sc.onload=()=>{sc.remove();ok();};sc.onerror=()=>{sc.remove();fail(Error(file));};document.head.appendChild(sc);});await Promise.all(keys.map(k=>cached('packed:'+k,async()=>{const b64=window.__GLB?.[k];if(!b64)throw Error(file+': '+k);const g=await gltfLoader.parseAsync(Uint8Array.from(atob(b64),ch=>ch.charCodeAt(0)).buffer,'');tintModels(g.scene);install(k,g);delete window.__GLB[k];})));});}
 // Keep white feathers white in direct light, with a cool edge in shade. Preserve texture detail.
@@ -1843,7 +1826,7 @@ function syncWorld(dt){
     const z0=Math.ceil(z/TOWER_STEP)*TOWER_STEP,f=(z0-z)/TOWER_STEP,x=LIFT_X[c.userData.up?0:1];liftAnchor(liftA,x,z0);liftAnchor(liftB,x,z0-TOWER_STEP);c.position.lerpVectors(liftA,liftB,f);c.rotation.y=courseHeading(z);}
   }
   // герой
-  for(const k in HEROMODELS){HEROMODELS[k].root.visible=(k===hero);if(HEROMODELS[k].poles)HEROMODELS[k].poles.forEach(q=>q.g.visible=(k===hero));}
+  for(const k in HEROMODELS){HEROMODELS[k].root.visible=(k===hero);}
   const hm=HEROMODELS[hero];
   coursePoint(hm.root.position,px,gy+(p.air>0?flightHeight(p,G.y):p.rampH+(G.mode==='menu'?0:p.mh)),pz);hm.root.scale.setScalar(hm.glb?1:0.8);
   if(G.mode==='menu'){const dn=G.dance&&G.t<G.dance.until;
@@ -1865,7 +1848,7 @@ function syncWorld(dt){
     if(G.sled){
       playerSled.position.copy(hm.root.position);playerSled.quaternion.copy(hm.root.quaternion);
       hm.root.scale.multiplyScalar(.80);hm.root.translateY(.60);hm.root.translateZ(.44);
-      hm.skis?.forEach(s=>s.visible=false);hm.poles?.forEach(s=>s.g.visible=false);if(hm.board)hm.board.visible=false;
+      hm.skis?.forEach(s=>s.visible=false);if(hm.board)hm.board.visible=false;
     }
   }
   // свет
@@ -1891,7 +1874,7 @@ blobShadow.rotation.x=-Math.PI/2;blobShadow.scale.set(1.25,0.8,1);blobShadow.lay
 const menuGear={};
 function getMenuGear(k){if(menuGear[k])return menuGear[k];const g=new THREE.Group();
   if(k==='bear'){for(const s of[-1,1]){const w=new THREE.Group(),ski=buildSki();ski.rotation.x=-Math.PI/2;w.add(ski);w.position.set(s*0.075,0.52,0);w.rotation.z=-s*0.07;g.add(w);}
-    for(const s of[-1,1]){const pl=buildPole();sizePole(pl,1.12);pl.position.set(s*0.2,-0.04,0.08);pl.rotation.z=-s*0.16;pl.rotation.x=0.08;g.add(pl);}}
+  }
   else{const w=new THREE.Group(),b=buildBoard();b.rotation.set(0,-Math.PI/2,Math.PI/2);w.add(b);w.position.y=0.44;w.rotation.z=0.13;g.add(w);}
   const mound=new THREE.Mesh(sharedGeo.sph,new THREE.MeshStandardMaterial({color:0xf4f8ff,roughness:0.9}));mound.scale.set(0.2,0.045,0.15);g.add(mound);
   g.traverse(o=>{o.layers.set(MENU_L);if(o.isMesh)o.castShadow=true;});g.visible=false;scene.add(g);return menuGear[k]=g;}
@@ -1913,7 +1896,7 @@ let menuBgOK=false;{const im=new Image();im.onload=()=>{menuBgOK=true;document.g
 function render(dt){
   syncWorld(dt);
   const menuBg=G.mode==='menu'&&menuBgOK;document.getElementById('menubg').classList.toggle('on',menuBg);
-  if(menuBg){const hm=HEROMODELS[hero];hm.root.traverse(o=>o.layers.enable(MENU_L));if(hm.poles)hm.poles.forEach(q=>q.g.traverse(o=>o.layers.enable(MENU_L)));
+  if(menuBg){const hm=HEROMODELS[hero];hm.root.traverse(o=>o.layers.enable(MENU_L));
     blobShadow.visible=hm.root.visible;blobShadow.position.set(hm.root.position.x,hm.root.position.y+0.02,hm.root.position.z);
     for(const k of['bear','owl']){if(k!==hero&&!menuGear[k])continue;const mg=getMenuGear(k);mg.visible=k===hero&&hm.glb;mg.position.set(hm.root.position.x-0.8,hm.root.position.y,hm.root.position.z+0.25);mg.rotation.y=k==='bear'?0.25:-0.2;}
     const bg=scene.background;scene.background=null;camera.layers.set(MENU_L);renderer.render(scene,camera);camera.layers.set(0);scene.background=bg;}

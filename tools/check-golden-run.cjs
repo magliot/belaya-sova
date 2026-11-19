@@ -7,7 +7,11 @@ window.goldenCheck={
     hero='bear';G.t=t;G.waveT=1.6-t;render(0);
     const h=HEROMODELS.bear;
     const point=n=>h.holder.worldToLocal(h.bones[n].getWorldPosition(new THREE.Vector3()));
-    return {hand:point('RightHand').toArray(),shoulder:point('RightArm').toArray(),center:point('Spine2').toArray()};
+    const held=['Left','Right'].every(side=>{
+      const hand=h.bones[side+'Hand'],pole=hand.getObjectByName(side+'_Pole');
+      return pole?.visible&&pole.getObjectByName(side+'_Grip')&&hand.getObjectByName(side+'_FingerPad')&&hand.getObjectByName(side+'_ThumbPad');
+    });
+    return {held,hand:point('RightHand').toArray(),shoulder:point('RightArm').toArray(),center:point('Spine2').toArray()};
   },
   heroReady:()=>!!HEROMODELS[hero].glb,
 
@@ -60,7 +64,7 @@ async function run(){
   assert.deepEqual(heavy,[]);assert(!(await page.locator('#bSled').isVisible()));
   const arms=[];for(const t of [.02,.2,.55,.9,1.35,1.58])arms.push(await page.evaluate(t=>goldenCheck.menu(t),t));
   await page.evaluate(()=>goldenCheck.menu(.6));await page.screenshot({path:out+'/wave.png'});
-  assert(arms.every(({hand,center})=>Math.abs(hand[0]-center[0])>.18),'Mitten overlaps the jacket centre');
+  assert(arms.every(({hand,center,held})=>held&&Math.abs(hand[0]-center[0])>.18),'Both poles must stay in the raised and resting gloves, clear of the jacket');
   await page.locator('#bPlay').click();await page.waitForFunction(()=>goldenCheck.ready());
   const aid=await page.evaluate(()=>goldenCheck.aid());assert(aid.model&&aid.collected&&aid.rule);
   const miss=await page.evaluate(()=>goldenCheck.meet(false,30));assert(!miss.caught&&!miss.unlock);

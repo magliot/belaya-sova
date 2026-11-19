@@ -1,0 +1,72 @@
+[
+  {
+    "side": "Left",
+    "label": "straight",
+    "raysInsideGlove": 10,
+    "elbowFlexDeg": 66.7,
+    "wristBendDeg": 11.4
+  },
+  {
+    "side": "Right",
+    "label": "straight",
+    "raysInsideGlove": 11,
+    "elbowFlexDeg": 66.7,
+    "wristBendDeg": 9.1
+  },
+  {
+    "side": "Left",
+    "label": "left",
+    "raysInsideGlove": 10,
+    "elbowFlexDeg": 60.8,
+    "wristBendDeg": 5.8
+  },
+  {
+    "side": "Right",
+    "label": "left",
+    "raysInsideGlove": 11,
+    "elbowFlexDeg": 74,
+    "wristBendDeg": 13.6
+  },
+  {
+    "side": "Left",
+    "label": "right",
+    "raysInsideGlove": 10,
+    "elbowFlexDeg": 74,
+    "wristBendDeg": 17.6
+  },
+  {
+    "side": "Right",
+    "label": "right",
+    "raysInsideGlove": 11,
+    "elbowFlexDeg": 60.8,
+    "wristBendDeg": 5.1
+  },
+  {
+    "side": "Left",
+    "label": "land",
+    "raysInsideGlove": 10,
+    "elbowFlexDeg": 68.3,
+    "wristBendDeg": 10.2
+  },
+  {
+    "side": "Right",
+    "label": "land",
+    "raysInsideGlove": 11,
+    "elbowFlexDeg": 68.3,
+    "wristBendDeg": 7.8
+  },
+  {
+    "side": "Left",
+    "label": "air",
+    "raysInsideGlove": 10,
+    "elbowFlexDeg": 61.4,
+    "wristBendDeg": 31
+  },
+  {
+    "side": "Right",
+    "label": "air",
+    "raysInsideGlove": 11,
+    "elbowFlexDeg": 61.4,
+    "wristBendDeg": 28.9
+  }
+]

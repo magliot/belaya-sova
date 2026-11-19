@@ -112,11 +112,6 @@ body.data.update()
 for mod in body.modifiers:
     if mod.type=='ARMATURE': mod.use_deform_preserve_volume=False
 
-# Optional clean rest-pose export for the menu, falls, dances and the sled.
-# Export before creating or posing any equipment; reuse the same skin on both rigs.
-if not OWL and '--menu-export' in ARGS:
-    bpy.ops.object.select_all(action='DESELECT');rig.select_set(True);body.select_set(True)
-    bpy.ops.export_scene.gltf(filepath=os.path.abspath(ARGS[ARGS.index('--menu-export')+1]),use_selection=True,export_format='GLB',export_animations=False,export_skins=True)
 def material(name,color,metal=0,rough=.5):
     m=bpy.data.materials.new(name); m.diffuse_color=(*color,1); m.use_nodes=True
     bs=m.node_tree.nodes.get('Principled BSDF'); bs.inputs['Base Color'].default_value=(*color,1)
@@ -125,6 +120,17 @@ def material(name,color,metal=0,rough=.5):
 dark=material('Rubber',(.018,.026,.04)); steel=material('Aluminium',(.24,.32,.39),.7)
 edge_paint=material('Cobalt sidewall' if OWL else 'Vermilion sidewall',(.025,.19,.65) if OWL else (.64,.035,.018),.08,.4)
 snow=material('Snow',(.65,.75,.82),0,.9)
+gloves=[];palm_basis={}
+if not OWL:
+    import runpy
+    grip_tools=runpy.run_path(os.path.join(os.path.dirname(__file__),'bear-grip.py'))
+    gloves,palm_basis=grip_tools['fit_gloves'](rig,body,material)
+# Optional clean rest-pose export for the menu, falls, dances and the sled.
+# Retain held poles and gloves, omitting skis and the ride clip.
+if not OWL and '--menu-export' in ARGS:
+    bpy.ops.object.select_all(action='DESELECT');rig.select_set(True);body.select_set(True)
+    for ob in gloves:ob.select_set(True)
+    bpy.ops.export_scene.gltf(filepath=os.path.abspath(ARGS[ARGS.index('--menu-export')+1]),use_selection=True,export_format='GLB',export_animations=False,export_skins=True)
 def cube(name,position,scale,mat,bevel=.01):
     bpy.ops.mesh.primitive_cube_add(size=1,location=position); o=bpy.context.object; o.name=name; o.dimensions=scale
     bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
@@ -181,7 +187,7 @@ def binding_part(parent,name,offset,size,mat):
     part=cube(name,offset,size,mat,.006); part.parent=parent
     return part
 
-skis=[]; poles=[]
+skis=[]
 if OWL:
     board=deck('Snowboard',(0,-.066,0),1.04,.36,True)
     skis.append(('Board',board,board.matrix_world.copy()))
@@ -202,13 +208,6 @@ for side in ['Left','Right']:
         binding_part(binding,side+'_SkiHeel',(0,.069,.016),(.080,.028,.046),edge_paint)
     bpy.context.view_layer.update()
     skis.append((side,binding,binding.matrix_world.copy()))
-    if OWL:continue
-    # A fixed-length pole, with a local origin at the grip.
-    parent=bpy.data.objects.new(side+'_Pole',None); bpy.context.collection.objects.link(parent)
-    for name,z,r,depth,mat in [('Shaft',-.20,.004,.4,steel),('Grip',-.025,.012,.065,dark),('Basket',-.375,.025,.008,dark)]:
-        bpy.ops.mesh.primitive_cylinder_add(vertices=12,radius=r,depth=depth,location=(0,0,z))
-        o=bpy.context.object; o.name=side+'_'+name; o.data.materials.append(mat); o.parent=parent
-    poles.append((side,parent))
 def set_world(n,m): bone(n).matrix=rig.matrix_world.inverted()@m
 def aim(n,start,end):
     b=bone(n); rm=rig.matrix_world@rest[b.name]
@@ -298,31 +297,32 @@ for frame in range(1,END+1):
         sign=1 if side=='Left' else -1
         # Targets relative to the posed shoulder keep elbow flexion on both sides;
         # an absolute, unreachable wrist target straightened one sleeve in a carve.
-        wrist=upper+Vector((sign*(.109+.012*flight),-.070+hand*.4+sign*shift*.24,-.081+.019*flight+sign*shift*.17))
+        wrist=upper+Vector((sign*(.064+.020*flight),-.115+hand*.35+sign*shift*.30,-.069+.021*flight+sign*shift*.22))
         if OWL:wrist=Vector((sign*(.345+.035*flight)+shift*.3,-.075+shift*.7,.505-comp*.6+air+.045*flight))
         l1=(loc(side+'ForeArm')-loc(side+'Arm')).length; l2=(loc(side+'Hand')-loc(side+'ForeArm')).length
+        if not OWL:
+            # The imported left and right forearms have different lengths. Matching
+            # target distances produced a 16-degree mismatch between the elbows.
+            flex=math.radians(66+sign*shift*190+comp*35-6*flight)
+            reach=math.sqrt(l1*l1+l2*l2+2*l1*l2*math.cos(flex))
+            wrist=upper+(wrist-upper).normalized()*reach
         if (wrist-upper).length>l1+l2-.002: wrist=upper+(wrist-upper).normalized()*(l1+l2-.002)
-        elbow=solve(upper,wrist,l1,l2,Vector((sign,0,-.3)) if OWL else Vector((sign*.42,.85,-.30)))
+        elbow=solve(upper,wrist,l1,l2,Vector((sign,0,-.3)) if OWL else Vector((sign*.35,.30,-1)))
         aim(side+'Arm',upper,elbow); bpy.context.view_layer.update()
         aim(side+'ForeArm',elbow,wrist); bpy.context.view_layer.update()
         # Retain a neutral mitten orientation instead of curling each finger chain.
         hm=rig.matrix_world@rest[bone(side+'Hand').name]
         if not OWL:
-            fore=bone(side+'ForeArm')
-            delta=(rig.matrix_world@fore.matrix).to_quaternion()@(rig.matrix_world@rest[fore.name]).to_quaternion().inverted()
-            hm=Quaternion().slerp(delta,.55).to_matrix().to_4x4()@hm
+            # Align the glove opening to the forearm; keep the pole trailing on the snow.
+            f=wrist-elbow;f.z=0;f.normalize()
+            f.z=-math.tan(math.radians(16+12*flight+sign*shift*50))
+            target=grip_tools['wrist_frame'](wrist,f)
+            hm=target@palm_basis[side].inverted()@hm
         hm.translation=wrist
         set_world(side+'Hand',hm); bpy.context.view_layer.update()
     for side,o,base in skis:
         o.matrix_world=boarddelta@base if side=='Board' else (rig.matrix_world@bone(side+'Foot').matrix)@(rig.matrix_world@rest[bone(side+'Foot').name]).inverted()@base
         o.rotation_mode='QUATERNION'; o.keyframe_insert('location',frame=frame);o.keyframe_insert('rotation_quaternion',frame=frame)
-    for side,o in poles:
-        wrist=rig.matrix_world@bone(side+'Hand').head
-        rest_hand=rig.matrix_world@rest[bone(side+'Hand').name]
-        grip_local=rest_hand.to_3x3().inverted()@Vector((0,-.015,-.045))
-        o.location=(rig.matrix_world@bone(side+'Hand').matrix)@grip_local
-        o.rotation_mode='QUATERNION'; o.rotation_quaternion=Quaternion((1,0,0),math.radians(24+comp*100+16*flight))
-        o.keyframe_insert('location',frame=frame);o.keyframe_insert('rotation_quaternion',frame=frame)
     for b in P:
         b.keyframe_insert('location',frame=frame); b.keyframe_insert('rotation_quaternion',frame=frame)
     audit.append({'frame':frame,'foot_target_error':max(errors),'height':air,'compression':comp})
@@ -332,7 +332,7 @@ for f,n in [(1,'СТОЙКА'),(25,'ПОВОРОТ'),(82,'ПОДГОТОВКА')
 scene.frame_set(1)
 # Export an independently reviewable sample. Include rigid equipment and its baked tracks.
 bpy.ops.object.select_all(action='DESELECT')
-gear_roots={part for _,part,_ in skis}|{pole for _,pole in poles}
+gear_roots={part for _,part,_ in skis}|set(gloves)
 for o in bpy.context.scene.objects:
     if o==rig or o==body or o in gear_roots or o.parent in gear_roots:o.select_set(True)
 bpy.context.view_layer.objects.active=rig
@@ -347,6 +347,8 @@ for animation in doc.get('animations',[]):
     for channel in animation['channels']:channel['sampler']+=offset;merged['channels'].append(channel)
 doc['animations']=[merged];js=json.dumps(doc,separators=(',',':')).encode();js+=b' '*((-len(js))%4);tail=raw[20+size:]
 open(glb_path,'wb').write(struct.pack('<4sIIII',b'glTF',2,20+len(js)+len(tail),len(js),0x4e4f534a)+js+tail)
+if not OWL and '--menu-export' in ARGS:
+    runpy.run_path(os.path.join(os.path.dirname(__file__),'bear-menu-pose.py'))['apply'](glb_path,ARGS[ARGS.index('--menu-export')+1])
 cube('Snow stage',(0,0,-.012),(200,200,.024),snow,.0)
 world=bpy.data.worlds.new('Winter studio');scene.world=world;world.use_nodes=True;world.node_tree.nodes['Background'].inputs[0].default_value=(.19,.26,.36,1);world.node_tree.nodes['Background'].inputs[1].default_value=.5
 def area(name,pos,power,size):

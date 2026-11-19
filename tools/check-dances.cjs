@@ -13,8 +13,8 @@ window.__danceTest={
   measure(kind){const h=HEROMODELS[kind],points={};h.root.updateMatrixWorld(true);
     for(const name of ['Head','LeftArm','LeftHand','RightArm','RightHand','LeftFoot','RightFoot']){
       const v=h.bones[name].getWorldPosition(new THREE.Vector3());h.holder.worldToLocal(v);points[name]=v.toArray();}
-    const equipmentHidden=!(h.board&&h.board.visible)&&!(h.skis&&h.skis.some(s=>s.visible))&&!(h.poles&&h.poles.some(p=>p.g.visible));
-    return {points,equipmentHidden};},
+    const equipmentHidden=!(h.board&&h.board.visible)&&!(h.skis&&h.skis.some(s=>s.visible));
+    return {points,equipmentHidden,held:(h.heldPoles||[]).filter(p=>p?.visible).length};},
   advance(dt){update(dt);render(dt);return {mode:G.mode,hasDance:!!(G.dance&&G.t<G.dance.until)};},
   current(){return {hero,mode:G.mode,dance:G.dance&&G.dance.id};}
 };
@@ -38,7 +38,7 @@ fs.writeFileSync('docs/test.html',html);
       const idleBefore=await page.evaluate(h=>__danceTest.pose(h,null,0),hero);
       for(const [dance,t] of [[null,0],['sway',0],['floss',Math.PI/14],['floss',3*Math.PI/14],['hop',0],['hop',Math.PI/8.4],['dab',0],['champ',0]]){
         const result=await page.evaluate(([h,d,t])=>__danceTest.pose(h,d,t),[hero,dance,t]);
-        assert(result.equipmentHidden,`${hero}: equipment visible in menu`);
+        assert.equal(result.held,hero==='bear'&&!dance?2:0);assert(result.equipmentHidden,`${hero}: equipment visible in menu`);
         assert(Object.values(result.points).flat().every(Number.isFinite),`${hero}: invalid pose`);
         if(dance==='hop'&&t>0){
           for(const side of ['Left','Right'])assert(result.points[side+'Hand'][1]>result.points.Head[1]+0.025,`${hero}: ${side} hand stays below the raised pose`);

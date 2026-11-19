@@ -49,10 +49,29 @@ for(const kind of ['bear','owl'])for(const fps of [30,60]){
   for(let i=0;i<pos.count;i++){v.fromBufferAttribute(pos,i);const key=v.toArray().map(x=>Math.round(x*1e5)).join(',');if(!seams.has(key))seams.set(key,[]);seams.get(key).push(i);}
   const pairs=[...seams.values()].filter(a=>a.length>1);assert(pairs.length>100);
   const poses=[];
+  const fit=[];
   for(const [label,ang] of [['straight',0],['left',-.9],['right',.9],['land',0],['air',0]]){
    m.active=false;m.lastT=null;m.state=label==='land'?{landed:9.85}:{};
    poseHeroMotion(h,{ang,air:label==='air'?1:0,airT:.4,airMax:.8},'play',10);
+   m.model.updateWorldMatrix(true,true);
    const L=local('LeftArm'),R=local('RightArm'),head=local('Head'),hips=local('Hips');
+   for(const side of ['Left','Right']){
+    const get=k=>m.model.getObjectByName(side+'_'+k),grip=get('Grip'),pads=[get('FingerPad'),get('ThumbPad')];
+    const center=grip.localToWorld(new THREE.Vector3(0,.004,0));
+    const ray=new THREE.Raycaster(),hits=[];
+    for(let i=0;i<12;i++){
+     const a=(i+.25)*Math.PI/6,dir=grip.localToWorld(new THREE.Vector3(Math.cos(a),.004,Math.sin(a))).sub(center).normalize();
+     ray.set(center,dir);const d=ray.intersectObjects(pads,false)[0]?.distance;
+     if(d!=null&&d>.004&&d<.034)hits.push(d);
+    }
+    const sh=point(bones[side+'Arm']),el=point(bones[side+'ForeArm']),wr=point(bones[side+'Hand']);
+    const flex=180-THREE.MathUtils.radToDeg(sh.clone().sub(el).angleTo(wr.clone().sub(el)));
+    const wristAngle=THREE.MathUtils.radToDeg(wr.clone().sub(el).angleTo(center.clone().sub(wr)));
+    assert(hits.length>=10,side+' open glove: '+hits.length+'/12 '+label);
+    assert(hits.filter(d=>d<=.016).length>=3,side+' fingers not touching the 14 mm grip');
+    assert(flex>46&&flex<95&&wristAngle<35,JSON.stringify({side,label,flex,wristAngle}));
+    fit.push({side,label,raysInsideGlove:hits.length,elbowFlexDeg:+flex.toFixed(1),wristBendDeg:+wristAngle.toFixed(1)});
+   }
    const mid=(local('LeftFoot').x+local('RightFoot').x)/2;
    let gap=0;const a=new THREE.Vector3(),b=new THREE.Vector3();
    for(const group of pairs){body.getVertexPosition(group[0],a);for(const i of group.slice(1))gap=Math.max(gap,a.distanceTo(body.getVertexPosition(i,b)));}
@@ -61,7 +80,9 @@ for(const kind of ['bear','owl'])for(const fps of [30,60]){
    poses.push({label,shoulderHeightDifference:L.y-R.y,headOffset:head.x-mid,hipOffset:hips.x-mid,seamGap:gap});
   }
   assert(poses[1].hipOffset*poses[2].hipOffset<-.0003,'carves must load opposite skis');
+  assert(Math.abs(fit[0].elbowFlexDeg-fit[1].elbowFlexDeg)<2,'uneven elbows in neutral');
   fs.writeFileSync('art/animation-pilot/pose-check.json',JSON.stringify({coincidentGroups:pairs.length,poses},null,2)+'\n');
+  fs.writeFileSync('art/animation-pilot/grip-check.json',JSON.stringify(fit,null,2)+'\n');
   m.active=false;m.lastT=null;m.state={};
  }
  let baseContacts,baseGrips,maxContactError=0,maxGripError=0,minY=Infinity,maxY=-Infinity,maxScaleError=0;

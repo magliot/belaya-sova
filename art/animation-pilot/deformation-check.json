@@ -1,72 +1,72 @@
 [
   {
     "frame": 1,
-    "edge_ratio_min": 0.338115769869613,
-    "edge_ratio_p99": 1.2883638181634631,
-    "edge_ratio_max": 2.3939322536143894,
+    "edge_ratio_min": 0.33941538281422423,
+    "edge_ratio_p99": 1.34976971217023,
+    "edge_ratio_max": 3.172149742531596,
     "rigid_boot_edge_error": 5.362370624872881e-06
   },
   {
     "frame": 46,
-    "edge_ratio_min": 0.27560525010334386,
-    "edge_ratio_p99": 1.5174409403725935,
+    "edge_ratio_min": 0.1419203953884826,
+    "edge_ratio_p99": 1.5826913538456115,
     "edge_ratio_max": 3.875122923010116,
     "rigid_boot_edge_error": 1.4732405034689755e-05
   },
   {
     "frame": 65,
-    "edge_ratio_min": 0.1978922316434807,
-    "edge_ratio_p99": 1.5147845928026946,
-    "edge_ratio_max": 3.277843634217628,
+    "edge_ratio_min": 0.20708284433490107,
+    "edge_ratio_p99": 1.5833576424231874,
+    "edge_ratio_max": 3.2834836750516403,
     "rigid_boot_edge_error": 9.107898992777308e-06
   },
   {
     "frame": 92,
     "edge_ratio_min": 0.16705178042393098,
-    "edge_ratio_p99": 1.5255629735078955,
-    "edge_ratio_max": 3.413041535915489,
+    "edge_ratio_p99": 1.6162860132933743,
+    "edge_ratio_max": 3.5280626638072534,
     "rigid_boot_edge_error": 7.094107373539771e-06
   },
   {
     "frame": 99,
-    "edge_ratio_min": 0.5376348657978125,
-    "edge_ratio_p99": 1.1965195063788172,
-    "edge_ratio_max": 2.512097522632664,
+    "edge_ratio_min": 0.2904232884602098,
+    "edge_ratio_p99": 1.2367915389723803,
+    "edge_ratio_max": 3.06160894294985,
     "rigid_boot_edge_error": 7.519723474347373e-06
   },
   {
     "frame": 112,
     "edge_ratio_min": 0.1786804820421619,
-    "edge_ratio_p99": 1.5343349266227597,
-    "edge_ratio_max": 3.15727150367061,
+    "edge_ratio_p99": 1.5774327250690692,
+    "edge_ratio_max": 3.9982354192418836,
     "rigid_boot_edge_error": 1.6515235706560105e-05
   },
   {
     "frame": 123,
-    "edge_ratio_min": 0.39416787229503175,
-    "edge_ratio_p99": 1.237391127032719,
-    "edge_ratio_max": 2.254581322735554,
+    "edge_ratio_min": 0.29845912955376747,
+    "edge_ratio_p99": 1.2855975762593286,
+    "edge_ratio_max": 3.0019060776525666,
     "rigid_boot_edge_error": 6.291867859276046e-06
   },
   {
     "frame": 128,
     "edge_ratio_min": 0.12661765741101527,
-    "edge_ratio_p99": 1.6865223925766053,
+    "edge_ratio_p99": 1.768189931548347,
     "edge_ratio_max": 4.077251059841929,
     "rigid_boot_edge_error": 6.1347437112502234e-06
   },
   {
     "frame": 146,
-    "edge_ratio_min": 0.3501516288914271,
-    "edge_ratio_p99": 1.2680191301376897,
-    "edge_ratio_max": 2.3769078804892767,
+    "edge_ratio_min": 0.3208071247180806,
+    "edge_ratio_p99": 1.3258747409503255,
+    "edge_ratio_max": 3.119790799068752,
     "rigid_boot_edge_error": 4.385880129964548e-06
   },
   {
     "frame": 181,
-    "edge_ratio_min": 0.338115769869613,
-    "edge_ratio_p99": 1.2883638181634631,
-    "edge_ratio_max": 2.3939322536143894,
+    "edge_ratio_min": 0.33941538281422423,
+    "edge_ratio_p99": 1.34976971217023,
+    "edge_ratio_max": 3.172149742531596,
     "rigid_boot_edge_error": 5.362370624872881e-06
   }
 ]

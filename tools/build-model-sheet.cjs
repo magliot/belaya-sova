@@ -8,6 +8,7 @@ function item(group,id,title,note,source,params={}){
   cards.push({group,id,title,note,source,params});
 }
 const imported=[
+  ['pole','Лыжная палка','Часть модели Мишани: рукоятка находится в закрытой перчатке в меню и на спуске.'],
   ['bear','Мишаня','Лыжник. Модель меню и запечённая анимация спуска.'],
   ['owl','Белая Сова','Сноубордистка. Модель меню и запечённая анимация спуска.'],
   ['skier','Лыжник','Участник движения и инструктор лыжной группы.'],
@@ -42,7 +43,8 @@ const imported=[
 ];
 for(const [id,title,note] of imported)item(0,id,title,note,id);
 const notes={
- bear:'Меню: в поднятой лапе появился просвет. На спуске следующий акцент — яркие манжеты и читаемая пара лыж.',owl:'Тёмный шлем и холодная тень отделяют белую голову от снега. Следующим проходом усилить разницу силуэтов двух кантов.',
+ pole:'Оранжевый колпачок виден над хватом, древко выходит снизу. Сохранять этот контраст со снегом.',
+ bear:'Проверять крупным планом: оранжевый колпачок над пальцами, древко ниже ладони. В стойке обе руки вынесены вперёд.',owl:'Тёмный шлем и холодная тень отделяют белую голову от снега. Следующим проходом усилить разницу силуэтов двух кантов.',
  skier:'Выделить плечи одним пятном и сделать палки темнее снега.',kid:'Сохранить низкий рост, дать шлему единый яркий цвет для чтения издалека.',sitter:'Подчеркнуть тёмной полосой нижний край куртки: сидячая фигура низко над снегом.',sboy:'Развести руки и корпус в профиль; окрасить нос доски.',sman:'Укрупнить контрастные перчатки: из-за спины райдер похож на лыжника.',sinstr:'Постоянная яркая спинка отличит ведущего от группы при смене вариантов куртки.',
  ratrak:'Оставить широкий отвал; подчеркнуть полосой его опасные углы.',snowmobile:'Отделить тёмную гусеницу от костюма водителя; яркую фару сохранить.',sled:'Отличить нос снегохода игрока от патрульного по окраске капота.',chair:'Утолстить силуэт сиденья, оставить открытым просвет под подвесом.',tower:'Оставить тёмный контур опоры, добавить цвет у основания на высоте игрока.',tree:'Разделить белые ярусы более тёмными промежутками.',pine:'Высокий силуэт работает по краю дороги; не увеличивать ширину ветвей.',fir:'Сохранить просветы между ветвями; на солнце затемнить нижнюю хвою.',ramp:'Обозначить нос и линию отрыва одним контрастным цветом.',
  rock_wide:'Низкий край почти теряется: затемнить боковую грань под снежной шапкой.',rock_tall:'Сильный вертикальный контур; усилить переход от шапки к камню.',snowman:'Шарф и шляпа помогают распознаванию; сделать жест броска крупнее.',dog:'Дать движение хвосту: направление перебежки должно читаться сбоку.',yeti:'Затемнить кончики лап; расширить первый шаг перед пересечением следов.',snow_cannon:'Разнести по тону ствол и основание; оставить тёмное отверстие сопла.',
@@ -71,7 +73,6 @@ const authored=[
  ['cable','Трос подъёмника','Соединяет соседние опоры точно по высоте.','cable'],
  ['ski','Лыжа','Геометрия меню и запасной позы. В запечённом движении используется снаряжение Blender.','ski'],
  ['board','Сноуборд','Доска для меню и запасной позы.','board'],
- ['pole','Лыжная палка','Длина и направление зависят от хвата.','pole'],
  ['ball','Снежок','Снаряд снеговика.','ball'],
  ['feather','Золотое перо','Коллекционная находка. Кандидат для скульптурной модели с рельефом опахала.','feather'],
  ['letter','Коллекционная буква','Динамическая буква из собираемого слова.','letter',{ch:'С'}],
@@ -110,7 +111,7 @@ function studio(){
       const g=new THREE.Group();for(const x of [-.2,.2]){const m=new THREE.Mesh(new THREE.PlaneGeometry(.1,2),trackMesh.material);m.rotation.x=-Math.PI/2;m.position.x=x;g.add(m);}return g;
     }
     if(k==='ski')return buildSki();if(k==='board')return buildBoard();
-    if(k==='pole'){const m=buildPole();sizePole(m,1.05);return m;}
+    if(k==='pole')return HEROMODELS.bear.heldPoles[0].clone();
     const m=FACT[k](o);if(o.park||k==='rail'){o.m=m;fitParkSurface(o);}return m;
   }
   const sc=new THREE.Scene();sc.background=new THREE.Color(0xdbe8ee);
@@ -123,8 +124,8 @@ function studio(){
       await Promise.all([loadTrackAssets('owl'),loadTrackAssets('bear'),loadPlayerSled()]);
     },
     ready(){return HEROMODELS.owl.glb&&HEROMODELS.bear.glb&&Object.keys(NPCM).length===13&&Object.keys(WINTER).length===8&&Object.keys(PROPS).length===3&&Object.keys(collectibleModels).length===2&&patrolModel&&playerSled.children.length===1;},
-    slope(c){hero=c.id==='bear'?'bear':'owl';reviewSeek(200);for(const o of G.objs)if(o.m)o.m.visible=false;G.p.x=200;render(1/30);
-      const anchor=new THREE.Group();if(!['bear','owl'].includes(c.id)){let m=c.id==='ramp'?FACT.ramp({w:75,hh:.8}):make(c);anchor.add(m);scene.add(anchor);courseGround(anchor.position,2,-208);if(['aid','mandarin','cocoa','helmet','gift','magnet','goldenOwl','chair'].includes(c.id))anchor.position.y+=c.id==='chair'?2:.9;}
+    slope(c){hero=['bear','pole'].includes(c.id)?'bear':'owl';reviewSeek(200);for(const o of G.objs)if(o.m)o.m.visible=false;G.p.x=200;render(1/30);
+      const anchor=new THREE.Group();if(!['bear','owl','pole'].includes(c.id)){let m=c.id==='ramp'?FACT.ramp({w:75,hh:.8}):make(c);anchor.add(m);scene.add(anchor);courseGround(anchor.position,2,-208);if(['aid','mandarin','cocoa','helmet','gift','magnet','goldenOwl','chair'].includes(c.id))anchor.position.y+=c.id==='chair'?2:.9;}
       renderer.render(scene,camera);const img=renderer.domElement.toDataURL('image/webp',.86);scene.remove(anchor);return img;},
     shot(c){
       if(c.source==='hud'){
@@ -156,13 +157,13 @@ async function main(){
   page.on('pageerror',console.error);await page.goto('http://127.0.0.1:8766/sheet-preview.html');
   await page.evaluate(cs=>sheet.setup(cs),cards);await page.waitForFunction(()=>sheet.ready(),null,{timeout:90000});
   fs.mkdirSync('docs/ui/models/slope',{recursive:true});
-  for(const c of cards){
+  for(const c of cards.filter(c=>process.argv.length===2||process.argv.slice(2).includes(c.id))){
     if(!c.group){const slope=await page.evaluate(c=>sheet.slope(c),c);fs.writeFileSync(path.join('docs/ui/models/slope',c.id+'.webp'),Buffer.from(slope.split(',')[1],'base64'));}
     const img=await page.evaluate(c=>sheet.shot(c),c).catch(e=>{throw Error(c.id+': '+e.message)});
     fs.writeFileSync(path.join('docs/ui/models',c.id+'.webp'),Buffer.from(img.split(',')[1],'base64'));
   }
   const tmpl=fs.readFileSync('tools/model-sheet.template.html','utf8');
-  const card=c=>`<figure data-group="${c.group}"><img src="ui/models/${c.id}.webp" loading="lazy" alt=""><figcaption><small>${groups[c.group]}</small><h2>${c.title}</h2><p>${c.note}</p>${c.group===0?`<p>${notes[c.id]}</p><a href="ui/models/slope/${c.id}.webp">На трассе · 375×667</a>${['owl','bear'].includes(c.id)?` · <a href="review/${c.id==='bear'?'bear-menu':'owl-menu-after'}.jpg">Меню</a>`:''}`:''}</figcaption></figure>`;
+  const card=c=>`<figure data-group="${c.group}"><img src="ui/models/${c.id}.webp" loading="lazy" alt=""><figcaption><small>${groups[c.group]}</small><h2>${c.title}</h2><p>${c.note}</p>${c.group===0?`<p>${notes[c.id]}</p><a href="ui/models/slope/${c.id}.webp">На трассе · 375×667</a>${['owl','bear'].includes(c.id)?` · <a href="review/${c.id==='bear'?'bear-grip-menu.webp':'owl-menu-after.jpg'}">Меню</a>`:''}`:''}</figcaption></figure>`;
   fs.writeFileSync('docs/models.html',tmpl.replace('<!--CARDS-->',cards.map(card).join('\n')));
   console.log(cards.length+' previews');
  }finally{await browser.close();}
