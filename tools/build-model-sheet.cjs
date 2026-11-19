@@ -68,18 +68,18 @@ const authored=[
  ['airRing','Кольцо 40A','Синий обод с золотыми муфтами.','airRing',{radius:1.2,ringStyle:0}],
  ['ring40B','Кольцо 40B','Радужная подсветка средней линии.','airRing',{radius:1.2,ringStyle:1}],
  ['ring40C','Кольцо 40C','Ледяной обод высокой линии.','airRing',{radius:1.2,ringStyle:2}],
- ['forest-sign','Указатель леса','Кандидат для деревянной рамы со снежной шапкой. Надпись и стрелка меняются.','stageProp',{theme:'forest'}],
+ ['forest-sign','Указатель леса','Зелёная панель 42A на деревянных стойках отмечает лесной коридор.','stageProp',{theme:'forest'}],
  ['ridge-sign','Указатель бугров','Общая модель рамы пригодится для разных этапов.','stageProp',{theme:'moguls'}],
  ['park-sign','Указатель парка','Высокий вариант указателя.','stageProp',{theme:'park'}],
  ['rail','Бокс','Можно моделировать боковины. Верх совпадает с игровой поверхностью.','rail',{hh:.7,w:42,len:210}],
  ['park-ramp','Трамплин сноупарка','Три высоты. Для замены подойдут накладки на борта, профиль отрыва задаёт физика.','ramp',{park:true,hh:1.6,w:95,len:180}],
  ['mogul','Отдельный бугор','Сугроб, который Мишаня может снести.','mogul'],
  ['rollers','Поле гребней','Непрерывный рельеф совпадает с поверхностью столкновения.','rollers'],
- ['fence','Защитная сетка','Кандидат для стоек и креплений. Длина барьера переменная.','fence',{x1:50,x2:190}],
- ['arch','Арка этапа','Кандидат для фирменной деревянной арки. Название зависит от этапа.','arch',{stage:2}],
- ['finish','Финиш','Хороший кандидат для праздничной финишной конструкции.','finish'],
- ['lamp','Фонарь','Повторяемый объект. Один недорогой GLB может заменить всю серию.','lamp'],
- ['village','Дальний посёлок','Кандидат для набора из нескольких сахалинских домиков.','village'],
+ ['fence','Защитная сетка','Три сетки 41A/B/C с разными стойками. Длина повторяет игровой барьер.','fence',{x1:50,x2:190}],
+ ['arch','Арка этапа','Деревянная арка 45A со снежной крышей. Название зависит от этапа.','arch',{stage:2}],
+ ['finish','Финиш','Клетчатый финиш 46A короткого спуска и бонусов.','finish'],
+ ['lamp','Фонарь','Три фонаря 18A/B/C из игрового набора окружения.','lamp'],
+ ['village','Дальний посёлок','Рисованный слой 51C повторяется на двух планах с разным параллаксом.','village'],
  ['mountain','Горы и долина','Дальний план. Важны крупные силуэты и низкая стоимость отрисовки.','mountain'],
  ['snow','Полотно трассы','Изгибы, уклон и борта повторяют физическую трассу.','snow'],
  ['aurora','Северное сияние','Полупрозрачная рисованная текстура на плоскости.','aurora'],
@@ -103,6 +103,11 @@ function studio(){
       const h=HEROMODELS[k];poseGlb(h,{air:0,ang:0},'menu',0);
       return h.holder;
     }
+    const asset={tower:'tower16C',tree:'tree19A',pine:'tree20A',fir:'tree21A',magnet:'magnet34B',snow_cannon:'cannon25A'}[k];
+    if(asset)return kit[asset].clone();
+    if(k==='snowmobile')return patrolModel.clone();
+    if(k==='sman')return NPCV.sman[1].clone();
+    if(k==='rock_wide'||k==='rock_tall')return FACT.rock({y:0,rockWide:k==='rock_wide'});
     if(k==='sboyC')return NPCV.sboy[1].clone();
     if(c.group===0&&NPCM[k])return NPCM[k].clone();
     if(c.group===0&&PROPS[k])return PROPS[k].clone();
@@ -113,12 +118,11 @@ function studio(){
     if(k==='lamp')return lamps[0].clone();
     if(k==='cable'){const m=towers[0].userData.cab[0].clone();m.scale.set(.034,3,.034);m.rotation.z=1.35;return m;}
     if(k==='village'||k==='mountain'){
-      const g=mountains.clone();
-      if(k==='village'){for(const q of [...g.children])if(q.position.z>-399||q.position.z<-485||q.position.x<0||q.position.x>40)g.remove(q);}
-      return g;
+      const order=k==='village'?-3:-12;
+      return mountains.children.find(q=>q.renderOrder===order).clone();
     }
     if(k==='snow'){fitPlane(piste,-96);return piste.clone();}
-    if(k==='aurora'){const m=aurora.clone();m.material=m.material.clone();m.material.opacity=1;return m;}
+    if(k==='aurora'){const m=mountains.children.find(q=>q.renderOrder===-4).clone();m.material=m.material.clone();m.material.opacity=1;return m;}
     if(k==='rollers'||k==='yeti-tracks'){
       rollerSection(100000);
       const p=MOG.patches.at(-1);return (k==='rollers'?p.mesh:p.tracks).clone();
@@ -157,6 +161,7 @@ function studio(){
       const radius=Math.max(size.x/1.25,size.y,size.z*.85,.1)*2.5;
       const dir=new THREE.Vector3(.50,.32,1).normalize();
       if(['owl','bear','goldenOwl','feather','aid'].includes(c.source))dir.set(.26,.16,c.source==='bear'||c.source==='owl'?-1:1).normalize();
+      if(['yeti','dog'].includes(c.source))dir.set(.54,.23,-1).normalize();
       if(['snow','track','yeti-tracks','rollers'].includes(c.source))dir.set(.32,.96,.75).normalize();
       cam.position.copy(center).addScaledVector(dir,radius);cam.lookAt(center);cam.near=radius/1000;cam.far=radius*10;cam.updateProjectionMatrix();
       studioRenderer.render(sc,cam);const img=studioRenderer.domElement.toDataURL('image/webp',.85);

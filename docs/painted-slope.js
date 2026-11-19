@@ -24,7 +24,7 @@ export function createLandscape(group){
       const p=panel(maps['tubing-62'+'abc'[i]],620,235,group);
       p.position.set(0,40,-365-i*.2);p.renderOrder=-9+i;routes.push(p);
       const n=panel(maps['aurora-54'+'abc'[i]],300,112,group);
-      n.position.set((i-1)*246,126,-365);n.rotation.y=-(i-1)*.39;n.renderOrder=-4;auroras.push(n);
+      n.position.set((i-1)*246,86,-365);n.rotation.y=-(i-1)*.39;n.renderOrder=-4;auroras.push(n);
     }
     for(let i=0;i<3;i++){
       const p=panel(maps['village-51c'],[38,31,25][i],[27,22,17.8][i],group);

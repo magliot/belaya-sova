@@ -610,7 +610,6 @@ function loadNpc(file){return loadPack(file,NPC_PACKS[file],(k,g)=>{const m=g.sc
     NPCM[k]=holder;assetGen++;if(NPC_VAR[k])NPCV[k]=makeVariants(holder,NPC_VAR[k]);
     for(const pk in pools){if((k in FOREST_K)&&pk.startsWith('tree')||k==='ratrak'&&pk.startsWith('cat')||(k==='skier'||k==='kid'||k==='sitter'||k in SB_YAW)&&pk.startsWith('npc')||k==='ramp'&&pk.startsWith('ramp'))pools[pk]=[];}
     if(k==='chair'||k==='tower')liftModels();
-    
 });}
 // Зимние модели из Tripo. Простые локальные скелеты сохраняют бег и жесты.
 const WINTER={},WINTER_CLIPS={};

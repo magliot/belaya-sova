@@ -50,4 +50,3 @@ for s,n in [(1,'WinterArmL'),(-1,'WinterArmR')]:
     arm=group(n,p);arm.parent=body
 path=Path('art/course-kit/yeti-28c.blend').resolve();bpy.ops.wm.save_as_mainfile(filepath=str(path),compress=True)
 bpy.ops.export_scene.gltf(filepath=str(Path(sys.argv[-1]).resolve()),export_format='GLB',export_animations=False)
-

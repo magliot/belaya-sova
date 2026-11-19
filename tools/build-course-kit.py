@@ -98,4 +98,3 @@ out=Path('art/course-kit');out.mkdir(exist_ok=True,parents=True)
 bpy.ops.export_scene.gltf(filepath=str(Path('docs/models/course-kit.glb').resolve()),export_format='GLB',export_animations=False)
 for i,o in enumerate(done):o.location=((i%5)*5,(i//5)*7,0)
 bpy.ops.wm.save_as_mainfile(filepath=str((out/'slope-props.blend').resolve()),compress=True)
-
