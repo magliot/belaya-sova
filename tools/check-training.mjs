@@ -25,10 +25,12 @@ for(let s=0;s<256;s++){
   assert(actors.every(o=>o.y>=0&&o.y<40*ROW&&o.x>20&&o.x<380));
   for(const o of actors.filter(o=>o.type==='tube'||o.small)){
     const start=o.marker,side=o.side;
-    for(let y=start-1000;y<start+350;y+=17){
-      trainingActorAt(o,y);
-      assert(side*(o.x-200)>22,'opposite half must remain clear');
-      assert(o.y>=start&&o.y<=start+205);
+    let last=start;
+    for(let y=start-1200;y<start+1550;y+=10){
+      trainingActorAt(o,y,1/30,y-10);
+      assert(side*(o.x-200)>=-18,'marked escape lane must remain clear');
+      assert(o.y>=last&&o.y-last<4);last=o.y;
+      if(!o.small)assert(Math.abs(o.yaw-Math.PI)<1&&Math.abs(o.lean)<=1);
     }
   }
 }

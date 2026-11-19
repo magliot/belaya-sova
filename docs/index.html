@@ -785,7 +785,11 @@ const OM={red:M(0xe8343b),blue:M(0x2a6df4),pole:M(0x2d2f36),rock:M(0x7d8794),roc
 const pickGlow=new THREE.SpriteMaterial({map:glowTex,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0.8});
 const flagGeo=new THREE.PlaneGeometry(0.6,0.42);
 const FACT={
-  tube(o){return trainingCast[o.variant].clone();},
+  tube(o){const root=new THREE.Group(),model=trainingCast[o.variant].clone();root.add(model);
+    model.position.y=-.055;root.userData.rider=model;root.userData.flex=[];
+    model.traverse(m=>{if(m.morphTargetDictionary?.Carve!=null)root.userData.flex.push(m);});
+    const contact=new THREE.Mesh(blobShadow.geometry,blobShadow.material);contact.scale.set(2.05,1.85,1);
+    contact.rotation.x=-Math.PI/2;contact.position.y=.035;root.add(contact);return root;},
   stageProp(o){const g=new THREE.Group(),park=o.theme==='park',forest=o.theme==='forest';const color=park?'#874bdd':forest?'#26714c':'#387eaa';
     const caption=o.caption||(forest?('ЛЕС '+(o.x<200?'→':'←')):park?'СНОУПАРК':'ГРЕБНИ');
     const key='stage_'+o.theme+caption;const tex=archTexCache[key]||(archTexCache[key]=label(caption,{bg:color,fg:'#fff',w:512,h:128,font:'900 55px system-ui,sans-serif',r:12}));
@@ -1645,7 +1649,7 @@ function update(dt){
       }
       if(o.thrown>0)o.thrown-=dt;
     }
-    if(o.type==='tube'||o.small)trainingActorAt(o,py);
+    if(o.type==='tube'||o.small)trainingActorAt(o,py,dt,G.prevY);
     if(o.type==='cat'&&!o.small){o.y+=o.vy*dt;if(!o.warned&&o.vy<0&&o.y>py&&o.y-py<900){o.warned=true;banner('⚠ РАТРАК НАВСТРЕЧУ','уходи с его полосы','warn');SFX.warn();}}
     if(o.type==='goldenOwl'){
       const progress=clamp((py-o.anchor+800)/1400,0,1);
@@ -1779,7 +1783,11 @@ function animObjs(dt){
     if(o.type==='yeti'&&m.userData.arm)m.userData.arm.rotation.z=m.userData.yetiSide*(-2.4+Math.sin(G.t*8)*0.5);
     if(m.userData.worldArm){const a=m.userData.worldArm,s=m.userData.worldArmSide;if(o.type==='snowman'){a.rotation.z=s*(o.thrown>0?1.15:o.windup>0?1.8:0.06);a.rotation.y=s*(o.thrown>0?-0.7:o.windup>0?.65:0);}else if(o.type==='yeti')a.rotation.z=s*(1.5+Math.sin(G.t*8)*0.25);}
     if(m.userData.letter){m.position.y=og+m.userData.baseY+Math.sin(G.t*3)*0.15;}
-    if(o.type==='tube')m.rotation.set(-coursePitch(X(o.x),oz),o.yaw,0,'YXZ');
+    if(o.type==='tube'){
+      const pitch=coursePitch(X(o.x),oz),slopeChange=coursePitch(X(o.x),oz-1.1)-pitch;
+      m.rotation.set(-pitch,0,0,'YXZ');
+      poseTube(m,o.yaw,o.lean,o.compression+Math.min(.28,Math.abs(slopeChange)*7));
+    }
     if(o.type==='cat')m.rotation.x=-coursePitch(X(o.x),oz);
     if(m.userData.cannon&&Math.random()<0.6){const s=m.userData.cannon;emit(m.position.x+s*0.9,og+3.2,oz,s*rnd(3,6),rnd(0,2),rnd(-1,1),1.2,rnd(0.05,0.1),'#ffffff');}
     if(o.type==='npc')animNpc(o,m);
@@ -1811,6 +1819,13 @@ function animObjs(dt){
     const s=q.life>0?q.size*Math.min(1,q.life/q.max*2):0;tmpM.compose(coursePoint(tmpP,q.x,q.y,q.z),tmpQ.identity(),tmpS.set(s,s,s));partMesh.setMatrixAt(i,tmpM);}
   partMesh.instanceMatrix.needsUpdate=true;
   for(const t of G.texts){t.life-=dt*0.8;t.h+=dt*1.2;}G.texts=G.texts.filter(t=>t.life>0);if(G.banner){G.banner.t-=dt;if(G.banner.t<=0)G.banner=null;}
+}
+function poseTube(root,yaw,lean,compression){
+  root.userData.rider.rotation.y=yaw;
+  for(const part of root.userData.flex){
+    part.morphTargetInfluences[part.morphTargetDictionary.Carve]=lean;
+    part.morphTargetInfluences[part.morphTargetDictionary.Absorb]=compression;
+  }
 }
 function hit(kind,o){
   if(COURSE_REVIEW)return;

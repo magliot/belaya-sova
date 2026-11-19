@@ -12,7 +12,8 @@ window.trainingCheck={
   drive(d,fps,side){
     drag={};G.p.lives=0;
     while(G.y/20<d&&G.mode==='play'){
-      G.tx=200+side*38;
+      const tube=G.objs.find(o=>o.type==='tube'&&o.m);
+      G.tx=side<0?(tube?.x??115):146;
       update(1/fps);
       syncWorld(1/fps);
     }
@@ -20,7 +21,7 @@ window.trainingCheck={
     const o=G.objs.find(o=>o.type==='tube'&&o.m);
     const expected=o&&courseGround(new THREE.Vector3(),X(o.x),Z(o.y));
     return {hero,seed:G.seed,mode:G.mode,d:G.y/20,fail:G.failKind,variant:o?.variant,
-      error:o?o.m.position.distanceTo(expected):null};
+      flex:o?.m?.userData.flex.length,lean:o?.lean,error:o?o.m.position.distanceTo(expected):null};
   },
   seek(d,x){reviewX=x;reviewSeek(d);$('topbtns').classList.remove('hidden');render(0);},
   finishTraining(fps){
@@ -54,7 +55,7 @@ window.trainingCheck={
     const drive=(d)=>page.evaluate(args=>trainingCheck.drive(...args),[d,fps,collide?-1:1]);
     const near=await drive(36);
     assert.equal(near.seed,1911);assert.equal(near.hero,hero);assert.equal(near.variant,'tube60C');
-    assert(near.error<.002,JSON.stringify(near));
+    assert(near.error<.002&&near.flex>0&&Math.abs(near.lean)>.01,JSON.stringify(near));
     if(fps===30&&!collide)await page.screenshot({path:path.join(out,hero+'-tube.png')});
     const run=await drive(62);runs.push({hero,fps,collide,...run});
     assert.equal(run.mode,collide?'crash':'play',JSON.stringify(run));

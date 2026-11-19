@@ -10,7 +10,11 @@ export function trainingRow(seed,n){
    n%3===0?'tube':r(2)<.48?'gate':r(3)<.52?'tube':'snowman';
  if(!n)coins(200,220,4);
  if(kind==='tube'){
-  const marker=y+offset,m={marker,side,phase:r(4),variant:variants[Math.floor(r(5)*4)]};
+  const marker=y+offset,route=Math.floor(r(14)*3);
+  const m={marker,side,phase:r(4),variant:variants[Math.floor(r(5)*4)],route,
+    releaseY:Math.max(0,marker-750-r(15)*320),vStart:route===1?28:8,
+    vCruise:62+r(16)*39,tau:1.4+r(17),span:(route===2?250:190)+r(18)*140,
+    from:[132,54,141][route],to:[42,91,-17][route]};
   obj('tube',200+side*85,offset,m);coins(open,offset-175,4);
  }else if(kind==='cat'){
   obj('cat',200+side*96,offset,{marker:y+offset,small:true,side,vy:60,w:46,h:74});coins(open,offset-145,4);
@@ -27,11 +31,25 @@ export function trainingRow(seed,n){
  if(n%6===1)obj('thermos',open,950,{r:10});
  return objects;
 }
-export function trainingActorAt(o,playerY){
- const u=Math.max(0,Math.min(1,(playerY-o.marker+920)/1220)),t=u*u*(3-2*u);
- o.y=o.marker+(o.small?155:205)*t;
- if(!o.small){
-  o.x=200+o.side*(126-94*t+7*Math.sin(o.phase*6.28+Math.PI*t));
-  o.yaw=o.side*(.48+.68*Math.sin(Math.PI*t));
+const unit=x=>Math.max(0,Math.min(1,x));
+export function trainingActorAt(o,playerY,dt=0,prevY=playerY){
+ if(o.small){
+  const u=unit((playerY-o.marker+920)/1220);
+  o.y=o.marker+155*u*u*(3-2*u);return;
  }
+ // A seek starts on the unboosted reference ride. Once activated, motion uses
+ // elapsed simulation time, including when the skier slows down or falls.
+ if(o.age==null)o.age=Math.max(0,(prevY-o.releaseY)/290);
+ if(playerY>=o.releaseY)o.age+=dt*(prevY>=o.releaseY?1:unit((playerY-o.releaseY)/(playerY-prevY)));
+ const age=o.age,decay=Math.exp(-age/o.tau);
+ const dist=o.vCruise*age-(o.vCruise-o.vStart)*o.tau*(1-decay);
+ const u=unit(dist/o.span),turn=o.to-o.from;
+ const tangent=o.side*turn*6*u*(1-u)/o.span;
+ const speed=o.vCruise-(o.vCruise-o.vStart)*decay;
+ const curvature=u>0&&u<1?o.side*turn*6*(1-2*u)/(o.span*o.span):0;
+ o.x=200+o.side*(o.from+turn*u*u*(3-2*u));o.y=o.marker+dist;
+ const slip=Math.max(-.16,Math.min(.16,curvature*speed*.34));
+ o.yaw=Math.PI-Math.atan(tangent)+slip;
+ o.lean=Math.max(-1,Math.min(1,-curvature*speed*speed*.055));
+ o.compression=unit(.22+.24*Math.abs(o.lean)+.12*Math.sin(dist/22+o.phase*6));
 }

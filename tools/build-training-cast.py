@@ -35,6 +35,7 @@ def pack(name):
  for o in parts:o.select_set(True)
  bpy.context.view_layer.objects.active=parts[0];bpy.ops.object.join();o=bpy.context.object;o.name=name
  bpy.ops.object.transform_apply(location=True,rotation=True,scale=True);parts.clear()
+ return o
 for i,(name,col,coat) in enumerate([('tube60B',yellow,yellow),('tube60C',green,green),('tube61A',blue,blue),('tube61C',pink,pink)]):
  tube(col);egg((0,.17,.70),(.365,.255,.42),coat);egg((0,.20,1.03),(.275,.26,.15),coat)
  link((0,-.084,.53),(0,-.084,.93),.014,snow)
@@ -48,7 +49,19 @@ for i,(name,col,coat) in enumerate([('tube60B',yellow,yellow),('tube60C',green,g
  if i>1:egg((.11,.31,1.11),(.11,.15,.105),hair)
  egg((0,.122,1.32),(.22,.202,.146),col);egg((0,-.038,1.273),(.186,.074,.080),rubber);egg((0,-.078,1.28),(.152,.047,.053),ice if i>1 else amber)
  for s in [-1,1]:egg((s*.074,-.045,1.194),(.018,.014,.024),rubber)
- pack(name)
+ rider=pack(name)
+ rider.shape_key_add(name='Basis')
+ lean=rider.shape_key_add(name='Carve')
+ absorb=rider.shape_key_add(name='Absorb')
+ for j,v in enumerate(rider.data.vertices):
+  x,y,z=v.co
+  # Keep the two mittens on their handles. The shoulder, head and jacket
+  # move together above the hips, with progressively less travel near each grip.
+  weight=max(0,z-.59)*max(0,min(1,(.64-abs(x))/.22))
+  lean.data[j].co.x+=weight*.35
+  lean.data[j].co.z-=weight*x*.17
+  absorb.data[j].co.z-=weight*.21
+  absorb.data[j].co.y-=weight*.14
 for i,(name,scarf,hat) in enumerate([('snow26A',blue,red),('snow26B',red,rubber),('snow26C',yellow,blue)]):
  egg((0,0,.38),(.48,.47,.40),snow);egg((0,0,.86),(.35,.34,.32),snow);egg((0,0,1.25),(.276,.27,.273),snow)
  egg((0,0,1.05),(.315,.31,.088),scarf);link((.16,-.24,1.05),(.23,-.33,.77),.077,scarf,.56)
