@@ -41,6 +41,29 @@ for(const kind of ['bear','owl'])for(const fps of [30,60]){
  assert.equal(feet.length,2);assert.equal(bindings.length,2);
  const point=o=>o.getWorldPosition(new THREE.Vector3());
  const relative=(a,b)=>b.worldToLocal(point(a));
+ if(kind==='bear'&&fps===30){
+  const bones={};m.model.traverse(o=>{if(o.isBone)bones[o.name.replace(/^mixamorig:?/,'')]=o;});
+  const local=n=>m.model.worldToLocal(point(bones[n]));
+  const body=m.model.getObjectByName('Mishanya_Mesh');assert(body?.isSkinnedMesh);
+  const pos=body.geometry.attributes.position,seams=new Map(),v=new THREE.Vector3();
+  for(let i=0;i<pos.count;i++){v.fromBufferAttribute(pos,i);const key=v.toArray().map(x=>Math.round(x*1e5)).join(',');if(!seams.has(key))seams.set(key,[]);seams.get(key).push(i);}
+  const pairs=[...seams.values()].filter(a=>a.length>1);assert(pairs.length>100);
+  const poses=[];
+  for(const [label,ang] of [['straight',0],['left',-.9],['right',.9],['land',0],['air',0]]){
+   m.active=false;m.lastT=null;m.state=label==='land'?{landed:9.85}:{};
+   poseHeroMotion(h,{ang,air:label==='air'?1:0,airT:.4,airMax:.8},'play',10);
+   const L=local('LeftArm'),R=local('RightArm'),head=local('Head'),hips=local('Hips');
+   const mid=(local('LeftFoot').x+local('RightFoot').x)/2;
+   let gap=0;const a=new THREE.Vector3(),b=new THREE.Vector3();
+   for(const group of pairs){body.getVertexPosition(group[0],a);for(const i of group.slice(1))gap=Math.max(gap,a.distanceTo(body.getVertexPosition(i,b)));}
+   assert(gap<.00015,label+' open seam '+gap);
+   if(!ang){assert(Math.abs(L.y-R.y)<.002,label+' shoulders');assert(Math.abs(head.x-mid)<.006,label+' head');}
+   poses.push({label,shoulderHeightDifference:L.y-R.y,headOffset:head.x-mid,hipOffset:hips.x-mid,seamGap:gap});
+  }
+  assert(poses[1].hipOffset*poses[2].hipOffset<-.0003,'carves must load opposite skis');
+  fs.writeFileSync('art/animation-pilot/pose-check.json',JSON.stringify({coincidentGroups:pairs.length,poses},null,2)+'\n');
+  m.active=false;m.lastT=null;m.state={};
+ }
  let baseContacts,baseGrips,maxContactError=0,maxGripError=0,minY=Infinity,maxY=-Infinity,maxScaleError=0;
  for(let f=0;f<fps*7;f++){
   const t=f/fps,air=t>=2&&t<3.2;

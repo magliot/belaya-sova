@@ -31,6 +31,12 @@ if OWL:
         if 'Hand' in g.name and not g.name.endswith('Hand'):
             parent='mixamorig:'+('LeftHand' if 'Left' in g.name else 'RightHand')
             weights[:,body.vertex_groups[parent].index]+=weights[:,g.index];weights[:,g.index]=0
+else:
+    # Mittens have one solid palm. The automatic finger chains cut across the cuff.
+    for g in body.vertex_groups:
+        if 'Hand' in g.name and not g.name.endswith('Hand'):
+            palm=body.vertex_groups[g.name.split('Hand')[0]+'Hand']
+            weights[:,palm.index]+=weights[:,g.index];weights[:,g.index]=0
 def ramp(x,a,b):
     t=min(1,max(0,(x-a)/(b-a)));return t*t*(3-2*t)
 for i,w in enumerate(coords):
@@ -45,16 +51,30 @@ neighbors=[[] for _ in coords]
 for edge in body.data.edges:
     a,b=edge.vertices
     if (coords[a]-coords[b]).length<.035:neighbors[a].append(b);neighbors[b].append(a)
-for _ in range(3):
+seams={}
+if not OWL:
+    for i,w in enumerate(coords):seams.setdefault(tuple(round(c,5) for c in w),[]).append(i)
+    for ids in seams.values():
+        if len(ids)<2:continue
+        weights[ids]=weights[ids].mean(axis=0)
+        adjacent=sorted({n for i in ids for n in neighbors[i]}-set(ids))
+        for i in ids:neighbors[i]=adjacent
+for _ in range(3 if OWL else 7):
     new=weights.copy()
     for i,ns in enumerate(neighbors):
         if ns:new[i]=.65*weights[i]+.35*np.mean(weights[ns],axis=0)
     weights=new
 for i,w in enumerate(coords):
     # Backpack shell: rigid main body, soft attachment band at its front edge.
-    bag=0 if OWL else ramp(w.y,.08,.13)*(1-ramp(abs(w.x),.17,.21))*ramp(w.z,.28,.34)*(1-ramp(w.z,.69,.75))
+    bag=0 if OWL else ramp(w.y,.035,.10)*(1-ramp(abs(w.x),.155,.21))*ramp(w.z,.255,.33)*(1-ramp(w.z,.69,.75))
     target=body.vertex_groups['mixamorig:Spine2'].index
     weights[i]*=1-bag;weights[i,target]+=bag
+if not OWL:
+    # UV islands duplicate positions. Their skin weights must be identical;
+    # otherwise a single continuous patch opens into bright slits on a turn.
+    for ids in seams.values():
+        if len(ids)>1:weights[ids]=weights[ids].mean(axis=0)
+for i in range(len(coords)):
     # Match the four-influence runtime rather than relying on Blender-only skinning.
     keep=np.argsort(weights[i])[-4:];mask=np.zeros(weights.shape[1]);mask[keep]=weights[i,keep]
     weights[i]=mask/max(mask.sum(),1e-12)
@@ -91,6 +111,12 @@ body.data.update()
 # Keep the ordinary linear skinning used by Three.js: no render-only DQ fix.
 for mod in body.modifiers:
     if mod.type=='ARMATURE': mod.use_deform_preserve_volume=False
+
+# Optional clean rest-pose export for the menu, falls, dances and the sled.
+# Export before creating or posing any equipment; reuse the same skin on both rigs.
+if not OWL and '--menu-export' in ARGS:
+    bpy.ops.object.select_all(action='DESELECT');rig.select_set(True);body.select_set(True)
+    bpy.ops.export_scene.gltf(filepath=os.path.abspath(ARGS[ARGS.index('--menu-export')+1]),use_selection=True,export_format='GLB',export_animations=False,export_skins=True)
 def material(name,color,metal=0,rough=.5):
     m=bpy.data.materials.new(name); m.diffuse_color=(*color,1); m.use_nodes=True
     bs=m.node_tree.nodes.get('Principled BSDF'); bs.inputs['Base Color'].default_value=(*color,1)
@@ -194,7 +220,8 @@ def solve(a,c,L1,L2,bend):
     perpendicular=(bend-axis*bend.dot(axis)).normalized()
     return a+axis*h+perpendicular*height
 def turn(n,axis,angle):
-    b=bone(n); local=rest[b.name].to_3x3().inverted()@Vector(axis)
+    b=bone(n); basis=rest[b.name] if OWL else rig.matrix_world@rest[b.name]
+    local=basis.to_3x3().inverted()@Vector(axis)
     b.rotation_quaternion=Quaternion(local,math.radians(angle))@b.rotation_quaternion
 def smooth(t): return t*t*(3-2*t)
 # time, compression, lateral weight shift, body lean, hand anticipation, airborne height
@@ -217,18 +244,22 @@ for frame in range(1,END+1):
     comp,shift,lean,hand,air=sample(t)
     if OWL and 4.08<t<4.60:comp+=.027*math.sin(math.pi*(t-4.08)/.52)**2
     if not OWL:
-        shift*=.72
-        lean*=.84
+        shift*=.78
+        lean*=.90
+        comp*=.78
     # One continuous arc: no artificial pauses at intermediate height keys.
     if 3.25<t<4.08:
         u=(t-3.25)/(.83);air=4*.28*u*(1-u);flight=math.sin(math.pi*u)**2
     else:air=0;flight=0
     for b in P: b.matrix_basis=Matrix.Identity(4)
     # Root translation is authored once, then exported with the clip.
-    b=bone('Hips'); m=rest[b.name].copy(); m.translation+=Vector((shift*.45 if OWL else shift,.012+shift*.7 if OWL else -.014,-comp+air+.025)); b.matrix=m
+    b=bone('Hips'); m=rest[b.name].copy()
+    displacement=Vector((shift*.45 if OWL else shift,.012+shift*.7 if OWL else .004+comp*.16,-comp+air+.025))
+    m.translation+=displacement if OWL else rig.matrix_world.to_3x3().inverted()@displacement
+    b.matrix=m
     turn('Spine',(1,0,0),lean*.5); turn('Spine1',(1,0,0),lean*.3); turn('Spine2',(1,0,0),lean*.2)
     turn('Neck',(1,0,0),-lean*.35); turn('Head',(1,0,0),-lean*.35)
-    turn('Spine2',(0,1,0),-shift*(90 if OWL else 30))
+    turn('Spine2',(0,1,0),-shift*(90 if OWL else 55))
     if OWL:
         turn('Spine2',(0,0,1),10);turn('Neck',(0,0,1),20);turn('Head',(0,0,1),35)
     bpy.context.view_layer.update()
@@ -265,15 +296,22 @@ for frame in range(1,END+1):
         errors.append(((rig.matrix_world@bone(side+'Foot').head)-ankle).length)
         upper=rig.matrix_world@bone(side+'Arm').head
         sign=1 if side=='Left' else -1
-        wrist=Vector((sign*(.294-.023*flight)+shift*.42,-.154+hand+sign*shift*.37,.459-comp*.78+air+.045*flight+sign*shift*.32))
+        # Targets relative to the posed shoulder keep elbow flexion on both sides;
+        # an absolute, unreachable wrist target straightened one sleeve in a carve.
+        wrist=upper+Vector((sign*(.109+.012*flight),-.070+hand*.4+sign*shift*.24,-.081+.019*flight+sign*shift*.17))
         if OWL:wrist=Vector((sign*(.345+.035*flight)+shift*.3,-.075+shift*.7,.505-comp*.6+air+.045*flight))
         l1=(loc(side+'ForeArm')-loc(side+'Arm')).length; l2=(loc(side+'Hand')-loc(side+'ForeArm')).length
         if (wrist-upper).length>l1+l2-.002: wrist=upper+(wrist-upper).normalized()*(l1+l2-.002)
-        elbow=solve(upper,wrist,l1,l2,Vector((sign,0,-.3)))
+        elbow=solve(upper,wrist,l1,l2,Vector((sign,0,-.3)) if OWL else Vector((sign*.42,.85,-.30)))
         aim(side+'Arm',upper,elbow); bpy.context.view_layer.update()
         aim(side+'ForeArm',elbow,wrist); bpy.context.view_layer.update()
         # Retain a neutral mitten orientation instead of curling each finger chain.
-        hm=rig.matrix_world@rest[bone(side+'Hand').name]; hm.translation=wrist
+        hm=rig.matrix_world@rest[bone(side+'Hand').name]
+        if not OWL:
+            fore=bone(side+'ForeArm')
+            delta=(rig.matrix_world@fore.matrix).to_quaternion()@(rig.matrix_world@rest[fore.name]).to_quaternion().inverted()
+            hm=Quaternion().slerp(delta,.55).to_matrix().to_4x4()@hm
+        hm.translation=wrist
         set_world(side+'Hand',hm); bpy.context.view_layer.update()
     for side,o,base in skis:
         o.matrix_world=boarddelta@base if side=='Board' else (rig.matrix_world@bone(side+'Foot').matrix)@(rig.matrix_world@rest[bone(side+'Foot').name]).inverted()@base

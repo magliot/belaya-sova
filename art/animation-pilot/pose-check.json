@@ -1,0 +1,40 @@
+{
+  "coincidentGroups": 2311,
+  "poses": [
+    {
+      "label": "straight",
+      "shoulderHeightDifference": -1.151634755336417e-7,
+      "headOffset": 4.065886579393378e-8,
+      "hipOffset": 8.174027527974373e-9,
+      "seamGap": 0
+    },
+    {
+      "label": "left",
+      "shoulderHeightDifference": -0.010576606756923068,
+      "headOffset": -0.0541391966854974,
+      "hipOffset": -0.059014221889794896,
+      "seamGap": 0
+    },
+    {
+      "label": "right",
+      "shoulderHeightDifference": 0.010582920265264417,
+      "headOffset": 0.054172607074840104,
+      "hipOffset": 0.059050616370318575,
+      "seamGap": 0
+    },
+    {
+      "label": "land",
+      "shoulderHeightDifference": -9.94067361759221e-8,
+      "headOffset": 2.934066827128476e-8,
+      "hipOffset": -1.0492296417113911e-8,
+      "seamGap": 0
+    },
+    {
+      "label": "air",
+      "shoulderHeightDifference": -1.1449598269486216e-7,
+      "headOffset": 2.5617843836707455e-8,
+      "hipOffset": -7.032672088127037e-9,
+      "seamGap": 0
+    }
+  ]
+}

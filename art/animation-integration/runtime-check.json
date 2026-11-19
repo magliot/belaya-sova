@@ -4,18 +4,18 @@
     {
       "kind": "bear",
       "fps": 30,
-      "maxContactError": 0.005856874119057856,
-      "maxGripError": 3.147889847251034e-16,
-      "localFootHeightRange": 0.029430086017051854,
-      "maxScaleError": 0.000002086162567138672
+      "maxContactError": 0.0041000269722502565,
+      "maxGripError": 2.6586582748550003e-16,
+      "localFootHeightRange": 0.02820851769908181,
+      "maxScaleError": 0.0000020265579223632812
     },
     {
       "kind": "bear",
       "fps": 60,
-      "maxContactError": 0.0060027476687208895,
-      "maxGripError": 3.297298206504798e-16,
-      "localFootHeightRange": 0.029523086438365875,
-      "maxScaleError": 0.000002086162567138672
+      "maxContactError": 0.004097801188103191,
+      "maxGripError": 3.5565215922748146e-16,
+      "localFootHeightRange": 0.028273004005305052,
+      "maxScaleError": 0.0000020265579223632812
     },
     {
       "kind": "owl",
