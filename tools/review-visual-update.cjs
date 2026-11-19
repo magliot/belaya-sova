@@ -4,7 +4,7 @@ const out='course-checks/art-update';fs.mkdirSync(out,{recursive:true});
 const base='http://127.0.0.1:8766';
 const hook=`
 window.visualQA={seek(d,x){reviewX=x;reviewSeek(d);render(0);},list:()=>G.objs.filter(o=>o.m).map(o=>[o.type,o.variant||o.theme||'',o.x,Math.round(o.y/20)]),
-  driveToVillage(){
+  driveTraining(){
     drag={};const start=G.y/20;
     for(let i=0;i<700&&G.mode==='play'&&G.y/20<85;i++){
       G.tx=200;update(1/60);syncWorld(1/60);
@@ -80,11 +80,11 @@ window.visualQA={seek(d,x){reviewX=x;reviewSeek(d);render(0);},list:()=>G.objs.f
      ff(['-f','concat','-safe','0','-i',out+'/scenes.txt','-c','copy','-movflags','+faststart','docs/review/jumps-1911.mp4']);
      assert.deepEqual(errors,[]);fs.writeFileSync(out+'/jumps.json',JSON.stringify(verification,null,2));console.log(verification);return;
    }
-   const ride=await page.evaluate(()=>visualQA.driveToVillage());
+   const ride=await page.evaluate(()=>visualQA.driveTraining());
    assert(ride.start<20&&ride.mode==='play'&&ride.seed===1911&&ride.d>=85&&ride.d<86,JSON.stringify(ride));
-   await page.screenshot({path:out+'/town-live.png'});
+   await page.screenshot({path:out+'/training-live.png'});
    const samples={};
-   for(const [name,d,x] of [['town',85,200],['town2',105,210],['valley',525,200],['forest',2571,200],['moguls',5040,245],['park',7650,145],['aurora',15500,200]]){
+   for(const [name,d,x] of [['training',85,200],['training2',105,210],['valley',525,200],['forest',2571,200],['moguls',5040,245],['park',7650,145],['aurora',15500,200]]){
      await page.evaluate(([d,x])=>visualQA.seek(d,x),[d,x]);await page.screenshot({path:out+'/'+name+'.png'});samples[name]=await page.evaluate(()=>visualQA.list());
    }
    for(const [name,d] of [['A',100],['B',490],['C',985]]){

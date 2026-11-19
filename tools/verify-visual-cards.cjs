@@ -9,7 +9,7 @@ window.cardShot=(id,index,d,x)=>{
   if(id===57){for(let i=0;i<80&&!G.objs.some(o=>o.type==='ball');i++)ticks(1);}
   if(id===58){let was=false;for(let i=0;i<600;i++){ticks(1);if(was&&!G.p.air)break;was=!!G.p.air;}}
   animObjs(0);render(0);
-  const codes={6:'npc',7:'npc',8:'npc',9:'npc',10:'npc',11:'npc',12:'cat',13:'snowmobile',22:'ramp',23:'rock',24:'rock',25:'cannon',26:'snowman',27:'dog',28:'mogulYeti',30:'coin',31:'thermos',32:'helmet',33:'gift',34:'magnet',35:'aid',36:'feather',37:'letter',38:'gate',39:'gate',40:'airRing',41:'fence',42:'stageProp',43:'stageProp',44:'stageProp',45:'arch',46:'finish',47:'rail',48:'ramp',49:'mogul',57:'ball',60:'tube',61:'tube'};
+  const codes={6:'npc',7:'npc',8:'npc',9:'npc',10:'npc',11:'npc',12:'cat',13:'snowmobile',22:'ramp',23:'rock',24:'rock',25:'cannon',26:'snowman',27:'dog',28:'mogulYeti',30:'coin',31:'thermos',32:'helmet',33:'gift',34:'magnet',35:'aid',36:'feather',37:'letter',38:'gate',39:'gate',40:'airRing',41:'fence',42:'entrySign',43:'entrySign',44:'entrySign',45:'arch',46:'finish',47:'rail',48:'ramp',49:'mogul',57:'ball',60:'tube',61:'tube'};
   const key=codes[id];
   const signature=o=>{
     if(id===6)return !o.kid&&!o.sit&&!o.sb;
@@ -35,7 +35,7 @@ window.cardShot=(id,index,d,x)=>{
   else if(id===18){if(lamps.some(l=>l.getObjectByName('lamp18'+'ABC'[index])))observed='lamp18'+'ABC'[index];}
   else if(id>=19&&id<=21){const k='tree'+id+'ABC'[index];if(G.objs.some(o=>o.type==='tree'&&o.m?.getObjectByName(k)&&Math.abs(o.y-G.y)<500)&&kit[k]&&forestIM[(id-19)*3+index].visible&&forestIM[(id-19)*3+index].count>0)observed=k;}
   else if(id===50||id===56){if(MOG.patches.some(p=>id===50?p.mesh:p.tracks))observed=id===50?'рельеф':'отпечатки';}
-  else if([51,52,54,62].includes(id)){const order={51:-3,52:-12,54:-4,62:-9+index}[id];const layers=mountains.children.filter(o=>o.renderOrder===order&&o.visible&&o.material.map?.image&&o.material.opacity>.05);if(id===52||id===54){
+  else if([52,54,62].includes(id)){const order={52:-12,54:-4,62:-9+index}[id];const layers=mountains.children.filter(o=>o.renderOrder===order&&o.visible&&o.material.map?.image&&o.material.opacity>.05);if(id===52||id===54){
       const variant='abc'[index]+'.webp';
       const seen=layers.find(o=>(o.material.map.image.currentSrc||o.material.map.image.src).endsWith(variant)&&Math.abs(o.getWorldPosition(new THREE.Vector3()).project(camera).x)<1);
       if(seen)observed=seen.material.map.image.src.split('/').pop();
@@ -72,7 +72,7 @@ window.cardShot=(id,index,d,x)=>{
   }
   assert.equal(rows.length,62);assert(!/goldenOwl\s*\(o\)|type:\s*['"]goldenOwl/.test(html));
   fs.mkdirSync('course-checks/art-update',{recursive:true});const log='course-checks/art-update/cards.json';
-  const old=filter.length&&fs.existsSync(log)?JSON.parse(fs.readFileSync(log,'utf8')).filter(p=>!filter.includes(p.n)):[];
+  const old=filter.length&&fs.existsSync(log)?JSON.parse(fs.readFileSync(log,'utf8')).filter(p=>!filter.includes(p.n)&&places.some(place=>place.n===p.n&&place.index===p.index)):[];
   fs.writeFileSync(log,JSON.stringify([...old,...results].sort((a,b)=>a.n-b.n||a.index-b.index),null,2));
   assert.deepEqual(errors,[]);assert.deepEqual(failures,[]);console.log('PASS '+selected.length+' in-game views, 62 indexed decisions, obsolete owl absent.');
  }finally{await browser.close();}

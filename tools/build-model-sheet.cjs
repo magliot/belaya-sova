@@ -68,9 +68,9 @@ const authored=[
  ['airRing','Кольцо 40A','Синий обод с золотыми муфтами.','airRing',{radius:1.2,ringStyle:0}],
  ['ring40B','Кольцо 40B','Радужная подсветка средней линии.','airRing',{radius:1.2,ringStyle:1}],
  ['ring40C','Кольцо 40C','Ледяной обод высокой линии.','airRing',{radius:1.2,ringStyle:2}],
- ['forest-sign','Указатель леса','Зелёная панель 42A на деревянных стойках отмечает лесной коридор.','stageProp',{theme:'forest'}],
- ['ridge-sign','Указатель бугров','Общая модель рамы пригодится для разных этапов.','stageProp',{theme:'moguls'}],
- ['park-sign','Указатель парка','Высокий вариант указателя.','stageProp',{theme:'park'}],
+ ['forest-sign','Указатель леса','Зелёная табличка на деревянной консоли перед въездом в лес.','entrySign',{theme:'forest',caption:'ЛЕС',x:57}],
+ ['ridge-sign','Указатель бугров','Охристая табличка перед полем бугров.','entrySign',{theme:'moguls',caption:'БУГРЫ',x:57}],
+ ['park-sign','Указатель парка','Синяя табличка перед въездом в сноупарк.','entrySign',{theme:'park',caption:'СНОУПАРК',x:57}],
  ['rail','Бокс','Можно моделировать боковины. Верх совпадает с игровой поверхностью.','rail',{hh:.7,w:42,len:210}],
  ['park-ramp','Трамплин сноупарка','Три высоты. Для замены подойдут накладки на борта, профиль отрыва задаёт физика.','ramp',{park:true,hh:1.6,w:95,len:180}],
  ['mogul','Отдельный бугор','Сугроб, который Мишаня может снести.','mogul'],
@@ -79,7 +79,6 @@ const authored=[
  ['arch','Арка этапа','Деревянная арка 45A со снежной крышей. Название зависит от этапа.','arch',{stage:2}],
  ['finish','Финиш','Клетчатый финиш 46A короткого спуска и бонусов.','finish'],
  ['lamp','Фонарь','Три фонаря 18A/B/C из игрового набора окружения.','lamp'],
- ['village','Дальний посёлок','Рисованный слой 51C повторяется на двух планах с разным параллаксом.','village'],
  ['mountain','Горы и долина','Дальний план. Важны крупные силуэты и низкая стоимость отрисовки.','mountain'],
  ['snow','Полотно трассы','Изгибы, уклон и борта повторяют физическую трассу.','snow'],
  ['aurora','Северное сияние','Полупрозрачная рисованная текстура на плоскости.','aurora'],
@@ -117,10 +116,7 @@ function studio(){
     if(k==='sled')return playerSled.children[0].clone();
     if(k==='lamp')return lamps[0].clone();
     if(k==='cable'){const m=towers[0].userData.cab[0].clone();m.scale.set(.034,3,.034);m.rotation.z=1.35;return m;}
-    if(k==='village'||k==='mountain'){
-      const order=k==='village'?-3:-12;
-      return mountains.children.find(q=>q.renderOrder===order).clone();
-    }
+    if(k==='mountain')return mountains.children.find(q=>q.renderOrder===-12).clone();
     if(k==='snow'){fitPlane(piste,-96);return piste.clone();}
     if(k==='aurora'){const m=mountains.children.find(q=>q.renderOrder===-4).clone();m.material=m.material.clone();m.material.opacity=1;return m;}
     if(k==='rollers'||k==='yeti-tracks'){
