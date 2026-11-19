@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Учебный склон · Белая Сова</title>
+<title>Проверочные заезды · Белая Сова</title>
 <style>
 @font-face{font-family:Rubik;src:url(../fonts/rubik-cyrillic-500-normal.woff2)}
 *{box-sizing:border-box}body{margin:0;background:#eff5fa;color:#163149;font:16px/1.55 Rubik,system-ui,sans-serif}
@@ -8,18 +8,34 @@ main{max-width:860px;margin:auto;padding:24px clamp(16px,4vw,38px) 50px}h1{font-
 a{color:#174d75}nav{display:flex;align-items:center;flex-wrap:wrap;gap:12px 20px;margin:16px 0 24px}
 .play{padding:10px 18px;border-radius:24px;color:white;background:#174d75;text-decoration:none}
 .pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}figure{margin:0 0 12px}
-img{display:block;width:100%;border-radius:12px}figcaption{padding-top:5px}h2{font-size:22px;margin:24px 0 10px}
-</style></head><body><main><h1>Учебный склон</h1>
+img{display:block;width:100%;border-radius:12px}video{display:block;width:min(100%,320px);height:auto;border-radius:12px}figcaption{padding-top:5px}h2{font-size:24px;margin:32px 0 6px} figure a{display:block} .shots{grid-template-columns:repeat(4,minmax(0,1fr))} @media(max-width:650px){.shots{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style></head><body><main><h1>Проверочные заезды</h1>
 <p>Выбери Мишаню или Сову и нажми «Поехали». На трассе № 1911 первая плюшка выезжает слева. Справа мандаринки ведут в объезд.</p>
 <nav><a class="play" href="../?seed=1911">Играть на склоне № 1911</a><a href="../">Случайный склон</a></nav>
 <div class="pair">
 <figure><img src="training-bear.webp" alt="Мишаня объезжает зелёную плюшку справа"><figcaption>Мишаня · 36 м</figcaption></figure>
 <figure><img src="training-owl.webp" alt="Сова проходит тот же поворот на доске"><figcaption>Сова · 36 м</figcaption></figure>
 </div>
-<h2>Посмотреть на трассе</h2>
-<p>Ссылки открывают игру на паузе. Можно сменить героя, сдвинуться поперёк склона и поехать с выбранного места.</p>
-<nav><a href="../?preview=course&amp;seed=1911&amp;at=35">Плюшка</a><a href="../?preview=course&amp;seed=1911&amp;at=145&amp;lane=125">Снеговик</a><a href="../?preview=course&amp;seed=1911&amp;at=469&amp;lane=150">Маленький ратрак</a><a href="../?preview=course&amp;seed=1911&amp;at=2571">Лесная тропа</a><a href="../?preview=course&amp;seed=1911&amp;at=7500&amp;lane=176">Трамплин с кольцом</a></nav>
-<div class="pair">
-<figure><img src="training-snowman.webp" loading="lazy" alt="Снеговик на обочине учебного склона"><figcaption>Снеговик · подход со 145 м</figcaption></figure>
-<figure><img src="training-cat.webp" loading="lazy" alt="Красный ратрак в левой полосе"><figcaption>Ратрак · подход с 469 м</figcaption></figure>
-</div><p><a href="../models.html">Рассмотреть модели по отдельности</a></p></main></body></html>
+<h2>Два объезда в движении</h2>
+<video controls playsinline preload="none" width="376" height="812" poster="training-bear.webp" src="training-tube.mp4" aria-label="Два объезда плюшек с игровой камеры, 21 и 1526 м"></video>
+<h2>Учебный склон</h2>
+<p>Ссылки открывают осмотр на паузе. Нажми ▶, чтобы поехать с указанного метра. В панели осмотра можно сменить героя и скорость. Все точки ниже используют seed 1911.</p>
+<nav><a href="../?preview=course&amp;seed=1911&amp;at=32&amp;lane=125">32 м · выезд слева</a><a href="../?preview=course&amp;seed=1911&amp;at=225&amp;lane=125">225 м · плюшка ниже по склону</a><a href="../?preview=course&amp;seed=1911&amp;at=1533&amp;lane=145">1533 м · пересечение</a><a href="../?preview=course&amp;seed=1911&amp;at=78&amp;lane=148">78 м · синие ворота</a><a href="../?preview=course&amp;seed=1911&amp;at=145&amp;lane=125">145 м · снеговик</a></nav>
+<div class="pair"><figure><a href="../?preview=course&amp;seed=1911&amp;at=469&amp;lane=150"><img src="training-cat.webp" loading="lazy" alt="Исходный ратрак в левой полосе">469 м · исходный ратрак</a></figure>
+<figure><a href="../?preview=course&amp;seed=1911&amp;at=1214&amp;lane=245"><img src="training-cat12.webp" loading="lazy" alt="Компактный ратрак с широким отвалом в правой полосе">1214 м · новый ратрак 12A</a></figure></div>
+<h2>Лес, бугры и сноупарк</h2>
+<nav><a href="../?preview=course&amp;seed=1911&amp;at=2571">2571 м · лесная тропа</a><a href="../?preview=course&amp;seed=1911&amp;at=5040">5040 м · бугры и йети</a><a href="../?preview=course&amp;seed=1911&amp;at=7500&amp;lane=176">7500 м · кольцо за один трюк</a><a href="../?preview=course&amp;seed=1911&amp;at=7650&amp;lane=145">7650 м · высокая линия с пером</a></nav>
+<p>На высокой линии направь героя на трамплин. После отрыва на 7670,5 м тапни дважды, дождавшись конца первого трюка перед вторым тапом. Центр пера находится на 7736,6 м.</p>
+<div class="pair shots">
+<figure><a href="park-bear-1.webp"><img src="park-bear-1.webp" loading="lazy" alt="Мишаня разворачивает лыжи относительно корпуса"></a><figcaption>Мишаня · shifty</figcaption></figure>
+<figure><a href="park-bear-2.webp"><img src="park-bear-2.webp" loading="lazy" alt="Мишаня разводит лыжи и руки в полёте"></a><figcaption>Мишаня · spread eagle</figcaption></figure>
+<figure><a href="park-owl-1.webp"><img src="park-owl-1.webp" loading="lazy" alt="Сова подтягивает доску для Indy"></a><figcaption>Сова · Indy</figcaption></figure>
+<figure><a href="park-owl-2.webp"><img src="park-owl-2.webp" loading="lazy" alt="Сова держит противоположный кант в Melon"></a><figcaption>Сова · Melon</figcaption></figure>
+</div>
+<h2>Бонусные трассы</h2>
+<p>В обычной игре перо открывает обе трассы в меню и на экране результата. Этими ссылками можно осмотреть их отдельно от своего сохранения.</p>
+<div class="pair shots"><figure><a href="../?preview=course&amp;ride=tubing&amp;seed=1911&amp;at=100"><img src="bonus-tubing-100.webp" loading="lazy" alt="Плюшки · открытый склон">100 м · Плюшки · открытый склон</a></figure>
+<figure><a href="../?preview=course&amp;ride=tubing&amp;seed=1911&amp;at=490"><img src="bonus-tubing-490.webp" loading="lazy" alt="Плюшки · лес">490 м · Плюшки · лес</a></figure>
+<figure><a href="../?preview=course&amp;ride=tubing&amp;seed=1911&amp;at=985"><img src="bonus-tubing-985.webp" loading="lazy" alt="Плюшки · закат">985 м · Плюшки · закат</a></figure>
+<figure><a href="../?preview=course&amp;ride=sled&amp;seed=1911&amp;at=420"><img src="bonus-sled-420.webp" loading="lazy" alt="Снегоход · доставка">420 м · Снегоход · доставка</a></figure>
+</div><nav><a href="../models.html">Каталог моделей, ворот и колец</a><a href="grip.html">Хват Мишани крупным планом</a></nav></main></body></html>

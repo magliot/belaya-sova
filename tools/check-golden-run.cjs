@@ -60,7 +60,9 @@ async function run(){
  const browser=await chromium.launch({args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  try{
   const page=await browser.newPage({viewport:{width:375,height:812},deviceScaleFactor:1});
-  const errors=[],requests=[],submissions=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(new URL(r.url()).pathname));
+  const errors=[],requests=[],submissions=[];
+  page.on('console',msg=>{if(msg.text().includes('THREE.WebGLProgram: Shader Error'))errors.push(msg.text());});
+  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(new URL(r.url()).pathname));
   let html=fs.readFileSync('docs/index.html','utf8');
   html=html.replace('function frame(now){','function frame(now){if(window.stopFrames)return;');
   const i=html.lastIndexOf('</script>');html=html.slice(0,i)+probe+html.slice(i);
@@ -130,7 +132,7 @@ async function run(){
   await legacy.addInitScript(()=>localStorage.setItem('bsova_meet',JSON.stringify({goldenOwl:true})));
   await legacy.goto('http://127.0.0.1:8766/');await legacy.locator('#bSled').waitFor();
   assert(!(await legacy.locator('#bTube').isVisible()));await legacy.close();
-  for(const [ride,d] of [['tubing',100],['tubing',490],['tubing',870],['sled',420]]){
+  for(const [ride,d] of [['tubing',100],['tubing',490],['tubing',985],['sled',420]]){
     await page.goto('http://127.0.0.1:8766/?preview=course&ride='+ride+'&seed=1911&at='+d);
     await page.waitForFunction(d=>window.__g?.()?.mode==='pause'&&__g().y===d*20,d);
     await page.locator('[data-r="fold"]').click();await page.screenshot({path:out+'/'+ride+'-'+d+'.png'});
