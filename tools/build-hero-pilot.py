@@ -226,10 +226,10 @@ def smooth(t): return t*t*(3-2*t)
 # time, compression, lateral weight shift, body lean, hand anticipation, airborne height
 keys=[(0,.025,0,9,0,0),(.8,.027,0,9,0,0),(1.5,.051,.046,15,-.012,0),
       (2.15,.051,-.046,15,.012,0),(2.7,.025,0,9,0,0),
-      (3.05,.065,0,18,.025,0),(3.25,.009,0,5,-.02,0),
+      (3.05,.086,0,23,.033,0),(3.25,.003,0,3,-.027,0),
       (3.5,.045,0,8,-.035,.23),(3.7,.05,0,10,-.02,.28),
       (3.98,.018,0,6,.005,.10),(4.08,.018,0,7,.012,0),
-      (4.23,.085,0,24,.03,0),(4.48,.042,0,14,-.008,0),
+      (4.24,.105,0,29,.044,0),(4.50,.042,0,13,-.009,0),
       (4.85,.022,0,8,0,0),(5.3,.025,0,9,0,0),(6,.025,0,9,0,0)]
 FPS=30; END=241
 def sample(t):
@@ -242,10 +242,13 @@ for frame in range(1,END+1):
     bpy.context.scene.frame_set(frame); t=(frame-1)/FPS
     comp,shift,lean,hand,air=sample(t)
     style=0 if t<7 else 1
-    trick=math.sin(math.pi*(t%1))**2 if t>=6 else 0
+    phase=(t%1) if t>=6 else 0
+    # Pop before the reach, hold a legible silhouette, then release before contact.
+    trick=smooth(max(0,min(1,(phase-.07)/.30)))*smooth(max(0,min(1,(.99-phase)/.27)))
     if OWL:lean+=28*trick;comp+=.075*trick
     else:lean+=8*trick;comp+=.022*trick
-    if OWL and 4.08<t<4.60:comp+=.027*math.sin(math.pi*(t-4.08)/.52)**2
+    if OWL and 2.7<t<3.5:comp=max(.012,min(comp,.068))
+    if OWL and 4.08<t<4.60:comp=min(.106,comp+.012*math.sin(math.pi*(t-4.08)/.52)**2)
     if not OWL:
         shift*=.78
         lean*=.90
@@ -265,7 +268,8 @@ for frame in range(1,END+1):
     turn('Spine2',(0,1,0),-shift*(90 if OWL else 55))
     if trick:
         if OWL:turn('Spine2',(0,1,0),(16 if style==0 else -16)*trick)
-        elif style==0:turn('Spine',(0,0,1),-21*trick)
+        elif style==0:turn('Spine',(0,0,1),-32*trick)
+        turn('Head',(0,0,1),(10 if OWL else 12)*trick)
     if OWL:
         turn('Spine2',(0,0,1),10);turn('Neck',(0,0,1),20);turn('Head',(0,0,1),35)
     bpy.context.view_layer.update()
@@ -278,6 +282,7 @@ for frame in range(1,END+1):
         tuck=.19 if style==0 else .221
         boarddelta=Matrix.Translation((0,0,tuck*trick))@Matrix.Rotation(math.radians((17 if style==0 else -2)*trick),4,'X')@boarddelta
     for side in ['Left','Right']:
+        sign=1 if side=='Left' else -1
         hip=rig.matrix_world@bone(side+'UpLeg').head
         ankle=rig.matrix_world@loc(side+'Foot')+Vector((0,0,air+.025+.025*flight))
         if OWL:ankle=boarddelta@(rig.matrix_world@loc(side+'Foot'))
@@ -296,7 +301,7 @@ for frame in range(1,END+1):
             bank=Matrix.Translation(contact+Vector((0,0,lift)))@Matrix.Rotation(edge,4,'Y')@Matrix.Translation(-contact)
             footmatrix=bank@footmatrix
             if trick:
-                angle=math.radians(trick*(27 if style==0 else sign*23))
+                angle=math.radians(trick*(42 if style==0 else -sign*39))
                 pivot=Vector((0,0,.10)) if style==0 else hip
                 axis='Z' if style==0 else 'Y'
                 twist=Matrix.Translation(pivot)@Matrix.Rotation(angle,4,axis)@Matrix.Translation(-pivot)
@@ -319,14 +324,14 @@ for frame in range(1,END+1):
             if grabbing:
                 edge=Vector((sign*.10,-.066+(-.157 if style==0 else .157),.016))
                 wrist=wrist.lerp(boarddelta@edge,trick)
-            else:wrist+=Vector((sign*.08,0,.09))*trick
+            else:wrist+=Vector((sign*.10,.045 if style else -.035,.17 if style else .11))*trick
         if not OWL and trick:
-            wrist+=Vector((sign*(.10 if style==1 else .025),sign*.09 if style==0 else 0,.11 if style==1 else .045))*trick
+            wrist+=Vector((sign*(.20 if style==1 else .035),sign*.13 if style==0 else .035,.21 if style==1 else .045))*trick
         l1=(loc(side+'ForeArm')-loc(side+'Arm')).length; l2=(loc(side+'Hand')-loc(side+'ForeArm')).length
         if not OWL:
             # The imported left and right forearms have different lengths. Matching
             # target distances produced a 16-degree mismatch between the elbows.
-            flex=math.radians(66+sign*shift*190+comp*35-6*flight)
+            flex=math.radians(66+sign*shift*190+comp*35-6*flight-(37 if style==1 else 8)*trick)
             reach=math.sqrt(l1*l1+l2*l2+2*l1*l2*math.cos(flex))
             wrist=upper+(wrist-upper).normalized()*reach
         if (wrist-upper).length>l1+l2-.002: wrist=upper+(wrist-upper).normalized()*(l1+l2-.002)
@@ -338,7 +343,7 @@ for frame in range(1,END+1):
         if not OWL:
             # Align the glove opening to the forearm; keep the pole trailing on the snow.
             f=wrist-elbow;f.z=0;f.normalize()
-            f.z=-math.tan(math.radians(16+12*flight+sign*shift*50))
+            f.z=-math.tan(math.radians(16+12*flight+sign*shift*50+(31 if style==1 else 13)*trick))
             target=grip_tools['wrist_frame'](wrist,f)
             hm=target@palm_basis[side].inverted()@hm
         hm.translation=wrist

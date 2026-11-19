@@ -45,15 +45,15 @@
     "side": "Left",
     "label": "land",
     "raysInsideGlove": 10,
-    "elbowFlexDeg": 68.3,
-    "wristBendDeg": 10.2
+    "elbowFlexDeg": 68.8,
+    "wristBendDeg": 9.5
   },
   {
     "side": "Right",
     "label": "land",
     "raysInsideGlove": 11,
-    "elbowFlexDeg": 68.3,
-    "wristBendDeg": 7.8
+    "elbowFlexDeg": 68.8,
+    "wristBendDeg": 7.1
   },
   {
     "side": "Left",

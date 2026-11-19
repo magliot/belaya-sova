@@ -10,7 +10,7 @@ export function motionTime(p,state,t){
  if(airborne&&p.trick>0&&p.style!=null)return 6+p.style+clamp(p.trick,0,.999);
  if(airborne)return 3.25+.83*clamp((p.airT||0)/(p.airMax||1),0,.999);
  if(state.landed!=null&&t-state.landed<.77)return 4.08+Math.max(0,t-state.landed);
- if((p.rampH||0)>.025)return 2.7+.35*clamp(p.rampH/.4,0,1);
+ if((p.rampH||0)>.025)return 2.7+.51*clamp(p.popPhase??p.rampH/.65,0,1);
  const a=clamp(p.ang||0,-1,1);
  return a>=0?.8+.7*a:2.7+.55*a;
 }
@@ -67,7 +67,7 @@ export function poseHeroMotion(h,p,mode,t){
  // so an intermediate blend cannot become the next target for a boot, hand or ski.
  if(m.sampled)for(const n of m.nodes){n.o.position.copy(n.samplePos);n.o.quaternion.copy(n.sampleRot);}
  const sample=motionTime(p,m.state,t);m.mixer.setTime(sample+1/30);m.sampled=true;
- const alpha=m.active?1-Math.exp(-24*dt):1;
+ const alpha=m.active?1-Math.exp(-(p.trick>0?37:26)*dt):1;
  for(const n of m.nodes){n.samplePos.copy(n.o.position);n.sampleRot.copy(n.o.quaternion);n.position.lerp(n.samplePos,alpha);n.quaternion.slerp(n.sampleRot,alpha);n.o.position.copy(n.position);n.o.quaternion.copy(n.quaternion);}
  // The clip is now in place; the parent follows the game's jump trajectory.
  m.model.position.y=0;m.active=true;h.holder.position.y=h.kind==='bear'?.022:0;
