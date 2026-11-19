@@ -210,7 +210,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
     <div class="player hidden" id="mPlayer"></div>
     <div class="row stats"><span>⭐ Рекорд: <b id="mBest">0</b></span><button class="toppill" id="bTop">🏆 Рейтинг</button><span>🍊 <b id="mCoins">0</b></span></div>
     <div class="playwrap"><span class="rays"><b></b><b></b><b></b></span><button class="big" id="bPlay"><svg viewBox="0 0 24 24"><path d="M6 3.5v17a1 1 0 0 0 1.5.86l14-8.5a1 1 0 0 0 0-1.72l-14-8.5A1 1 0 0 0 6 3.5z" fill="#fff"/></svg>ПОЕХАЛИ!</button><span class="rays r"><b></b><b></b><b></b></span></div>
-    <button class="toppill hidden" id="bSled">Золотая сова · снегоход</button>
+    <button class="toppill hidden" id="bSled">Бонус · Снегоход</button>
     <button class="toppill" id="bSprint">Короткий спуск · 1,2 км</button>
     <div class="btnrow"><button class="mini snowcap" id="bColl"><span class="ic">🏅</span>Коллекция</button><button class="mini snowcap" id="bTasks"><span class="ic">🎯</span>Задания</button><button class="mini snowcap" id="bShop"><span class="ic">🛒</span>Улучшения</button><button class="mini snowcap" id="bSet"><span class="ic">⚙️</span>Настройки</button></div>
   </div>
@@ -613,7 +613,7 @@ function loadWinter(){return loadPack('models/winter.js',Object.keys(WINTER_CFG)
 // Standalone models keep the menu independent of rare pickups.
 const collectibleModels={};
 function loadCollectibles(){
-return Promise.all([['aid','rescue-case',.92],['goldenOwl','golden-owl',1.85]].map(([key,file,size])=>cached(file,async()=>{const {scene:model}=await gltfLoader.loadAsync('models/'+file+'.glb');tintModels(model);
+return Promise.all([['aid','rescue-case',.92],['feather','prize-feather',1.65]].map(([key,file,size])=>cached(file,async()=>{const {scene:model}=await gltfLoader.loadAsync('models/'+file+'.glb');tintModels(model);
       const bounds=new THREE.Box3().setFromObject(model),span=bounds.getSize(new THREE.Vector3());
       const group=new THREE.Group();model.position.sub(bounds.getCenter(new THREE.Vector3()));
       group.add(model);group.scale.setScalar(size/Math.max(span.x,span.y,span.z));
@@ -624,7 +624,7 @@ return Promise.all([['aid','rescue-case',.92],['goldenOwl','golden-owl',1.85]].m
 function studioPickup(key,height){
   const model=collectibleModels[key];if(!model)return null;
   const g=new THREE.Group();g.add(model.clone());
-  const gl=new THREE.Sprite(pickGlow);gl.scale.setScalar(key==='goldenOwl'?2.8:1.65);g.add(gl);
+  const gl=new THREE.Sprite(pickGlow);gl.scale.setScalar(key==='feather'?2.8:1.65);g.add(gl);
   g.userData.baseY=height;g.userData.wobble=true;return g;
 }
 function winterClone(k){const source=WINTER[k];if(!source)return null;const copy=source.clone(true),map=new Map();
@@ -851,9 +851,7 @@ const FACT={
   thermos(){const g=new THREE.Group();g.add(new THREE.Sprite(pickGlow));g.children[0].scale.setScalar(1.6);g.add(PROPS.cocoa.clone());g.userData.spin=true;g.userData.baseY=0.85;return g;},
   helmet(){const g=new THREE.Group();g.add(new THREE.Sprite(pickGlow));g.children[0].scale.setScalar(1.6);g.add(PROPS.helmet.clone());g.userData.spin=true;g.userData.baseY=0.85;return g;},
   magnet(){return winterPickup('magnet',0.9);},
-  goldenOwl(){return studioPickup('goldenOwl',1.45);},
-  feather(){const g=new THREE.Group();const sp=new THREE.Sprite(pickGlow);sp.scale.setScalar(2.4);g.add(sp);const f=mk(sharedGeo.sph,OM.gold,0,0.1,0,g);S3(f,0.12,0.42,0.03);f.rotation.z=0.3;
-    const q=mk(sharedGeo.cyl,OM.gold,0.08,-0.32,0,g);S3(q,0.015,0.25,0.015);q.rotation.z=0.3;g.userData.spin=true;g.userData.baseY=1.0;return g;},
+  feather(){return studioPickup('feather',1);},
 };
 const playerSled=new THREE.Group();scene.add(playerSled);playerSled.visible=false;
 function loadPlayerSled(){return cached('sled',async()=>{const g=await gltfLoader.loadAsync('models/player-sled.glb');tintModels(g.scene);playerSled.add(g.scene);});}
@@ -924,6 +922,7 @@ function release(o){if(!o.m)return;const m=o.m;scene.remove(m);if((m.userData.ge
 // ================= SAVE / MISSIONS =================
 const store={get(k,d){try{const v=localStorage.getItem(SKEY+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(SKEY+k,JSON.stringify(v));}catch(e){}}};
 const save={best:store.get('best',0),coins:store.get('coins',0),hero:store.get('hero','bear'),muted:store.get('muted',false),mag:store.get('mag',0),boost:store.get('boost',0),helmets:store.get('helmets',0),sens:store.get('sens',4),coll:store.get('coll',[]),fis:store.get('fis',[]),meet:store.get('meet',{yeti:0,feathers:0,bestStage:0}),mdone:store.get('mdone',0),missions:store.get('missions',null),vol:Object.assign({music:6,sfx:8,vox:8},store.get('vol',{}))};
+const sledUnlocked=()=>!!(save.meet.goldenOwl||save.meet.prizeFeather);
 const SAVE_KEYS=['best','coins','hero','muted','mag','boost','helmets','mdone','missions','sens','coll','meet','fis','vol'];
 function persist(){if(COURSE_REVIEW)return;for(const k of SAVE_KEYS)store.set(k,save[k]);cloudSave();}
 // облачное сохранение Telegram: рекорд и прогресс не пропадут, если телефон почистит кэш
@@ -1281,7 +1280,7 @@ const PARK_LINES=[
 function arcHeight(h,lift,t){return (1-t)*(h+4*lift*t);}
 function beginParkFlight(p,ramp,y,speed,glide){
   const start=ramp.y+ramp.len/2,span=ramp.span*glide;
-  p.parkFlight={start,span,lift:ramp.lift,trickLine:ramp.trickLine};p.launchH=ramp.hh;p.air=1;
+  p.parkFlight={start,span,lift:ramp.lift,trickLine:ramp.trickLine,prizeLine:ramp.prizeLine};p.launchH=ramp.hh;p.air=1;
   p.airMax=span/Math.max(1,speed);p.airT=p.airMax*clamp((y-start)/span,0,1);
   p.jk=ramp.lift/2.3;p.spin=0;
 }
@@ -1303,13 +1302,16 @@ function crossAirTarget(o,p,oldX,radius){
 function parkSection(y,shortTier){
   const n=Math.floor(y/1500),section=Math.floor((y%(STAGE_LEN*20))/1500);
   const tier=shortTier??(section%3),trickLine=shortTier==null&&section%6===0;
-  const line=trickLine?{...PARK_LINES[1],span:760}:PARK_LINES[tier];
+  const prizeLine=shortTier==null&&section%9===2;
+  if(shortTier==null&&section%9===3)return 1500; // landing area of the preceding high line
+  const line=prizeLine?{...PARK_LINES[2],span:1740}:trickLine?{...PARK_LINES[1],span:760}:PARK_LINES[tier];
   const side=n%2?1:-1,x=200+side*[24,46,55][tier],rampY=y+310;
   const lip=rampY+line.len/2;
-  addObj({type:'ramp',park:true,trickLine,x,y:rampY,...line});
+  addObj({type:'ramp',park:true,trickLine:trickLine||prizeLine,prizeLine,x,y:rampY,...line});
   const target=(type,t,dx=0,upper=false)=>addObj({type,x:x+dx,y:lip+t*line.span,air:1,
     needsTrick:upper&&type==='airRing',airHeight:arcHeight(line.hh,line.lift,t)+.9+(upper?2.7*Math.sin(Math.PI*t):0),radius:1.55,points:line.ring,r:10});
-  target('coin',.16);target('coin',.31);target('airRing',trickLine?.68:.48,side*tier*5,trickLine);
+  target('coin',.16);target('coin',.31);target('airRing',prizeLine?.43:trickLine?.68:.48,side*tier*5,trickLine||prizeLine);
+  if(prizeLine)target('feather',.76,0,true);
   let reward='coin';
   if(shortTier!=null)reward=['coin','thermos','helmet'][tier];
   else if(n%29===0)reward='helmet';
@@ -1317,7 +1319,7 @@ function parkSection(y,shortTier){
   target(reward,trickLine?.55:.68,0,trickLine);target('coin',.82,0,trickLine);
   // An occasional low box offers a separate ground line.
   if(tier===0)addObj({type:'rail',x:200-side*103,y:rampY+90,w:44,len:190,hh:.65});
-  const caption=trickLine?'ТАП В ВОЗДУХЕ':['МАЛЫЙ','СРЕДНИЙ','БОЛЬШОЙ'][tier];
+  const caption=prizeLine?'ДВА ТРЮКА':trickLine?'ТАП В ВОЗДУХЕ':['МАЛЫЙ','СРЕДНИЙ','БОЛЬШОЙ'][tier];
   for(const sx of [28,372])addObj({type:'stageProp',theme:'park',x:sx,y:y+45,caption});
   return 1500;
 }
@@ -1340,7 +1342,6 @@ function sprintSection(y){
       addObj({type:'coin',x,y:y+300+i*415,r:9});
     }
   }
-  if(block===13&&G.nextOwl<Infinity)addObj({type:'goldenOwl',x:200,y:y+150,anchor:y+150,side:1});
   G.nextY+=1500;
 }
 const SLED_SECONDS=75;
@@ -1355,12 +1356,6 @@ function sledSection(y){
   if(phase===2)addObj({type:'gift',x:lanes[(lanes.indexOf(x)+1)%3],y:y+510,r:12});
   G.nextY+=620;
 }
-function owlEncounter(y,advance=true){
-  const sign=Math.random()<.5?-1:1;
-  addObj({type:'goldenOwl',x:200+sign*55,y:y+160,anchor:y+160,side:sign});
-  G.nextOwl=G.sprint?Infinity:y/20+rnd(1300,2800);
-  if(advance)G.nextY+=1570;
-}
 function spawnSeg(){
   const y=G.nextY,d=y/20,diff=Math.min(1,d/3000);
   const sn=stageAt(d),st=stageDef(sn),lap=Math.floor(sn/STAGES.length);
@@ -1370,7 +1365,6 @@ function spawnSeg(){
   if(G.mode==='menu'){addGate(y,diff);G.nextY+=len;return;}
   const fixedRows=G.seed!=null&&(sn===0||st.forest||st.park);
   if(sn!==G.lastSpawnStage){G.lastSpawnStage=sn;if(sn>0){addObj({type:'arch',x:200,y,stage:sn%STAGES.length});if(!fixedRows){G.nextY+=140;return;}}}
-  if(d>=2500&&d>=G.nextOwl){owlEncounter(y,!fixedRows);if(!fixedRows)return;}
   if(sn%8===4&&d-sn*STAGE_LEN<75){
     const landmarkY=(sn*STAGE_LEN+55)*20;
     if(y<=landmarkY){addObj({type:'snowman',x:266,y:landmarkY,r:16,cd:0});coinTrail(166,landmarkY-250,5,90);}
@@ -1448,7 +1442,6 @@ function spawnSeg(){
   if(st.park){G.nextY=Math.min(y+len,(sn+1)*STAGE_LEN*20);return;}
   if(Math.random()<helmC)addObj({type:'helmet',x:rnd(60,340),y:y+len*0.5,r:12});
   else if(Math.random()<0.045){const p=Math.random()<0.5?'thermos':'magnet';addObj({type:p,x:rnd(60,340),y:y+len*0.5,r:12});}
-  else if(d>2000&&Math.random()<0.006){addObj({type:'feather',x:rnd(60,340),y:y+len*0.5,r:12});}
   if((sn%8===4||sn%8===6)&&Math.random()<0.007&&!G.yetiSpawned){G.yetiSpawned=true;addObj({type:'yeti',x:Math.random()<.5?22:378,y:y+len*0.3,met:false});}
   G.nextY=Math.min(y+len,(sn+1)*STAGE_LEN*20);
 
@@ -1645,19 +1638,9 @@ function update(dt){
     }
     if(o.type==='tube'||o.small)trainingActorAt(o,py,dt,G.prevY);
     if(o.type==='cat'&&!o.small){o.y+=o.vy*dt;if(!o.warned&&o.vy<0&&o.y>py&&o.y-py<900){o.warned=true;banner('⚠ РАТРАК НАВСТРЕЧУ','уходи с его полосы','warn');SFX.warn();}}
-    if(o.type==='goldenOwl'){
-      const progress=clamp((py-o.anchor+800)/1400,0,1);
-      o.y=o.anchor+progress*560;o.x=200+o.side*(65*Math.sin(progress*Math.PI*1.5)+25);
-    }
     const dx=p.x-o.x,dy=py-o.y,dd=Math.hypot(dx,dy);
     switch(o.type){
       case 'tube':if(!p.air&&Math.hypot(dx,dy)<26)hit('tube',o);break;
-      case 'goldenOwl':
-        if(dd<27&&!COURSE_REVIEW){
-          o.dead=true;G.owlCaught=true;save.meet.goldenOwl=true;persist();G.bonus+=350;
-          burst3(X(o.x),1.5,Z(o.y),22,'#ffd655',4);SFX.feather();
-          banner('Сова поймана! Снегоход открыт','','gold');
-        }break;
       case 'airRing':
         if(!o.passed&&(!o.needsTrick||(p.parkFlight?.trickLine&&p.spin>=1))&&crossAirTarget(o,p,oldX,o.radius-.1)){
           o.passed=true;G.rings++;const pts=o.points*mult();
@@ -1708,7 +1691,7 @@ function update(dt){
       case 'ramp':
         if(o.park){
           const end=o.y+o.len/2;
-          if(o.trickLine&&!o.hinted&&o.y>py&&o.y-py<440){o.hinted=true;banner('Для кольца тапни в воздухе');}
+          if(o.trickLine&&!o.hinted&&o.y>py&&o.y-py<440){o.hinted=true;banner(o.prizeLine?'Для пера сделай два трюка в полёте':'Для кольца тапни в воздухе');}
           if(!p.air&&!p.fall&&Math.abs(dx)<o.w/2){
             if(G.prevY<end&&py>=end){
               beginParkFlight(p,o,py,G.speed,hero==='owl'?1.09:1);
@@ -1729,11 +1712,12 @@ function update(dt){
         if(o.vy>0&&!o.passed&&py>o.y+o.h/2){o.passed=true;if(Math.abs(dx)>o.w/2+30){G.polite++;const pts=40*mult();G.bonus+=pts;SFX.polite();addText(p.x,py,'Обогнал ратрак +'+pts,'#1f8a4c',16);}}
         break;
       case 'thermos':case 'helmet':case 'magnet':case 'feather':
+        if(o.type==='feather'&&(!p.parkFlight?.prizeLine||p.spin<2))break;
         if(o.airHeight!=null?crossAirTarget(o,p,oldX,1.12):dd<24){o.dead=true;burst3(X(o.x),o.airHeight??0.9,Z(o.y),16,'#ffd23f',4);
           if(o.type==='thermos'){SFX.power();p.boost=4.5+save.boost*0.8;p.inv=p.boost;banner('☕ Кофе · ускорение +65%','','gold');}
           if(o.type==='helmet'){SFX.power();if(p.lives<3){p.lives++;addText(p.x,py,'Каска EMCO! Жизней: '+p.lives,'#ff6a00',16);}else{G.bonus+=50;addText(p.x,py,'Каска +50 (уже 3)','#ff6a00',16);}}
           if(o.type==='magnet'){SFX.power();p.magnet=7+save.mag*2;addText(p.x,py,'Магнит для мандаринок!','#2c3e50',16);}
-          if(o.type==='feather'){SFX.feather();G.feathers++;save.meet.feathers++;persist();const pts=300*mult();G.bonus+=pts;banner('ЗОЛОТОЕ ПЕРО!','+'+pts,'gold');voice('feather',true);vibe([30,30,30]);}
+          if(o.type==='feather'){SFX.feather();G.feathers++;save.meet.feathers=(save.meet.feathers||0)+1;save.meet.prizeFeather=true;G.prizeCaught=true;persist();const pts=300*mult();G.bonus+=pts;banner('Перо поймано! Бонусные заезды открыты','+'+pts,'gold');voice('feather',true);vibe([30,30,30]);}
         }break;
     }
   }
@@ -1789,10 +1773,6 @@ function animObjs(dt){
     if(m.userData.spin){m.rotation.y+=dt*2.5;m.position.y=og+m.userData.baseY+Math.sin(G.t*3+o.x)*0.08;}
     if(o.airHeight!=null)m.position.y=og+o.airHeight;
     else if(o.type==='coin'&&o.air)m.position.y=og+1.8;
-    if(o.type==='goldenOwl'){
-      m.position.y=og+1.45+.22*Math.sin(G.t*4);m.rotation.y=.16*Math.sin(G.t*3);m.rotation.z=.12*Math.sin(G.t*4);
-      if(dt&&Math.random()<dt*9)burst3(X(o.x),1.22,Z(o.y),1,'#ffcd51',1);
-    }
     if(o.type==='airRing'){
       const aura=m.userData.light;
       aura.rotation.z=G.t*.32+o.y*.002;
@@ -1990,7 +1970,7 @@ function drawHUD(){
 function clearWorld(){dropMogPatches(true);if(G)for(const o of G.objs)release(o);for(let i=0;i<TRACKN;i++){tmpM.makeScale(0,0,0);trackMesh.setMatrixAt(i,tmpM);}trackMesh.instanceMatrix.needsUpdate=true;
   for(const t of forest){t.userData.z=-rnd(-15,170);t.userData.x=0;}lamps.forEach((l,i)=>l.userData.z=-Math.floor(i/2)*30-(l.userData.side>0?15:0));towers.forEach((t,i)=>t.userData.z=-i*35);}
 const SPRINT_METERS=1200;
-function startGame(sprint=false,sled=false){if(sled&&!save.meet.goldenOwl)return;initAudio();if(!trackReady||HEROMODELS[hero].motionStatus!=='ready'||(sled&&!playerSled.children.length))return waitForAssets(()=>Promise.all([loadTrackAssets(),sled?loadPlayerSled():null]),()=>startGame(sprint,sled));music('run');hideToast();clearWorld();G=newGame('play');last=performance.now();G.seed=sprint||sled?null:pickSeed();useCourse(G.seed);if(G.seed!=null){reviewSeed=G.seed;G.nextY=0;}G.sprint=sprint;G.nextOwl=sprint?(Math.random()<.18?0:Infinity):rnd(330,1600);
+function startGame(sprint=false,sled=false){if(sled&&!sledUnlocked())return;initAudio();if(!trackReady||HEROMODELS[hero].motionStatus!=='ready'||(sled&&!playerSled.children.length))return waitForAssets(()=>Promise.all([loadTrackAssets(),sled?loadPlayerSled():null]),()=>startGame(sprint,sled));music('run');hideToast();clearWorld();G=newGame('play');last=performance.now();G.seed=sprint||sled?null:pickSeed();useCourse(G.seed);if(G.seed!=null){reviewSeed=G.seed;G.nextY=0;}G.sprint=sprint;
   if(sled){G.sled={elapsed:0,hits:0,gifts:0,rows:0,chain:0,last:-Infinity};G.nextY=0;loadPlayerSled();banner('Сбивай снеговиков и собирай подарки','','gold');}
   if(sprint){G.nextY=0;G.nextChaseD=Infinity;}setTimeout(()=>voice('start',true),600);
   if(!G.sled&&!save.meet.coastHint){save.meet.coastHint=1;persist();const g0=G;setTimeout(()=>{if(G===g0&&G.mode==='play')banner('Рули на поворотах · кофе даёт ускорение');},1500);}lastTrackZ=0;$('share').classList.add('hidden');if(!G.sled&&save.helmets>0){save.helmets--;G.p.lives=1;persist();}G.letter=G.sprint||G.sled?null:collState();G.letterAt=G.letter?letterDist(G.letter.w,G.letter.i):Infinity;for(const m of save.missions)m.got=false;
@@ -2041,7 +2021,7 @@ function gameOver(){
   ensureMissions();save.coins+=G.coins+reward;persist();
   $('oFail').textContent=G.failMsg||'';$('oFis').innerHTML=G.sled||G.sprint&&G.y===SPRINT_METERS*20?'':fisTip(G.failKind);$('oRec').classList.toggle('hidden',!rec);$('oScore').textContent=sc;
   $('oStats').innerHTML=`${G.sprint?'Короткий спуск':'Этап '+(G.stage+1)+': '+stageDef(Math.max(0,G.stage)).name}<br>${Math.floor(G.y/20)} м · ворот ${G.gates} · серия ${G.maxCombo} · трюков ${G.tricks}${G.rings?' · колец '+G.rings:''}<br>🍊 +${G.coins}${reward?` · за задания +${reward}`:''}${G.feathers?` · перьев ${G.feathers}`:''} · рекорд <b>${save.best}</b>`;
-  $('bSledResult').classList.toggle('hidden',!G.owlCaught);
+  $('bSledResult').classList.toggle('hidden',!G.prizeCaught);
   if(G.sled)$('oStats').innerHTML='Снеговиков '+G.sled.hits+' · подарков '+G.sled.gifts+' · 🍊 '+G.coins+'<br>Бонус за сбор +'+G.bonus+' · рекорд '+save.best;
   $('oMis').innerHTML=lines.join('');submitRun(sc);
   // новые танцы, открытые этим заездом
@@ -2057,7 +2037,7 @@ const PHR={bear:['Каска надета — можно ехать!','Объе�
 let bubT=0;function sayBubble(){const el=$('bubble');if(!el)return;const a=PHR[hero];el.textContent=a[Math.floor(Math.random()*a.length)];el.classList.add('on');clearTimeout(bubT);bubT=setTimeout(()=>el.classList.remove('on'),3800);}
 setInterval(()=>{if(!$('menu').classList.contains('hidden'))sayBubble();},6500);
 const UPC=l=>[150,400,900,2000,4000][l]||99999;const MAXU=5;const HELM=250;
-function refreshMenu(){$('bSled').classList.toggle('hidden',!save.meet.goldenOwl);if(PLAYER){$('mPlayer').textContent='👤 '+PLAYER;$('mPlayer').classList.remove('hidden');}
+function refreshMenu(){$('bSled').classList.toggle('hidden',!sledUnlocked());if(PLAYER){$('mPlayer').textContent='👤 '+PLAYER;$('mPlayer').classList.remove('hidden');}
   $('mBest').textContent=save.best;$('mCoins').textContent=save.coins;document.querySelectorAll('.coinsv').forEach(e=>e.textContent=save.coins);
   $('mMis').innerHTML=save.missions.map(m=>`<div class="mis"><span>${mdef(m.id).t(m.n)}</span><i>+${m.reward} 🍊</i></div>`).join('');
   document.querySelectorAll('.seg button').forEach(el=>el.classList.toggle('sel',el.dataset.h===hero));
@@ -2105,7 +2085,7 @@ function renderColl(){
     h+=`<div class="cw">`+w.split('').map((ch,i)=>{const g=got.find(c=>c.i===i);return `<span class="lt ${g?'got':''}" title="${g?g.date+' · '+g.dist+' м':''}">${open||g?ch:'?'}</span>`;}).join('');
     const done=got.length>=w.length;h+=`<small>${done?'🏅 Слово собрано! Награда получена':open?'Собрано '+got.length+' из '+w.length+(got.length?' · последняя: '+got[got.length-1].date+', '+got[got.length-1].dist+' м':''):'откроется после предыдущего слова'}</small></div>`;});
   const m=save.meet;h+=`<div class="cap" style="margin-top:8px">Встречи и рекорды</div>
-   <div class="mis"><span>Золотая сова · снегоход</span><i>${m.goldenOwl?'Открыт':'Найди на трассе'}</i></div>
+   <div class="mis"><span>Золотое перо · сноупарк</span><i>${m.prizeFeather?'Поймано':'Два трюка на высокой линии'}</i></div>
    <div class="mis"><span>🦍 Встречи с Йети</span><i>${m.yeti||0}</i></div>
    <div class="mis"><span>🪶 Золотых перьев</span><i>${m.feathers||0}</i></div>
    <div class="mis"><span>🏔 Дальний этап</span><i>${m.bestStage?m.bestStage+' · '+stageDef(m.bestStage-1).name:'—'}</i></div>
@@ -2214,8 +2194,8 @@ if(TG){try{
   setInterval(()=>{const need=!!(G&&(G.mode!=='menu'||OVL.some(id=>!$(id).classList.contains('hidden'))));if(need!==lastBack){lastBack=need;need?TG.BackButton.show():TG.BackButton.hide();}
     const conf=!!(G&&G.mode==='play');if(conf!==lastConf){lastConf=conf;conf?TG.enableClosingConfirmation():TG.disableClosingConfirmation();}},300);
   // облачное сохранение: подтягиваем прогресс, если в облаке рекорд не хуже локального
-  if(TG.CloudStorage&&!COURSE_REVIEW)TG.CloudStorage.getItem('motion_test_save',(err,v)=>{try{if(err||!v)return;const c=JSON.parse(v);if(!TGU||c.uid!==TGU.id)return;if((c.best||0)<(save.best||0))return;
-    if(save.meet.goldenOwl)c.meet={...c.meet,goldenOwl:true};
+  if(TG.CloudStorage&&!COURSE_REVIEW)TG.CloudStorage.getItem('motion_test_save',(err,v)=>{try{if(err||!v)return;const c=JSON.parse(v);if(!TGU||c.uid!==TGU.id)return;if((c.best||0)<(save.best||0)){for(const k of ['goldenOwl','prizeFeather'])if(c.meet?.[k])save.meet[k]=true;store.set('meet',save.meet);if(G?.mode==='menu')refreshMenu();return;}
+    for(const k of ['goldenOwl','prizeFeather'])if(save.meet[k])c.meet={...c.meet,[k]:true};
     for(const k of SAVE_KEYS)if(k in c)save[k]=c[k];for(const k of SAVE_KEYS)store.set(k,save[k]);ensureMissions();if(G?.mode==='menu'&&!modalLoad){hero=save.hero in HEROES?save.hero:hero;menuHero(hero);refreshMenu();}if(typeof renderFis==='function')renderFis();}catch(e){}});
 }catch(e){console.warn('telegram',e);}}
 window.addEventListener('resize',updSafe);updSafe();

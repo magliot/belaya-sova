@@ -16,16 +16,21 @@ window.goldenCheck={
   heroReady:()=>!!HEROMODELS[hero].glb,
 
   sledReady:()=>G.mode==='play'&&G.sled&&playerSled.children.length===1&&!!playerSled.children[0].isGroup,
-  ready:()=>trackReady&&G.mode==='play'&&!!collectibleModels.aid&&!!collectibleModels.goldenOwl&&!!HEROMODELS[hero].motion,
-  meet(catchBird,fps){
-    const o={type:'goldenOwl',anchor:2200,y:2200,x:200,side:1};
-    clearWorld();G=newGame('play');G.y=G.prevY=1700;G.nextY=G.nextChaseD=Infinity;drag={};
-    addObj(o);let range=[400,0],was=false;
-    for(let i=0;i<fps*9;i++){
-      G.tx=catchBird?o.x:90;update(1/fps);range=[Math.min(range[0],o.x),Math.max(range[1],o.x)];
-      if(o.dead){was=true;break;}
+  ready:()=>trackReady&&G.mode==='play'&&!!collectibleModels.aid&&!!collectibleModels.feather&&!!HEROMODELS[hero].motion,
+  async meet(count,fps,side=0,boost=false,kind='bear',photo=false){
+    await loadTrackAssets(kind);hero=kind;
+    G.mode='pause';reviewX=145;reviewSeek(7650);G.mode='play';drag={};
+    const o=G.objs.find(a=>a.type==='feather'),lane=o.x+side;
+    G.p.x=G.tx=lane;if(boost)G.p.boost=6;let taps=0;
+    for(let i=0;i<fps*12&&G.y<o.y+100&&G.mode==='play';i++){
+      G.tx=lane;update(1/fps);if(photo)syncWorld(1/fps);
+      if(G.p.parkFlight?.prizeLine&&!G.p.trick&&taps<count){
+        for(const type of ['pointerdown','pointerup'])cv.dispatchEvent(new PointerEvent(type,{pointerId:1,clientX:170,clientY:540}));
+        taps++;drag={};
+      }
+      if(photo&&G.y>o.y-145){render(0);break;}
     }
-    return {caught:was,unlock:!!save.meet.goldenOwl,range};
+    return {hero,caught:!!o.dead,unlock:!!save.meet.prizeFeather,tricks:G.tricks,taps,d:o.y/20,boost};
   },
   end(){gameOver();},
   drive(seconds,fps){
@@ -67,8 +72,14 @@ async function run(){
   assert(arms.every(({hand,center,held})=>held&&Math.abs(hand[0]-center[0])>.18),'Both poles must stay in the raised and resting gloves, clear of the jacket');
   await page.locator('#bPlay').click();await page.waitForFunction(()=>goldenCheck.ready());
   const aid=await page.evaluate(()=>goldenCheck.aid());assert(aid.model&&aid.collected&&aid.rule);
-  const miss=await page.evaluate(()=>goldenCheck.meet(false,30));assert(!miss.caught&&!miss.unlock);
-  const caught=await page.evaluate(()=>goldenCheck.meet(true,60));assert(caught.caught&&caught.unlock&&caught.range[1]-caught.range[0]>20);
+  const miss=[];
+  for(const [count,side] of [[0,0],[1,0],[2,35]]){const r=await page.evaluate(args=>goldenCheck.meet(...args),[count,30,side]);assert(!r.caught&&!r.unlock,JSON.stringify(r));miss.push(r);}
+  await page.evaluate(()=>goldenCheck.meet(2,60,0,false,'owl',true));await page.screenshot({path:out+'/feather.png'});
+  const caught=[];
+  for(const kind of ['owl','bear'])for(const fps of [30,60])for(const boosted of [false,true]){
+    const r=await page.evaluate(args=>goldenCheck.meet(...args),[2,fps,0,boosted,kind]);
+    assert(r.caught&&r.unlock&&r.tricks===2,JSON.stringify(r));caught.push(r);
+  }
   await page.evaluate(()=>goldenCheck.end());await page.locator('#bSledResult').click();await page.waitForFunction(()=>goldenCheck.sledReady());
   await page.evaluate(()=>goldenCheck.drive(8,60));await page.screenshot({path:out+'/sled.png'});
   await page.locator('#bPause').click();assert(Math.abs(await page.evaluate(()=>goldenCheck.pauseSeconds()))<.00001);
@@ -94,7 +105,7 @@ async function run(){
   const slow=await page.evaluate(()=>goldenCheck.slowFrames());assert.equal(slow.mode,'over');assert.equal(slow.elapsed,75);
   assert(Math.abs(slow.dist-result.dist)<=1,'A 5 FPS client must cover the same bonus distance');
   assert.deepEqual(errors,[]);fs.writeFileSync(out+'/report.json',JSON.stringify({arms,heavy,aid,miss,caught,result,owl,slow,submissions,errors},null,2));
-  console.log('PASS menu requests, wave, rescue, missed/caught owl, persistent unlock, both sled riders, pause, scoring and finish.');
+  console.log('PASS menu, feather with two tricks, three misses, persistent sled unlock, both riders, pause, scoring and finish.');
  }finally{await browser.close();}
 }
 run().catch(e=>{console.error(e);process.exitCode=1;});

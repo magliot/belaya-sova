@@ -49,6 +49,7 @@ const courseModule=fs.readFileSync('docs/course.js','utf8');portable=portable.re
 const trainingModule=fs.readFileSync('docs/training.js','utf8').replace("'./course.js'",JSON.stringify('data:text/javascript;base64,'+Buffer.from(courseModule).toString('base64')));
 portable=portable.replace("'./training.js'",JSON.stringify('data:text/javascript;base64,'+Buffer.from(trainingModule).toString('base64')));
 portable=portable.replace("'models/training-cast.glb'",JSON.stringify('data:model/gltf-binary;base64,'+fs.readFileSync('docs/models/training-cast.glb').toString('base64')));
+portable=portable.replace("'models/'+file+'.glb'","(file==='prize-feather'?"+JSON.stringify('data:model/gltf-binary;base64,'+fs.readFileSync('docs/models/prize-feather.glb').toString('base64'))+":'models/'+file+'.glb')");
 const hudModule=fs.readFileSync('docs/race-hud.js','utf8');portable=portable.replace(/'\.\/race-hud\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(hudModule).toString('base64')));
 const trailModule=fs.readFileSync('docs/trail-visuals.js','utf8');portable=portable.replace(/'\.\/trail-visuals\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(trailModule).toString('base64')));
 const b64=Object.fromEntries(['bear','owl'].map(k=>[k,fs.readFileSync('docs/models/studies/'+k+'.glb').toString('base64')]));
