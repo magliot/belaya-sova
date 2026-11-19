@@ -2,9 +2,53 @@
 // Gameplay distances/collisions remain in those coordinates; every visual uses this frame.
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const smooth=x=>{x=clamp(x,0,1);return x*x*(3-2*x)};
-export function courseCenter(d){return 36*(1-Math.cos(d/52))+16*(Math.cos(d/97)-1)}
-export function courseDerivative(d){return 36/52*Math.sin(d/52)-16/97*Math.sin(d/97)}
-export function courseCurvature(d){const p=courseDerivative(d);return (36/(52*52)*Math.cos(d/52)-16/(97*97)*Math.cos(d/97))/Math.pow(1+p*p,1.5)}
+const base=d=>36*(1-Math.cos(d/52))+16*(Math.cos(d/97)-1);
+const slope=d=>36/52*Math.sin(d/52)-16/97*Math.sin(d/97);
+const bend=d=>36/(52*52)*Math.cos(d/52)-16/(97*97)*Math.cos(d/97);
+// Rows and turns use independent indexed streams: seeking never consumes randomness.
+export function courseRoll(seed,index,stream=0){
+ let n=(seed^Math.imul(index+1,0x9e3779b1)^Math.imul(stream+1,0x85ebca6b))>>>0;
+ n=Math.imul(n^(n>>>16),0x21f0aaad);n=Math.imul(n^(n>>>15),0x735a2d97);
+ return ((n^(n>>>15))>>>0)/4294967296;
+}
+let route=null,tailStart=0,tailX=0,lastD=NaN,cx=0,dx=0,ddx=0;
+export function configureCourse(seed){
+ lastD=NaN;route=null;if(seed==null)return;
+ route=[];let d=0,x=0,i=0,side=courseRoll(seed,0)>.5?1:-1;
+ const add=(length,end)=>{route.push({d,length,x,delta:end-x});d+=length;x=end;};
+ add(22,0);
+ while(d<1920){
+  const r=k=>courseRoll(seed,i,k);side=Math.abs(x)>46?-Math.sign(x):(r(2)<.55?-side:side);
+  add(100+r(3)*37,x+side*(17+r(4)*10));
+  if(r(5)<.56)add(112+r(6)*32,x-side*(18+r(7)*10)); // linked turns, no full straight between them
+  add(12+r(8)*42,x);i++;
+ }
+ tailStart=d;tailX=x;
+}
+function sample(d){
+ if(lastD===d)return;lastD=d;
+ if(!route||d>=2500){cx=base(d);dx=slope(d);ddx=bend(d);return;}
+ if(d<=0){cx=dx=ddx=0;return;}
+ let lo=0,hi=route.length;
+ while(lo<hi){const m=(lo+hi)>>1;if(d>=route[m].d+route[m].length)lo=m+1;else hi=m;}
+ const seg=route[lo],start=seg?.d??tailStart,length=seg?.length??(2500-tailStart);
+ // Quintic blend and its first two downhill derivatives. All three vanish or
+ // flatten at the join, keeping heading and surface banking continuous.
+ const t=(d-start)/length,blend=t*t*t*(10+t*(-15+6*t));
+ const velocity=30*t*t*(t-1)*(t-1)/length;
+ const acceleration=60*t*(t-1)*(2*t-1)/(length*length);
+ if(seg){
+  cx=seg.x+seg.delta*blend;dx=seg.delta*velocity;ddx=seg.delta*acceleration;
+ }else{
+  const delta=base(d)-tailX;
+  cx=tailX+blend*delta;
+  dx=velocity*delta+blend*slope(d);
+  ddx=acceleration*delta+2*velocity*slope(d)+blend*bend(d);
+ }
+}
+export function courseCenter(d){sample(d);return cx;}
+export function courseDerivative(d){sample(d);return dx;}
+export function courseCurvature(d){sample(d);return ddx/Math.pow(1+dx*dx,1.5);}
 export function courseHeading(z){return -Math.atan(courseDerivative(-z))}
 export function courseGrade(d){return .29+.22*Math.sin(d/42)+.09*Math.sin(d/17+1)}
 export function courseHeight(d){return -.29*d+9.24*(Math.cos(d/42)-1)+1.53*(Math.cos(d/17+1)-Math.cos(1))}

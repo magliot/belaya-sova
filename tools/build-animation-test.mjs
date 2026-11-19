@@ -46,6 +46,9 @@ let portable=html.replace(/<script (?:defer )?src="vendor\/telegram-web-app\.js"
 portable=portable.replaceAll('localStorage','previewStorage').replaceAll('sessionStorage','previewStorage');
 const module=fs.readFileSync('docs/hero-motion.js','utf8');portable=portable.replace(/'\.\/hero-motion\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(module).toString('base64')));
 const courseModule=fs.readFileSync('docs/course.js','utf8');portable=portable.replace(/'\.\/course\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(courseModule).toString('base64')));
+const trainingModule=fs.readFileSync('docs/training.js','utf8').replace("'./course.js'",JSON.stringify('data:text/javascript;base64,'+Buffer.from(courseModule).toString('base64')));
+portable=portable.replace("'./training.js'",JSON.stringify('data:text/javascript;base64,'+Buffer.from(trainingModule).toString('base64')));
+portable=portable.replace("'models/training-cast.glb'",JSON.stringify('data:model/gltf-binary;base64,'+fs.readFileSync('docs/models/training-cast.glb').toString('base64')));
 const hudModule=fs.readFileSync('docs/race-hud.js','utf8');portable=portable.replace(/'\.\/race-hud\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(hudModule).toString('base64')));
 const trailModule=fs.readFileSync('docs/trail-visuals.js','utf8');portable=portable.replace(/'\.\/trail-visuals\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(trailModule).toString('base64')));
 const b64=Object.fromEntries(['bear','owl'].map(k=>[k,fs.readFileSync('docs/models/studies/'+k+'.glb').toString('base64')]));

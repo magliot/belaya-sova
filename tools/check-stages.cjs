@@ -54,6 +54,23 @@ window.__stageTest={
   return {kind,d,ang,mins};
  },
  isSprint:()=>G.sprint,
+ trickRing(kind,fps,attempt){
+  hero=kind;G.mode='pause';reviewSeek(7500);
+  const ramp=G.objs.find(o=>o.trickLine),ring=G.objs.find(o=>o.needsTrick);
+  if(!ramp||!ring)throw Error('Missing signed trick line at park entrance');
+  G.mode='play';G.p.x=G.tx=ramp.x+(attempt==='side'?39:0);drag={};
+  G.p.boost=attempt==='boost'?6:0;
+  const lane=G.p.x;let tapped=false,clearance=null;
+  for(let frame=0;frame<fps*8&&G.y<ring.y+50&&G.mode==='play';frame++){
+    G.tx=lane;update(1/fps);
+    if(G.p.air&&!tapped&&attempt!=='none'&&(attempt!=='late'||G.y>ring.y-28)){
+      for(const type of ['pointerdown','pointerup'])cv.dispatchEvent(new PointerEvent(type,{pointerId:1,clientX:170,clientY:540}));
+      tapped=true;drag={};
+    }
+    if(G.prevY<ring.y&&G.y>=ring.y)clearance=ring.airHeight-flightHeight(G.p,ring.y)-.9;
+  }
+  return {kind,fps,attempt,tapped,hinted:ramp.hinted,rings:G.rings,tricks:G.tricks,clearance};
+ },
  sprint(fps){
   drag={};let coffee=false,jump=false,windup=false,ball=false,motion=false,finish=false;
   for(let i=0;i<110*fps&&G.mode==='play';i++){
@@ -162,6 +179,14 @@ const at=html.lastIndexOf('</script>');html=html.slice(0,at)+debug+html.slice(at
    const r=await page.evaluate(args=>__stageTest.rail(...args),[kind,fps]);assert.equal(r.mode,'play');assert(r.height>.6&&r.grinds===1);rails.push(r);
   }
   const flights=[];
+  const trickRings=[];
+  for(const kind of ['bear','owl'])for(const fps of [30,60])for(const attempt of ['tap','boost','none','late','side']){
+   const result=await page.evaluate(args=>__stageTest.trickRing(...args),[kind,fps,attempt]);
+   assert(result.hinted&&result.clearance!==null,JSON.stringify(result));
+   assert.equal(result.rings,['tap','boost'].includes(attempt)?1:0,JSON.stringify(result));
+   if(attempt==='none')assert(result.clearance>1.5,JSON.stringify(result));
+   trickRings.push(result);
+  }
   for(const kind of ['bear','owl'])for(const fps of [30,60])for(const tier of [0,1,2]){
    for(const boosted of [false,true]){
     const result=await page.evaluate(args=>__stageTest.park(...args),[kind,fps,tier,boosted]);
@@ -200,7 +225,7 @@ const at=html.lastIndexOf('</script>');html=html.slice(0,at)+debug+html.slice(at
    assert(sample.mins.every(v=>v>-.003&&v<.018),JSON.stringify(sample));
    (kind==='bear'?skiContact:boardContact).push(sample);
   }
-  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({viewport:[375,812],scenes,rides,rails,sprints,flights,landmark,encounters,trailShots,skiContact,boardContact,helmetAlpha:{empty,two},errors},null,2));
+  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({viewport:[375,812],scenes,rides,rails,sprints,flights,trickRings,landmark,encounters,trailShots,skiContact,boardContact,helmetAlpha:{empty,two},errors},null,2));
   console.log('PASS: distinct forest/mogul/park geometry and layouts, summit visibility, large HUD with drawn helmets, 12 twenty-second runs, four rideable-box cases, 24 air lines, 3 misses, 16 trail encounter cases, 24 ski and snowboard contact poses; no JS errors.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

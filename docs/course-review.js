@@ -17,6 +17,7 @@ export function mountCourseReview(api){
  <div class="review-row"><span>Позиция</span><input data-r="x" aria-label="Положение поперёк трассы" type="range" min="25" max="375" value="200"><select data-r="effect" aria-label="Проверить событие"><option value="normal">Обычный спуск</option><option value="coffee">Кофе</option><option value="avalanche">Лавина</option><option value="jump">Прыжок</option></select></div></div>`;
  document.getElementById('wrap').appendChild(box);
  const el=k=>box.querySelector('[data-r="'+k+'"]');
+ el('x').value=api.state().lane;
  api.stages.forEach((name,i)=>el('stage').add(new Option((i+1)+' · '+name,String(i))));
  el('stage').onchange=()=>api.seek(+el('stage').value*2500+10);
  for(const id of ['seek','distance'])el(id).onchange=()=>api.seek(+el(id).value);
@@ -34,5 +35,5 @@ export function mountCourseReview(api){
   if(document.activeElement!==el('distance'))el('distance').value=Math.floor(s.distance);
   el('stage').value=String(Math.min(7,Math.floor(s.distance/2500)));el('hero').value=s.hero;}
   requestAnimationFrame(refresh);}
- api.seek(0);requestAnimationFrame(refresh);
+ api.seek(Number(new URLSearchParams(location.search).get('at'))||0);requestAnimationFrame(refresh);
 }
