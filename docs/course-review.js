@@ -19,6 +19,11 @@ export function mountCourseReview(api){
  const el=k=>box.querySelector('[data-r="'+k+'"]');
  el('x').value=api.state().lane;
  api.stages.forEach((name,i)=>el('stage').add(new Option((i+1)+' · '+name,String(i))));
+ if(api.ride){
+  el('distance').max=el('seek').max=1161;
+  el('stage').hidden=el('effect').hidden=true;
+  box.querySelector('header strong').textContent=(api.ride==='sled'?'Снегоход':'Плюшки')+' · осмотр';
+ }
  el('stage').onchange=()=>api.seek(+el('stage').value*2500+10);
  for(const id of ['seek','distance'])el(id).onchange=()=>api.seek(+el(id).value);
  el('x').oninput=()=>api.position(+el('x').value);

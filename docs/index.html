@@ -216,6 +216,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
     <div class="player hidden" id="mPlayer"></div>
     <div class="row stats"><span>⭐ Рекорд: <b id="mBest">0</b></span><button class="toppill" id="bTop">🏆 Рейтинг</button><span>🍊 <b id="mCoins">0</b></span></div>
     <div class="playwrap"><span class="rays"><b></b><b></b><b></b></span><button class="big" id="bPlay"><svg viewBox="0 0 24 24"><path d="M6 3.5v17a1 1 0 0 0 1.5.86l14-8.5a1 1 0 0 0 0-1.72l-14-8.5A1 1 0 0 0 6 3.5z" fill="#fff"/></svg>ПОЕХАЛИ!</button><span class="rays r"><b></b><b></b><b></b></span></div>
+    <button class="toppill hidden" id="bTube">Бонус · Плюшки</button>
     <button class="toppill hidden" id="bSled">Бонус · Снегоход</button>
     <button class="toppill" id="bSprint">Короткий спуск · 1,2 км</button>
     <div class="btnrow"><button class="mini snowcap" id="bColl"><span class="ic">🏅</span>Коллекция</button><button class="mini snowcap" id="bTasks"><span class="ic">🎯</span>Задания</button><button class="mini snowcap" id="bShop"><span class="ic">🛒</span>Улучшения</button><button class="mini snowcap" id="bSet"><span class="ic">⚙️</span>Настройки</button></div>
@@ -254,6 +255,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
     <div class="netline hidden" id="oNet"></div>
     <div class="fistip" id="oFis"></div>
     <div class="cap">Задания</div><div id="oMis"></div>
+    <div><button class="mid hidden" id="bTubeResult">На плюшке · 75 с</button></div>
     <div><button class="mid hidden" id="bSledResult">На снегоход · 75 с</button></div>
     <div><button class="big" id="bAgain">ЕЩЁ РАЗ</button></div>
     <div style="display:flex;gap:8px;justify-content:center"><button class="mid" id="bShare" style="background:#ff6a00">📤 Поделиться</button><button class="mid" id="bMenu">Меню</button></div>
@@ -334,13 +336,15 @@ import {raceLight} from './trail-visuals.js?v=2026-11-19a';
 import {attachHeroMotion,poseHeroMotion,boardSurfaceLift} from './hero-motion.js?v=2026-11-19d';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
-import {ROW,trainingRow,trainingActorAt} from './training.js';
+import {ROW,variants,trainingRow,trainingActorAt} from './training.js';
 import {configureCourse,courseRoll,courseCenter,courseHeading,courseGrade,courseHeight,courseCrossHeight,courseCrossSlope,coursePoint,courseGround,coursePitch,courseSlip,courseWidth,courseTheme} from './course.js';
 import {drawRaceHUD} from './race-hud.js?v=2026-11-19a';
 'use strict';
 // Telegram Mini App: есть только при запуске внутри Telegram
 const TG=(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initData)?window.Telegram.WebApp:null;
 const PREVIEW=new URLSearchParams(location.search).get('preview');
+const requestedRide=new URLSearchParams(location.search).get('ride');
+const reviewRide=PREVIEW==='course'&&['tubing','sled'].includes(requestedRide)?requestedRide:null;
 const COURSE_REVIEW=PREVIEW==='course'||(!PREVIEW&&TG?.initDataUnsafe?.start_param==='course');
 // ссылка на игру в Telegram (https://t.me/<бот>/<приложение>) — вписать после создания бота в @BotFather
 const TG_LINK='https://t.me/belaya_sovabot/play';
@@ -1351,6 +1355,30 @@ function sprintSection(y){
   G.nextY+=1500;
 }
 const SLED_SECONDS=75;
+const TUBE_LOCATIONS=['Открытый склон','Еловый лес','Закат над бухтой'];
+const tubeLocation=d=>d<360?0:d<760?1:2;
+function tubingSection(y){
+  const row=Math.floor(y/660),d=y/20,phase=tubeLocation(d);
+  const sign=(Math.floor(row/(phase===1?2:1))%2?1:-1);
+  const x=200+sign*(38+courseRoll(G.seed,row,55)*65);
+  coinTrail(x,y+90,3,78);
+  if(row%3===1)addObj({type:'gate',x,y:y+365,gap:phase===1?94:122,col:row%2});
+  if(row%4===3)addObj({type:'gift',x,y:y+435,r:12});
+  if(phase===1){
+    for(const side of [-1,1])addObj({type:'tree',x:200+side*(165+courseRoll(G.seed,row,60+side)*22),y:y+240,s:1.2,r:10,fir:side>0,pine:side<0});
+  }
+  G.nextY+=660;
+}
+function initBonus(kind){
+  G.bonusRide={kind,elapsed:0,hits:0,gifts:0,rows:0,chain:0,last:-Infinity};G.nextY=0;
+  if(kind==='sled'){G.sled=G.bonusRide;return;}
+  G.tubing=G.bonusRide;mountPlayerTube();
+}
+function mountPlayerTube(){
+  if(G.tubing.model)scene.remove(G.tubing.model);
+  const index=(hero==='owl'?2:0)+Math.floor(courseRoll(G.seed,0,75)*2);
+  G.tubing.model=FACT.tube({variant:variants[index]});scene.add(G.tubing.model);
+}
 function sledSection(y){
   const row=G.sled.rows++,lanes=[135,200,265];
   // Telegraph the next target with fruit. Alternate wide arcs, slalom and a gift rush.
@@ -1366,6 +1394,7 @@ function spawnSeg(){
   const y=G.nextY,d=y/20,diff=Math.min(1,d/3000);
   const sn=stageAt(d),st=stageDef(sn),lap=Math.floor(sn/STAGES.length);
   let len=(175-diff*55)/(1+lap*0.12);
+  if(G.tubing){tubingSection(y);return;}
   if(G.sled){sledSection(y);return;}
   if(G.sprint){sprintSection(y);return;}
   if(G.mode==='menu'){addGate(y,diff);G.nextY+=len;return;}
@@ -1527,10 +1556,10 @@ function chaseTick(dt){const d=G.y/20;let C=G.chase;
   if(C.t<=0&&G.mode==='play'){G.chase=null;rumble(0);const pts=600*mult();G.bonus+=pts;banner('УШЁЛ ОТ ЛАВИНЫ!','+'+pts,'gold');SFX.feather();}}
 // ================= UPDATE =================
 function update(dt){
-  if(G.mode==='play'&&G.sled)G.sled.elapsed=Math.min(SLED_SECONDS,G.sled.elapsed+dt);
+  if(G.mode==='play'&&G.bonusRide)G.bonusRide.elapsed=Math.min(SLED_SECONDS,G.bonusRide.elapsed+dt);
   G.t+=dt;
   const snNow=stageAt(G.y/20),stNow=stageDef(snNow);
-  const zi=G.sled?5:G.mode==='menu'?0:stNow.env;
+  const zi=G.tubing?(G.y/20>=742?1:0):G.sled?5:G.mode==='menu'?0:stNow.env;
   updEnv(dt,zi);
   if(G.mode==='menu')return;
   if(G.mode==='pause'||G.mode==='over'){G.t-=dt;animObjs(0);return;}
@@ -1543,17 +1572,17 @@ function update(dt){
   if(drag&&drag.pend&&performance.now()-drag.pend.t>150){const i=drag.pend.idx;drag.pend=null;if(p.air>0){drag.swiped=true;tryTrick(i);}}
   const ridgePace=stNow.moguls?1+.08*clamp((p.x-195)/45,0,1):1;
   G.base=base*1.1*ridgePace;
-  if(G.sled&&G.sled.elapsed>=70&&!G.sled.finish){
-    G.sled.finish=true;
-    addObj({type:'finish',x:200,y:G.y+(SLED_SECONDS-G.sled.elapsed+.02)*347});
+  if(G.bonusRide&&G.bonusRide.elapsed>=70&&!G.bonusRide.finish){
+    G.bonusRide.finish=true;
+    addObj({type:'finish',x:200,y:G.y+(SLED_SECONDS-G.bonusRide.elapsed+.02)*347});
   }
-  if(G.sled)G.base=270+80*Math.min(1,G.sled.elapsed/SLED_SECONDS);
+  if(G.bonusRide)G.base=270+80*Math.min(1,G.bonusRide.elapsed/SLED_SECONDS);
   G.speed=G.base*(p.boost>0?1.65:1)*(p.slow>0?0.62:1)*(p.fall>0?fallSpeedK(p):1);
   G.prevY=G.y;G.y+=G.speed*dt;
   if(G.sprint)G.y=Math.min(G.y,SPRINT_METERS*20);
   if(snNow!==G.stage){if(G.stage>=0){banner('Этап '+(snNow+1)+': '+stNow.name,stNow.sub);SFX.chime();voice('stage');}G.stage=snNow;if(snNow+1>save.meet.bestStage){save.meet.bestStage=snNow+1;persist();}}
   const Zn=ZONES[zi];
-  if(!G.sled){chaseTick(dt);if(G.mode!=='play')return;chalTick();}
+  if(!G.bonusRide){chaseTick(dt);if(G.mode!=='play')return;chalTick();}
   if(zi===4||zi===5){G.fw=(G.fw||0)-dt;if(G.fw<0){G.fw=rnd(0.5,1.2);const fx=rnd(-14,14),fz=Z(G.y)-rnd(35,55),fy=Hz(fz)+rnd(14,22);const col=['#ff4d6d','#ffd60a','#4cc9f0','#80ffdb','#ff9f1c'][Math.floor(Math.random()*5)];
     for(let i=0;i<28;i++){const a=Math.random()*6.283,b=Math.random()*3.14;const v=rnd(4,7);emit(fx,fy,fz,Math.cos(a)*Math.sin(b)*v,Math.cos(b)*v+4,Math.sin(a)*Math.sin(b)*v,rnd(0.8,1.3),0.12,col);}if(Math.random()<0.6)noise(0.4,0.12,'lowpass',500,120,0.7,0.1);}}
   G.wind=Zn.blizz?Math.sin(G.t*0.55)*75+Math.sin(G.t*1.7)*25:0;
@@ -1561,19 +1590,19 @@ function update(dt){
   if(keys.ArrowRight||keys.d)G.tx=clamp(p.x+70,22,378);
   G.tx=clamp(G.tx+G.wind*dt*0.5,22,378);
   if(p.fall>0){G.tx=p.x;const ft=1-p.fall/FALL_T;if(!p.fallB&&ft>0.36){p.fallB=1;SFX.land();burst3(X(p.x),0.3,Z(G.y),26,'#ffffff',5);}}
-  const steerK=(p.air>0?0.45:1)*h.steer*(p.wob>0?0.5:1)*(p.fall>0?0:1);
+  const steerK=(p.air>0?0.45:1)*(G.tubing?.76:h.steer)*(p.wob>0?0.5:1)*(p.fall>0?0:1);
   const sk=sensK();const want=clamp((G.tx-p.x)*(3+5*sk),-430*Math.sqrt(sk),430*Math.sqrt(sk))*steerK;
   const steering=COURSE_REVIEW||!!drag||keys.ArrowLeft||keys.a||keys.ArrowRight||keys.d;
   const heading=courseHeading(-dist);if(p.travelHeading==null)p.travelHeading=heading;
-  if(steering){p.vx+=(want-p.vx)*Math.min(1,dt*(5+6*sk));p.travelHeading=heading-Math.atan2(p.vx,G.speed);
+  if(steering){p.vx+=(want-p.vx)*Math.min(1,dt*(G.tubing?3.4:5+6*sk));p.travelHeading=heading-Math.atan2(p.vx,G.speed);
     const curveWant=p.air>0||p.fall>0?0:courseSlip(dist,X(p.x),G.speed*U)/U;
     p.curveSlip=lerp(p.curveSlip||0,curveWant,Math.min(1,dt*4));}
-  else{p.vx=0;p.curveSlip=clamp(Math.tan(clamp(heading-p.travelHeading,-0.7,0.7))*G.speed,-320,320);}
+  else{p.vx=G.tubing?p.vx*Math.exp(-2.4*dt):0;p.curveSlip=clamp(Math.tan(clamp(heading-p.travelHeading,-0.7,0.7))*G.speed,-320,320);}
   if(p.fall>0){p.vx=0;p.curveSlip=0;p.travelHeading=heading;}
   if(p.air>0&&steering)p.curveSlip=0;
   p.x=clamp(p.x+(p.vx+G.wind*0.5+p.curveSlip)*dt,20,380);
   p.ang+=(clamp((p.vx+p.curveSlip*0.5)/430,-1,1)-p.ang)*Math.min(1,dt*10);
-  if((p.x<=20||p.x>=380)&&!(p.fall>0)&&!COURSE_REVIEW&&!G.sled){p.travelHeading=heading;p.x=p.x<200?25:375;hit('edge',null);if(G.mode!=='play')return;}
+  if((p.x<=20||p.x>=380)&&!(p.fall>0)&&!COURSE_REVIEW&&!G.bonusRide){p.travelHeading=heading;p.x=p.x<200?25:375;hit('edge',null);if(G.mode!=='play')return;}
   for(const k of['boost','magnet','slow','wob','inv','fall'])if(p[k]>0)p[k]=Math.max(0,p[k]-dt);
   // бугры: едем по рельефу; если гребень уходит вниз быстрее, чем тянет гравитация, — отрываемся и подпрыгиваем
   // скорость по наклону бугра вдоль движения (а не по скачку высоты за кадр — он давал «улёт в небо»), с ограничением
@@ -1653,7 +1682,7 @@ function update(dt){
           G.bonus+=pts;addText(o.x,o.y,'Кольцо +'+pts,'#783cab',16,o.airHeight);SFX.chime();
         }break;
       case 'coin':{if(!o.air&&p.magnet>0&&dd<170&&dd>0){const st=Math.min(dd,Math.max(dd*dt*8,(G.speed+350)*dt));o.x+=dx/dd*st;o.y+=dy/dd*st;}
-        if(o.airHeight!=null?crossAirTarget(o,p,oldX,1.12):dd<22&&(!o.air||p.air>0)){o.dead=true;G.coins++;if(G.sled)sledReward(o,15);else G.bonus+=5;SFX.coin();burst3(X(o.x),o.airHeight??0.7,Z(o.y),6,'#ff8a1c',3);}break;}
+        if(o.airHeight!=null?crossAirTarget(o,p,oldX,1.12):dd<22&&(!o.air||p.air>0)){o.dead=true;G.coins++;if(G.bonusRide)sledReward(o,15);else G.bonus+=5;SFX.coin();burst3(X(o.x),o.airHeight??0.7,Z(o.y),6,'#ff8a1c',3);}break;}
       case 'gate':{
         if(!o.done&&G.prevY<o.y&&py>=o.y){o.done=true;
           if(Math.abs(dx)<o.gap/2){o.ok=true;G.combo++;G.gates++;G.maxCombo=Math.max(G.maxCombo,G.combo);const m=mult(),pts=25*m;G.bonus+=pts;SFX.gate(G.combo,o.last);if(G.chal&&G.chal.d.k==='slalom')G.chal.n++;
@@ -1688,7 +1717,7 @@ function update(dt){
       case 'snowman':
         if(G.sled&&dd<30){o.dead=true;G.sled.hits++;sledReward(o,90);SFX.smash();burst3(X(o.x),.8,Z(o.y),24,'#ffffff',5);}
         else if(!G.sled&&p.air<=0&&dd<o.r+8)hit('snowman',o);break;
-      case 'gift':if(dd<24){o.dead=true;save.meet.gifts=(save.meet.gifts||0)+1;const pts=G.sled?sledReward(o,120):50*mult();if(G.sled)G.sled.gifts++;else G.bonus+=pts;SFX.power();burst3(X(o.x),0.8,Z(o.y),14,'#ffd200',4);addText(p.x,py,'Подарок! +'+pts,'#c0392b',16);}break;
+      case 'gift':if(dd<24){o.dead=true;save.meet.gifts=(save.meet.gifts||0)+1;const pts=G.bonusRide?sledReward(o,120):50*mult();if(G.bonusRide)G.bonusRide.gifts++;else G.bonus+=pts;SFX.power();burst3(X(o.x),0.8,Z(o.y),14,'#ffd200',4);addText(p.x,py,'Подарок! +'+pts,'#c0392b',16);}break;
       case 'yeti':if(!o.met&&py>o.y-60){o.met=true;G.yetiRun=true;save.meet.yeti++;persist();const pts=500*mult();G.bonus+=pts;SFX.feather();vibe([40,40,40]);banner('ВСТРЕЧА С ЙЕТИ!',save.meet.yeti===1?'+'+pts+' · записано в коллекцию':'+'+pts+' · встреч: '+save.meet.yeti,'gold');}break;
       case 'letter':
         if(dd<28&&(!o.air||p.air>0)){o.dead=true;collectLetter(o,dist);}
@@ -1731,12 +1760,12 @@ function update(dt){
   if(G.y/20-(G.lastHitM||0)>=1500)fisEarn(1);
   const st=runStats();
   for(const m of save.missions){if(!m.got&&st[mdef(m.id).stat]>=m.n){m.got=true;banner('ЗАДАНИЕ ВЫПОЛНЕНО','+'+m.reward+' 🍊','gold');SFX.chime();}}
-  if(G.sled&&G.sled.elapsed>=SLED_SECONDS-1e-8){G.sled.elapsed=SLED_SECONDS;G.failMsg='Финиш! Снежная доставка завершена';gameOver();return;}
+  if(G.bonusRide&&G.bonusRide.elapsed>=SLED_SECONDS-1e-8){G.bonusRide.elapsed=SLED_SECONDS;if(COURSE_REVIEW){G.mode='pause';return;}G.failMsg=G.tubing?'Финиш у бухты!':'Финиш! Снежная доставка завершена';gameOver();return;}
   if(G.sprint&&G.mode==='play'&&G.y>=SPRINT_METERS*20){G.failMsg='Финиш! Короткий спуск пройден';gameOver();return;}
   setLoops(Math.min(0.32,G.speed/2200)+(Zn.blizz?0.16:0),p.air>0?0:Math.min(0.3,Math.abs(p.vx)/1300)+0.035,Zn.blizz?650+Math.sin(G.t)*200:420);catAudio();
 }
 function sledReward(o,base){
-  const b=G.sled;b.chain=G.t-b.last<=3?b.chain+1:1;b.last=G.t;
+  const b=G.bonusRide;b.chain=G.t-b.last<=3?b.chain+1:1;b.last=G.t;
   const pts=base*Math.min(4,1+Math.floor(b.chain/5));G.bonus+=pts;
   if(o.type==='snowman')addText(o.x,o.y,'+'+pts,'#1b7288',14);
   return pts;
@@ -1853,9 +1882,9 @@ function syncWorld(dt){
   // земля и окружение
   const snap=Math.round(pz/12)*12-96;fitPlane(piste,snap);fitPlane(powder,snap);
   mountains.position.set(courseCenter(-pz),gy-95,pz);aurora.position.set(courseCenter(-pz),gy+70,pz-260);
-  for(const t of forest){if(t.userData.z>pz+18)t.userData.z-=185;const dense=courseTheme(-t.userData.z).stage===1;
+  for(const t of forest){if(t.userData.z>pz+18)t.userData.z-=185;const td=-t.userData.z;const dense=G.tubing?tubeLocation(td)===1:courseTheme(td).stage===1;
     const clearing=Math.max(0,t.side*Math.cos(t.userData.z/(dense?61:95)));
-    t.userData.x=t.side*(forestEdge(t.userData.z)+t.off*(dense?.28:1)+(t.kind===1?.8:0)+clearing*11);
+    t.userData.x=t.side*(forestEdge(t.userData.z)+t.off*(dense?.28:1)+(G.tubing?(dense?-3:13):0)+(t.kind===1?.8:0)+clearing*11);
     const size=t.s*(dense?1.35:1)*(1-.5*clearing);
     tmpE.set(0,t.rot,0);tmpQ.setFromEuler(tmpE);tmpM.compose(courseGround(tmpP,t.userData.x,t.userData.z),tmpQ,tmpS.set(size,size,size));forestIM[t.kind].setMatrixAt(t.idx,tmpM);}
   forestIM.forEach(im=>im.instanceMatrix.needsUpdate=true);
@@ -1889,6 +1918,11 @@ function syncWorld(dt){
   else hm.root.visible=false;
   if(hero==='owl'&&hm.motion?.active&&G.mode!=='menu'&&!p.air&&!p.hop)fitBoardToSnow(hm,p,px,pz);
 
+  if(G.tubing){
+    const tube=G.tubing.model;hm.root.visible=false;
+    courseGround(tube.position,px,pz);tube.rotation.set(-coursePitch(px,pz),courseHeading(pz),Math.atan(courseCrossSlope(px,pz)),'YXZ');
+    poseTube(tube,Math.PI-Math.atan2(p.vx,G.speed)*.86,clamp(p.vx/210,-1,1),.28+.24*Math.abs(p.ang));
+  }
   if(playerSled.visible||G.sled){
     playerSled.visible=!!G.sled;
     if(G.sled){
@@ -1962,24 +1996,25 @@ function render(dt){
 function hrr(x,y,w,h,r){hx.beginPath();hx.moveTo(x+r,y);hx.arcTo(x+w,y,x+w,y+h,r);hx.arcTo(x+w,y+h,x,y+h,r);hx.arcTo(x,y+h,x,y,r);hx.arcTo(x,y,x+w,y,r);hx.closePath();}
 function drawHUD(){
  const p=G.p,st=stageDef(Math.max(0,G.stage));let status='';
+ if(G.tubing)status=TUBE_LOCATIONS[tubeLocation(G.y/20)]+' · ворота '+G.gates;
  if(G.sled)status='Снеговики '+G.sled.hits+' · подарки '+G.sled.gifts;
  else if(G.chase)status='⚠ Лавина · '+Math.ceil(G.chase.t)+' с · '+Math.max(0,Math.round((G.y-G.chase.y)/20))+' м';
  else if(p.boost>0)status='☕ Ускорение · '+p.boost.toFixed(1)+' с';
  else if(p.magnet>0)status='🧲 '+p.magnet.toFixed(1)+' с';
  else if(G.letterObj&&!G.letterObj.dead&&G.letterObj.y-G.y>0&&G.letterObj.y-G.y<1500)status='Буква «'+G.letterObj.ch+'» '+(G.letterObj.x<p.x?'←':'→');
  drawRaceHUD(hx,{width:W,height:H,safeTop:SAFE_TOP,time:G.t,score:score(),distance:Math.floor(G.y/20),coins:G.coins,
-  speed:Math.round(G.speed/20*3.6),lives:p.lives,multiplier:G.sled?Math.min(4,1+Math.floor((G.t-G.sled.last<=3?G.sled.chain:0)/5)):mult(),boost:p.boost>0,
-  stage:G.sled?'Снегоход · '+Math.max(0,Math.ceil(SLED_SECONDS-G.sled.elapsed))+' с':G.sprint?'Финиш · '+Math.max(0,SPRINT_METERS-Math.floor(G.y/20))+' м':(Math.max(0,G.stage)+1)+' · '+st.name,status,warning:!!G.chase,chaseK:G.chase?.k||0});
+  speed:Math.round(G.speed/20*3.6),lives:p.lives,multiplier:G.bonusRide?Math.min(4,1+Math.floor((G.t-G.bonusRide.last<=3?G.bonusRide.chain:0)/5)):mult(),boost:p.boost>0,
+  stage:G.bonusRide?(G.tubing?'Плюшки · ':'Снегоход · ')+Math.max(0,Math.ceil(SLED_SECONDS-G.bonusRide.elapsed))+' с':G.sprint?'Финиш · '+Math.max(0,SPRINT_METERS-Math.floor(G.y/20))+' м':(Math.max(0,G.stage)+1)+' · '+st.name,status,warning:!!G.chase,chaseK:G.chase?.k||0});
 }
 
 // ================= FLOW =================
-function clearWorld(){dropMogPatches(true);if(G)for(const o of G.objs)release(o);for(let i=0;i<TRACKN;i++){tmpM.makeScale(0,0,0);trackMesh.setMatrixAt(i,tmpM);}trackMesh.instanceMatrix.needsUpdate=true;
+function clearWorld(){if(G?.tubing?.model)scene.remove(G.tubing.model);dropMogPatches(true);if(G)for(const o of G.objs)release(o);for(let i=0;i<TRACKN;i++){tmpM.makeScale(0,0,0);trackMesh.setMatrixAt(i,tmpM);}trackMesh.instanceMatrix.needsUpdate=true;
   for(const t of forest){t.userData.z=-rnd(-15,170);t.userData.x=0;}lamps.forEach((l,i)=>l.userData.z=-Math.floor(i/2)*30-(l.userData.side>0?15:0));towers.forEach((t,i)=>t.userData.z=-i*35);}
 const SPRINT_METERS=1200;
-function startGame(sprint=false,sled=false){if(sled&&!sledUnlocked())return;initAudio();if(!trackReady||HEROMODELS[hero].motionStatus!=='ready'||(sled&&!playerSled.children.length))return waitForAssets(()=>Promise.all([loadTrackAssets(),sled?loadPlayerSled():null]),()=>startGame(sprint,sled));music('run');hideToast();clearWorld();G=newGame('play');last=performance.now();G.seed=sprint||sled?null:pickSeed();useCourse(G.seed);if(G.seed!=null){reviewSeed=G.seed;G.nextY=0;}G.sprint=sprint;
-  if(sled){G.sled={elapsed:0,hits:0,gifts:0,rows:0,chain:0,last:-Infinity};G.nextY=0;loadPlayerSled();banner('Сбивай снеговиков и собирай подарки','','gold');}
+function startGame(sprint=false,ride=null){const sled=ride==='sled';if((sled&&!sledUnlocked())||(ride==='tubing'&&!save.meet.prizeFeather))return;initAudio();if(!trackReady||HEROMODELS[hero].motionStatus!=='ready'||(sled&&!playerSled.children.length))return waitForAssets(()=>Promise.all([loadTrackAssets(),sled?loadPlayerSled():null]),()=>startGame(sprint,ride));music('run');hideToast();clearWorld();G=newGame('play');last=performance.now();G.seed=sprint||sled?null:pickSeed();useCourse(G.seed);if(G.seed!=null){reviewSeed=G.seed;G.nextY=0;}G.sprint=sprint;
+  if(ride){initBonus(ride);banner(sled?'Сбивай снеговиков и собирай подарки':'Собирай мандаринки и проходи ворота','','gold');}
   if(sprint){G.nextY=0;G.nextChaseD=Infinity;}setTimeout(()=>voice('start',true),600);
-  if(!G.sled&&!save.meet.coastHint){save.meet.coastHint=1;persist();const g0=G;setTimeout(()=>{if(G===g0&&G.mode==='play')banner('Рули на поворотах · кофе даёт ускорение');},1500);}lastTrackZ=0;$('share').classList.add('hidden');if(!G.sled&&save.helmets>0){save.helmets--;G.p.lives=1;persist();}G.letter=G.sprint||G.sled?null:collState();G.letterAt=G.letter?letterDist(G.letter.w,G.letter.i):Infinity;for(const m of save.missions)m.got=false;
+  if(!G.bonusRide&&!save.meet.coastHint){save.meet.coastHint=1;persist();const g0=G;setTimeout(()=>{if(G===g0&&G.mode==='play')banner('Рули на поворотах · кофе даёт ускорение');},1500);}lastTrackZ=0;$('share').classList.add('hidden');if(!G.bonusRide&&save.helmets>0){save.helmets--;G.p.lives=1;persist();}G.letter=G.sprint||G.bonusRide?null:collState();G.letterAt=G.letter?letterDist(G.letter.w,G.letter.i):Infinity;for(const m of save.missions)m.got=false;
   $('topbtns').classList.remove('hidden');['menu','over','pause'].forEach(id=>$(id).classList.add('hidden'));}
 // ===== рейтинг (сервер Telegram Serverless: подпись игрока проверяет Telegram) =====
 // адрес сервера рекордов (Google Apps Script → «Веб-приложение», заканчивается на /exec)
@@ -1989,7 +2024,7 @@ const canNet=()=>!!(!COURSE_REVIEW&&TG&&TG.initData&&API_URL);
 function netCall(action,data,cb){fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action,initData:TG.initData},data||{}))})
   .then(r=>r.json()).then(j=>{if(j&&j.ok)cb(null,j);else cb({type:j&&j.error&&j.error!=='server error'&&j.error!=='unauthorized'?'ENDPOINT_ERROR':'ERROR',message:(j&&j.error)||'ошибка'});}).catch(e=>cb({type:'NET',message:String(e)}));}
 function submitRun(sc,run=G,rider=hero){const wait=run.beaconAt?5000-(Date.now()-run.beaconAt):0;if(wait>0){$('oNet').classList.remove('hidden');$('oNet').textContent='Отправляю результат в рейтинг…';setTimeout(()=>{run.beaconAt=0;submitRun(sc,run,rider);},wait);return;}const el=$('oNet');if(!canNet()){el.classList.add('hidden');return;}el.classList.remove('hidden');el.textContent='Отправляю результат в рейтинг…';
-  try{netCall('submit',{score:sc,dist:Math.floor(run.y/20),dur:+(run.sled?.elapsed??run.t).toFixed(1),hero:rider,stage:run.stage+1},(err,r)=>{
+  try{netCall('submit',{score:sc,dist:Math.floor(run.y/20),dur:+(run.bonusRide?.elapsed??run.t).toFixed(1),hero:rider,stage:run.stage+1},(err,r)=>{
     if(G!==run)return;
     if(err||!r){el.textContent=err&&err.type==='ENDPOINT_ERROR'?'Результат не принят: '+err.message:'Рейтинг сейчас недоступен';return;}
     el.innerHTML='🏆 Место за неделю: <b>#'+r.weekRank+'</b> · за всё время: <b>#'+r.rank+'</b>'+(r.newWeek&&r.weekRank===1?'<br>Ты лидер недели!':'');});}catch(e){el.textContent='Рейтинг сейчас недоступен';}}
@@ -2025,10 +2060,12 @@ function gameOver(){
   save.missions=save.missions.map(m=>{const d=mdef(m.id);if(m.got){reward+=m.reward;save.mdone++;lines.push(`<div class="mis done"><span>✓ ${d.t(m.n)}</span><i>+${m.reward}</i></div>`);return null;}
     lines.push(`<div class="mis"><span>${d.t(m.n)}</span><i>${m.reward}</i></div>`);return m;}).filter(Boolean);
   ensureMissions();save.coins+=G.coins+reward;persist();
-  $('oFail').textContent=G.failMsg||'';$('oFis').innerHTML=G.sled||G.sprint&&G.y===SPRINT_METERS*20?'':fisTip(G.failKind);$('oRec').classList.toggle('hidden',!rec);$('oScore').textContent=sc;
+  $('oFail').textContent=G.failMsg||'';$('oFis').innerHTML=G.bonusRide||G.sprint&&G.y===SPRINT_METERS*20?'':fisTip(G.failKind);$('oRec').classList.toggle('hidden',!rec);$('oScore').textContent=sc;
   $('oStats').innerHTML=`${G.sprint?'Короткий спуск':'Этап '+(G.stage+1)+': '+stageDef(Math.max(0,G.stage)).name}<br>${Math.floor(G.y/20)} м · ворот ${G.gates} · серия ${G.maxCombo} · трюков ${G.tricks}${G.rings?' · колец '+G.rings:''}<br>🍊 +${G.coins}${reward?` · за задания +${reward}`:''}${G.feathers?` · перьев ${G.feathers}`:''} · рекорд <b>${save.best}</b>`;
+  $('bTubeResult').classList.toggle('hidden',!G.prizeCaught);
   $('bSledResult').classList.toggle('hidden',!G.prizeCaught);
-  if(G.sled)$('oStats').innerHTML='Снеговиков '+G.sled.hits+' · подарков '+G.sled.gifts+' · 🍊 '+G.coins+'<br>Бонус за сбор +'+G.bonus+' · рекорд '+save.best;
+  if(G.tubing)$('oStats').textContent='Ворота '+G.gates+' · подарки '+G.tubing.gifts+' · мандарины '+G.coins;
+  else if(G.sled)$('oStats').innerHTML='Снеговиков '+G.sled.hits+' · подарков '+G.sled.gifts+' · 🍊 '+G.coins+'<br>Бонус за сбор +'+G.bonus+' · рекорд '+save.best;
   $('oMis').innerHTML=lines.join('');submitRun(sc);
   // новые танцы, открытые этим заездом
   {const seen=save.meet.danceSeen||['sway'];const fresh=DANCES.filter(d=>d.need()&&!seen.includes(d.id));
@@ -2043,7 +2080,7 @@ const PHR={bear:['Каска надета — можно ехать!','Объе�
 let bubT=0;function sayBubble(){const el=$('bubble');if(!el)return;const a=PHR[hero];el.textContent=a[Math.floor(Math.random()*a.length)];el.classList.add('on');clearTimeout(bubT);bubT=setTimeout(()=>el.classList.remove('on'),3800);}
 setInterval(()=>{if(!$('menu').classList.contains('hidden'))sayBubble();},6500);
 const UPC=l=>[150,400,900,2000,4000][l]||99999;const MAXU=5;const HELM=250;
-function refreshMenu(){$('bSled').classList.toggle('hidden',!sledUnlocked());if(PLAYER){$('mPlayer').textContent='👤 '+PLAYER;$('mPlayer').classList.remove('hidden');}
+function refreshMenu(){$('bTube').classList.toggle('hidden',!save.meet.prizeFeather);$('bSled').classList.toggle('hidden',!sledUnlocked());if(PLAYER){$('mPlayer').textContent='👤 '+PLAYER;$('mPlayer').classList.remove('hidden');}
   $('mBest').textContent=save.best;$('mCoins').textContent=save.coins;document.querySelectorAll('.coinsv').forEach(e=>e.textContent=save.coins);
   $('mMis').innerHTML=save.missions.map(m=>`<div class="mis"><span>${mdef(m.id).t(m.n)}</span><i>+${m.reward} 🍊</i></div>`).join('');
   document.querySelectorAll('.seg button').forEach(el=>el.classList.toggle('sel',el.dataset.h===hero));
@@ -2123,8 +2160,9 @@ $('bShClose').onclick=()=>$('share').classList.add('hidden');
 $('bShCopy').onclick=async()=>{try{await navigator.clipboard.writeText(shareText);$('shHint').textContent='Текст скопирован — вставьте его в чат';}catch(e){$('shHint').textContent=shareText;}};
 $('bShSend').onclick=async()=>{if(TG){tgShare();return;}try{const f=shareBlob&&new File([shareBlob],'belaya-sova.png',{type:'image/png'});
   if(f&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:shareText});return;}
-  if(navigator.share){await navigator.share({text:shareText});return;}throw 0;}catch(e){$('shHint').textContent='Здесь отправка не работает — зажмите картинку и сохраните её, или скопируйте текст';}};$('bAgain').onclick=()=>startGame(G.sprint,!!G.sled);$('bMenu').onclick=toMenu;
-$('bSled').onclick=$('bSledResult').onclick=()=>startGame(false,true);
+  if(navigator.share){await navigator.share({text:shareText});return;}throw 0;}catch(e){$('shHint').textContent='Здесь отправка не работает — зажмите картинку и сохраните её, или скопируйте текст';}};$('bAgain').onclick=()=>startGame(G.sprint,G.bonusRide?.kind);$('bMenu').onclick=toMenu;
+$('bSled').onclick=$('bSledResult').onclick=()=>startGame(false,'sled');
+$('bTube').onclick=$('bTubeResult').onclick=()=>startGame(false,'tubing');
 $('bPause').onclick=pauseGame;$('bResume').onclick=()=>{$('pause').classList.add('hidden');last=performance.now();G.mode='play';};// выход из заезда = конец заезда: показываем итоги и отправляем результат в рейтинг
 $('bQuit').onclick=()=>{if(G&&G.mode==='pause'&&G.y/20>=30){$('pause').classList.add('hidden');G.failMsg='Заезд завершён';G.failKind=null;gameOver();}else toMenu();};
 $('bMute').onclick=()=>{save.muted=!save.muted;persist();initAudio();if(master)master.gain.value=save.muted?0:0.65;if(!save.muted)music(musWant);refreshMenu();};
@@ -2132,23 +2170,23 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){pauseGame(
 window.addEventListener('pagehide',beaconRun);
 // игру свернули или закрыли посреди заезда — тихо отправляем текущий результат (если закроют совсем, рекорд не пропадёт)
 function beaconRun(){try{if(!canNet()||!G||!(G.mode==='play'||G.mode==='pause')||G.y/20<30||!navigator.sendBeacon)return;if(G.beaconAt&&Date.now()-G.beaconAt<5000)return;
-  G.beaconAt=Date.now();navigator.sendBeacon(API_URL,new Blob([JSON.stringify({action:'submit',initData:TG.initData,score:score(),dist:Math.floor(G.y/20),dur:+(G.sled?.elapsed??G.t).toFixed(1),hero,stage:G.stage+1})],{type:'text/plain;charset=utf-8'}));}catch(e){}}
+  G.beaconAt=Date.now();navigator.sendBeacon(API_URL,new Blob([JSON.stringify({action:'submit',initData:TG.initData,score:score(),dist:Math.floor(G.y/20),dur:+(G.bonusRide?.elapsed??G.t).toFixed(1),hero,stage:G.stage+1})],{type:'text/plain;charset=utf-8'}));}catch(e){}}
 
 let last=performance.now();
 const initialLane=new URLSearchParams(location.search).get('lane');
 let reviewRate=1,reviewX=initialLane&&Number.isFinite(+initialLane)?clamp(+initialLane,25,375):200;
 // Integrate steering and pickups at the same rate even when a GPU draws few frames.
 function advanceSledFrame(elapsed){
-  const duration=Math.min(elapsed,SLED_SECONDS-G.sled.elapsed);
+  const duration=Math.min(elapsed,SLED_SECONDS-G.bonusRide.elapsed);
   if(duration<=0)return;
   const steps=Math.ceil(duration*60),dt=duration/steps;
   for(let i=0;i<steps&&G.mode==='play';i++)update(dt);
 }
 function frame(now){const elapsed=Math.max(0,(now-last)/1000),dt=Math.min(.033,elapsed);last=now;if(G){
   if(COURSE_REVIEW&&G.mode!=='menu'){
-    if(G.mode==='play'){const n=Math.max(1,Math.ceil(dt*reviewRate*60));for(let i=0;i<n;i++){G.tx=reviewX;update(dt*reviewRate/n);}if(G.y/20>=19999)G.mode='pause';}
+    if(G.mode==='play'){const n=Math.max(1,Math.ceil(dt*reviewRate*60));for(let i=0;i<n&&G.mode==='play';i++){G.tx=reviewX;update(dt*reviewRate/n);}if(G.y/20>=19999)G.mode='pause';}
     render(G.mode==='play'?dt*reviewRate:0);
-  }else if(G.sled&&G.mode==='play'){advanceSledFrame(elapsed);render(Math.min(.25,elapsed));}
+  }else if(G.bonusRide&&G.mode==='play'){advanceSledFrame(elapsed);render(Math.min(.25,elapsed));}
   else{update(dt);render(dt);}}
   requestAnimationFrame(frame);}
 function openCoursePreview(mode){const q=new URLSearchParams(location.search);if(mode==='course')q.set('seed',String(G?.seed??reviewSeed));q.set('preview',mode);q.delete('tgWebAppStartParam');location.href='index.html?'+q.toString()+location.hash;}
@@ -2171,15 +2209,16 @@ function reviewContact(){
  const rise=p.parkFlight?flightHeight(p,G.y)*.65:p.rampH*.65+p.alt*1.2;
  G.camX=X(p.x);G.camY=courseHeight(G.y/20-6.4)+2.3+p.mh*.35+rise;
 }
-function reviewSeek(d){if(!trackReady||HEROMODELS[hero].motionStatus!=='ready')return waitForAssets(()=>loadTrackAssets(),()=>reviewSeek(d));d=clamp(Number(d)||0,0,19999);const playing=G?.mode==='play';clearWorld();hideToast();G=newGame(playing?'play':'pause');
- G.seed=reviewSeed;useCourse(reviewSeed);G.y=G.prevY=d*20;G.stage=G.lastSpawnStage=stageAt(d);G.nextY=Math.max(G.stage*STAGE_LEN*20,G.y-500);G.nextChaseD=Infinity;G.p.x=G.tx=reviewX;G.p.travelHeading=courseHeading(-d);
+function reviewSeek(d){if(!trackReady||HEROMODELS[hero].motionStatus!=='ready'||(reviewRide==='sled'&&!playerSled.children.length))return waitForAssets(()=>Promise.all([loadTrackAssets(),reviewRide==='sled'?loadPlayerSled():null]),()=>reviewSeek(d));d=clamp(Number(d)||0,0,reviewRide?1161:19999);const playing=G?.mode==='play';clearWorld();hideToast();G=newGame(playing?'play':'pause');
+ G.seed=reviewSeed;useCourse(reviewRide==='sled'?null:reviewSeed);G.y=G.prevY=d*20;G.stage=G.lastSpawnStage=stageAt(d);G.nextY=Math.max(G.stage*STAGE_LEN*20,G.y-500);G.nextChaseD=Infinity;G.p.x=G.tx=reviewX;G.p.travelHeading=courseHeading(-d);
  const st=stageDef(G.stage),span=G.stage===0?ROW:st.forest?1000:st.park?1500:st.moguls?2340:0,start=G.stage*STAGE_LEN*20;
- if(span)G.nextY=start+Math.max(0,Math.floor((G.y-start)/span)-1)*span;
+ if(reviewRide){initBonus(reviewRide);G.bonusRide.elapsed=(Math.sqrt(270**2+2*(80/75)*G.y)-270)/(80/75);G.t=G.bonusRide.elapsed;const row=reviewRide==='sled'?620:660;G.nextY=Math.max(0,Math.floor(G.y/row)-1)*row;G.bonusRide.rows=G.nextY/row;}
+ else if(span)G.nextY=start+Math.max(0,Math.floor((G.y-start)/span)-1)*span;
  G.camX=X(reviewX);G.camY=courseHeight(d-6.4)+2.3;lastTrackZ=Z(G.y);
  for(const t of forest)t.userData.z-=d;for(const l of lamps)l.userData.z-=d;for(const t of towers)t.userData.z-=d;
  chairs.forEach((c,i)=>c.userData.z=-d-15-i*12);while(G.nextY<G.y+AHEAD)spawnSeg();
  document.querySelectorAll('.ui').forEach(el=>el.classList.add('hidden'));$('topbtns').classList.add('hidden');
- reviewContact();updEnv(2,stageDef(G.stage).env);animObjs(0);render(0);}
+ reviewContact();updEnv(2,G.tubing?(d>=742?1:0):G.sled?5:stageDef(G.stage).env);animObjs(0);render(0);}
 // ================= TELEGRAM =================
 function gameLink(){return TG_LINK||location.href.split('#')[0];}
 // «Поделиться» в Telegram: выбор чата с текстом результата и ссылкой на игру
@@ -2207,12 +2246,12 @@ if(TG){try{
 window.addEventListener('resize',updSafe);updSafe();
 toMenu();menuHero(hero);window.finishMenuBoot();window.__g=()=>G;
 if(COURSE_REVIEW)import('./course-review.js').then(({mountCourseReview})=>mountCourseReview({
- stages:STAGES.map(s=>s.name),seek:reviewSeek,
+ stages:STAGES.map(s=>s.name),ride:reviewRide,seek:reviewSeek,
  state:()=>({distance:G.y/20,playing:G.mode==='play',hero,lane:reviewX}),
  play(){G.mode=G.mode==='play'?'pause':'play';if(G.mode==='pause')setLoops(0,0,null);},
  step(){const mode=G.mode;G.mode='play';G.tx=reviewX;update(1/30);G.mode=mode;render(0);},
  rate(v){reviewRate=v;},position(x){reviewX=x;G.p.x=G.tx=x;reviewContact();render(0);},
- hero(k){waitForAssets(()=>loadTrackAssets(k),()=>{hero=k;reviewContact();render(0);});},exit(){openCoursePreview('play');},
+ hero(k){waitForAssets(()=>loadTrackAssets(k),()=>{hero=k;if(G.tubing)mountPlayerTube();reviewContact();render(0);});},exit(){openCoursePreview('play');},
  effect(k){G.chase=null;G.p.boost=0;G.p.parkFlight=null;G.p.air=0;G.p.alt=0;
   if(k==='coffee')G.p.boost=6;
   if(k==='avalanche')G.chase={y:G.y-400,t:20,k:0.3};

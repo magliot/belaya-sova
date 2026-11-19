@@ -43,6 +43,15 @@ window.goldenCheck={
   },
   slowFrames(){drag={};for(let i=0;i<380&&G.mode==='play';i++){G.tx=200;advanceSledFrame(.2);}
    return {dist:Math.floor(G.y/20),elapsed:G.sled.elapsed,mode:G.mode};},
+  tubeRun(){
+    const phases=new Set();drag={};let shown=false;
+    for(let i=0;i<4600&&G.mode==='play';i++){
+      G.tx=G.objs.find(o=>o.y>G.y&&!o.dead&&['gate','coin'].includes(o.type))?.x??200;
+      update(1/60);phases.add(tubeLocation(G.y/20));
+      if(i%60===0){syncWorld(1/60);shown||=G.tubing.model.visible&&!HEROMODELS[hero].root.visible;}
+    }
+    return {phases:[...phases],shown,mode:G.mode,coins:G.coins,gates:G.gates,time:G.tubing.elapsed};
+  },
   pauseSeconds(){const before=G.t;for(let i=0;i<300;i++)update(1/30);return G.t-before;},
   aid(){const o={type:'aid',x:200,y:G.y+2};G.p.x=G.tx=200;drag={};addObj(o);update(1/60);return {model:!!collectibleModels.aid,collected:o.dead,rule:save.fis.includes(9)};}
 };`;
@@ -104,6 +113,21 @@ async function run(){
   await page.locator('#bAgain').click();await page.evaluate(()=>window.stopFrames=true);
   const slow=await page.evaluate(()=>goldenCheck.slowFrames());assert.equal(slow.mode,'over');assert.equal(slow.elapsed,75);
   assert(Math.abs(slow.dist-result.dist)<=1,'A 5 FPS client must cover the same bonus distance');
+  await page.locator('#bMenu').click();await page.locator('#bTube').click();
+  await page.waitForFunction(()=>!!__g().tubing);
+  const tubing=await page.evaluate(()=>goldenCheck.tubeRun());
+  assert(tubing.shown&&tubing.coins>0&&tubing.gates>0&&tubing.mode==='over'&&tubing.time===75,JSON.stringify(tubing));
+  assert.deepEqual(tubing.phases,[0,1,2]);await page.locator('#bAgain').click();
+  assert(await page.evaluate(()=>!!__g().tubing));
+  const legacy=await browser.newPage();
+  await legacy.addInitScript(()=>localStorage.setItem('bsova_meet',JSON.stringify({goldenOwl:true})));
+  await legacy.goto('http://127.0.0.1:8766/');await legacy.locator('#bSled').waitFor();
+  assert(!(await legacy.locator('#bTube').isVisible()));await legacy.close();
+  for(const [ride,d] of [['tubing',100],['tubing',490],['tubing',870],['sled',420]]){
+    await page.goto('http://127.0.0.1:8766/?preview=course&ride='+ride+'&seed=1911&at='+d);
+    await page.waitForFunction(d=>window.__g?.()?.mode==='pause'&&__g().y===d*20,d);
+    await page.locator('[data-r="fold"]').click();await page.screenshot({path:out+'/'+ride+'-'+d+'.png'});
+  }
   assert.deepEqual(errors,[]);fs.writeFileSync(out+'/report.json',JSON.stringify({arms,heavy,aid,miss,caught,result,owl,slow,submissions,errors},null,2));
   console.log('PASS menu, feather with two tricks, three misses, persistent sled unlock, both riders, pause, scoring and finish.');
  }finally{await browser.close();}
