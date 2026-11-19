@@ -33,7 +33,7 @@ const context={THREE,...course,console,Math,Number,Array,
  clamp:(v,a,b)=>Math.max(a,Math.min(b,v)),lerp:(a,b,t)=>a+(b-a)*t,rnd:(a,b)=>(a+b)/2,
  U:.05,X:x=>(x-200)*.05,Z:y=>-y*.05,Hz:z=>courseHeight(-z),
  scene:new THREE.Scene(),mogAt:()=>0,STAGE_LEN:2500,forestEdge:()=>12.2,hero:'bear',
- env:{glow:1,snow:1},beamMat:{},tubeSky:new THREE.Group(),stageDef:()=>({env:0}),landscape:{update(){}},mountains:new THREE.Group(),aurora:new THREE.Group(),
+ styleLamp(){},env:{glow:1,snow:1},beamMat:{},tubeSky:new THREE.Group(),stageDef:()=>({env:0}),landscape:{update(){}},mountains:new THREE.Group(),aurora:new THREE.Group(),
  tmpM:new THREE.Matrix4(),tmpP:new THREE.Vector3(),tmpQ:new THREE.Quaternion(),tmpS:new THREE.Vector3(),tmpE:new THREE.Euler(),
  forest:[{userData:{x:14,z:-12},side:1,off:1.8,rot:.3,s:1,kind:0,idx:0}],
  forestIM:[new THREE.InstancedMesh(new THREE.BoxGeometry(),new THREE.MeshBasicMaterial(),1)],
@@ -88,6 +88,7 @@ for(let row=0;row<152;row+=9)for(let col=0;col<verticesPerRow;col+=7){
 // Repeated animation must not accumulate the course rotation on pooled objects.
 Object.assign(context,{release:o=>{o.m=null},PN:0,parts3:[],partMesh:{instanceMatrix:{}},emit:()=>{},npcLift:()=>0,animNpc:(o,m)=>{m.rotation.y=.18;m.rotation.z=.04}});
 context.G.texts=[];context.G.objs=['gate','ramp','coin','npc'].map((type,i)=>({type,x:100+i*50,y:context.G.y+400,m:new THREE.Group()}));
+context.G.objs[0].m.userData.gateDisc={material:{}};
 for(const o of context.G.objs)context.placeObj(o);
 vm.runInContext(slice('function animObjs(dt){','function hit(kind,o){'),context);
 for(let i=0;i<240;i++)context.animObjs(1/60);
@@ -96,12 +97,12 @@ for(const o of context.G.objs){
  assert(Math.abs(o.m.rotation.y-courseHeading(z)-(o.type==='npc'?.18:0))<1e-8,'Course yaw accumulates across frames');
 }
 // Autopilot follows existing generated gate series through the actual new steering block.
-const steerBlock=slice('  const steerK=','  for(const k of[\'boost\'');
+const steerBlock=slice('  const rough=','  for(const k of[\'boost\'');
 let playerGates=0,minGateMargin=Infinity;
 for(const fps of [30,60])for(const speed of [230,500,800])for(const steer of [1,1.15])for(const start of [0,80,2500,13000]){
  let seed=19;const math=Object.create(Math);math.random=()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296);
  const G={mode:'play',y:start*20,speed,wind:0,objs:[],lastGateX:200,gateCol:0,p:{x:200,vx:0,ang:0,air:0,fall:0}};
- const ctx={...course,G,COURSE_REVIEW:false,drag:{},keys:{},Math:math,U:.05,X:context.X,clamp:context.clamp,lerp:context.lerp,h:{steer},sensK:()=>1,rnd:(a,b)=>a+math.random()*(b-a),addObj:o=>G.objs.push(o),hit:()=>{throw Error('Steered player hit the edge');}};
+ const ctx={...course,G,stNow:{moguls:false},COURSE_REVIEW:false,drag:{},keys:{},Math:math,U:.05,X:context.X,clamp:context.clamp,lerp:context.lerp,h:{steer},sensK:()=>1,rnd:(a,b)=>a+math.random()*(b-a),addObj:o=>G.objs.push(o),hit:()=>{throw Error('Steered player hit the edge');}};
  vm.createContext(ctx);vm.runInContext(slice('function addCourse(','function addGate(')+`\nfunction step(dt){const p=G.p,dist=G.y*.05;${steerBlock}}`,ctx);
  let end=G.y+speed*1.5;for(let k=0;k<4;k++)end+=ctx.addCourse(end,1)+700;
  const gates=G.objs.filter(o=>o.type==='gate');let next=0;
@@ -113,7 +114,7 @@ for(const fps of [30,60])for(const speed of [230,500,800])for(const steer of [1,
 const unattended=[];
 for(const fps of [30,60])for(const speed of [230,500,800])for(const start of [0,80,150,420,2500,13000]){
  const G={mode:'play',y:start*20,speed,wind:0,tx:200,p:{x:200,vx:0,ang:0,air:0,fall:0}};
- const ctx={...course,G,COURSE_REVIEW:false,drag:null,keys:{},Math,U:.05,X:context.X,clamp:context.clamp,lerp:context.lerp,h:{steer:1},sensK:()=>1,hit:kind=>{G.mode='crash';G.failKind=kind;}};
+ const ctx={...course,G,stNow:{moguls:false},COURSE_REVIEW:false,drag:null,keys:{},Math,U:.05,X:context.X,clamp:context.clamp,lerp:context.lerp,h:{steer:1},sensK:()=>1,hit:kind=>{G.mode='crash';G.failKind=kind;}};
  vm.createContext(ctx);vm.runInContext(`function step(dt){const p=G.p,dist=G.y*.05;${steerBlock}}`,ctx);
  let seconds=0;while(G.mode==='play'&&seconds<30){ctx.step(1/fps);G.y+=speed/fps;seconds+=1/fps;}
  assert.equal(G.failKind,'edge','Releasing input must hit the snowbank without other obstacles');

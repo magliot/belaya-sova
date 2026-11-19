@@ -13,8 +13,8 @@ window.__drivingTest={
  step(n,fps=60){for(let i=0;i<n&&G.mode==='play';i++)update(1/fps);animObjs(0);render(0);return this.state();},
  state(){return {mode:G.mode,d:G.y/20,speed:G.speed,base:G.base,boost:G.p.boost,x:G.p.x,fail:G.failKind};},
  coffee(){this.reset();drag={};addObj({type:'thermos',x:200,y:8,r:12});return this.step(2);},
- gate(){this.reset();drag={};const o={type:'gate',x:200,y:80,gap:140,col:0};addObj(o);const before=o.m.userData.halo.material.opacity;
-  this.step(30);return {before,after:o.m.userData.halo.material.opacity,passed:o.ok,gates:G.gates};},
+ gate(){this.reset();drag={};const o={type:'gate',x:200,y:80,gap:140,col:0};addObj(o);const before=o.m.userData.gateDisc.material.opacity;
+  this.step(30);return {before,after:o.m.userData.gateDisc.material.opacity,passed:o.ok,gates:G.gates};},
  solo(kind,fps){this.reset(kind);drag={};this.step(20*fps,fps);
   return {mode:G.mode,otherVisible:HEROMODELS[kind==='bear'?'owl':'bear'].root.visible,npcs:G.objs.filter(o=>o.type==='npc').length};},
  hud(){this.reset();drag={};this.step(1);G.chase={y:G.y-300,t:18,k:.9};G.rSay={txt:'Длинная реплика соперника, которая раньше закрывала склон',until:G.t+100};

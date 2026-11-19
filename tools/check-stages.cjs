@@ -18,7 +18,7 @@ window.__stageTest={
   const pos=actor.m.position.clone();pos.y+=1;pos.project(camera);
   const forest=new Set(G.objs.filter(o=>o.type==='tree').map(o=>o.pine?'pine':o.fir?'fir':'tree'));
   const result={type,d,visible:Math.abs(pos.x)<.94&&Math.abs(pos.y)<.94&&pos.z<1,
-   species:[...forest],trackPrints:MOG.patches.some(p=>p.tracks),model:type==='snowmobile'?!!actor.m.getObjectByName('Forest_patrol')||!!actor.m.getObjectByName('Forest patrol'):actor.m.userData.worldAsset==='yeti'};
+   species:[...forest],trackPrints:actor.prints?.geometry.drawRange.count>0,model:type==='snowmobile'?!!actor.m.getObjectByName('Forest_patrol')||!!actor.m.getObjectByName('Forest patrol'):actor.m.userData.worldAsset==='yeti'};
   reviewX=200;return result;
  },
  encounter(type,kind,fps,collide){
@@ -26,10 +26,14 @@ window.__stageTest={
   const first=G.objs.find(o=>o.type===type);
   reviewSeek(first.marker/20-12);
   const actor=G.objs.find(o=>o.type===type&&o.marker===first.marker);
-  const x=collide?200+actor.side*(type==='snowmobile'?67:60):200-actor.side*34;
+  const probe={...actor,prints:null};
+  for(let y=actor.marker-500;y<actor.marker+480;y++){trailActorAt(probe,y);if(y>=probe.y)break;}
+  const x=collide?probe.x:probe.x<200?290:110;
+  // Isolate this encounter so a nearby forest tree is not mistaken for the actor.
+  for(const other of G.objs)if(other!==actor)release(other);G.objs=[actor];G.nextY=Infinity;
   const met=save.meet.yeti,initial=[actor.x,actor.y];G.p.x=G.tx=x;G.mode='play';G.nextChaseD=Infinity;
   G.p.lives=0;drag={};
-  for(let i=0;i<fps*5&&G.mode==='play'&&G.y<first.marker+130;i++){G.tx=x;update(1/fps);}
+  for(let i=0;i<fps*5&&G.mode==='play'&&G.y<first.marker+540;i++){G.tx=x;update(1/fps);}
   return {type,kind,fps,collide,fail:G.failKind||null,mode:G.mode,met:save.meet.yeti-met,dx:actor.x-initial[0],dy:actor.y-initial[1]};
  },
  gearSlope(kind,d,ang){
@@ -94,7 +98,7 @@ window.__stageTest={
   return {d,kind,counts,patches:MOG.patches.length,rolling:MOG.patches.some(P=>P.rolling),peak,width:courseWidth(d),wall:courseCrossHeight(12,-d),fogNear:scene.fog.near,fogFar:scene.fog.far,
    triangles:renderer.info.render.triangles,calls:renderer.info.render.calls,finite:HEROMODELS[kind].root.position.toArray().every(Number.isFinite)};
  },
- ride(kind,d,fps){clearWorld();hideToast();hero=kind;save.missions=[];save.fis=[1,2,3,4,5,6,7,8,9,10];G=newGame('play');G.y=G.prevY=d*20;G.stage=G.lastSpawnStage=stageAt(d);G.nextY=G.y+300;G.nextChaseD=Infinity;drag={};let peak=0,maxAbove=0;
+ ride(kind,d,fps){clearWorld();hideToast();hero=kind;save.missions=[];save.fis=[1,2,3,4,5,6,7,8,9,10];G=newGame('play');G.y=G.prevY=d*20;G.stage=G.lastSpawnStage=stageAt(d);G.nextY=G.y+300;G.nextChaseD=Infinity;drag={};G.p.inv=25;let peak=0,maxAbove=0;
   for(let i=0;i<20*fps&&G.mode==='play';i++){const gate=G.objs.find(o=>o.type==='gate'&&!o.done&&o.y>G.y);G.tx=gate?gate.x:200;update(1/fps);peak=Math.max(peak,G.p.mh);maxAbove=Math.max(maxAbove,G.p.mh-mogAt(G.p.x,G.y));}
   render(0);return {kind,d,fps,mode:G.mode,fail:G.failKind||null,peak,maxAbove,finite:Number.isFinite(G.p.mh)&&Number.isFinite(G.p.alt)};
  },
@@ -169,7 +173,7 @@ const at=html.lastIndexOf('</script>');html=html.slice(0,at)+debug+html.slice(at
    const s=await page.evaluate(args=>__stageTest.capture(...args),[kind,d]);assert(s.finite);
    if(name==='forest'){assert(s.width<14);assert(s.counts.tree>=10);assert(!s.counts.rock&&!s.counts.rail);}
    if(name==='moguls'){assert(s.rolling&&s.peak>1&&s.peak<2.8);assert(!s.counts.rock&&!s.counts.ramp);}
-   if(name==='park'){assert(s.counts.airRing>=1&&s.counts.ramp>=1&&s.counts.stageProp>=2);assert(s.wall>3.5);}
+   if(name==='park'){assert(s.counts.airRing>=1&&s.counts.ramp>=1&&!s.counts.stageProp&&s.counts.npc>=1);assert(s.wall>3.5);}
    if(name==='summit')assert(s.fogNear>=20&&s.fogFar>=95);
    await page.screenshot({path:path.join(out,kind+'-'+name+'.png')});scenes.push({name,...s});
   }

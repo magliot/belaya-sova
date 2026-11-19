@@ -39,8 +39,8 @@ export function createLandscape(group){
       const z=-365-i*.2,offset=i===2?35:0;
       p.position.set(z*Math.sin(heading)+offset*Math.cos(heading),i===2?78:62,z*Math.cos(heading)-offset*Math.sin(heading));
     }
-    const night=zone===3||zone===4;
-    for(const p of ridges){p.material.color.setHex(night?0x476486:zone===1?0xffe2d1:0xffffff);}
+    const night=zone===3;
+    for(const p of ridges){p.material.color.setHex(night?0x476486:zone===4?0xf0bec1:zone===1?0xffe2d1:0xffffff);}
     for(const p of auroras)p.visible=night&&!tubing;
   }
   return {load,update};

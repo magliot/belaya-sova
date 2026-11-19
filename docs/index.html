@@ -676,9 +676,7 @@ async function loadCourseKit(){
    im.material=new THREE.MeshBasicMaterial({map:texture,alphaTest:.42,side:THREE.DoubleSide});im.visible=true;
  }));
  towers.forEach(t=>{const c=kit.tower16C.clone();for(const part of [...t.children])if(!t.userData.cab.includes(part))t.remove(part);t.add(c);t.userData.glb=true;});
- for(let i=0;i<lamps.length;i++){
-   const g=lamps[i];g.add(kit['lamp18'+'ABC'[i%3]].clone());g.children.at(-1).rotation.y=g.userData.side<0?Math.PI:0;
- }
+ for(const l of lamps)styleLamp(l,0);
 }
 const trainingCast={};
 function loadTraining(){return cached('training',async()=>{
@@ -753,7 +751,9 @@ for(let i=0;i<9;i++){const im=new THREE.InstancedMesh(new THREE.BufferGeometry()
 const fCnt=Array(9).fill(0);
 // лес: ёлки, высокие сосны и ёлочки. off — отступ от края трассы; на «Лесной трассе» лес подходит вплотную
 for(let i=0;i<300;i++){const r=Math.random();const family=r<0.45?0:r<0.75?1:2,kind=family*3+i%3;if(fCnt[kind]>=140)continue;const side=i%2?1:-1;
-  const off=Math.pow(Math.random(),1.6)*24;forest.push({userData:{x:0,z:-rnd(-15,170)},side,off,kind,idx:fCnt[kind]++,s:family===1?rnd(0.85,1.3):family===2?rnd(0.8,1.4):rnd(1.2,2.3),rot:rnd(0,6.28)});}
+  const row=Math.floor(i/6),depth=Math.floor(i%6/2),off=depth*9+courseRoll(1911,i,201)*2;
+  const slot=4+row*3.7+depth*1.08+courseRoll(1911,i,202)*.45;
+  forest.push({userData:{x:0,z:-slot},slot,side,off,kind,idx:fCnt[kind]++,s:family===1?rnd(0.85,1.3):family===2?rnd(0.8,1.4):rnd(1.2,2.3),rot:rnd(0,6.28)});}
 forestIM.forEach((im,k)=>im.count=fCnt[k]);
 const forestEdge=z=>{const st=STAGES[stageAt(-z)%STAGES.length];return st&&st.forest?8.1+4*Math.max(0,Math.sin(z/73)):st&&st.park?17:14.2;};
 // фонари вдоль трассы с обеих сторон
@@ -767,6 +767,32 @@ for(let i=0;i<12;i++){const side=i%2?1:-1;const g=new THREE.Group(),bx=-side*1.1
   const beam=mk(new THREE.ConeGeometry(1.8,4.8,16,1,true),beamMat,bx,2.6,0,g,false);
   const gl=new THREE.Mesh(new THREE.PlaneGeometry(9,9),glowMat);gl.rotation.x=-Math.PI/2;gl.position.set(bx*1.5,0.06,0);g.add(gl);
   g.userData={z:-Math.floor(i/2)*30-(side>0?15:0),side,bx};g.position.x=side*11.6;scene.add(g);lamps.push(g);}
+const lampThemes=[
+ ['A',0x32688a,.89],['B',0x76513e,.91],['B',0xb66532,.97],['A',0x7147b0,1],
+ ['A',0xf18426,.94],['A',0x243141,1.04],['C',0x38527e,1],['B',0xb43e4a,.94]
+];
+const lampPrototypes=[];
+function styleLamp(l,stage){
+  if(!kit.lamp18A||l.userData.theme===stage)return;
+  const [kind,paint,h]=lampThemes[stage];
+  if(!lampPrototypes[stage]){
+    const post=kit['lamp18'+kind].clone();
+    post.traverse(m=>{if(!m.isMesh)return;
+      const tint=mat=>{const b=mat.clone();
+        if(/steel|larch/i.test(b.name))b.color.setHex(paint);
+        if(/amber/i.test(b.name)){b.emissive.setHex(stage===7?0xffaa45:0xffe6a9);b.emissiveIntensity=stage>=6?1.8:.3;}
+        return b;};
+      m.material=Array.isArray(m.material)?m.material.map(tint):tint(m.material);
+    });
+    lampPrototypes[stage]=post;
+  }
+  if(l.userData.post)l.remove(l.userData.post);
+  const post=lampPrototypes[stage].clone();l.add(post);l.userData.post=post;l.userData.theme=stage;l.scale.setScalar(h);
+  const [beam,pool]=l.children;
+  beam.position.x=-1.15;pool.position.x=-1.15;l.userData.bx=-1.15;
+  if(!l.userData.second){l.userData.second=[beam.clone(),pool.clone()];for(const m of l.userData.second){m.position.x=1.15;l.add(m);}}
+  for(const m of l.userData.second)m.visible=kind==='C';
+}
 const lampLights=[];for(let i=0;i<4;i++){const l=new THREE.PointLight(0xffd9a0,0,22,1.3);scene.add(l);lampLights.push(l);}
 // подъёмник (идёт вверх по склону справа)
 const lift=new THREE.Group();scene.add(lift);
@@ -916,11 +942,8 @@ const FACT={
       f.material.side=THREE.DoubleSide;f.userData.flap=side;f.userData.flag=true;
     }
     const line=new THREE.Mesh(new THREE.PlaneGeometry(o.gap*U,0.12),new THREE.MeshBasicMaterial({color:o.col?0x2a6df4:0xe8343b,transparent:true,opacity:0.35,depthWrite:false}));line.rotation.x=-Math.PI/2;line.position.y=0.03;g.add(line);
-    const halo=new THREE.Mesh(new THREE.TorusGeometry(half,0.055,4,32,Math.PI),new THREE.MeshBasicMaterial({color:0xffc34d,transparent:true,opacity:0.65,depthWrite:false}));
-    g.userData.light=raceLight(g,half,Math.min(2.8,half),o.col?'blue':'red',canvasTex);
-    halo.position.y=0.08;halo.scale.y=Math.min(2.8,half)/half;g.add(halo);
     const disc=new THREE.Mesh(new THREE.PlaneGeometry(o.gap*U+0.5,3),new THREE.MeshBasicMaterial({map:glowTex,color:0xffcf55,transparent:true,opacity:0.45,depthWrite:false,blending:THREE.AdditiveBlending}));
-    disc.rotation.x=-Math.PI/2;disc.position.y=0.055;g.add(disc);g.userData.halo=halo;g.userData.gateDisc=disc;g.userData.gate=true;return g;},
+    disc.rotation.x=-Math.PI/2;disc.position.y=0.055;g.add(disc);g.userData.gateDisc=disc;g.userData.gate=true;return g;},
   ramp(o){if(o.park)return makeParkSurface(o);const g=new THREE.Group();const c=NPCM.ramp.clone();c.scale.multiply(new THREE.Vector3(o.w*U,(o.hh||0.75)*1.12,3.3));c.traverse(q=>{if(q.isMesh)q.receiveShadow=true;});g.add(c);return g;},
   npc(o){const sbk=o.sb&&!o.sit?(o.kid?'sboy':o.instr?'sinstr':'sman'):null;const vk=sbk&&NPCM[sbk]?sbk:o.sit?'sitter':o.kid?'kid':'skier';const vv=NPCV[vk];const gm=vv?vv[vk==='sman'?Math.min(1,vv.length-1):(o.vi||0)%vv.length]:NPCM[vk];
     if(gm&&vk===sbk){// сноубордист: тело поворачиваем в animObjs (едет боком или стоит лицом к группе)
@@ -931,10 +954,13 @@ const FACT={
       if(o.instr){const t=instrTex||(instrTex=label('ИНСТРУКТОР',{bg:'#ffd200',fg:'#0f2c52',w:256,h:64,font:'900 34px system-ui,sans-serif',r:10}));const pl=plane(t,0.22,0.055,g,0,0.93,0.29,false);pl.rotation.x=-0.35;pl.material.side=THREE.DoubleSide;}
     return g;},
   cat(o){const fz0=o.vy>0?-1:1;const g=new THREE.Group();const c=(o.variant?trainingCast[o.variant]:NPCM.ratrak).clone();c.rotation.y=fz0<0?Math.PI:0;g.add(c);const H=o.variant?3.61:NPCM.ratrak.userData.h;
+      const bounds=new THREE.Box3().setFromObject(c),front=fz0>0?bounds.max.z+.04:bounds.min.z-.04;
       const b=mk(sharedGeo.sphLo,OM.beacon,0,H+0.12,fz0*0.6,g,false);b.scale.setScalar(0.2);b.userData.beacon=true;const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xffb000,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));gl.scale.setScalar(1.6);gl.position.copy(b.position);gl.userData.beacon=true;g.add(gl);
-      for(const s of[-1,1]){const hl=mk(sharedGeo.sphLo,new THREE.MeshBasicMaterial({color:0xfff6c0}),s*1.0,H*0.62,fz0*1.2,g,false);hl.scale.set(0.16,0.1,0.05);}
+      for(const s of[-1,1]){const hl=mk(sharedGeo.sphLo,new THREE.MeshBasicMaterial({color:0xfff6c0}),s*1.0,H*0.62,front,g,false);hl.scale.set(0.16,0.1,0.05);
+        const flare=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xffe6a0,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+        flare.position.set(s,H*.62,front+.07*fz0);flare.scale.setScalar(1.18);g.add(flare);}
       g.userData.glb=true;return g;},
-  cannon(o){const model=kit.cannon25A.clone();model.userData.worldAsset='snow_cannon';const side=o.x<200?1:-1;model.rotation.y=-side*Math.PI/2;model.userData.cannon=side;return model;},
+  cannon(o){const model=kit.cannon25A.clone();model.userData.worldAsset='snow_cannon';const side=o.x<200?1:-1;const g=new THREE.Group();model.rotation.y=side*Math.PI/2;g.add(model);g.userData.cannon=side;return g;},
   fence(o){const g=new THREE.Group();const len=(o.x2-o.x1)*U;const n=Math.max(2,Math.round(len/1.4)+1);
     const style=o.fenceStyle??0,rope=['#d94040','#ffb329','#ff7716'][style];
     const tex=canvasTex(128,64,(x,w,h)=>{x.strokeStyle=rope;x.lineWidth=3;for(let i=-h;i<w;i+=12){x.beginPath();x.moveTo(i,0);x.lineTo(i+h,h);x.stroke();x.beginPath();x.moveTo(i+h,0);x.lineTo(i,h);x.stroke();}x.fillStyle=rope;x.fillRect(0,0,w,5);});
@@ -949,6 +975,7 @@ const FACT={
     for(const side of [-1,1]){S3(mk(sharedGeo.cyl,wood,side*7,2.75,0,g),.27,5.5,.27);
       const roof=S3(mk(sharedGeo.box,wood,side*3.6,5.53,0,g),7.7,.39,.58);roof.rotation.z=-side*.17;
       const cap=S3(mk(sharedGeo.box,OM.snow,side*3.6,5.76,0,g),7.7,.16,.64);cap.rotation.z=roof.rotation.z;}
+    if(st.forest||st.moguls||st.park)return g; // Name is already on the approved approach sign.
     const t=archTexCache[o.stage]||(archTexCache[o.stage]=label(st.name.toUpperCase(),{bg:'#8c5e3c',fg:'#fff8e6',w:768,h:128,font:'900 60px system-ui,sans-serif'}));
     const f=plane(t,8.5,.88,g,0,4.43,0,false);f.material.side=THREE.DoubleSide;return g;},
   dog(o){return winterActor('dog',o);},
@@ -1031,9 +1058,10 @@ function fitParkSurface(o){
 function acquire(o){const k=poolKey(o);const p=pools[k]||(pools[k]=[]);let m=p.pop();if(!m){m=FACT[o.type](o);m.userData.gen=assetGen;m.traverse(c=>{if(c.isMesh)c.castShadow=c.castShadow&&o.type!=='coin';});}
   m.userData.key=k;m.visible=true;scene.add(m);m.scale.setScalar(o.type==='tree'?o.s*(m.children[0]&&m.children[0].userData.h?0.95:1.1):o.kid?0.82:o.type==='npc'?1.25:o.type==='yeti'?1.25:1);if(o.type==='cat'&&!m.userData.glb)m.scale.set(1,1.5,1);
   if(o.small)m.scale.setScalar(.62);
+  if(o.type==='tube')m.scale.setScalar(.84);
   if(o.type==='gate')m.traverse(c=>{if(c.userData.flag)c.material.color.set(0xffffff);});
   m.rotation.set(0,0,0,'YXZ');m.userData.courseYaw=0;m.userData.courseRoll=0;return m;}
-function release(o){if(!o.m)return;const m=o.m;scene.remove(m);if((m.userData.gen||0)===assetGen)(pools[m.userData.key]||(pools[m.userData.key]=[])).push(m);o.m=null;}
+function release(o){if(o.prints){scene.remove(o.prints);o.prints.geometry.dispose();o.prints=null;}if(!o.m)return;const m=o.m;scene.remove(m);if((m.userData.gen||0)===assetGen)(pools[m.userData.key]||(pools[m.userData.key]=[])).push(m);o.m=null;}
 
 // ================= SAVE / MISSIONS =================
 const store={get(k,d){try{const v=localStorage.getItem(SKEY+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(SKEY+k,JSON.stringify(v));}catch(e){}}};
@@ -1171,8 +1199,8 @@ const ZONES=[
   {name:'День',sky:0xbfe0ff,fog:0xd6e8f8,near:45,far:150,hemi:1.2,sun:2.0,sunCol:0xffffff,glow:0,head:0,snow:0.2,mt:0xa9bfd6},
   {name:'Вечер',sky:0xffb48c,fog:0xf2c6ae,near:40,far:140,hemi:0.85,sun:1.6,sunCol:0xffa060,glow:0.35,head:0,snow:0.2,mt:0xb98f9c},
   {name:'Метель!',blizz:true,sky:0xc5d9e9,fog:0xd3e2ed,near:22,far:100,hemi:1.15,sun:0.8,sunCol:0xffffff,glow:0.15,head:0,snow:0.42,mt:0xa6bed1},
-  {name:'Ночное катание',night:true,sky:0x050a1c,fog:0x060c1e,near:5,far:46,hemi:0.09,sun:0.03,sunCol:0x8899ff,glow:0.4,head:130,snow:0.3,mt:0x0e1730},
-  {name:'Праздник',night:true,sky:0x22184a,fog:0x2a2152,near:12,far:85,hemi:0.38,sun:0.12,sunCol:0xff99cc,glow:0.95,head:55,snow:0.5,mt:0x2c2f5c},
+  {name:'Ночное катание',night:true,sky:0x050a1c,fog:0x060c1e,near:16,far:74,hemi:0.27,sun:0.03,sunCol:0x8899ff,glow:0.4,head:130,snow:0.3,mt:0x0e1730},
+  {name:'Праздничный вечер',sky:0xe5a2a4,fog:0xf1c2ad,near:38,far:150,hemi:.94,sun:.95,sunCol:0xffba86,glow:.57,head:12,snow:.25,mt:0x99849f},
 ];
 ZONES.push({...ZONES[0],name:'Снежная доставка',sky:0xa8d4e8,fog:0xf6e7d0,near:44,far:155,sunCol:0xffe3ac,mt:0x9bb7c6});
 const env={sky:new THREE.Color(ZONES[0].sky),fog:new THREE.Color(ZONES[0].fog),sunCol:new THREE.Color(0xffffff),mt:new THREE.Color(ZONES[0].mt),near:45,far:150,hemi:1.2,sun:2,glow:0,head:0,snow:0.2};
@@ -1180,8 +1208,8 @@ const tmpC=new THREE.Color();
 function updEnv(dt,zi){const z=ZONES[zi],k=Math.min(1,dt*0.9);
   env.sky.lerp(tmpC.set(z.sky),k);env.fog.lerp(tmpC.set(z.fog),k);env.sunCol.lerp(tmpC.set(z.sunCol),k);env.mt.lerp(tmpC.set(z.mt),k);
   for(const p of['near','far','hemi','sun','glow','head','snow'])env[p]=lerp(env[p],z[p],k);
-  scene.background.copy(env.sky);scene.fog.color.copy(env.fog);scene.fog.near=env.near;scene.fog.far=env.far;hemi.intensity=env.hemi;sun.intensity=env.sun;sun.color.copy(env.sunCol);mtMat.color.copy(env.mt);valMat.color.copy(env.mt).lerp(env.fog,.57);seaMat.color.copy(env.mt).lerp(tmpC.set(0x2f5f9a),zi===2?0:0.55).multiplyScalar(zi===3||zi===4?0.6:1);auroraMat.opacity=0;
-  mtSnow.color.copy(env.mt).lerp(tmpC.set(0xf2f7ff),zi===3||zi===4?0.035:zi===2?0.45:0.85);
+  scene.background.copy(env.sky);scene.fog.color.copy(env.fog);scene.fog.near=env.near;scene.fog.far=env.far;hemi.intensity=env.hemi;sun.intensity=env.sun;sun.color.copy(env.sunCol);mtMat.color.copy(env.mt);valMat.color.copy(env.mt).lerp(env.fog,.57);seaMat.color.copy(env.mt).lerp(tmpC.set(0x2f5f9a),zi===2?0:0.55).multiplyScalar(zi===3?0.6:1);auroraMat.opacity=0;
+  mtSnow.color.copy(env.mt).lerp(tmpC.set(0xf2f7ff),zi===3?0.035:zi===2?0.45:0.85);
   glowMat.opacity=env.glow;headlamp.intensity=env.head;
   snowGeo.setDrawRange(0,Math.floor(SNOWN*env.snow));}
 
@@ -1200,7 +1228,7 @@ const STAGES=[
 ];
 // больше игры на каждом этапе: трамплины, мандаринки и камни «на пути» (без руления не проедешь)
 for(const s of STAGES){if(s.forest||s.moguls||s.park)continue;const m=s.mix;m.ramp=(m.ramp||0)+6;m.coins=(m.coins||0)+8;m.lane=16;m.skier=(m.skier||0)+4;}
-STAGES[6].sub='темно — видно только фонарик';
+STAGES[6].sub='йети у фонарей · следи за встречными фарами';
 const stageAt=d=>Math.floor(Math.max(0,d)/STAGE_LEN);
 const stageDef=n=>STAGES[n%STAGES.length];
 function pickMix(mix){let t=0;for(const k in mix)t+=mix[k];let r=Math.random()*t;for(const k in mix){r-=mix[k];if(r<=0)return k;}return 'gate';}
@@ -1244,7 +1272,36 @@ const landingSpray=new THREE.Sprite(new THREE.SpriteMaterial({transparent:true,d
 function burst(x,y,n,c,sp){if(c==='#ffffff'&&courseTextures.chips){
   landingSpray.material.map=courseTextures.chips;landingSpray.visible=true;landingSpray.userData.start=G.t;courseGround(landingSpray.position,X(x),Z(y),.38);}
  burst3(X(x),0.4,Z(y),n,c,(sp||150)/30);}
-function addObj(o){if(o.type==='mogul')o.profile??=Math.floor(courseRoll(G.seed??19,Math.round(o.y),49)*3);if(o.type==='fence')o.fenceStyle??=Math.floor(courseRoll(G.seed??19,Math.floor(o.y+o.x),93)*3);if(o.type==='rock'&&o.rockWide==null)o.rockWide=courseRoll(G.seed??19,Math.floor(o.y),92)<.55;if(o.type==='tree')o.treeStyle=Math.floor(courseRoll(G.seed??19,Math.floor(o.y)+Math.round(o.x),91)*3);G.objs.push(o);o.m=acquire(o);placeObj(o);}
+// Half-extents in gameplay units. A slalom gate reserves its posts, not the passage.
+function occupiedParts(o){
+  const box=(w,l)=>[[o.x,w,l]];
+  switch(o.type){
+    case 'tree':return box(Math.max(17,o.r*o.s+8),24);
+    case 'ramp':case 'rail':return box(o.w/2,(o.len||68)/2);
+    case 'arch':return [[60,7,8],[340,7,8]];
+    case 'gate':return [-1,1].map(s=>[o.x+s*o.gap/2,6,7]);
+    case 'fence':return box((o.x2-o.x1)/2,6);
+    case 'npc':return o.sit||o.stand?box(12,15):[];
+    case 'mogul':case 'rock':case 'cannon':case 'aid':case 'snowman':return box(o.r||15,o.type==='rock'?24:15);
+    default:return [];
+  }
+}
+function placeFree(o){
+  o.footprint=occupiedParts(o);if(!o.footprint.length||o.type==='arch')return true;
+  if(!G.bonusRide&&!G.sprint){
+    const boundary=Math.round(o.y/(STAGE_LEN*20))*STAGE_LEN*20;
+    if(boundary>0&&o.footprint.some(([x,w,l])=>Math.abs(o.y-boundary)<l+11&&[60,340].some(post=>Math.abs(x-post)<w+10)))return false;
+  }
+  for(const q of G.objs){if(!q.m||q.dead||Math.abs(q.y-o.y)>220)continue;
+    for(const [x,w,l] of o.footprint)for(const [qx,qw,ql] of q.footprint||[]){
+      if(Math.abs(o.y-q.y)<l+ql+3&&Math.abs(x-qx)<w+qw+3)return false;
+    }
+  }
+  return true;
+}
+function addObj(o){if(o.type==='gate')o.gap=Math.round(o.gap*.90);
+  if(!placeFree(o))return false;
+  if(o.type==='mogul')o.profile??=Math.floor(courseRoll(G.seed??19,Math.round(o.y),49)*3);if(o.type==='fence')o.fenceStyle??=Math.floor(courseRoll(G.seed??19,Math.floor(o.y+o.x),93)*3);if(o.type==='rock'&&o.rockWide==null)o.rockWide=courseRoll(G.seed??19,Math.floor(o.y),92)<.55;if(o.type==='tree')o.treeStyle=Math.floor(courseRoll(G.seed??19,Math.floor(o.y)+Math.round(o.x),91)*3);G.objs.push(o);o.m=acquire(o);placeObj(o);return true;}
 // ===== поле бугров: бугры в шахматном порядке, рельеф = та же функция, по которой едет герой =====
 const MOG={patches:[]};const mogMat=new THREE.MeshLambertMaterial({vertexColors:true});
 function bumpH(P,x,y){let h=0;for(const b of P.b){const dx=(x-b.x)/(b.Rx||b.R),dy=(y-b.y)/(b.Ry||b.R);const skew=b.profile===2?dx-.28*dy:dx,d2=skew*skew+dy*dy;if(d2<1){const c=Math.cos(Math.sqrt(d2)*Math.PI/2);const v=b.A*Math.pow(c,b.profile===1?1.55:2);h=P.rolling?h+v:Math.max(h,v);}}if(P.rolling){const k=clamp((Math.abs(x-mogulValley(y))-18)/48,0,1);h*=.12+.88*k*k*(3-2*k);}return h;}
@@ -1271,6 +1328,11 @@ function placeObj(o){if(o.park||o.type==='rail'){fitParkSurface(o);return;}const
 
 const jacketColors=[0xe74c3c,0x27ae60,0x8e44ad,0xf1c40f,0x16a085,0x2c3e50];
 const pickCol=()=>jacketColors[Math.floor(Math.random()*jacketColors.length)];
+function addRescue(y,x){
+  const seat=x+(x<200?-36:36);
+  if(!placeFree({type:'npc',x:seat,y:y+12,sit:true})||!addObj({type:'aid',x,y,r:12}))return;
+  addSkier(y+12,seat,0,{sit:true,hurt:true,amp:0});
+}
 function addSkier(y,x,vy,extra){const o=Object.assign({type:'npc',x,bx:x,y,vy,ph:Math.random()*6,amp:rnd(15,40),colHex:pickCol(),vi:Math.floor(Math.random()*7),passed:false},extra||{});addObj(o);return o;}
 // люди на склоне: объезжают препятствия и друг друга, заезжают на трамплины и бугры (прыгают)
 function npcAI(o,dt){
@@ -1335,17 +1397,23 @@ function forestSection(y,patrol){
   const section=Math.floor(y%(STAGE_LEN*20)/1000);
   // Keep a clear approach to each stage entrance and to the overhead sign.
   if(section===49){coinTrail(200,y+70,3,100);return 1000;}
-  const line=200-side*(21+roll(32)*16),jitter=Math.round(roll(35)*46);
+  const line=200-side*(56+roll(32)*17),jitter=Math.round(roll(35)*46);
   const plant=(shoulder,offset,dy,scale,kind)=>addObj({type:'tree',x:200+shoulder*offset,y:y+dy,
     r:kind==='pine'?18:12,s:scale,pine:kind==='pine',fir:kind==='fir'});
   plant(side,145,260+jitter,.97,'pine');
-  plant(side,101+roll(34)*14,328+jitter,.83,'fir');
+  plant(side,51+roll(34)*20,332+jitter,.90,'fir');
+  if(!G.sprint&&section%3===1)plant(side,roll(36)*16,451+jitter,.83,'tree');
   plant(side,161,409+jitter,1.13,'tree');
   plant(-side,148,750-jitter,1.02,'tree');
   if(roll(39)>.30)plant(-side,121,822-jitter,.88,'fir');
-  if(patrol??(section%3===0))addTrailActor('snowmobile',y+265,side);
+  if(patrol??(section%3===0))addTrailActor('snowmobile',y+610,side);
+  if(!G.sprint){
+    if(section%3!==0)addSkier(y+654,line,52,{sb:section%3===1,amp:14,ph:roll(41)*6,lessonStart:y+654});
+    if(section%8===3)addObj({type:'ramp',x:line,y:y+180,w:54,hh:.7});
+    if(section%7===2)addObj({type:'mogul',x:200+side*43,y:y+732,r:14});
+  }
   for(let i=0;i<6;i++)addObj({type:'coin',x:200+(line-200)*Math.sin((i+1)*Math.PI/8),y:y+78+i*94,r:9});
-  if(roll(38)<.23)addObj({type:'gate',x:line,y:y+558,gap:112,col:side>0?1:0});
+  if(section%3!==1&&roll(38)<.23)addObj({type:'gate',x:line,y:y+558,gap:112,col:side>0?1:0});
   return 1000;
 }
 // Author motion by approach distance so a paused seek and a live run show the same crossing.
@@ -1354,28 +1422,45 @@ function trailActorAt(o,playerY){
   if(o.type==='snowmobile'){
     o.x=200+o.side*(58+12*t);o.y=o.marker+165-210*t;
   }else{
-    o.x=200+o.side*(137-100*t);o.y=o.marker+32*t;
+    const u=clamp((playerY-o.marker+1460)/1950,0,1),pos=yetiStep(o,u);
+    o.x=pos.x;o.y=pos.y;o.jump=pos.jump;o.stride=u;
+    const next=yetiStep(o,Math.min(1,u+.005));
+    if(next.x!==pos.x||next.y!==pos.y)o.yaw=Math.atan2(next.x-pos.x,pos.y-next.y);
+    if(o.prints)o.prints.geometry.setDrawRange(0,6*Math.floor(u*16));
+    return;
   }
   o.stride=t;
 }
-const printMaterial=new THREE.MeshBasicMaterial({color:0xb9dcf9,transparent:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2});
-function addYetiTracks(patch,marker,side){
+function yetiStep(o,u){
+  const a=o.route,curve=u*u*(3-2*u);
+  const lateral=a===0?173-292*curve:a===1?154-96*curve:145-114*curve;
+  const forward=a===0?75*u:a===1?310-465*u:-150+475*u;
+  return {x:200+o.side*(lateral+13*Math.sin(2*Math.PI*u+o.phase)),y:o.marker+forward,
+    jump:o.leaps?1.2*Math.sin(Math.PI*clamp((u-.41)/.24,0,1)):0};
+}
+const printMaterial=new THREE.MeshBasicMaterial({color:0x839fb8,transparent:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2});
+function makeYetiTracks(o){
   const vertices=[],uv=[],indices=[];
-  for(let i=0;i<5;i++){
-    const x=200+side*(148-i*27),y=marker-83+i*19;
+  for(let i=0;i<16;i++){
+    const p=yetiStep(o,(i+.5)/16),next=yetiStep(o,(i+.6)/16);
+    const angle=Math.atan2(next.x-p.x,next.y-p.y),c=Math.cos(angle),s=Math.sin(angle);
     for(const [u,v] of [[0,0],[1,0],[1,1],[0,1]]){
-      const px=x+(u-.5)*26,py=y+(v-.5)*24;
-      courseGround(terrainPoint,X(px),Z(py),mogAt(px,py)+.065);
-      vertices.push(...terrainPoint.toArray());uv.push(side>0?u:1-u,v);
+      const w=(u-.5)*12+(i%2?6:-6),h=(v-.5)*18;
+      const x=p.x+c*w+s*h,y=p.y+c*h-s*w;
+      courseGround(terrainPoint,X(x),Z(y),mogAt(x,y)+.08);
+      vertices.push(...terrainPoint.toArray());uv.push(u,v);
     }
-    const a=i*4;indices.push(a,a+1,a+2,a,a+2,a+3);
+    const a=i*4;
+    indices.push(...(p.jump>.2?[a,a,a,a,a,a]:[a,a+1,a+2,a,a+2,a+3]));
   }
   const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
-  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(indices);
-  patch.tracks=new THREE.Mesh(geo,printMaterial);patch.mesh.add(patch.tracks);
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geo.setIndex(indices);geo.setDrawRange(0,0);
+  const prints=new THREE.Mesh(geo,printMaterial);scene.add(prints);return prints;
 }
 function addTrailActor(type,marker,side){
-  const o={type,marker,side};
+  const roll=k=>courseRoll(G.seed??19,Math.round(marker),k);
+  const o={type,marker,side,route:Math.floor(roll(101)*3),leaps:roll(102)<.55,phase:roll(103)*6.28};
+  if(type==='mogulYeti')o.prints=makeYetiTracks(o);
   trailActorAt(o,G.y);addObj(o);
 }
 function mogulValley(y){return 120+28*Math.sin(y/460);}
@@ -1387,17 +1472,22 @@ function rollerSection(y,diff){
   if(section%2===0){
     const side=section%4===0?1:-1,marker=y+1040;
     addTrailActor('mogulYeti',marker,side);
-    addYetiTracks(P,marker,side);
+
   }
   for(let r=0;r<12;r++){
     const row=y+150+r*175;
-    if(r%2===0)addObj({type:'sideNet',x:section%2?-10:410,y:row});
+
     if(r%3===0){
       addObj({type:'coin',x:mogulValley(row),y:row,r:9});
-      for(const x of [22,378])addObj({type:'stageProp',theme:'moguls',x,caption:x<200?'ЛОЖБИНА':'ГРЕБНИ',y:row});
+
     }
     addObj({type:'coin',x:r%2?255:285,y:row,r:9});
   }
+  if(section%4===1){
+    const marker=y+920,side=courseRoll(G.seed??19,section,68)<.5?-1:1;
+    addObj({type:'tube',x:200+side*100,y:marker,marker,side,variant:variants[section%4],
+      phase:.5,releaseY:marker-760,vStart:18,vCruise:76,tau:2,span:255,from:112,to:28});
+  }else if(section%4===3)addSkier(y+890,265,64,{sb:true,amp:23,ph:section,lessonStart:y+890});
   return P.y1-y+60;
 }
 const PARK_LINES=[
@@ -1448,8 +1538,11 @@ function parkSection(y,shortTier){
   target(reward,trickLine?.55:.68,0,trickLine);target('coin',.82,0,trickLine);
   // An occasional low box offers a separate ground line.
   if(tier===0)addObj({type:'rail',x:200-side*103,y:rampY+90,w:44,len:190,hh:.65});
-  const caption=prizeLine?'ДВА ТРЮКА':trickLine?'ТАП В ВОЗДУХЕ':['МАЛЫЙ','СРЕДНИЙ','БОЛЬШОЙ'][tier];
-  for(const sx of [28,372])addObj({type:'stageProp',theme:'park',x:sx,y:y+45,caption});
+  if(shortTier==null&&section%3!==2){
+    // Leave both the lip and the landing clear; riders use the outside lane.
+    addSkier(y+640,200-side*133,48,{sb:section%3===1,amp:14,ph:n,lessonStart:y+640});
+    if(section%6===4)addObj({type:'mogul',x:200+side*133,y:y+1080,r:12});
+  }
   return 1500;
 }
 // Authored 75 m sections keep every restart playable and give each choice a clear approach.
@@ -1500,7 +1593,7 @@ function initBonus(kind){
 function mountPlayerTube(){
   if(G.tubing.model)scene.remove(G.tubing.model);
   const index=(hero==='owl'?2:0)+Math.floor(courseRoll(G.seed,0,75)*2);
-  G.tubing.model=FACT.tube({variant:variants[index]});scene.add(G.tubing.model);
+  G.tubing.model=FACT.tube({variant:variants[index]});G.tubing.model.scale.setScalar(.84);scene.add(G.tubing.model);
 }
 function sledSection(y){
   const row=G.sled.rows++,lanes=[135,200,265];
@@ -1510,7 +1603,7 @@ function sledSection(y){
   const x=lanes[courseRoll(G.seed,phase,87)<.5?lane:2-lane];
   if(row===0||row===9||row===18)addObj({type:'stageProp',theme:'forest',x:45,y:y+200,caption:['ДОСТАВКА','СЛАЛОМ','ПОДАРКИ'][phase]});
   for(let i=0;i<3;i++)addObj({type:'coin',x,y:y+100+i*75,r:9});
-  addObj({type:row%3===2?'gift':'snowman',x,y:y+370,r:16,cd:Infinity});
+  addObj({type:row%3===2?'gift':'snowman',x,y:y+370,r:16,cd:0});
   if(phase===2)addObj({type:'gift',x:lanes[(lanes.indexOf(x)+1)%3],y:y+510,r:12});
   G.nextY+=620;
 }
@@ -1534,6 +1627,7 @@ function streamLandmarks(){
     }else if(id.startsWith('rock'))addObj({type:'rock',x,y,rockWide:id==='rockA',r:16});
     else if(id.startsWith('mound'))addObj({type:'mogul',x,y,profile:'ABC'.indexOf(id.at(-1)),r:12});
     else if(id.startsWith('fence'))addObj({type:'fence',x,y,x1:x-39,x2:x+39,fenceStyle:'ABC'.indexOf(id.at(-1))});
+    else if(id==='aid')addRescue(y,x);
     else if(id==='dog')addObj({type:'dog',x,y,vx:50,baseY:y,r:14});
     else addObj({type:id,x,y,r:12,w:60,hh:.75,cd:0});
   }
@@ -1561,7 +1655,7 @@ function spawnSeg(){
   if(G.sled){sledSection(y);return;}
   if(G.sprint){sprintSection(y);return;}
   if(G.mode==='menu'){addGate(y,diff);G.nextY+=len;return;}
-  const fixedRows=G.seed!=null&&(sn===0||st.forest||st.park);
+  const fixedRows=G.seed!=null&&(sn%8===0||st.forest||st.park||st.moguls||sn%8===5||sn%8===6);
   if(sn!==G.lastSpawnStage){G.lastSpawnStage=sn;if(sn>0&&!fixedRows&&!st.moguls){G.nextY+=140;return;}}
   if(sn%8===4&&d-sn*STAGE_LEN<75){
     const landmarkY=(sn*STAGE_LEN+55)*20;
@@ -1572,9 +1666,31 @@ function spawnSeg(){
   if(fixedRows&&G.letter&&!G.letterObj&&d>=G.letterAt){
     const o={type:'letter',x:200,y:y+150,ch:G.letter.ch,air:false,r:14};addObj(o);G.letterObj=o;
   }
-  if(sn===0&&G.seed!=null){
+  if((sn%8===5||sn%8===6)&&G.seed!=null){
+    const start=sn*STAGE_LEN*20,row=Math.floor((y-start)/1800),side=(row%2?1:-1)*(courseRoll(G.seed,sn,98)<.5?-1:1);
+    const remaining=start+STAGE_LEN*20-y;
+    if(remaining>=1700){
+      if(sn%8===6){
+        if(row%4===2)addObj({type:'cat',x:200+side*83,y:y+1160,vy:-48,w:76,h:120});
+        else addTrailActor('mogulYeti',y+880,side);
+      }else{
+        // Three offset rock islands. The fruit mark the open line well before each switch.
+        for(let j=0;j<3;j++){
+          const turn=(j%2?-1:1)*side,at=y+360+j*525,open=200-turn*63;
+          addObj({type:'rock',x:200+turn*23,y:at,r:20,rockWide:true});
+          addObj({type:j===1?'mogul':'rock',x:200+turn*103,y:at+67,r:15});
+          coinTrail(open,at-190,3,73);
+        }
+      }
+    }
+    G.nextY+=Math.min(remaining,1800);return;
+  }
+  if(sn%8===0&&G.seed!=null){
     for(const side of [-1,1])addObj({type:'boundaryPole',x:200+side*196,y:y+170});
-    const n=Math.floor(y/ROW);for(const o of trainingRow(G.seed,n)){
+    const n=Math.floor(y/ROW);
+    if(n%8===1)addObj({type:'cannon',x:n%16===1?38:362,y:y+420,r:14});
+    if(n%12===4)addRescue(y+780,94);
+    for(const o of trainingRow(G.seed,n)){
       if(o.type==='npc'){addSkier(o.y,o.x,o.vy,o);continue;}
       if(o.type==='tube'||o.small)trainingActorAt(o,G.y);
       addObj(o);
@@ -1582,7 +1698,7 @@ function spawnSeg(){
   }
   if(d<16){for(let i=0;i<3;i++)addObj({type:'coin',x:200,y:y+i*40,r:9});G.nextY+=len;return;}
   // буква коллекции — своё место, без помех
-  if(G.letter&&!G.letterObj&&d>=G.letterAt){spawnLetter(y);G.nextY+=260;return;}
+  if(!fixedRows&&G.letter&&!G.letterObj&&d>=G.letterAt){spawnLetter(y);G.nextY+=260;return;}
   // После длинного свободного участка нужен повод повернуть; камень заранее виден, мандаринки показывают объезд.
   const laneDue=y-(G.lastLaneY??0)>=Math.max(2400,(G.speed||240)*10);
   let k=st.forest?'forestTrail':st.moguls?'rollers':st.park?'parkLine':laneDue?'lane':pickMix(st.mix);
@@ -1605,7 +1721,7 @@ function spawnSeg(){
     case 'skier':addSkier(y,rnd(80,320),rnd(95,140));break;
     case 'sit':{const x=rnd(70,330);addSkier(y,x,0,{sit:true,amp:0});break;}
     case 'walk':{const left=Math.random()<.5;addSkier(y,left?rnd(26,40):rnd(360,374),-30,{walker:true,amp:0});break;}
-    case 'help':{const left=Math.random()<.5;const x=left?rnd(40,60):rnd(340,360);addSkier(y,x,0,{sit:true,amp:0,hurt:true});addObj({type:'aid',x:x+(left?34:-34),y,r:12});break;}
+    case 'help':addRescue(y,Math.random()<.5?83:317);break;
     // сноубордист едет «змейкой» поперёк склона (иногда мальчик)
     case 'board':{const kid=Math.random()<0.35;addSkier(y,rnd(120,280),kid?rnd(90,120):rnd(110,155),{sb:true,kid,amp:rnd(55,90),w:rnd(0.85,1.25),flip:Math.random()<0.5});break;}
     // урок сноуборда у края трассы: дети полукругом, тренер ниже по склону лицом к ним
@@ -1673,6 +1789,7 @@ function addGate(y,diff){const gap=Math.round(112-diff*44);let gx=G.lastGateX+(M
 function coinLine(y){if(Math.random()<0.35)return;let x=rnd(70,330);const dx=rnd(-14,14);for(let i=0;i<3;i++){addObj({type:'coin',x:clamp(x,40,360),y:y+i*32,r:9});x+=dx;}}
 
 // ================= INPUT =================
+const inputLimit=()=>courseWidth((G?.y||0)/20)/(2*U)+42;
 let menuYaw=0,menuVel=0,menuDrag=null;
 {const mn=document.getElementById('menu');const okT=e=>e.target===mn||e.target.classList.contains('logo')||e.target.id==='bubble'||e.target.id==='spinHint';
  mn.addEventListener('pointerdown',e=>{if(!okT(e))return;menuDrag={x:e.clientX};menuVel=0;try{mn.setPointerCapture(e.pointerId);}catch(_){}});
@@ -1682,7 +1799,7 @@ let drag=null;const keys={};
 // Палец управляет только рулением и трюками. Скорость автоматическая; отпускание сохраняет мировое направление.
 cv.addEventListener('pointerdown',e=>{e.preventDefault();initAudio();if(!G||G.mode!=='play')return;const now=performance.now();
   G.tx=G.p.x;drag={sx:e.clientX,sy:e.clientY,spx:G.p.x,rx:e.clientX,ry:e.clientY,rt:now,t0:now,air:G.p.air>0,swiped:false};try{cv.setPointerCapture(e.pointerId);}catch(_){}});
-cv.addEventListener('pointermove',e=>{if(!drag||!G)return;G.tx=clamp(drag.spx+(e.clientX-drag.sx)/S*1.35*sensK(),22,378);
+cv.addEventListener('pointermove',e=>{if(!drag||!G)return;G.tx=clamp(drag.spx+(e.clientX-drag.sx)/S*1.35*sensK(),200-inputLimit(),200+inputLimit());
   if(G.mode==='play'&&G.p.air>0&&G.p.trick<=0){const now=performance.now();if(now-drag.rt>260){drag.rx=e.clientX;drag.ry=e.clientY;drag.rt=now;}
     const mx=e.clientX-drag.rx,my=e.clientY-drag.ry,md=Math.hypot(mx,my);
     const pick=big=>Math.abs(my)>Math.abs(mx)?(my<0?(big?7:1):(big?2:5)):(mx<0?(big?4:3):(big?6:0));
@@ -1761,14 +1878,15 @@ function update(dt){
   if(snNow!==G.stage){if(G.stage>=0){banner('Этап '+(snNow+1)+': '+stNow.name,stNow.sub);SFX.chime();voice('stage');}G.stage=snNow;if(snNow+1>save.meet.bestStage){save.meet.bestStage=snNow+1;persist();}}
   const Zn=ZONES[zi];
   if(!G.bonusRide){chaseTick(dt);if(G.mode!=='play')return;chalTick();}
-  if(zi===4||zi===5){G.fw=(G.fw||0)-dt;if(G.fw<0){G.fw=rnd(0.5,1.2);const fx=rnd(-14,14),fz=Z(G.y)-rnd(35,55),fy=Hz(fz)+rnd(14,22);const col=['#ff4d6d','#ffd60a','#4cc9f0','#80ffdb','#ff9f1c'][Math.floor(Math.random()*5)];
-    for(let i=0;i<28;i++){const a=Math.random()*6.283,b=Math.random()*3.14;const v=rnd(4,7);emit(fx,fy,fz,Math.cos(a)*Math.sin(b)*v,Math.cos(b)*v+4,Math.sin(a)*Math.sin(b)*v,rnd(0.8,1.3),0.12,col);}if(Math.random()<0.6)noise(0.4,0.12,'lowpass',500,120,0.7,0.1);}}
+  if(zi===4){G.fw=(G.fw||0)-dt;if(G.fw<0){G.fw=rnd(0.5,1.2);const fx=rnd(-21,21),fz=Z(G.y)-rnd(55,82),fy=Hz(fz)+rnd(18,27);const col=['#ff4d6d','#ffd60a','#4cc9f0','#80ffdb','#ff9f1c'][Math.floor(Math.random()*5)];
+    for(let i=0;i<28;i++){const a=Math.random()*6.283,b=Math.random()*3.14;const v=rnd(4,7);emit(fx,fy,fz,Math.cos(a)*Math.sin(b)*v,Math.cos(b)*v+4,Math.sin(a)*Math.sin(b)*v,rnd(0.8,1.3),0.23,col);}if(Math.random()<0.6)noise(0.4,0.12,'lowpass',500,120,0.7,0.1);}}
   G.wind=Zn.blizz?Math.sin(G.t*0.55)*75+Math.sin(G.t*1.7)*25:0;
-  if(keys.ArrowLeft||keys.a)G.tx=clamp(p.x-70,22,378);
-  if(keys.ArrowRight||keys.d)G.tx=clamp(p.x+70,22,378);
-  G.tx=clamp(G.tx+G.wind*dt*0.5,22,378);
+  if(keys.ArrowLeft||keys.a)G.tx=clamp(p.x-70,200-inputLimit(),200+inputLimit());
+  if(keys.ArrowRight||keys.d)G.tx=clamp(p.x+70,200-inputLimit(),200+inputLimit());
+  G.tx=clamp(G.tx+G.wind*dt*0.5,200-inputLimit(),200+inputLimit());
   if(p.fall>0){G.tx=p.x;const ft=1-p.fall/FALL_T;if(!p.fallB&&ft>0.36){p.fallB=1;SFX.land();burst3(X(p.x),0.3,Z(G.y),26,'#ffffff',5);}}
-  const steerK=(p.air>0?0.45:1)*(G.tubing?.76:h.steer)*(p.wob>0?0.5:1)*(p.fall>0?0:1);
+  const rough=stNow.moguls&&!p.air?Math.min(1,mogAt(p.x,G.y)/1.05):0;
+  const steerK=(1-.38*rough)*(p.air>0?0.45:1)*(G.tubing?.76:h.steer)*(p.wob>0?0.5:1)*(p.fall>0?0:1);
   const sk=sensK();const want=clamp((G.tx-p.x)*(3+5*sk),-430*Math.sqrt(sk),430*Math.sqrt(sk))*steerK;
   const steering=COURSE_REVIEW||!!drag||keys.ArrowLeft||keys.a||keys.ArrowRight||keys.d;
   const heading=courseHeading(-dist);if(p.travelHeading==null)p.travelHeading=heading;
@@ -1778,9 +1896,16 @@ function update(dt){
   else{p.vx=G.tubing?p.vx*Math.exp(-2.4*dt):0;p.curveSlip=clamp(Math.tan(clamp(heading-p.travelHeading,-0.7,0.7))*G.speed,-320,320);}
   if(p.fall>0){p.vx=0;p.curveSlip=0;p.travelHeading=heading;}
   if(p.air>0&&steering)p.curveSlip=0;
-  p.x=clamp(p.x+(p.vx+G.wind*0.5+p.curveSlip)*dt,20,380);
+  const rut=rough?clamp((mogAt(p.x-4,G.y)-mogAt(p.x+4,G.y))/(8*U)*135,-86,86):0;
+  const edgeX=courseWidth(dist)/(2*U),limit=edgeX+32;
+  p.x=clamp(p.x+(p.vx+G.wind*.5+p.curveSlip+rut)*dt,200-limit,200+limit);
   p.ang+=(clamp((p.vx+p.curveSlip*0.5)/430,-1,1)-p.ang)*Math.min(1,dt*10);
-  if((p.x<=20||p.x>=380)&&!(p.fall>0)&&!COURSE_REVIEW&&!G.bonusRide){p.travelHeading=heading;p.x=p.x<200?25:375;hit('edge',null);if(G.mode!=='play')return;}
+  if(Math.abs(p.x-200)>=limit-.01&&!p.fall&&!COURSE_REVIEW){
+    hit('edge',null);if(G.mode!=='play')return;
+    p.returnFrom=p.x;p.travelHeading=heading;p.vx=p.curveSlip=0;
+  }
+  if(p.returnFrom!=null){const t=clamp((1-p.fall/FALL_T)*1.7,0,1);
+    p.x=G.tx=lerp(p.returnFrom,200,t*t*(3-2*t));if(t===1)p.returnFrom=null;}
   for(const k of['boost','magnet','slow','wob','inv','fall'])if(p[k]>0)p[k]=Math.max(0,p[k]-dt);
   // бугры: едем по рельефу; если гребень уходит вниз быстрее, чем тянет гравитация, — отрываемся и подпрыгиваем
   // скорость по наклону бугра вдоль движения (а не по скачку высоты за кадр — он давал «улёт в небо»), с ограничением
@@ -1831,16 +1956,22 @@ function update(dt){
       const clearance=o.type==='snowmobile'?38:22;
       const width=o.type==='snowmobile'?22:29;
       if(before<=clearance&&after>=-clearance&&Math.abs(lerp(oldX,p.x,crossing)-lerp(prevX,o.x,crossing))<width&&
-         (!p.air||flightHeight(p,py)<(o.type==='snowmobile'?1.8:2.7)))hit(o.type,o);
+         Math.abs((p.air?flightHeight(p,py):0)-(o.jump||0))<(o.type==='snowmobile'?1.8:2.7))hit(o.type,o);
       if(o.type==='mogulYeti'&&!o.dead&&!G.yetiRun&&!COURSE_REVIEW&&G.mode==='play'&&before<=clearance&&after>clearance){
         G.yetiRun=true;save.meet.yeti++;persist();
       }
     }
-    if(o.type==='dog'){o.x+=o.vx*dt;if(o.x<-10||o.x>410)o.dead=true;}
+    if(o.type==='dog'){
+      o.startX??=o.x;o.baseY??=o.y;o.age=(o.age||0)+dt;
+      const side=o.startX<200?1:-1,t=o.age,ph=courseRoll(G.seed??19,Math.round(o.baseY),86)*6.28;
+      const x=o.startX+side*(48+40*Math.sin(t*1.6+ph)+25*Math.sin(t*.67+ph))*(1-Math.exp(-t*1.5));
+      const y=o.baseY+34*(Math.sin(t*1.2+ph)-Math.sin(ph))+19*t;
+      o.dogYaw=Math.atan2(o.x-x,y-o.y);o.x=x;o.y=y;
+    }
     if(o.type==='ball'){o.x+=o.vx*dt;o.h=Math.max(0,o.h-dt*0.3);if(o.x<-10||o.x>410)o.dead=true;}
-    if(o.type==='snowman'&&!G.sled&&!o.quiet){
+    if(o.type==='snowman'){
       const ahead=o.y-py,side=o.x<200?1:-1;
-      o.cd-=dt;
+      o.cd=(o.cd??0)-dt;
       if(o.windup>0){
         o.windup-=dt;
         if(o.windup<=0&&ahead>10){
@@ -1856,7 +1987,7 @@ function update(dt){
     if(o.type==='cat'&&!o.small){o.y+=o.vy*dt;if(!o.warned&&o.vy<0&&o.y>py&&o.y-py<900){o.warned=true;banner('⚠ РАТРАК НАВСТРЕЧУ','уходи с его полосы','warn');SFX.warn();}}
     const dx=p.x-o.x,dy=py-o.y,dd=Math.hypot(dx,dy);
     switch(o.type){
-      case 'tube':if(!p.air&&Math.hypot(dx,dy)<26)hit('tube',o);break;
+      case 'tube':if(!p.air&&Math.hypot(dx,dy)<22)hit('tube',o);break;
       case 'airRing':
         if(!o.passed&&(!o.needsTrick||(p.parkFlight?.trickLine&&p.spin>=1))&&crossAirTarget(o,p,oldX,o.radius-.1)){
           o.passed=true;G.rings++;const pts=o.points*mult();
@@ -1966,13 +2097,13 @@ function animObjs(dt){
     }
     if(o.type==='mogulYeti'){
       const phase=o.stride*Math.PI*10,step=Math.sin(phase);
-      m.position.y+=.14*Math.abs(step);
-      m.rotation.set(.04,o.side*(Math.PI-.95)+step*.11,step*.055,'YXZ');
+      m.position.y+=(o.jump||0)+.14*Math.abs(step);
+      m.rotation.set(.04,(o.yaw||0)+step*.06,step*.055,'YXZ');
       m.userData.arms.forEach((arm,i)=>{if(arm)arm.rotation.x=step*(i?-.57:.57);});
       if(m.userData.arm)m.userData.arm.rotation.x=step*.55;
     }
     if(o.type==='snowman')m.rotation.y=(o.variant?0:Math.PI)+(o.x<200?.35:-.35);
-    if(o.type==='dog'){const d=m.userData.dog;d.position.y=Math.abs(Math.sin(G.t*14))*(m.userData.mixer?0.035:0.12);d.userData.legs.forEach((l,i)=>l.rotation.x=Math.sin(G.t*14+i*1.6)*0.7);}
+    if(o.type==='dog'){const d=m.userData.dog;if(o.dogYaw!=null)d.rotation.y=o.dogYaw;d.position.y=Math.abs(Math.sin(G.t*14))*(m.userData.mixer?0.035:0.12);d.userData.legs.forEach((l,i)=>l.rotation.x=Math.sin(G.t*14+i*1.6)*0.7);}
     if(m.userData.arm&&o.type==='snowman')m.userData.arm.rotation.x=o.thrown>0?-2.2:o.windup>0?1.25:-0.2;
     if(o.type==='yeti'&&m.userData.arm)m.userData.arm.rotation.z=m.userData.yetiSide*(-2.4+Math.sin(G.t*8)*0.5);
     if(m.userData.worldArm){const a=m.userData.worldArm,s=m.userData.worldArmSide;if(o.type==='snowman'){a.rotation.z=s*(o.thrown>0?1.15:o.windup>0?1.8:0.06);a.rotation.y=s*(o.thrown>0?-0.7:o.windup>0?.65:0);}else if(o.type==='yeti')a.rotation.z=s*(1.5+Math.sin(G.t*8)*0.25);}
@@ -1983,7 +2114,7 @@ function animObjs(dt){
       poseTube(m,o.yaw,o.lean,o.compression+Math.min(.28,Math.abs(slopeChange)*7));
     }
     if(o.type==='cat')m.rotation.x=-coursePitch(X(o.x),oz);
-    if(m.userData.cannon&&Math.random()<0.6){const s=m.userData.cannon;emit(m.position.x+s*0.9,og+3.2,oz,s*rnd(3,6),rnd(0,2),rnd(-1,1),1.2,rnd(0.05,0.1),'#ffffff');}
+    if(dt>0&&m.userData.cannon&&Math.random()<1-Math.exp(-38*dt)){const s=m.userData.cannon;emit(m.position.x+s*.62,og+1.95,oz,s*rnd(6,9),rnd(2.2,3.6),rnd(-.7,.7),1.25,rnd(0.05,0.1),'#ffffff');}
     if(o.type==='npc')animNpc(o,m);
     if(m.userData.wobble){m.rotation.y=Math.sin(G.t*2.5+o.x)*0.6;m.position.y=og+m.userData.baseY+Math.sin(G.t*3+o.x)*0.08;}
     if(m.userData.spin){m.rotation.y+=dt*2.5;m.position.y=og+m.userData.baseY+Math.sin(G.t*3+o.x)*0.08;}
@@ -1995,10 +2126,7 @@ function animObjs(dt){
       aura.material.opacity=o.passed?.32:.88+.12*Math.sin(G.t*2.4);
       m.userData.hoop.material.color.setHex(o.passed?0x91ffd4:m.userData.rimColor);
     }
-    if(o.type==='gate'){
-      if(m.userData.halo){const a=o.done?(o.ok?0.18:0.04):0.58+0.12*Math.sin(G.t*2.5-o.y*0.003);m.userData.halo.material.opacity=a;
-        m.userData.light.material.opacity=o.done?.16:.92+.08*Math.sin(G.t*2.5-o.y*.003);
-        m.userData.halo.material.color.set(o.done&&o.ok?0x8ae9ad:0xffd46a);m.userData.gateDisc.material.opacity=o.done?0.05:0.4;}}
+    if(o.type==='gate')m.userData.gateDisc.material.opacity=o.done?.05:.36;
     if(o.type==='cat')m.traverse(c=>{if(c.userData.beacon)c.visible=Math.sin(G.t*12)>0;});
     if(m.userData.gate)m.traverse(c=>{if(c.userData.flap)c.rotation.y=Math.sin(G.t*5+o.y)*0.25;});
     coursePoint(m.position,X(o.x),m.position.y,oz);objectFrame(o);
@@ -2081,14 +2209,14 @@ function syncWorld(dt){
       const gap=(1+Math.cos(td*(Math.PI*2/46)+t.side*1.9+(G.seed??0)%23))*.5;
       const boundary=Math.round(td/STAGE_LEN)*STAGE_LEN-td;
       const approach=boundary>=-12&&boundary<=85;
-      offset=approach?25+t.off*.35:(dense?11.8:15)+t.off*.55+gap*(dense?11:7);
+      offset=approach?24+t.off*.73:(dense?18.5:20)+t.off*.80+gap*3.1;
       size=t.s*(dense?1.17:1)*(1-.42*gap);
     }
-    t.userData.x=t.side*Math.min(35.5,offset);
+    t.userData.x=t.side*offset;
     tmpE.set(0,t.rot,0);tmpQ.setFromEuler(tmpE);tmpM.compose(courseGround(tmpP,t.userData.x,t.userData.z,-.08),tmpQ,tmpS.set(size,size,size));forestIM[t.kind].setMatrixAt(t.idx,tmpM);}
   forestIM.forEach(im=>im.instanceMatrix.needsUpdate=true);
   const night=G.tubing?0:env.glow;
-  for(const l of lamps){if(l.userData.z>pz+18)l.userData.z-=180;const z=l.userData.z;courseGround(l.position,l.userData.side*11.6,z);l.rotation.y=courseHeading(z);}
+  for(const l of lamps){if(l.userData.z>pz+18)l.userData.z-=180;const z=l.userData.z;courseGround(l.position,l.userData.side*11.6,z);styleLamp(l,courseTheme(-z).stage);l.rotation.y=courseHeading(z)+Math.PI/2;}
   beamMat.opacity=night*0.35;
   if(night>0.3){const near=lamps.filter(l=>l.userData.z<pz+6&&l.userData.z>pz-50).sort((a,b)=>Math.abs(a.userData.z-pz+12)-Math.abs(b.userData.z-pz+12));
     lampLights.forEach((L,i)=>{const l=near[i];if(!l){L.intensity=0;return;}l.updateMatrixWorld(true);L.position.set(l.userData.bx,4.6,0);l.localToWorld(L.position);L.intensity=night*45;});}
@@ -2209,7 +2337,7 @@ function drawHUD(){
 
 // ================= FLOW =================
 function clearWorld(){landingSpray.visible=false;lift.visible=true;tubeSky.visible=false;for(const lamp of lamps)lamp.visible=true;if(G?.tubing?.model)scene.remove(G.tubing.model);dropMogPatches(true);if(G)for(const o of G.objs)release(o);for(let i=0;i<TRACKN;i++){tmpM.makeScale(0,0,0);trackMesh.setMatrixAt(i,tmpM);}trackMesh.instanceMatrix.needsUpdate=true;
-  for(const t of forest){t.userData.z=-rnd(-15,170);t.userData.x=0;}lamps.forEach((l,i)=>l.userData.z=-Math.floor(i/2)*30-(l.userData.side>0?15:0));towers.forEach((t,i)=>t.userData.z=-i*35);}
+  for(const t of forest){t.userData.z=-t.slot;t.userData.x=0;}lamps.forEach((l,i)=>l.userData.z=-Math.floor(i/2)*30-(l.userData.side>0?15:0));towers.forEach((t,i)=>t.userData.z=-i*35);}
 const SPRINT_METERS=1200;
 function startGame(sprint=false,ride=null){const sled=ride==='sled';if((sled&&!sledUnlocked())||(ride==='tubing'&&!save.meet.prizeFeather))return;initAudio();if(!trackReady||HEROMODELS[hero].motionStatus!=='ready'||(sled&&!playerSled.children.length))return waitForAssets(()=>Promise.all([loadTrackAssets(),sled?loadPlayerSled():null]),()=>startGame(sprint,ride));music('run');hideToast();clearWorld();G=newGame('play');last=performance.now();G.seed=sprint?null:pickSeed();useCourse(G.seed,ride==='tubing');if(G.seed!=null){reviewSeed=G.seed;G.nextY=0;}G.sprint=sprint;
   if(ride){initBonus(ride);banner(sled?'Сбивай снеговиков и собирай подарки':'Собирай мандаринки и проходи ворота','','gold');}
@@ -2413,7 +2541,7 @@ function reviewContact(){
 }
 function reviewSeek(d){if(!trackReady||HEROMODELS[hero].motionStatus!=='ready'||(reviewRide==='sled'&&!playerSled.children.length))return waitForAssets(()=>Promise.all([loadTrackAssets(),reviewRide==='sled'?loadPlayerSled():null]),()=>reviewSeek(d));d=clamp(Number(d)||0,0,reviewRide==='sprint'?1199:reviewRide?1161:19999);const playing=G?.mode==='play';clearWorld();hideToast();G=newGame(playing?'play':'pause');
  G.seed=reviewSeed;useCourse(reviewSeed,reviewRide==='tubing');G.y=G.prevY=d*20;G.stage=G.lastSpawnStage=stageAt(d);G.nextY=Math.max(G.stage*STAGE_LEN*20,G.y-500);G.nextChaseD=Infinity;G.p.x=G.tx=reviewX;G.p.travelHeading=courseHeading(-d);
- const st=stageDef(G.stage),span=G.stage===0?ROW:st.forest?1000:st.park?1500:st.moguls?2340:0,start=G.stage*STAGE_LEN*20;
+ const st=stageDef(G.stage),span=G.stage===0?ROW:st.forest?1000:st.park?1500:st.moguls?2340:G.stage%8===5||G.stage%8===6?1800:0,start=G.stage*STAGE_LEN*20;
  if(reviewRide==='sprint'){G.sprint=true;G.nextY=Math.max(0,Math.floor(G.y/1500)-1)*1500;}
  else if(reviewRide){initBonus(reviewRide);G.bonusRide.elapsed=(Math.sqrt(270**2+2*(80/75)*G.y)-270)/(80/75);G.t=G.bonusRide.elapsed;G.speed=270+80*G.t/75;const row=reviewRide==='sled'?620:660;G.nextY=Math.max(0,Math.floor(G.y/row)-1)*row;G.bonusRide.rows=G.nextY/row;}
  else {

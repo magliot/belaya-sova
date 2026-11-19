@@ -63,6 +63,29 @@ window.ordinary={
       const d=G.y/20;
       const next=G.objs.find(o=>!o.dead&&o.y>G.y-30&&o.y<G.y+420&&['tube','cat','snowman'].includes(o.type));
       G.tx=next?200-Math.sign(next.x-200)*48:200;
+      if(d>=2480){
+        const hazards=G.objs.filter(o=>!o.dead&&o.m&&['tree','npc','snowmobile','mogulYeti','tube','rock'].includes(o.type)&&o.y-G.y>-45&&o.y-G.y<510);
+        // Choose a reachable lane; do not grant helmets or disable collisions.
+        let best=Infinity;
+        // Compare candidate steering inputs at their predicted time of arrival.
+        for(let x=66;x<=334;x+=12){
+          let cost=Math.abs(x-200)*.08+Math.abs(x-G.p.x)*.035;
+          for(const o of hazards){
+            const t=Math.max(0,(o.y-G.y)/Math.max(160,G.speed-(o.vy||0)));
+            let px=o.x;
+            if(o.type==='mogulYeti'||o.type==='snowmobile'){const p={...o,prints:null};trailActorAt(p,G.y+G.speed*t);px=p.x;}
+            if(o.type==='npc')px=o.bx+Math.sin((G.t+t)*(o.w||1.3)+o.ph)*o.amp;
+            if(o.type==='tube'){const p={...o};trainingActorAt(p,G.y+G.speed*t,t,G.y);px=p.x;}
+            const safe=o.type==='tree'?o.r*o.s+22:47;
+            let projected=G.p.x,v=G.p.vx;
+            for(let at=0;at<t;at+=.05){const dt=Math.min(.05,t-at);
+              v+=(clamp((x-projected)*(3+5*sensK()),-430,430)*HEROES[hero].steer-v)*Math.min(1,dt*(5+6*sensK()));
+              projected+=(v+(G.p.curveSlip||0))*dt;}
+            cost+=Math.max(0,safe-Math.abs(projected-px))**2*10/(.2+t)**2;
+          }
+          if(cost<best){best=cost;G.tx=x;}
+        }
+      }
       update(1/60);frameCount++;
       const closeLook=spans.some(([a,b])=>d>=a&&d<b);
       const filming=record&&closeLook;
@@ -118,7 +141,7 @@ window.ordinary={
       const stages=end>7000?3:1;
       assert.deepEqual(r.arches,Array.from({length:stages},(_,n)=>(n+1)*2500));
       assert(r.signs.length===stages&&r.signs.every(s=>s.lastTime-s.firstTime>.60&&s.maxPx>21),JSON.stringify(r.signs));
-      assert(r.treeCount>=3&&r.lowestClearance>3.7&&r.maxTreeGap<.15&&Number.isFinite(r.maxTreeGap),JSON.stringify(r));
+      assert(r.treeCount>=3&&(end>7000?r.lowestClearance<1.4:r.lowestClearance<3.7)&&r.maxTreeGap<.15&&Number.isFinite(r.maxTreeGap),JSON.stringify(r));
       assert.equal(r.blockedGates,0);
       if(end>7000)assert(r.forestGates>0);
       console.log('PASS',hero,seed,end,'m, signs:',r.signs.map(s=>[s.label,s.first.toFixed(1),s.last.toFixed(1)]));

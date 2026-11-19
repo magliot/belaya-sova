@@ -35,7 +35,7 @@ export function trainingRow(seed,n){
   obj('gate',open,offset,{gap:118,col:n%2});coins(open,offset-160,3);
  }else if(kind==='snowman'){
   const costume=n%12===2?Math.floor(n/12):Math.floor(r(8)*3);
-  obj('snowman',200+side*108,offset,{variant:['snow26A','snow26B','snow26C'][(costume+seed)%3],r:12,quiet:true});coins(open,offset-160,3);
+  obj('snowman',200+side*108,offset,{variant:['snow26A','snow26B','snow26C'][(costume+seed)%3],r:12,cd:0});coins(open,offset-160,3);
  }else{
   coins(200,280,6);
   if(n===4||r(11)<.48)obj(n===4||r(12)<.4?'helmet':'magnet',200,685,{r:10});
