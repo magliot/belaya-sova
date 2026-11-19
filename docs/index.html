@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 // Telegram держит старую копию игры: сверяем версию с сервером и при расхождении перезагружаемся (один раз)
-(function(){var VER='2026-11-19a',h=location.hash;
+(function(){var VER='2026-11-19b',h=location.hash;
   fetch('version.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();
     if(!v||v===VER)return;var k='bsova_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
     var q=new URLSearchParams(location.search);q.set('v',v);location.replace(location.pathname+'?'+q.toString()+h);}).catch(function(){});})();
@@ -15,7 +15,7 @@
 <link rel="modulepreload" href="vendor/three/build/three.module.min.js">
 <link rel="preload" as="image" href="ui/menu_bg.jpg" fetchpriority="high">
 <script defer src="vendor/telegram-web-app.js"></script>
-<script defer src="motion-entry.js?v=2026-11-19a"></script>
+<script defer src="motion-entry.js?v=2026-11-19b"></script>
 <style>
 /* шрифт Rubik лежит рядом с игрой — без Google Fonts и VPN */
 @font-face{font-family:'Rubik';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/rubik-cyrillic-500-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
@@ -330,7 +330,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
 <script type="module">
 import * as THREE from 'three';
 import {raceLight} from './trail-visuals.js?v=2026-11-19a';
-import {attachHeroMotion,poseHeroMotion} from './hero-motion.js?v=2026-11-19a';
+import {attachHeroMotion,poseHeroMotion,boardSurfaceLift} from './hero-motion.js?v=2026-11-19b';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {courseCenter,courseHeading,courseGrade,courseHeight,courseCrossHeight,courseCrossSlope,coursePoint,courseGround,coursePitch,courseSlip,courseWidth,courseTheme} from './course.js?v=2026-11-19a';
@@ -525,10 +525,12 @@ function poseGlb(h,p,mode,t){
     const wave=(G.waveT||0)>0;
     if(h.kind==='bear'){
       // Open the shoulder first. Keep the mitten outside the jacket throughout the greeting.
-      const lift=wave?Math.min(1,(1.6-G.waveT)*5,G.waveT*5):0;
-      rotB(h,'LeftArm',-.08,0,.12);
-      rotB(h,'RightArm',-.05-.05*lift,0,-.30-.77*lift);
-      rotB(h,'RightForeArm',-.09-.20*lift,0,-(.42+.14*Math.sin(t*8))*lift);
+      const progress=wave?clamp(Math.min((1.6-G.waveT)*3.2,G.waveT*3.2),0,1):0;
+      const lift=progress*progress*(3-2*progress);
+      rotB(h,'LeftArm',-.12,0,.25);
+      rotB(h,'LeftForeArm',-.20,0,0);
+      rotB(h,'RightArm',-.12-.08*lift,0,-.25-.84*lift);
+      rotB(h,'RightForeArm',-.20-.18*lift,0,-(.38+.16*Math.sin(t*8))*lift);
     }
     else{const f=wave?Math.sin(t*14)*0.5:Math.sin(t*2.5)*0.08;rotB(h,'LeftArm',0,0,0.15+f);rotB(h,'RightArm',0,0,-0.15-f);}
   }else if(h.kind==='bear'){
@@ -1812,6 +1814,16 @@ function collectLetter(o,dist){
 const v3=new THREE.Vector3();
 const liftA=new THREE.Vector3(),liftB=new THREE.Vector3(),liftDelta=new THREE.Vector3(),liftUp=new THREE.Vector3(0,1,0);
 function liftAnchor(out,u,z){courseGround(out,u,z,TOP-0.2);out.y=courseHeight(-z)+courseCrossHeight(15.4,z)+TOP-0.2;return out;}
+const boardSurface=new THREE.Vector3(),boardAcross=new THREE.Vector3(),boardAhead=new THREE.Vector3(),boardNormal=new THREE.Vector3();
+function fitBoardToSnow(h,p,x,z){
+  const step=.25,above=p.rampH+p.mh+piste.userData.yOff;
+  courseGround(boardSurface,x,z,above);
+  courseGround(boardAcross,x+step,z,above+mogAt(p.x+step/U,G.y)-p.mh).sub(boardSurface);
+  courseGround(boardAhead,x,z-step,above+p.surfaceSlope*step+mogAt(p.x,G.y+step/U)-p.mh).sub(boardSurface);
+  boardNormal.crossVectors(boardAcross,boardAhead).normalize();
+  // Raise the whole rider so the low edge doesn't disappear into the piste.
+  h.root.position.y+=boardSurfaceLift(h,boardSurface,boardNormal);
+}
 function syncWorld(dt){
   const p=G.p,pz=Z(G.y),px=X(p.x),gy=Hz(pz);
   if(G.mode!=='menu'){
@@ -1850,6 +1862,7 @@ function syncWorld(dt){
    const cy=0.6;pivC.set(0,cy,0).applyEuler(hm.pivot.rotation);hm.pivot.position.set(-pivC.x,cy-pivC.y+(fp?fp.dy:0),-pivC.z);}
   if(hm.glb){if(G.waveT>0)G.waveT=Math.max(0,G.waveT-dt);hm.root.visible=!(p.inv>0&&!p.boost&&!(p.fall>0)&&Math.floor(G.t*14)%2);poseGlb(hm,p,G.mode,G.t);}
   else hm.root.visible=false;
+  if(hero==='owl'&&hm.motion?.active&&G.mode!=='menu'&&!p.air&&!p.hop)fitBoardToSnow(hm,p,px,pz);
 
   if(playerSled.visible||G.sled){
     playerSled.visible=!!G.sled;

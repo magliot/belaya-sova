@@ -14,7 +14,7 @@ html=html.replace("const SKEY='bsova_'","const SKEY='bsova_motion_test_'");
 html=html.replace(/const API_URL=[^;]+;/,"const API_URL='';");
 html=html.replace("function frame(now){","function frame(now){if(window.__motionPause){last=now;requestAnimationFrame(frame);return;}");
 const testUI=`
-loadHero('bear');loadHero('owl');loadTrackAssets();
+loadTrackAssets('bear').catch(()=>{});loadTrackAssets('owl').catch(()=>{});
 const testPanel=document.createElement('div');testPanel.id='motion-test-controls';
 testPanel.style.cssText='position:fixed;bottom:calc(var(--sb, 0px) + 8px);left:max(8px, calc((100vw - 544px)/2));right:max(8px, calc((100vw - 544px)/2));z-index:9999;background:#ffffffeb;padding:8px;border-radius:12px;color:#243f4f;font:11px system-ui';
 testPanel.innerHTML='<div id="motion-test-status" style="margin-bottom:6px">Загрузка новых движений…</div><div style="display:flex;gap:4px;flex-wrap:wrap"><button id="test-bear">Мишаня</button><button id="test-owl">Сова</button><button id="test-ride">Стойка</button><button id="test-left">Влево</button><button id="test-right">Вправо</button><button id="test-air">Прыжок</button><button id="test-land">Посадка</button><button id="test-play">Играть</button></div>';

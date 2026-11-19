@@ -11,8 +11,17 @@ const utils=data(fs.readFileSync(path.join(root,'examples/jsm/utils/BufferGeomet
 const loader=data(fs.readFileSync(path.join(root,'examples/jsm/loaders/GLTFLoader.js'),'utf8').replaceAll("from 'three'",`from '${three}'`).replaceAll("from '../utils/BufferGeometryUtils.js'",`from '${utils}'`));
 const module=data(fs.readFileSync('docs/hero-motion.js','utf8').replaceAll("from 'three'",`from '${three}'`).replaceAll("from 'three/addons/loaders/GLTFLoader.js'",`from '${loader}'`));
 const {attachHeroMotion,poseHeroMotion}=await import(module);
-function withoutTextures(file){
- const b=fs.readFileSync(file),n=b.readUInt32LE(12),j=JSON.parse(b.subarray(20,20+n));
+function studyForNode(kind){
+ const b=fs.readFileSync('docs/models/studies/'+kind+'.glb'),n=b.readUInt32LE(12),j=JSON.parse(b.subarray(20,20+n));
+ const nodes=new Map(j.nodes.map(node=>[node.name,node]));
+ for(const name of kind==='bear'?['Left_Ski','Right_Ski']:['Snowboard']){
+  const deck=j.meshes[nodes.get(name)?.mesh];
+  const top=deck?.primitives.find(p=>j.materials[p.material].pbrMetallicRoughness?.baseColorTexture);
+  assert(top&&top.attributes.TEXCOORD_0!=null,`${kind}: ${name} lost its topsheet artwork`);
+  const profile=j.accessors[top.attributes.POSITION];
+  assert(profile.max[1]-profile.min[1]>=.045,`${kind}: ${name} no longer has lifted ends`);
+ }
+ for(const side of ['Left','Right'])assert(nodes.get(side+'_Binding')?.children?.length>=2,`${kind}: ${side} binding lacks hardware`);
  delete j.materials;delete j.images;delete j.textures;delete j.samplers;
  for(const m of j.meshes)for(const p of m.primitives)delete p.material;
  const bytes=Buffer.from(JSON.stringify(j)),pad=Buffer.alloc(Math.ceil(bytes.length/4)*4,32);bytes.copy(pad);
@@ -20,7 +29,7 @@ function withoutTextures(file){
  glb.write('glTF');glb.writeUInt32LE(2,4);glb.writeUInt32LE(glb.length,8);glb.writeUInt32LE(pad.length,12);glb.writeUInt32LE(0x4e4f534a,16);pad.copy(glb,20);bin.copy(glb,20+pad.length);
  return glb.toString('base64');
 }
-globalThis.window={__MOTION_STUDIES:Object.fromEntries(['bear','owl'].map(k=>[k,withoutTextures('docs/models/studies/'+k+'.glb')]))};
+globalThis.window={__MOTION_STUDIES:Object.fromEntries(['bear','owl'].map(k=>[k,studyForNode(k)]))};
 const results=[];
 for(const kind of ['bear','owl'])for(const fps of [30,60]){
  const holder=new THREE.Group(),original=new THREE.Group();holder.add(original);

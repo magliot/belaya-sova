@@ -4,33 +4,33 @@
     {
       "kind": "bear",
       "fps": 30,
-      "maxContactError": 0.005768097821311393,
-      "maxGripError": 3.279728596386677e-16,
-      "localFootHeightRange": 0.029326508445027155,
+      "maxContactError": 0.005856874119057856,
+      "maxGripError": 3.147889847251034e-16,
+      "localFootHeightRange": 0.029430086017051854,
       "maxScaleError": 0.000002086162567138672
     },
     {
       "kind": "bear",
       "fps": 60,
-      "maxContactError": 0.0059118720215825165,
-      "maxGripError": 3.2701723108674163e-16,
-      "localFootHeightRange": 0.02941665309421493,
+      "maxContactError": 0.0060027476687208895,
+      "maxGripError": 3.297298206504798e-16,
+      "localFootHeightRange": 0.029523086438365875,
       "maxScaleError": 0.000002086162567138672
     },
     {
       "kind": "owl",
       "fps": 30,
-      "maxContactError": 0.007214546554570976,
+      "maxContactError": 0.007214529083372414,
       "maxGripError": 0,
-      "localFootHeightRange": 0.04805408545018694,
+      "localFootHeightRange": 0.04805408559478486,
       "maxScaleError": 0.000004410743713378906
     },
     {
       "kind": "owl",
       "fps": 60,
-      "maxContactError": 0.007479880496113669,
+      "maxContactError": 0.007479860729297878,
       "maxGripError": 0,
-      "localFootHeightRange": 0.04814937083156748,
+      "localFootHeightRange": 0.04814937095529734,
       "maxScaleError": 0.000004410743713378906
     }
   ]

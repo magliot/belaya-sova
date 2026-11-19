@@ -13,11 +13,34 @@ export function motionTime(p,state,t){
  const a=clamp(p.ang||0,-1,1);
  return a>=0?.8+.7*a:2.7+.55*a;
 }
+function boardContactGeometry(model){
+ const deck=model.getObjectByName('Snowboard');if(!deck)return null;
+ const outline=new Map();deck.traverse(mesh=>{
+  const vertices=mesh.geometry?.attributes.position;if(!vertices)return;
+  for(let i=0;i<vertices.count;i++){
+   const point=new THREE.Vector3().fromBufferAttribute(vertices,i);
+   deck.worldToLocal(mesh.localToWorld(point));
+   const key=point.x.toFixed(5)+':'+point.z.toFixed(5);
+   if(!outline.has(key)||outline.get(key).y>point.y)outline.set(key,point);
+  }
+ });
+ return {deck,points:[...outline.values()],sample:new THREE.Vector3()};
+}
+export function boardSurfaceLift(h,surface,normal){
+ const contact=h.motion?.contact;if(!contact||!h.motion.active)return 0;
+ const {deck,points,sample}=contact;deck.updateWorldMatrix(true,false);
+ let clearance=Infinity;
+ for(const point of points){
+  sample.copy(point).applyMatrix4(deck.matrixWorld).sub(surface);
+  clearance=Math.min(clearance,sample.dot(normal));
+ }
+ return Math.max(0,(.006-clearance)/normal.y);
+}
 export async function attachHeroMotion(h){
  const original=h.holder.children[0],loader=new GLTFLoader();h.motionStatus='loading';
  try{
   const embedded=window.__MOTION_STUDIES?.[h.kind];
-  const gltf=embedded?await new Promise((resolve,reject)=>{const u=Uint8Array.from(atob(embedded),c=>c.charCodeAt(0));loader.parse(u.buffer,'',resolve,reject)}):await loader.loadAsync('models/studies/'+h.kind+'.glb?v=2026-11-19a');
+  const gltf=embedded?await new Promise((resolve,reject)=>{const u=Uint8Array.from(atob(embedded),c=>c.charCodeAt(0));loader.parse(u.buffer,'',resolve,reject)}):await loader.loadAsync('models/studies/'+h.kind+'.glb?v=2026-11-19b');
   const model=gltf.scene;model.visible=false;h.holder.add(model);
   model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.frustumCulled=false;for(const m of (Array.isArray(o.material)?o.material:[o.material])){m.metalness=0;m.roughness=Math.max(.6,m.roughness);}}});
   // Remove the authored jump from the baked translation tracks themselves.
@@ -36,7 +59,7 @@ export async function attachHeroMotion(h){
    const pole=model.getObjectByName(side+'_Pole');
    if(hand&&pole)grips.push({hand,pole,offset:hand.worldToLocal(pole.getWorldPosition(new THREE.Vector3())),point:new THREE.Vector3()});
   }
-  h.motion={model,mixer,original,nodes,grips,state:{},active:false,lastT:null};h.motionStatus='ready';
+  h.motion={model,mixer,original,nodes,grips,contact:boardContactGeometry(model),state:{},active:false,lastT:null};h.motionStatus='ready';
  }catch(error){h.motionStatus='error';console.warn('Motion study unavailable; original hero retained',h.kind,error)}
 }
 export function poseHeroMotion(h,p,mode,t){

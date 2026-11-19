@@ -194,6 +194,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
 </style>
 </head>
 <body>
+<section id="assetWait" hidden style="position:fixed;inset:0;z-index:99999;background:#102643e8;color:white;text-align:center;align-content:center;padding:24px;font:bold 18px system-ui" aria-live="polite"><span id="assetMessage"></span><br><button id="assetRetry" hidden style="margin:18px;padding:12px 26px;border-radius:14px">Повторить</button></section>
 <div id="wrap">
 <div id="menubg"></div>
 <canvas id="gl"></canvas>
@@ -322,12 +323,12 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
 <script type="importmap">{"imports":{"three":"./vendor/three/build/three.module.min.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
 <script type="module">
 import * as THREE from 'three';
-import {raceLight} from './trail-visuals.js?v=2026-11-18e';
-import {attachHeroMotion,poseHeroMotion} from './hero-motion.js?v=2026-11-18e';
+import {raceLight} from './trail-visuals.js?v=2026-11-19a';
+import {attachHeroMotion,poseHeroMotion,boardSurfaceLift} from './hero-motion.js?v=2026-11-19b';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
-import {courseCenter,courseHeading,courseGrade,courseHeight,courseCrossHeight,courseCrossSlope,coursePoint,courseGround,coursePitch,courseSlip,courseWidth,courseTheme} from './course.js?v=2026-11-18e';
-import {drawRaceHUD} from './race-hud.js?v=2026-11-18e';
+import {courseCenter,courseHeading,courseGrade,courseHeight,courseCrossHeight,courseCrossSlope,coursePoint,courseGround,coursePitch,courseSlip,courseWidth,courseTheme} from './course.js?v=2026-11-19a';
+import {drawRaceHUD} from './race-hud.js?v=2026-11-19a';
 'use strict';
 // Telegram Mini App: есть только при запуске внутри Telegram
 const TG=(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initData)?window.Telegram.WebApp:null;
@@ -396,83 +397,7 @@ const sharedGeo={sph:new THREE.SphereGeometry(1,20,14),sphLo:new THREE.SphereGeo
 function S3(m,sx,sy,sz){m.scale.set(sx,sy,sz);return m;}
 
 // ================= HEROES =================
-function buildBear(){
-  const root=new THREE.Group(),pivot=new THREE.Group(),body=new THREE.Group();root.add(pivot);pivot.add(body);
-  const red=M(0xd42a2a),black=M(0x1d1e23),brown=M(0x8e4d22),tan=M(0xe3b585),white=M(0xf6f6f6),grey=M(0x8d939c),orange=M(0xff7a1a),dark=M(0x0c0c0e),boot=M(0x2b2c31);
-  const skiMat=M(0xffffff,{map:T.ski});
-  for(const s of[-1,1]){const ski=mk(sharedGeo.box,skiMat,s*0.17,0.02,-0.1,pivot);S3(ski,0.13,0.035,1.75);
-    const tip=mk(sharedGeo.box,skiMat,s*0.17,0.075,-1.02,pivot);S3(tip,0.13,0.035,0.24);tip.rotation.x=0.5;}
-  for(const s of[-1,1]){S3(mk(sharedGeo.box,boot,s*0.17,0.13,-0.03,body),0.24,0.2,0.34);S3(mk(sharedGeo.box,orange,s*0.17,0.24,-0.1,body),0.2,0.02,0.16);
-    S3(mk(sharedGeo.cyl,black,s*0.16,0.4,0,body),0.13,0.32,0.13);S3(mk(sharedGeo.box,red,s*0.29,0.42,0,body),0.03,0.32,0.06);}
-  outline(S3(mk(sharedGeo.sph,red,0,0.84,0,body),0.43,0.46,0.37));
-  S3(mk(sharedGeo.box,dark,0,0.86,-0.36,body),0.025,0.5,0.02);
-  for(const s of[-1,1]){S3(mk(sharedGeo.box,grey,s*0.16,0.8,-0.34,body),0.14,0.12,0.06);S3(mk(sharedGeo.box,black,s*0.17,0.98,-0.32,body),0.055,0.42,0.05);}
-  const arms=[];
-  for(const s of[-1,1]){const a=new THREE.Group();a.position.set(s*0.4,1.05,0);body.add(a);
-    S3(mk(sharedGeo.sph,red,0,-0.2,0,a),0.12,0.24,0.12);S3(mk(sharedGeo.sph,black,0,-0.44,0,a),0.12,0.12,0.12);
-    const pole=new THREE.Group();pole.position.set(0,-0.44,0);a.add(pole);S3(mk(sharedGeo.cyl,M(0x333333),0,-0.55,0,pole),0.018,1.1,0.018);S3(mk(sharedGeo.cyl,red,0,-0.25,0,pole),0.022,0.1,0.022);S3(mk(sharedGeo.cyl,M(0x222222),0,-1.0,0,pole),0.07,0.015,0.07);pole.rotation.x=-0.5;
-    a.rotation.z=s*0.42;a.rotation.x=0.35;arms.push(a);}
-  const head=new THREE.Group();head.position.set(0,1.42,0);body.add(head);
-  outline(S3(mk(sharedGeo.sph,brown,0,0,0,head),0.35,0.33,0.33));
-  S3(mk(sharedGeo.sph,tan,0,-0.09,-0.25,head),0.18,0.14,0.15);S3(mk(sharedGeo.sph,dark,0,-0.03,-0.39,head),0.075,0.05,0.05);
-  S3(mk(sharedGeo.sph,M(0x7a1f1f),0,-0.16,-0.36,head),0.06,0.03,0.03);
-  for(const s of[-1,1]){mk(sharedGeo.sph,white,s*0.13,0.07,-0.27,head).scale.setScalar(0.075);const ir=mk(sharedGeo.sph,M(0x6b3a12),s*0.13,0.07,-0.33,head);ir.scale.setScalar(0.05);
-    mk(sharedGeo.sph,dark,s*0.13,0.07,-0.365,head).scale.setScalar(0.03);mk(sharedGeo.sphLo,new THREE.MeshBasicMaterial({color:0xffffff}),s*0.13+0.015,0.09,-0.39,head,false).scale.setScalar(0.012);
-    outline(S3(mk(sharedGeo.sph,brown,s*0.27,0.24,0.03,head),0.11,0.11,0.07));S3(mk(sharedGeo.sph,tan,s*0.27,0.24,-0.02,head),0.065,0.065,0.03);}
-  const helm=outline(S3(mk(sharedGeo.hemi,white,0,0.06,0,head),0.37,0.37,0.37),1.05);
-  S3(mk(sharedGeo.cyl,white,0,0.07,-0.02,head),0.42,0.03,0.44);S3(mk(sharedGeo.box,white,0,0.42,0,head),0.07,0.05,0.62);
-  const lb=plane(T.emcoBlack,0.3,0.11,head,0,0.22,-0.335);lb.rotation.x=-0.45;lb.rotation.y=Math.PI;lb.rotation.set(-0.45,Math.PI,0);
-  // рюкзак
-  outline(S3(mk(sharedGeo.box,black,0,0.92,0.38,body),0.5,0.56,0.25),1.04);
-  for(const s of[-1,1]){const st=mk(sharedGeo.box,orange,0,0.85,0.507,body);S3(st,0.025,0.42,0.01);st.rotation.z=s*0.6;S3(mk(sharedGeo.box,orange,s*0.2,0.92,0.507,body),0.03,0.5,0.012);}
-  plane(T.emcoPatch,0.28,0.11,body,0,1.07,0.515,false);
-  const hd=mk(new THREE.TorusGeometry(0.08,0.016,8,16,Math.PI),black,0,1.2,0.38,body);
-  return {root,pivot,body,arms,head,kind:'bear'};
-}
-function buildOwl(){
-  const root=new THREE.Group(),pivot=new THREE.Group(),body=new THREE.Group();root.add(pivot);
-  const white=M(0xf3f5f9),blue=M(0x1f5fe0),black=M(0x17181d),grey=M(0x9097a3),yellow=M(0xffc21a),orange=M(0xff9a1f),dark=M(0x0b0b0d),vest=M(0xe2e6ee);
-  // доска
-  const top=M(0xffffff,{map:T.board}),edge=M(0xc42020);
-  const board=mk(sharedGeo.box,[edge,edge,top,black,edge,edge],0,0.04,0,pivot);S3(board,1.25,0.045,0.38);
-  for(const s of[-1,1]){const c=mk(sharedGeo.cyl,black,s*0.625,0.04,0,pivot);S3(c,0.19,0.045,0.19);}
-  pivot.add(body);body.rotation.y=0.55;
-  for(const s of[-1,1]){S3(mk(sharedGeo.box,black,s*0.24,0.15,0,body),0.22,0.2,0.3);S3(mk(sharedGeo.box,blue,s*0.24,0.2,-0.02,body),0.24,0.05,0.2);
-    S3(mk(sharedGeo.cyl,white,s*0.2,0.36,0,body),0.11,0.26,0.11);}
-  outline(S3(mk(sharedGeo.sph,white,0,0.78,0,body),0.4,0.43,0.36));
-  S3(mk(new THREE.CylinderGeometry(1,1.04,1,20,1,true),vest,0,0.74,0,body),0.415,0.4,0.375);
-  S3(mk(new THREE.TorusGeometry(1,0.07,8,24),blue,0,0.55,0,body),0.42,0.38,0.42).rotation.x=Math.PI/2;
-  S3(mk(new THREE.TorusGeometry(1,0.06,8,24),grey,0,0.62,0,body),0.43,0.39,0.43).rotation.x=Math.PI/2;
-  for(const s of[-1,1])S3(mk(sharedGeo.box,grey,s*0.36,0.6,-0.08,body),0.1,0.12,0.14);
-  S3(mk(sharedGeo.box,dark,0,0.76,-0.37,body),0.02,0.36,0.02);
-  const pt=plane(T.emcoPatch,0.16,0.06,body,0.13,0.88,-0.372,false);pt.rotation.y=Math.PI;
-  S3(mk(sharedGeo.box,blue,0.12,0.79,-0.36,body),0.1,0.07,0.02);
-  const wings=[];
-  for(const s of[-1,1]){const w=new THREE.Group();w.position.set(s*0.38,1.0,0.02);body.add(w);
-    outline(S3(mk(sharedGeo.sph,white,s*0.06,-0.28,0,w),0.13,0.34,0.24));S3(mk(sharedGeo.sph,blue,s*0.09,-0.52,0.02,w),0.1,0.2,0.2);
-    w.rotation.z=s*0.65;wings.push(w);}
-  // шарф
-  S3(mk(new THREE.TorusGeometry(1,0.32,10,24),blue,0,1.02,0,body),0.3,0.3,0.28).rotation.x=Math.PI/2;
-  const tail=S3(mk(sharedGeo.box,blue,-0.16,0.84,-0.33,body),0.13,0.34,0.05);tail.rotation.z=0.18;
-  const head=new THREE.Group();head.position.set(0,1.38,0);body.add(head);
-  outline(S3(mk(sharedGeo.sph,white,0,0,0,head),0.4,0.38,0.38));
-  for(const s of[-1,1]){S3(mk(sharedGeo.sph,blue,s*0.15,0.0,-0.3,head),0.16,0.16,0.08);
-    mk(sharedGeo.sph,yellow,s*0.15,0.0,-0.33,head).scale.setScalar(0.115);mk(sharedGeo.sph,dark,s*0.15,0.0,-0.41,head).scale.setScalar(0.065);
-    mk(sharedGeo.sphLo,new THREE.MeshBasicMaterial({color:0xffffff}),s*0.15+0.025,0.03,-0.465,head,false).scale.setScalar(0.018);}
-  const beak=mk(sharedGeo.cone,orange,0,-0.14,-0.4,head);S3(beak,0.07,0.16,0.07);beak.rotation.x=-Math.PI/2-0.3;
-  outline(S3(mk(sharedGeo.hemi,blue,0,0.06,0,head),0.43,0.42,0.43),1.04);
-  S3(mk(new THREE.TorusGeometry(1,0.1,8,28),black,0,0.13,0,head),0.43,0.43,0.43).rotation.x=Math.PI/2;
-  const gf=S3(mk(sharedGeo.box,black,0,0.22,-0.37,head),0.5,0.2,0.08);gf.rotation.x=-0.35;
-  const gl=plane(T.goggle,0.44,0.16,head,0,0.22,-0.42,false);gl.rotation.set(-0.35,Math.PI,0);gl.material.side=THREE.DoubleSide;
-  // рюкзак
-  outline(S3(mk(sharedGeo.box,black,0,0.88,0.4,body),0.44,0.5,0.22),1.04);
-  for(const s of[-1,1])S3(mk(sharedGeo.box,blue,s*0.17,0.88,0.515,body),0.04,0.46,0.012);
-  S3(mk(sharedGeo.box,blue,0,0.78,0.515,body),0.05,0.24,0.012);
-  plane(T.mountainPatch,0.2,0.2,body,0,1.0,0.52,false);
-  return {root,pivot,body,wings,head,kind:'owl'};
-}
-const HEROMODELS={bear:buildBear(),owl:buildOwl()};
-for(const k in HEROMODELS){const h=HEROMODELS[k];h.root.scale.setScalar(0.8);h.root.traverse(o=>{if(o.isMesh&&o.material!==OUT)o.castShadow=true;});scene.add(h.root);h.root.visible=false;}
+const HEROMODELS={};for(const kind of ['bear','owl']){const root=new THREE.Group(),pivot=new THREE.Group();root.add(pivot);scene.add(root);root.visible=false;HEROMODELS[kind]={kind,root,pivot};}
 const EQTEX={ski:'ui/ski.png',board:'ui/board.png'};
 
 function texFromData(url,flipX){const t=new THREE.TextureLoader().load(url);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;if(flipX){t.wrapS=THREE.RepeatWrapping;t.repeat.x=-1;t.offset.x=1;}return t;}
@@ -594,10 +519,12 @@ function poseGlb(h,p,mode,t){
     const wave=(G.waveT||0)>0;
     if(h.kind==='bear'){
       // Open the shoulder first. Keep the mitten outside the jacket throughout the greeting.
-      const lift=wave?Math.min(1,(1.6-G.waveT)*5,G.waveT*5):0;
-      rotB(h,'LeftArm',-.08,0,.12);
-      rotB(h,'RightArm',-.10-.12*lift,0,-.14-.92*lift);
-      rotB(h,'RightForeArm',-.12-.32*lift,0,-(.42+.14*Math.sin(t*8))*lift);
+      const progress=wave?clamp(Math.min((1.6-G.waveT)*3.2,G.waveT*3.2),0,1):0;
+      const lift=progress*progress*(3-2*progress);
+      rotB(h,'LeftArm',-.12,0,.25);
+      rotB(h,'LeftForeArm',-.20,0,0);
+      rotB(h,'RightArm',-.12-.08*lift,0,-.25-.84*lift);
+      rotB(h,'RightForeArm',-.20-.18*lift,0,-(.38+.16*Math.sin(t*8))*lift);
     }
     else{const f=wave?Math.sin(t*14)*0.5:Math.sin(t*2.5)*0.08;rotB(h,'LeftArm',0,0,0.15+f);rotB(h,'RightArm',0,0,-0.15-f);}
   }else if(h.kind==='bear'){
@@ -634,24 +561,20 @@ function poseGlb(h,p,mode,t){
       const tip=h.pivot.localToWorld(tl);
       const d=tip.clone().sub(H);const L=d.length()+0.06;pl.g.position.copy(tip);pl.g.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().negate().normalize());sizePole(pl.g,L);}}
 }
-const requestedHeroes=new Set();
-function loadHero(k){
-  if(requestedHeroes.has(k))return;
-  requestedHeroes.add(k);
-  const onModel=(k,g)=>{try{const h=makeGlbHero(k,g);if(trackRequested)attachHeroMotion(h);const old=HEROMODELS[k];scene.remove(old.root);HEROMODELS[k]=h;scene.add(h.root);h.root.visible=false;}catch(e){console.warn('hero',k,e);}};
-  gltfLoader.load('models/'+k+'-menu.glb',g=>onModel(k,g),undefined,e=>{
-    requestedHeroes.delete(k);console.warn('hero',k,e);
-  });
-}
+const pendingAssets=new Map();
+function cached(key,work){if(!pendingAssets.has(key))pendingAssets.set(key,Promise.resolve().then(work).catch(e=>{pendingAssets.delete(key);throw e;}));return pendingAssets.get(key);}
+function loadHero(k){return cached('menu:'+k,async()=>{const g=await gltfLoader.loadAsync('models/'+k+'-menu.glb');const h=makeGlbHero(k,g);tintModels(h.holder,k);scene.remove(HEROMODELS[k].root);HEROMODELS[k]=h;scene.add(h.root);h.root.visible=false;return h;});}
+function loadRig(k){return cached('rig:'+k,async()=>{const h=await loadHero(k);await attachHeroMotion(h);if(h.motionStatus!=='ready')throw Error('Не загружена анимация: '+k);tintModels(h.motion.model,k);});}
+async function loadPack(file,keys,install){return cached(file,async()=>{await new Promise((ok,fail)=>{const sc=document.createElement('script');sc.src=file;sc.onload=()=>{sc.remove();ok();};sc.onerror=()=>{sc.remove();fail(Error(file));};document.head.appendChild(sc);});await Promise.all(keys.map(k=>cached('packed:'+k,async()=>{const b64=window.__GLB?.[k];if(!b64)throw Error(file+': '+k);const g=await gltfLoader.parseAsync(Uint8Array.from(atob(b64),ch=>ch.charCodeAt(0)).buffer,'');tintModels(g.scene);install(k,g);delete window.__GLB[k];})));});}
+// Keep white feathers white in direct light, with a cool edge in shade. Preserve texture detail.
+function tintModels(root,kind='prop'){root.traverse(o=>{if(!o.isMesh)return;for(const m of [].concat(o.material)){if(!m?.isMeshStandardMaterial||m.userData.slopeTint)continue;m.userData.slopeTint=kind;m.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\nfloat toneY=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722)); diffuseColor.rgb=max(vec3(0.),mix(vec3(toneY),diffuseColor.rgb,1.19));');if(kind==='owl')sh.fragmentShader=sh.fragmentShader.replace('#include <opaque_fragment>','outgoingLight *= mix(vec3(.46,.63,.80),vec3(1.),smoothstep(.02,.65,abs(dot(normal,normalize(vViewPosition)))));\n#include <opaque_fragment>');};m.customProgramCacheKey=()=>kind;m.needsUpdate=true;}});}
 // предметы из Tripo: мандаринка, какао, каска
 const PROPS={};const PROP_SIZE={mandarin:0.5,cocoa:0.5,helmet:0.55};
-function loadProps(){const sc=document.createElement('script');sc.src='models/props.js';
-  sc.onload=()=>{for(const k in PROP_SIZE){const b64=window.__GLB&&window.__GLB[k];if(!b64)continue;const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);delete window.__GLB[k];
-    gltfLoader.parse(u.buffer,'',g=>{const m=g.scene;const box=new THREE.Box3().setFromObject(m);const sz=box.getSize(new THREE.Vector3());const c=box.getCenter(new THREE.Vector3());
+function loadProps(){return loadPack('models/props.js',Object.keys(PROP_SIZE),(k,g)=>{
+const m=g.scene;const box=new THREE.Box3().setFromObject(m);const sz=box.getSize(new THREE.Vector3());const c=box.getCenter(new THREE.Vector3());
       const holder=new THREE.Group();m.position.sub(c);const sc2=PROP_SIZE[k]/Math.max(sz.x,sz.y,sz.z);holder.scale.setScalar(sc2);holder.add(m);
       m.traverse(o=>{if(o.isMesh){o.castShadow=true;if(o.material){o.material.metalness=0;o.material.envMapIntensity=0;o.material.emissive=new THREE.Color(0x222222);}}});
-      PROPS[k]=holder;const map={mandarin:'coin',cocoa:'thermos',helmet:'helmet'};pools[map[k]]=[];assetGen++;},e=>console.warn('prop',k,e));}};
-  document.head.appendChild(sc);}
+      PROPS[k]=holder;const map={mandarin:'coin',cocoa:'thermos',helmet:'helmet'};pools[map[k]]=[];assetGen++;});}
 // люди, ратрак и ёлка из Tripo (нормализуем по высоте, опорная точка — под ногами)
 const NPCM={},NPCV={};
 // перекраска курток: [диапазон оттенка исходной куртки, мин. насыщенность, мин. яркость], цели [оттенок, ×насыщ., ×ярк.]
@@ -673,9 +596,8 @@ function hueTex(tex,src,to){const im=tex.image;const w=im.width,h=im.height;cons
   x.putImageData(d,0,0);const t=new THREE.CanvasTexture(cv2);t.flipY=tex.flipY;t.colorSpace=tex.colorSpace;t.wrapS=tex.wrapS;t.wrapT=tex.wrapT;return t;}
 function makeVariants(holder,cfg){const out=[holder];let mat0=null;holder.traverse(o=>{if(o.isMesh&&!mat0)mat0=o.material;});if(!mat0||!mat0.map)return out;
   for(const to of cfg.to){try{const mt=mat0.clone();mt.map=hueTex(mat0.map,cfg.src,to);const c=holder.clone();c.traverse(o=>{if(o.isMesh)o.material=mt;});out.push(c);}catch(e){console.warn('variant',e);break;}}return out;}const NPC_H={skier:1.35,kid:1.3,sitter:0.95,ratrak:0,tree:3.2,pine:8,fir:2.2,ramp:0,sboy:1.3,sman:1.4,sinstr:1.4,chair:2.6,tower:0};const FOREST_K={tree:0,pine:1,fir:2};
-function glbParse(k,cb){const b64=window.__GLB&&window.__GLB[k];if(!b64)return;const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);delete window.__GLB[k];gltfLoader.parse(u.buffer,'',cb,e=>console.warn('glb',k,e));}
-function loadNpc(file){const sc=document.createElement('script');sc.src=file;
-  sc.onload=()=>{for(const k in NPC_H)glbParse(k,g=>{const m=g.scene;const box=new THREE.Box3().setFromObject(m);const sz=box.getSize(new THREE.Vector3());const c=box.getCenter(new THREE.Vector3());
+const NPC_PACKS={'models/npc.js':['skier','kid','sitter','ratrak','tree'],'models/npc2.js':['sboy','sman','sinstr','chair','tower'],'models/trees.js':['pine','fir','ramp']};
+function loadNpc(file){return loadPack(file,NPC_PACKS[file],(k,g)=>{const m=g.scene;const box=new THREE.Box3().setFromObject(m);const sz=box.getSize(new THREE.Vector3());const c=box.getCenter(new THREE.Vector3());
     m.position.set(-c.x,-box.min.y,-c.z);const holder=new THREE.Group();holder.add(m);
     const sc2=k==='ratrak'?6.6/sz.z:k==='ramp'?1:k==='tower'?TOWER_H/sz.y:NPC_H[k]/sz.y;if(k==='ramp')holder.scale.set(1/sz.x,1/sz.y,1/sz.z);
     else if(k==='tower')holder.scale.set(TOWER_W/sz.x,sc2,TOWER_W/sz.x);else holder.scale.setScalar(sc2);holder.userData.h=sz.y*sc2;
@@ -683,38 +605,34 @@ function loadNpc(file){const sc=document.createElement('script');sc.src=file;
     NPCM[k]=holder;assetGen++;if(NPC_VAR[k])NPCV[k]=makeVariants(holder,NPC_VAR[k]);
     for(const pk in pools){if((k in FOREST_K)&&pk.startsWith('tree')||k==='ratrak'&&pk.startsWith('cat')||(k==='skier'||k==='kid'||k==='sitter'||k in SB_YAW)&&pk.startsWith('npc')||k==='ramp'&&pk.startsWith('ramp'))pools[pk]=[];}
     if(k==='chair'||k==='tower')liftModels();
-    if(k in FOREST_K){const im=forestIM[FOREST_K[k]];const imp=makeImpostor(holder);im.geometry.dispose();im.geometry=imp.geo;im.material=imp.mat;}
-  });};
-  document.head.appendChild(sc);}
+    if(k in FOREST_K){const im=forestIM[FOREST_K[k]];const imp=makeImpostor(holder);im.geometry.dispose();im.geometry=imp.geo;im.material.dispose();im.material=imp.mat;im.visible=true;}
+});}
 // Зимние модели из Tripo. Простые локальные скелеты сохраняют бег и жесты.
 const WINTER={},WINTER_CLIPS={};
 const WINTER_CFG={rock_wide:[1.4,false,true],rock_tall:[1.2,false,true],snowman:[2.5,true,true,true],
   dog:[0.8,true,true,true],snow_cannon:[3.1,true,true],gift:[0.6,false,false],magnet:[0.65,false,false],
   yeti:[3.2,true,true,true]};
-function loadWinter(){const sc=document.createElement('script');sc.src='models/winter.js';
-  sc.onload=()=>{for(const k in WINTER_CFG)glbParse(k,g=>{const cfg=WINTER_CFG[k],m=g.scene;
+function loadWinter(){return loadPack('models/winter.js',Object.keys(WINTER_CFG),(k,g)=>{const cfg=WINTER_CFG[k],m=g.scene;
     if(!cfg[3])m.rotation.y=Math.PI/2;
     const b=new THREE.Box3().setFromObject(m),sz=b.getSize(new THREE.Vector3()),c=b.getCenter(new THREE.Vector3());
-    const dimension=cfg[1]?sz.y:Math.max(sz.x,sz.y,sz.z);if(!(dimension>0))return;
+    const dimension=cfg[1]?sz.y:Math.max(sz.x,sz.y,sz.z);if(!(dimension>0))throw Error('Пустая модель: '+k);
     m.position.set(-c.x,cfg[2]?-b.min.y:-c.y,-c.z);const holder=new THREE.Group();holder.add(m);holder.scale.setScalar(cfg[0]/dimension);
     m.traverse(q=>{if(q.isMesh){q.castShadow=cfg[2];q.receiveShadow=false;for(const mat of(Array.isArray(q.material)?q.material:[q.material])){
       mat.metalness=0;mat.roughness=0.88;mat.envMapIntensity=0;mat.emissive=new THREE.Color(0x161616);}}});
     WINTER[k]=holder;WINTER_CLIPS[k]=g.animations;assetGen++;
     const type={rock_wide:'rock',rock_tall:'rock',snow_cannon:'cannon'}[k]||k;
     for(const pk in pools)if(pk.startsWith(type)||(k==='yeti'&&pk==='mogulYeti'))pools[pk]=[];
-  });};sc.onerror=()=>console.warn('winter models unavailable');document.head.appendChild(sc);}
+});}
 // Standalone models keep the menu independent of rare pickups.
 const collectibleModels={};
 function loadCollectibles(){
-  for(const [key,file,size] of [['aid','rescue-case',.92],['goldenOwl','golden-owl',1.85]]){
-    gltfLoader.load('models/'+file+'.glb',({scene:model})=>{
+return Promise.all([['aid','rescue-case',.92],['goldenOwl','golden-owl',1.85]].map(([key,file,size])=>cached(file,async()=>{const {scene:model}=await gltfLoader.loadAsync('models/'+file+'.glb');tintModels(model);
       const bounds=new THREE.Box3().setFromObject(model),span=bounds.getSize(new THREE.Vector3());
       const group=new THREE.Group();model.position.sub(bounds.getCenter(new THREE.Vector3()));
       group.add(model);group.scale.setScalar(size/Math.max(span.x,span.y,span.z));
       collectibleModels[key]=group;pools[key]=[];assetGen++;
       for(const o of G?.objs||[])if(o.type===key&&o.m&&!o.dead){release(o);o.m=acquire(o);placeObj(o);}
-    },undefined,e=>console.warn('collectible',key,e));
-  }
+})));
 }
 function studioPickup(key,height){
   const model=collectibleModels[key];if(!model)return null;
@@ -735,13 +653,11 @@ function winterActor(k,o){const g=winterScenery(k);if(!g)return null;const c=g.c
     if(clip){g.userData.mixer=new THREE.AnimationMixer(c);g.userData.mixer.clipAction(clip).play();}}
   else {const side=o.x<200?1:-1;g.userData.worldArm=c.getObjectByName(side>0?'WinterArmL':'WinterArmR');g.userData.worldArmSide=side;}
   return g;}
-let trackRequested=false;
-function loadTrackAssets(){
-  if(trackRequested)return;
-  trackRequested=true;
-  for(const h of Object.values(HEROMODELS))if(h.glb)attachHeroMotion(h);
-  loadProps();loadNpc('models/trees.js');loadNpc('models/npc.js');loadNpc('models/npc2.js');loadWinter();loadCollectibles();
-}
+let trackReady=false,loadEpoch=0,modalLoad=false;
+function loadTrackAssets(k=hero){return Promise.all([loadRig(k),cached('course',async()=>{await Promise.all([loadProps(),...Object.keys(NPC_PACKS).map(loadNpc),loadWinter(),loadCollectibles(),loadPatrol()]);trackReady=true;})]);}
+const assetPanel=document.getElementById('assetWait'),assetMsg=document.getElementById('assetMessage'),assetRetry=document.getElementById('assetRetry');
+function waitForAssets(work,next,quiet=false){const token=++loadEpoch;if(!quiet)modalLoad=true;assetPanel.hidden=quiet;assetRetry.hidden=true;assetMsg.textContent='Готовим спуск…';return Promise.resolve().then(work).then(()=>{if(token===loadEpoch){modalLoad=false;assetPanel.hidden=true;next();}},err=>{if(token!==loadEpoch)return;console.warn('Загрузка моделей',err);assetMsg.textContent='Не удалось загрузить модели. Проверьте соединение.';assetPanel.hidden=false;assetRetry.hidden=false;assetRetry.onclick=()=>waitForAssets(work,next);});}
+function menuHero(k){if(modalLoad)return;return waitForAssets(()=>loadHero(k),()=>{},true);}
 
 
 // ================= SCENERY =================
@@ -779,18 +695,7 @@ for(let i=0;i<14;i++){const side=i%2?1:-1;const r=rnd(50,100),h=rnd(50,110),x=si
  for(let i=0;i<70;i++){const x=rnd(-140,140),z=-rnd(400,480),w=rnd(3,6),h=rnd(3,7);S3(mk(sharedGeo.box,hm,x,h/2,z,mountains,false),w,h,w);const r=mk(sharedGeo.cone,roof,x,h+1,z,mountains,false);S3(r,w*0.8,2,w*0.8);r.rotation.y=Math.PI/4;}}
 
 // лес по краям (переиспользуется)
-const TREE={trunk:M(0x6b4a2b),g1:M(0x1f5a39),g2:M(0x26704a),g3:M(0x2f8455),snow:M(0xf7fbff)};
-function buildTree(){const g=new THREE.Group();S3(mk(sharedGeo.cyl,TREE.trunk,0,0.35,0,g),0.16,0.7,0.16);
-  [[1.15,1.3,0.9,TREE.g1],[0.9,1.15,1.75,TREE.g2],[0.62,1.0,2.5,TREE.g3]].forEach(([r,h,y,m])=>{S3(mk(sharedGeo.cone,m,0,y,0,g),r,h,r);S3(mk(sharedGeo.cone,TREE.snow,0,y+h*0.22,0,g,false),r*0.55,h*0.55,r*0.55);});
-  return g;}
-// сосна: высокий ствол, крона наверху
 const icoLo=new THREE.IcosahedronGeometry(1,1),cylLo=new THREE.CylinderGeometry(1,1,1,6);
-function buildPine(){const g=new THREE.Group();const tr=M(0x9a5a32);S3(mk(cylLo,tr,0,1.6,0,g),0.13,3.2,0.13);
-  [[1.05,0.5,3.25,0.25,TREE.g1],[0.85,0.45,3.75,-0.3,TREE.g2],[0.6,0.4,4.2,0.12,TREE.g3]].forEach(([r,h,y,dx,m])=>{const c=mk(icoLo,m,dx,y,0,g);S3(c,r,h,r*0.85);S3(mk(icoLo,TREE.snow,dx,y+h*0.55,0,g,false),r*0.85,h*0.35,r*0.7);});
-  return g;}
-// лес — два InstancedMesh (ёлки и сосны): по паре вызовов отрисовки на весь лес
-function mergeGroup(g){g.updateMatrixWorld(true);const geos=[],mats=[];g.traverse(o=>{if(o.isMesh){let ge=o.geometry.clone();if(ge.index)ge=ge.toNonIndexed();for(const a of Object.keys(ge.attributes))if(!['position','normal','uv'].includes(a))ge.deleteAttribute(a);ge.applyMatrix4(o.matrixWorld);geos.push(ge);mats.push(o.material);}});
-  return {geo:mergeGeometries(geos,true),mats};}
 // «плоская» копия ёлки для дальнего леса: рисуем модель в текстуру один раз, ставим две скрещенные плоскости
 function makeImpostor(holder){const box=new THREE.Box3().setFromObject(holder);const sz=box.getSize(new THREE.Vector3());const w=Math.max(sz.x,sz.z)*1.04,h=sz.y*1.02;
   const rt=new THREE.WebGLRenderTarget(256,512,{generateMipmaps:true,minFilter:THREE.LinearMipmapLinearFilter});const sc=new THREE.Scene();
@@ -800,8 +705,7 @@ function makeImpostor(holder){const box=new THREE.Box3().setFromObject(holder);c
   const p1=new THREE.PlaneGeometry(w,h);p1.translate(0,h/2,0);const p2=p1.clone();p2.rotateY(Math.PI/2);const geo=mergeGeometries([p1,p2]);const n=geo.attributes.normal;for(let i=0;i<n.count;i++)n.setXYZ(i,0,1,0);
   const mat=new THREE.MeshLambertMaterial({map:rt.texture,emissive:0xffffff,emissiveMap:rt.texture,emissiveIntensity:0.55,alphaTest:0.45,side:THREE.DoubleSide});return {geo,mat};}
 const forest=[];const forestIM=[];
-{const fir=buildTree();fir.scale.setScalar(0.7);const w=new THREE.Group();w.add(fir);
- for(const m of[mergeGroup(buildTree()),mergeGroup(buildPine()),mergeGroup(w)]){const im=new THREE.InstancedMesh(m.geo,m.mats,140);im.frustumCulled=false;im.castShadow=false;scene.add(im);forestIM.push(im);}}
+for(let i=0;i<3;i++){const im=new THREE.InstancedMesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial(),140);im.visible=false;im.frustumCulled=false;scene.add(im);forestIM.push(im);}
 const fCnt=[0,0,0];
 // лес: ёлки, высокие сосны и ёлочки. off — отступ от края трассы; на «Лесной трассе» лес подходит вплотную
 for(let i=0;i<300;i++){const r=Math.random();const kind=r<0.45?0:r<0.75?1:2;if(fCnt[kind]>=140)continue;const side=i%2?1:-1;
@@ -825,12 +729,11 @@ const lampLights=[];for(let i=0;i<4;i++){const l=new THREE.PointLight(0xffd9a0,0
 const lift=new THREE.Group();scene.add(lift);
 const steel=M(0x8a95a5),cableMat=new THREE.MeshBasicMaterial({color:0x333a44});
 const TOWER_STEP=35,TOWERN=9,LIFT_X=[14.4,16.4],TOP=8.6;
-const towers=[];for(let i=0;i<TOWERN;i++){const g=new THREE.Group();S3(mk(sharedGeo.cyl,steel,0,TOP/2,0,g),0.22,TOP,0.22);S3(mk(sharedGeo.box,steel,0,TOP-0.2,0,g),2.8,0.18,0.25);g.position.x=15.4;g.userData={z:-i*TOWER_STEP};lift.add(g);towers.push(g);
+const towers=[];for(let i=0;i<TOWERN;i++){const g=new THREE.Group();g.position.x=15.4;g.userData={z:-i*TOWER_STEP};lift.add(g);towers.push(g);
   g.userData.cab=[0,1].map(j=>{const c=mk(sharedGeo.cyl,cableMat,LIFT_X[j]-15.4,0,0,g,false);return c;});}
-const chairCols=[0xe74c3c,0x27ae60,0x8e44ad,0xf1c40f,0x16a085,0x2c3e50];
-const chairs=[];for(let i=0;i<24;i++){const g=new THREE.Group();const up=i<12;S3(mk(sharedGeo.cyl,steel,0,-1.1,0,g),0.03,2.2,0.03);S3(mk(sharedGeo.box,M(0x2b6cb0),0,-2.25,0,g),1.1,0.08,0.45);S3(mk(sharedGeo.box,M(0x2b6cb0),0,-1.95,0.22,g),1.1,0.55,0.06);
+const chairs=[];for(let i=0;i<24;i++){const g=new THREE.Group();const up=i<12;
   const ppl=up?Math.random()<0.7:Math.random()<0.15;
-  if(ppl){const c=M(chairCols[i%6]);S3(mk(sharedGeo.sph,c,-0.2,-1.95,0,g),0.2,0.24,0.18);S3(mk(sharedGeo.sph,M(0xf1c7a0),-0.2,-1.62,0,g),0.12,0.12,0.12);S3(mk(sharedGeo.hemi,c,-0.2,-1.6,0,g),0.13,0.13,0.13);}
+if(!ppl){S3(mk(sharedGeo.cyl,steel,0,-1.1,0,g),0.03,2.2,0.03);S3(mk(sharedGeo.box,M(0x2b6cb0),0,-2.25,0,g),1.1,0.08,0.45);S3(mk(sharedGeo.box,M(0x2b6cb0),0,-1.95,0.22,g),1.1,0.55,0.06);}
   g.position.x=up?LIFT_X[0]:LIFT_X[1];g.userData={up,ppl,z:-(i%12)*25-(up?0:12)};lift.add(g);chairs.push(g);}
 // 3D-модели из Tripo: опора (TOWER_H — до уровня шкивов, трос на TOP-0.2) и кресло с двумя людьми
 const TOWER_W=3.4,TOWER_H=(TOP-0.2)/0.8;
@@ -888,17 +791,7 @@ const FACT={
     const p=plane(tex,park?2.4:1.6,park?.65:.5,g,0,tall-.18,0,false);p.material.side=THREE.DoubleSide;
     S3(mk(sharedGeo.box,OM.snow,0,tall+.09,0,g,false),park?2.45:1.65,.08,.16);return g;},
   rail(o){return makeParkSurface(o);},
-  snowmobile(){
-    const g=new THREE.Group();
-    if(patrolModel){g.add(patrolModel.clone());return g;}
-    loadPatrol();
-    S3(mk(sharedGeo.box,OM.track,0,.28,.25,g),.8,.45,1.7);
-    S3(mk(sharedGeo.sphLo,OM.orange,0,.65,-.45,g),.57,.35,.8);
-    S3(mk(sharedGeo.sphLo,OM.npcSki,0,1.13,.31,g),.31,.39,.24);
-    S3(mk(sharedGeo.sphLo,OM.snow,0,1.65,.29,g),.23,.23,.23);
-    for(const side of [-1,1])S3(mk(sharedGeo.box,OM.track,side*.52,.09,-.6,g),.15,.1,1.8);
-    return g;
-  },
+  snowmobile(){const g=new THREE.Group();g.add(patrolModel.clone());return g;},
   mogulYeti(o){const g=FACT.yeti(o);g.userData.arms=['WinterArmL','WinterArmR'].map(n=>g.getObjectByName(n));return g;},
   airRing(o){
     const group=new THREE.Group(),radius=o.radius;
@@ -906,8 +799,8 @@ const FACT={
     group.userData.light=raceLight(group,radius,radius,'ring',canvasTex);
     group.userData.hoop=hoop;return group;
   },
-  tree(o){const tk=o&&o.pine?'pine':o&&o.fir?'fir':'tree';if(!NPCM[tk]&&tk==='pine')return buildPine();if(NPCM[tk]){const g=new THREE.Group();const c=NPCM[tk].clone();c.rotation.y=Math.random()*6.28;g.add(c);return g;}return buildTree();},
-  rock(){const k=WINTER.rock_wide&&WINTER.rock_tall?(Math.random()<0.55?'rock_wide':'rock_tall'):WINTER.rock_wide?'rock_wide':'rock_tall';const model=winterScenery(k);if(model){model.rotation.y=Math.random()*Math.PI*2;return model;}const g=new THREE.Group();S3(mk(new THREE.DodecahedronGeometry(1,0),OM.rock,0,0.25,0,g),0.7,0.45,0.55);S3(mk(sharedGeo.sph,OM.snow,0,0.5,0,g),0.5,0.14,0.4);return g;},
+  tree(o){const c=NPCM[o.pine?'pine':o.fir?'fir':'tree'].clone();c.rotation.y=Math.random()*6.28;return c;},
+  rock(){const m=winterScenery(Math.random()<.55?'rock_wide':'rock_tall');m.rotation.y=Math.random()*6.28;return m;},
   mogul(){const g=new THREE.Group();const m=mk(sharedGeo.sph,OM.mog,0,0,0,g);S3(m,0.8,0.42,0.7);m.receiveShadow=true;return g;},
   gate(o){const g=new THREE.Group();const half=o.gap/2*U;const col=o.col?'#2a6df4':'#e8343b';
     const t=gateTexCache[col]||(gateTexCache[col]=canvasTex(256,192,(x,w,h)=>{x.fillStyle=col;x.fillRect(0,0,w,h);x.fillStyle='rgba(255,255,255,.18)';x.fillRect(0,0,w,26);x.fillStyle='#fff';x.font='900 64px system-ui,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('EMCO',w/2,h/2+8);}));
@@ -920,41 +813,20 @@ const FACT={
     halo.position.y=0.08;halo.scale.y=Math.min(2.8,half)/half;g.add(halo);
     const disc=new THREE.Mesh(new THREE.PlaneGeometry(o.gap*U+0.5,3),new THREE.MeshBasicMaterial({map:glowTex,color:0xffcf55,transparent:true,opacity:0.45,depthWrite:false,blending:THREE.AdditiveBlending}));
     disc.rotation.x=-Math.PI/2;disc.position.y=0.055;g.add(disc);g.userData.halo=halo;g.userData.gateDisc=disc;g.userData.gate=true;return g;},
-  ramp(o){if(o.park)return makeParkSurface(o);if(NPCM.ramp){const g=new THREE.Group();const c=NPCM.ramp.clone();c.scale.multiply(new THREE.Vector3(o.w*U,(o.hh||0.75)*1.12,3.3));c.traverse(q=>{if(q.isMesh)q.receiveShadow=true;});g.add(c);return g;}
-    const g=new THREE.Group();const w=o.w*U;const hh=o.hh||0.75;const sh=new THREE.Shape();sh.moveTo(-1.6,0);sh.lineTo(1.6,0);sh.lineTo(1.6,hh);sh.closePath();
-    const geo=new THREE.ExtrudeGeometry(sh,{depth:w,bevelEnabled:false});geo.rotateY(Math.PI/2);geo.translate(-w/2,0,0);const m=mk(geo,OM.ramp,0,0,0,g);m.receiveShadow=true;
-    S3(mk(sharedGeo.box,OM.rampEdge,0,hh+0.01,-1.6,g),w,0.06,0.12);for(const s of[-1,1]){const st=mk(sharedGeo.cyl,OM.rampEdge,s*w/2,hh+0.35,-1.6,g);S3(st,0.04,0.7,0.04);}
-    for(const x of[-0.9,0,0.9]){const a=mk(sharedGeo.cone,OM.rampEdge,x*w/3.3,hh*0.56,0.1,g,false);S3(a,0.16,0.3,0.05);a.rotation.x=-Math.PI/2+0.23;}return g;},
+  ramp(o){if(o.park)return makeParkSurface(o);const g=new THREE.Group();const c=NPCM.ramp.clone();c.scale.multiply(new THREE.Vector3(o.w*U,(o.hh||0.75)*1.12,3.3));c.traverse(q=>{if(q.isMesh)q.receiveShadow=true;});g.add(c);return g;},
   npc(o){const sbk=o.sb&&!o.sit?(o.kid?'sboy':o.instr?'sinstr':'sman'):null;const vk=sbk&&NPCM[sbk]?sbk:o.sit?'sitter':o.kid?'kid':'skier';const vv=NPCV[vk];const gm=vv?vv[(o.vi||0)%vv.length]:NPCM[vk];
     if(gm&&vk===sbk){// сноубордист: тело поворачиваем в animObjs (едет боком или стоит лицом к группе)
       const g=new THREE.Group();const body=new THREE.Group();const c=gm.clone();body.add(c);g.add(body);g.userData.glb=true;g.userData.body=body;g.userData.sbYaw=SB_YAW[vk];
       if(o.instr){const t=instrTex||(instrTex=label('ИНСТРУКТОР',{bg:'#ffd200',fg:'#0f2c52',w:256,h:64,font:'900 34px system-ui,sans-serif',r:10}));const pl=plane(t,0.24,0.06,body,0,1.0,-0.3,false);pl.rotation.set(0.3,Math.PI,0);pl.material.side=THREE.DoubleSide;}
       return g;}
-    if(gm){const g=new THREE.Group();const c=gm.clone();c.rotation.y=o.walker?0:Math.PI;g.add(c);g.userData.glb=true;
+    const g=new THREE.Group();const c=gm.clone();c.rotation.y=o.walker?0:Math.PI;g.add(c);g.userData.glb=true;
       if(o.instr){const t=instrTex||(instrTex=label('ИНСТРУКТОР',{bg:'#ffd200',fg:'#0f2c52',w:256,h:64,font:'900 34px system-ui,sans-serif',r:10}));const pl=plane(t,0.22,0.055,g,0,0.93,0.29,false);pl.rotation.x=-0.35;pl.material.side=THREE.DoubleSide;}
-      return g;}
-    const g=new THREE.Group();const c=M(o.colHex);
-    if(o.sit){S3(mk(sharedGeo.box,M(o.colHex===0xf1c40f?0x2c3e50:0xf1c40f),0,0.03,-0.55,g),1.3,0.04,0.32);
-      for(const s of[-1,1]){const l=mk(sharedGeo.cyl,M(0x2c3e50),s*0.15,0.18,-0.3,g);S3(l,0.09,0.55,0.09);l.rotation.x=Math.PI/2-0.35;}
-      const b=mk(sharedGeo.sph,c,0,0.45,0,g);S3(b,0.3,0.34,0.26);b.rotation.x=0.3;S3(mk(sharedGeo.sph,OM.skin,0,0.86,0.08,g),0.17,0.17,0.17);S3(mk(sharedGeo.hemi,c,0,0.88,0.08,g),0.19,0.19,0.19);
-      for(const s of[-1,1]){const a=mk(sharedGeo.cyl,c,s*0.3,0.3,0.2,g);S3(a,0.07,0.45,0.07);a.rotation.x=0.6;}return g;}
-    for(const s of[-1,1]){S3(mk(sharedGeo.box,OM.npcSki,s*0.14,0.02,-0.1,g),0.1,0.03,1.6);S3(mk(sharedGeo.cyl,M(0x2c3e50),s*0.13,0.35,0,g),0.09,0.6,0.09);}
-    S3(mk(sharedGeo.sph,c,0,0.88,0,g),0.3,0.36,0.26);S3(mk(sharedGeo.sph,OM.skin,0,1.32,0,g),0.17,0.17,0.17);S3(mk(sharedGeo.hemi,c,0,1.34,0,g),0.19,0.19,0.19);
-    for(const s of[-1,1]){const a=mk(sharedGeo.cyl,M(0x333333),s*0.35,0.55,0.2,g);S3(a,0.015,1.1,0.015);a.rotation.x=-0.4;}
-    if(o.instr){const v=mk(sharedGeo.box,M(0xffd200),0,0.95,0.24,g);S3(v,0.42,0.3,0.04);}return g;},
-  cat(o){const fz0=o.vy>0?-1:1;if(NPCM.ratrak){const g=new THREE.Group();const c=NPCM.ratrak.clone();c.rotation.y=fz0<0?Math.PI:0;g.add(c);const H=NPCM.ratrak.userData.h;
+    return g;},
+  cat(o){const fz0=o.vy>0?-1:1;const g=new THREE.Group();const c=NPCM.ratrak.clone();c.rotation.y=fz0<0?Math.PI:0;g.add(c);const H=NPCM.ratrak.userData.h;
       const b=mk(sharedGeo.sphLo,OM.beacon,0,H+0.12,fz0*0.6,g,false);b.scale.setScalar(0.2);b.userData.beacon=true;const gl=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xffb000,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));gl.scale.setScalar(1.6);gl.position.copy(b.position);gl.userData.beacon=true;g.add(gl);
       for(const s of[-1,1]){const hl=mk(sharedGeo.sphLo,new THREE.MeshBasicMaterial({color:0xfff6c0}),s*1.0,H*0.62,fz0*1.2,g,false);hl.scale.set(0.16,0.1,0.05);}
-      g.userData.glb=true;return g;}
-    const g=new THREE.Group();const w=o.w*U,d=o.h*U;const fz=o.vy>0?-1:1;
-    for(const s of[-1,1])S3(mk(sharedGeo.box,OM.track,s*(w/2-0.28),0.3,0,g),0.56,0.6,d);
-    S3(mk(sharedGeo.box,OM.cat,0,0.95,0,g),w*0.78,0.8,d*0.92);S3(mk(sharedGeo.box,OM.cat,0,1.8,fz*d*0.12,g),w*0.62,0.95,d*0.36);
-    S3(mk(sharedGeo.box,OM.glass,0,1.85,fz*(d*0.12+d*0.18),g),w*0.55,0.6,0.05);S3(mk(sharedGeo.box,OM.blade,0,0.55,fz*(d/2+0.3),g),w*1.08,0.95,0.25);
-    for(const s of[-1,1])S3(mk(sharedGeo.box,new THREE.MeshBasicMaterial({color:0xfff6c0}),s*w*0.22,2.15,fz*(d*0.12+d*0.185),g,false),0.18,0.1,0.04);
-    const b=mk(sharedGeo.sphLo,OM.beacon,0,2.35,fz*d*0.12,g,false);b.scale.setScalar(0.16);b.userData.beacon=true;return g;},
-  cannon(o){const model=winterScenery('snow_cannon');if(model){const side=o.x<200?1:-1;model.rotation.y=-side*Math.PI/2;model.userData.cannon=side;return model;}const g=new THREE.Group();const s=o.x<200?1:-1;S3(mk(sharedGeo.box,M(0x5a6270),0,0.2,0,g),0.8,0.4,0.8);const p=mk(sharedGeo.cyl,M(0x8a95a5),0,1.4,0,g);S3(p,0.08,2.6,0.08);
-    const h=new THREE.Group();h.position.set(0,2.7,0);h.rotation.z=-s*1.0;g.add(h);S3(mk(sharedGeo.cyl,M(0xffd200),0,0.4,0,h),0.42,0.9,0.42);S3(mk(sharedGeo.cyl,M(0x222222),0,0.86,0,h),0.44,0.08,0.44);
-    g.userData.cannon=s;return g;},
+      g.userData.glb=true;return g;},
+  cannon(o){const model=winterScenery('snow_cannon');const side=o.x<200?1:-1;model.rotation.y=-side*Math.PI/2;model.userData.cannon=side;return model;},
   fence(o){const g=new THREE.Group();const len=(o.x2-o.x1)*U;const n=Math.max(2,Math.round(len/1.4)+1);
     const tex=canvasTex(128,64,(x,w,h)=>{x.strokeStyle='#ff6a00';x.lineWidth=3;for(let i=-h;i<w;i+=12){x.beginPath();x.moveTo(i,0);x.lineTo(i+h,h);x.stroke();x.beginPath();x.moveTo(i+h,0);x.lineTo(i,h);x.stroke();}x.fillStyle='#ff6a00';x.fillRect(0,0,w,5);});
     tex.wrapS=THREE.RepeatWrapping;tex.repeat.set(len/1.5,1);const net=plane(tex,len,1.0,g,0,0.6,0,true);net.material.side=THREE.DoubleSide;
@@ -965,70 +837,27 @@ const FACT={
     for(const s of[-1,1])S3(mk(sharedGeo.cyl,c,s*7,2.6,0,g),0.2,5.2,0.2);
     const t=archTexCache[o.stage]||(archTexCache[o.stage]=label(st.name.toUpperCase(),{bg:st.col,fg:'#fff',w:1024,h:128,font:'900 70px system-ui,sans-serif',r:20}));
     const b=plane(t,14,1.75,g,0,5,0,false);b.material.side=THREE.DoubleSide;return g;},
-  dog(o){const model=winterActor('dog',o);if(model)return model;const g=new THREE.Group();const inner=new THREE.Group();g.add(inner);const fur=M(0xa0622d),dark=M(0x3b2414);
-    S3(mk(sharedGeo.sph,fur,0,0.42,0,inner),0.22,0.2,0.42);S3(mk(sharedGeo.sph,fur,0,0.62,-0.4,inner),0.17,0.16,0.18);S3(mk(sharedGeo.sph,dark,0,0.6,-0.57,inner),0.06,0.05,0.05);
-    for(const s of[-1,1]){S3(mk(sharedGeo.sph,dark,s*0.12,0.72,-0.36,inner),0.05,0.1,0.04);}
-    inner.userData.legs=[];for(const [lx,lz] of[[-0.12,-0.25],[0.12,-0.25],[-0.12,0.25],[0.12,0.25]]){const l=mk(sharedGeo.cyl,fur,lx,0.18,lz,inner);S3(l,0.045,0.34,0.045);inner.userData.legs.push(l);}
-    const tl=mk(sharedGeo.cyl,fur,0,0.55,0.45,inner);S3(tl,0.03,0.28,0.03);tl.rotation.x=0.8;
-    S3(mk(sharedGeo.box,M(0xe74c3c),0,0.6,-0.28,inner),0.3,0.05,0.06);
-    inner.rotation.y=o.vx>0?-Math.PI/2:Math.PI/2;g.userData.dog=inner;return g;},
-  snowman(o){const model=winterActor('snowman',o);if(model)return model;const g=new THREE.Group();const w=M(0xffffff);mk(sharedGeo.sph,w,0,0.55,0,g).scale.setScalar(0.6);mk(sharedGeo.sph,w,0,1.35,0,g).scale.setScalar(0.45);mk(sharedGeo.sph,w,0,1.98,0,g).scale.setScalar(0.32);
-    for(const s of[-1,1])mk(sharedGeo.sphLo,M(0x111111),s*0.1,2.05,-0.28,g).scale.setScalar(0.04);const n=mk(sharedGeo.cone,M(0xff7a1a),0,1.98,-0.4,g);S3(n,0.05,0.25,0.05);n.rotation.x=-Math.PI/2;
-    S3(mk(sharedGeo.cyl,M(0xd42a2a),0,2.32,0,g),0.22,0.3,0.22);S3(mk(new THREE.TorusGeometry(1,0.3,8,20),M(0x1f5fe0),0,1.7,0,g),0.3,0.3,0.3).rotation.x=Math.PI/2;
-    const arm=new THREE.Group();arm.position.set(o.x<200?0.4:-0.4,1.45,0);g.add(arm);const a=mk(sharedGeo.cyl,M(0x6b4a2b),0,0.35,0,arm);S3(a,0.03,0.7,0.03);arm.rotation.z=o.x<200?-0.6:0.6;g.userData.arm=arm;return g;},
-  aid(){const model=studioPickup('aid',.90);if(model)return model;const g=new THREE.Group();const gl=new THREE.Sprite(pickGlow);gl.scale.setScalar(1.8);g.add(gl);
-    const t=aidTex||(aidTex=canvasTex(128,128,(x,w,h)=>{x.fillStyle='#fff';x.beginPath();x.arc(64,64,60,0,7);x.fill();x.lineWidth=6;x.strokeStyle='#d42a2a';x.stroke();x.fillStyle='#d42a2a';x.fillRect(50,24,28,80);x.fillRect(24,50,80,28);}));
-    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true}));sp.scale.setScalar(0.7);g.add(sp);g.userData.baseY=0.9;g.userData.wobble=true;return g;},
+  dog(o){return winterActor('dog',o);},
+  snowman(o){return winterActor('snowman',o);},
+  aid(){return studioPickup('aid',.90);},
   ball(){const g=new THREE.Group();mk(sharedGeo.sph,M(0xffffff),0,0,0,g).scale.setScalar(0.16);return g;},
-  gift(){const model=winterPickup('gift',0.7,1.5);if(model)return model;const g=new THREE.Group();g.add(new THREE.Sprite(pickGlow));g.children[0].scale.setScalar(1.5);const cols=[0xd42a2a,0x1f5fe0,0x2a9d5c,0x8e44ad];const c=M(cols[Math.floor(Math.random()*4)]),y=M(0xffd200);
-    S3(mk(sharedGeo.box,c,0,0,0,g),0.42,0.42,0.42);S3(mk(sharedGeo.box,y,0,0,0,g),0.44,0.44,0.08);S3(mk(sharedGeo.box,y,0,0,0,g),0.08,0.44,0.44);
-    for(const s of[-1,1]){const b=mk(sharedGeo.sph,y,s*0.08,0.26,0,g);S3(b,0.09,0.06,0.05);}g.userData.spin=true;g.userData.baseY=0.7;return g;},
+  gift(){return winterPickup('gift',0.7,1.5);},
   letter(o){const g=new THREE.Group();const gl=new THREE.Sprite(pickGlow);gl.scale.setScalar(3.2);g.add(gl);
     const t=letterTexCache[o.ch]||(letterTexCache[o.ch]=canvasTex(256,256,(x,w,h)=>{const gr=x.createRadialGradient(128,110,20,128,128,124);gr.addColorStop(0,'#fff3a0');gr.addColorStop(1,'#e8a400');x.fillStyle=gr;x.beginPath();x.arc(128,128,120,0,7);x.fill();
       x.lineWidth=10;x.strokeStyle='#fff';x.stroke();x.fillStyle='#0f2c52';x.font='900 170px system-ui,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(o.ch,128,140);}));
     const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true}));sp.scale.setScalar(1.5);g.add(sp);g.userData.baseY=o.air?3.2:1.3;g.userData.letter=true;return g;},
-  yeti(o){const model=winterActor('yeti',o);if(model)return model;const g=new THREE.Group();const fur=M(0xe9f1fb),face=M(0x7d93ad);outline(S3(mk(sharedGeo.sph,fur,0,1.3,0,g),0.95,1.25,0.8));outline(S3(mk(sharedGeo.sph,fur,0,2.75,0,g),0.6,0.55,0.55));
-    S3(mk(sharedGeo.sph,face,0,2.7,-0.42,g),0.38,0.32,0.15);for(const s of[-1,1]){mk(sharedGeo.sph,M(0x111111),s*0.14,2.8,-0.53,g).scale.setScalar(0.07);S3(mk(sharedGeo.cyl,fur,s*0.35,0.3,0,g),0.25,0.6,0.25);}
-    S3(mk(sharedGeo.box,M(0x2b1b1b),0,2.58,-0.55,g),0.2,0.06,0.02);
-    const arm=new THREE.Group();arm.position.set(o.x<200?0.85:-0.85,1.9,0);g.add(arm);S3(mk(sharedGeo.sph,fur,0,0.6,0,arm),0.22,0.7,0.22);g.userData.arm=arm;g.userData.yetiSide=o.x<200?1:-1;return g;},
-  coin(){if(PROPS.mandarin){const g=new THREE.Group();g.add(PROPS.mandarin.clone());g.userData.wobble=true;g.userData.baseY=0.6;return g;}const g=new THREE.Group();const m=mk(sharedGeo.sph,OM.orange,0,0,0,g);S3(m,0.25,0.21,0.25);const l=mk(sharedGeo.sph,OM.leaf,0.05,0.22,0,g);S3(l,0.09,0.03,0.05);l.rotation.z=0.4;
-    S3(mk(sharedGeo.cyl,M(0x5a3a1a),0,0.22,0,g),0.015,0.06,0.015);g.userData.spin=true;g.userData.baseY=0.65;return g;},
-  thermos(){if(PROPS.cocoa){const g=new THREE.Group();g.add(new THREE.Sprite(pickGlow));g.children[0].scale.setScalar(1.6);g.add(PROPS.cocoa.clone());g.userData.spin=true;g.userData.baseY=0.85;return g;}const g=new THREE.Group();g.add(new THREE.Sprite(pickGlow));g.children[0].scale.setScalar(1.8);S3(mk(sharedGeo.cyl,OM.mug,0,0,0,g),0.22,0.34,0.22);S3(mk(sharedGeo.cyl,OM.cocoa,0,0.17,0,g),0.19,0.01,0.19);
-    S3(mk(sharedGeo.sph,OM.cream,0,0.2,0,g),0.17,0.07,0.17);const h=mk(new THREE.TorusGeometry(0.1,0.03,8,16),OM.mug,0.24,0,0,g);plane(T.emcoPatch,0.22,0.08,g,0,0.02,-0.225,false).rotation.y=Math.PI;
-    g.userData.spin=true;g.userData.baseY=0.9;return g;},
-  helmet(){if(PROPS.helmet){const g=new THREE.Group();g.add(new THREE.Sprite(pickGlow));g.children[0].scale.setScalar(1.6);g.add(PROPS.helmet.clone());g.userData.spin=true;g.userData.baseY=0.85;return g;}const g=new THREE.Group();g.add(new THREE.Sprite(pickGlow));g.children[0].scale.setScalar(1.8);S3(mk(sharedGeo.hemi,M(0xf6f6f6),0,0,0,g),0.32,0.32,0.32);S3(mk(sharedGeo.cyl,M(0xf6f6f6),0,0.01,0,g),0.37,0.03,0.37);
-    const l=plane(T.emcoBlack,0.26,0.1,g,0,0.15,-0.29);l.rotation.set(-0.5,Math.PI,0);g.userData.spin=true;g.userData.baseY=0.9;return g;},
-  magnet(){const model=winterPickup('magnet',0.9);if(model)return model;const g=new THREE.Group();g.add(new THREE.Sprite(pickGlow));g.children[0].scale.setScalar(1.8);const t=mk(new THREE.TorusGeometry(0.22,0.08,10,20,Math.PI),OM.magR,0,0.05,0,g);
-    for(const s of[-1,1]){S3(mk(sharedGeo.cyl,OM.magR,s*0.22,-0.08,0,g),0.08,0.22,0.08);S3(mk(sharedGeo.cyl,OM.magG,s*0.22,-0.24,0,g),0.081,0.1,0.081);}g.userData.spin=true;g.userData.baseY=0.9;return g;},
-  goldenOwl(){
-    const g=studioPickup('goldenOwl',1.45)||buildOwl().root;return g;
-  },
+  yeti(o){return winterActor('yeti',o);},
+  coin(){const g=new THREE.Group();g.add(PROPS.mandarin.clone());g.userData.wobble=true;g.userData.baseY=0.6;return g;},
+  thermos(){const g=new THREE.Group();g.add(new THREE.Sprite(pickGlow));g.children[0].scale.setScalar(1.6);g.add(PROPS.cocoa.clone());g.userData.spin=true;g.userData.baseY=0.85;return g;},
+  helmet(){const g=new THREE.Group();g.add(new THREE.Sprite(pickGlow));g.children[0].scale.setScalar(1.6);g.add(PROPS.helmet.clone());g.userData.spin=true;g.userData.baseY=0.85;return g;},
+  magnet(){return winterPickup('magnet',0.9);},
+  goldenOwl(){return studioPickup('goldenOwl',1.45);},
   feather(){const g=new THREE.Group();const sp=new THREE.Sprite(pickGlow);sp.scale.setScalar(2.4);g.add(sp);const f=mk(sharedGeo.sph,OM.gold,0,0.1,0,g);S3(f,0.12,0.42,0.03);f.rotation.z=0.3;
     const q=mk(sharedGeo.cyl,OM.gold,0.08,-0.32,0,g);S3(q,0.015,0.25,0.015);q.rotation.z=0.3;g.userData.spin=true;g.userData.baseY=1.0;return g;},
 };
 const playerSled=new THREE.Group();scene.add(playerSled);playerSled.visible=false;
-let sledLoading=false;
-function loadPlayerSled(){
-  if(sledLoading)return;sledLoading=true;
-  if(!playerSled.children.length){
-    S3(mk(sharedGeo.sphLo,OM.orange,0,.55,-.28,playerSled),.53,.38,.96);
-    for(const side of [-1,1])S3(mk(sharedGeo.box,OM.track,side*.5,.10,-.48,playerSled),.14,.10,1.8);
-  }
-  gltfLoader.load('models/player-sled.glb',g=>{playerSled.clear();playerSled.add(g.scene);},undefined,()=>{sledLoading=false;});
-}
-let patrolModel=null,patrolLoading=false;
-function loadPatrol(){
-  if(patrolLoading)return;
-  patrolLoading=true;
-  gltfLoader.load('models/forest-patrol.glb?v=2026-11-18e',gltf=>{
-    patrolModel=gltf.scene;patrolModel.traverse(n=>{if(n.isMesh)n.castShadow=true;});
-    for(const o of G?.objs||[]){
-      if(o.type==='snowmobile'&&o.m){o.m.clear();o.m.add(patrolModel.clone());}
-    }
-    pools.snowmobile=[];
-    assetGen++;
-  },undefined,()=>{patrolLoading=false;});
-}
+function loadPlayerSled(){return cached('sled',async()=>{const g=await gltfLoader.loadAsync('models/player-sled.glb');tintModels(g.scene);playerSled.add(g.scene);});}
+let patrolModel=null;function loadPatrol(){return cached('patrol',async()=>{const g=await gltfLoader.loadAsync('models/forest-patrol.glb');patrolModel=g.scene;tintModels(patrolModel);patrolModel.traverse(n=>{if(n.isMesh)n.castShadow=true;});});}
 let assetGen=0;const pools={};const archTexCache={},letterTexCache={};let instrTex=null,aidTex=null;const gateTexCache={};
 function poolKey(o){if(o.type==='stageProp')return 'stageProp_'+o.theme+(o.caption||'')+(o.theme==='forest'?(o.x<200?'_r':'_l'):'');if(o.type==='rail')return 'rail_'+o.w+'_'+o.len+'_'+o.hh;return o.type==='gate'?'gate'+o.col+'_'+Math.round(o.gap):o.type==='npc'?'npc'+o.colHex+'v'+(o.vi||0)+(o.walker?'w':'')+(o.sit?'s':'')+(o.kid?'k':'')+(o.instr?'i':'')+(o.sb?'b':''):o.type==='cat'?'cat'+(o.vy>0?1:0):o.type==='fence'?'fence'+Math.round(o.x2-o.x1):o.type==='cannon'?'cannon'+(o.x<200?1:0):o.type==='arch'?'arch'+o.stage:o.type==='dog'?'dog'+(o.vx>0?1:0):o.type==='snowman'||o.type==='yeti'?o.type+(o.x<200?1:0):o.type==='letter'?'letter'+o.ch+(o.air?1:0):o.type==='tree'?'tree'+(o.pine?'p':o.fir?'f':''):o.type==='ramp'?'ramp'+o.w+'_'+(o.hh||0.75)+(o.park?'_park':''):o.type;}
 // Keep the collision surface and its visible mesh in the same curved course coordinates.
@@ -1307,7 +1136,8 @@ function dropMogPatches(all){MOG.patches=MOG.patches.filter(P=>{if(all||P.y1<G.y
 function objectFrame(o){const m=o.m,z=Z(o.y),u=X(o.x);m.userData.courseYaw=courseHeading(z);m.userData.courseRoll=['gate','ramp','rail','mogul','cat','fence','npc','sit','kids'].includes(o.type)?Math.atan(courseCrossSlope(u,z)):0;m.rotation.y+=m.userData.courseYaw;m.rotation.z+=m.userData.courseRoll;}
 function placeObj(o){if(o.park||o.type==='rail'){fitParkSurface(o);return;}const z=Z(o.y);courseGround(o.m.position,X(o.x),z,mogAt(o.x,o.y));if(o.type==='ramp'||o.type==='mogul'||o.type==='cat')o.m.rotation.x=-coursePitch(X(o.x),z);objectFrame(o);}
 
-const pickCol=()=>chairCols[Math.floor(Math.random()*6)];
+const jacketColors=[0xe74c3c,0x27ae60,0x8e44ad,0xf1c40f,0x16a085,0x2c3e50];
+const pickCol=()=>jacketColors[Math.floor(Math.random()*jacketColors.length)];
 function addSkier(y,x,vy,extra){const o=Object.assign({type:'npc',x,bx:x,y,vy,ph:Math.random()*6,amp:rnd(15,40),colHex:pickCol(),vi:Math.floor(Math.random()*7),passed:false},extra||{});addObj(o);return o;}
 // люди на склоне: объезжают препятствия и друг друга, заезжают на трамплины и бугры (прыгают)
 function npcAI(o,dt){
@@ -1978,6 +1808,16 @@ function collectLetter(o,dist){
 const v3=new THREE.Vector3();
 const liftA=new THREE.Vector3(),liftB=new THREE.Vector3(),liftDelta=new THREE.Vector3(),liftUp=new THREE.Vector3(0,1,0);
 function liftAnchor(out,u,z){courseGround(out,u,z,TOP-0.2);out.y=courseHeight(-z)+courseCrossHeight(15.4,z)+TOP-0.2;return out;}
+const boardSurface=new THREE.Vector3(),boardAcross=new THREE.Vector3(),boardAhead=new THREE.Vector3(),boardNormal=new THREE.Vector3();
+function fitBoardToSnow(h,p,x,z){
+  const step=.25,above=p.rampH+p.mh+piste.userData.yOff;
+  courseGround(boardSurface,x,z,above);
+  courseGround(boardAcross,x+step,z,above+mogAt(p.x+step/U,G.y)-p.mh).sub(boardSurface);
+  courseGround(boardAhead,x,z-step,above+p.surfaceSlope*step+mogAt(p.x,G.y+step/U)-p.mh).sub(boardSurface);
+  boardNormal.crossVectors(boardAcross,boardAhead).normalize();
+  // Raise the whole rider so the low edge doesn't disappear into the piste.
+  h.root.position.y+=boardSurfaceLift(h,boardSurface,boardNormal);
+}
 function syncWorld(dt){
   const p=G.p,pz=Z(G.y),px=X(p.x),gy=Hz(pz);
   if(G.mode!=='menu'){
@@ -2014,15 +1854,9 @@ function syncWorld(dt){
   {const tr=p.trick>0?TRICKS[p.tt||0].f(p.trick):[0,0,0];const fp=G.mode==='play'?fallPose(p):null;
    hm.pivot.rotation.set((G.mode==='crash'?p.tumble:0)+tr[0]+(fp?fp.rx:0),tr[1],tr[2]+(p.wob>0?Math.sin(G.t*16)*0.07:0)+(fp?fp.rz:0));
    const cy=0.6;pivC.set(0,cy,0).applyEuler(hm.pivot.rotation);hm.pivot.position.set(-pivC.x,cy-pivC.y+(fp?fp.dy:0),-pivC.z);}
-  const bob=p.air>0?0:Math.sin(G.t*9)*0.015;
   if(hm.glb){if(G.waveT>0)G.waveT=Math.max(0,G.waveT-dt);hm.root.visible=!(p.inv>0&&!p.boost&&!(p.fall>0)&&Math.floor(G.t*14)%2);poseGlb(hm,p,G.mode,G.t);}
-  else{
-  if(hm.kind==='bear'){hm.body.position.y=bob-(p.air>0?0:0.04);hm.arms.forEach((a,i)=>{const s=i?1:-1;a.rotation.x=(p.air>0?-0.6:0.35+Math.sin(G.t*4)*0.08);a.rotation.z=s*(0.42+(p.air>0?0.5:0));});}
-  else{hm.body.position.y=bob;hm.wings.forEach((w,i)=>{const s=i?1:-1;const base=p.air>0?1.25+Math.sin(G.t*16)*0.4:0.6+Math.abs(p.ang)*0.5+Math.sin(G.t*3)*0.05;w.rotation.z=s*base;});}
-  hm.head.rotation.y=G.mode==='menu'?Math.sin(G.t*0.9)*0.3:-p.ang*0.3;
-  hm.root.visible=!(p.inv>0&&!p.boost&&!(p.fall>0)&&Math.floor(G.t*14)%2);}
-  // в меню до загрузки настоящей модели героя не показываем (иначе на секунду мелькает старая)
-  if(G.mode==='menu'&&!hm.glb)hm.root.visible=false;
+  else hm.root.visible=false;
+  if(hero==='owl'&&hm.motion?.active&&G.mode!=='menu'&&!p.air&&!p.hop)fitBoardToSnow(hm,p,px,pz);
 
   if(playerSled.visible||G.sled){
     playerSled.visible=!!G.sled;
@@ -2111,7 +1945,7 @@ function drawHUD(){
 function clearWorld(){dropMogPatches(true);if(G)for(const o of G.objs)release(o);for(let i=0;i<TRACKN;i++){tmpM.makeScale(0,0,0);trackMesh.setMatrixAt(i,tmpM);}trackMesh.instanceMatrix.needsUpdate=true;
   for(const t of forest){t.userData.z=-rnd(-15,170);t.userData.x=0;}lamps.forEach((l,i)=>l.userData.z=-Math.floor(i/2)*30-(l.userData.side>0?15:0));towers.forEach((t,i)=>t.userData.z=-i*35);}
 const SPRINT_METERS=1200;
-function startGame(sprint=false,sled=false){if(sled&&!save.meet.goldenOwl)return;loadHero(hero);loadTrackAssets();initAudio();music('run');hideToast();clearWorld();G=newGame('play');last=performance.now();G.sprint=sprint;G.nextOwl=sprint?(Math.random()<.18?0:Infinity):rnd(330,1600);
+function startGame(sprint=false,sled=false){if(sled&&!save.meet.goldenOwl)return;initAudio();if(!trackReady||HEROMODELS[hero].motionStatus!=='ready'||(sled&&!playerSled.children.length))return waitForAssets(()=>Promise.all([loadTrackAssets(),sled?loadPlayerSled():null]),()=>startGame(sprint,sled));music('run');hideToast();clearWorld();G=newGame('play');last=performance.now();G.sprint=sprint;G.nextOwl=sprint?(Math.random()<.18?0:Infinity):rnd(330,1600);
   if(sled){G.sled={elapsed:0,hits:0,gifts:0,rows:0,chain:0,last:-Infinity};G.nextY=0;loadPlayerSled();banner('Сбивай снеговиков и собирай подарки','','gold');}
   if(sprint){G.nextY=0;G.nextChaseD=Infinity;}setTimeout(()=>voice('start',true),600);
   if(!G.sled&&!save.meet.coastHint){save.meet.coastHint=1;persist();const g0=G;setTimeout(()=>{if(G===g0&&G.mode==='play')banner('Рули на поворотах · кофе даёт ускорение');},1500);}lastTrackZ=0;$('share').classList.add('hidden');if(!G.sled&&save.helmets>0){save.helmets--;G.p.lives=1;persist();}G.letter=G.sprint||G.sled?null:collState();G.letterAt=G.letter?letterDist(G.letter.w,G.letter.i):Infinity;for(const m of save.missions)m.got=false;
@@ -2195,7 +2029,7 @@ const SPK=on=>`<svg viewBox="0 0 24 24"><path d="M3 9.5h3.6L11.5 5v14l-4.9-4.5H3
 $('uMag').onclick=()=>{const c=UPC(save.mag);if(save.coins>=c&&save.mag<MAXU){save.coins-=c;save.mag++;persist();initAudio();SFX.power();refreshMenu();}};
 $('uBoost').onclick=()=>{const c=UPC(save.boost);if(save.coins>=c&&save.boost<MAXU){save.coins-=c;save.boost++;persist();initAudio();SFX.power();refreshMenu();}};
 $('uHelm').onclick=()=>{if(save.coins>=HELM){save.coins-=HELM;save.helmets++;persist();initAudio();SFX.power();refreshMenu();}};
-document.querySelectorAll('.seg button').forEach(el=>el.onclick=()=>{hero=el.dataset.h;loadHero(hero);save.hero=hero;persist();if(G)G.waveT=1.6;sayBubble();initAudio();tone(hero==='bear'?262:523,0.2,0.06);refreshMenu();});
+document.querySelectorAll('.seg button').forEach(el=>el.onclick=()=>{hero=el.dataset.h;menuHero(hero);save.hero=hero;persist();if(G)G.waveT=1.6;sayBubble();initAudio();tone(hero==='bear'?262:523,0.2,0.06);refreshMenu();});
 $('bPlay').onclick=()=>startGame();$('bSprint').onclick=()=>startGame(true);
 document.querySelectorAll('.pclose').forEach(b=>b.onclick=()=>b.closest('.ui').classList.add('hidden'));
 $('bTasks').onclick=()=>{refreshMenu();$('tasks').classList.remove('hidden');};$('bShop').onclick=()=>{refreshMenu();$('shop').classList.remove('hidden');};$('bSet').onclick=()=>{syncSens();$('settings').classList.remove('hidden');};
@@ -2303,7 +2137,7 @@ function reviewContact(){
  const rise=p.parkFlight?flightHeight(p,G.y)*.65:p.rampH*.65+p.alt*1.2;
  G.camX=X(p.x);G.camY=courseHeight(G.y/20-6.4)+2.3+p.mh*.35+rise;
 }
-function reviewSeek(d){loadTrackAssets();d=clamp(Number(d)||0,0,19999);const playing=G?.mode==='play';clearWorld();hideToast();G=newGame(playing?'play':'pause');
+function reviewSeek(d){if(!trackReady||HEROMODELS[hero].motionStatus!=='ready')return waitForAssets(()=>loadTrackAssets(),()=>reviewSeek(d));d=clamp(Number(d)||0,0,19999);const playing=G?.mode==='play';clearWorld();hideToast();G=newGame(playing?'play':'pause');
  G.y=G.prevY=d*20;G.stage=G.lastSpawnStage=stageAt(d);G.nextY=Math.max(G.stage*STAGE_LEN*20,G.y-500);G.nextChaseD=Infinity;G.p.x=G.tx=reviewX;G.p.travelHeading=courseHeading(-d);
  const st=stageDef(G.stage),span=st.forest?1000:st.park?1500:st.moguls?2340:0,start=G.stage*STAGE_LEN*20;
  if(span)G.nextY=start+Math.max(0,Math.floor((G.y-start)/span)-1)*span;
@@ -2334,17 +2168,17 @@ if(TG){try{
   // облачное сохранение: подтягиваем прогресс, если в облаке рекорд не хуже локального
   if(TG.CloudStorage&&!COURSE_REVIEW)TG.CloudStorage.getItem('motion_test_save',(err,v)=>{try{if(err||!v)return;const c=JSON.parse(v);if(!TGU||c.uid!==TGU.id)return;if((c.best||0)<(save.best||0))return;
     if(save.meet.goldenOwl)c.meet={...c.meet,goldenOwl:true};
-    for(const k of SAVE_KEYS)if(k in c)save[k]=c[k];for(const k of SAVE_KEYS)store.set(k,save[k]);ensureMissions();hero=save.hero in HEROES?save.hero:hero;loadHero(hero);if(G&&G.mode==='menu')refreshMenu();if(typeof renderFis==='function')renderFis();}catch(e){}});
+    for(const k of SAVE_KEYS)if(k in c)save[k]=c[k];for(const k of SAVE_KEYS)store.set(k,save[k]);ensureMissions();if(G?.mode==='menu'&&!modalLoad){hero=save.hero in HEROES?save.hero:hero;menuHero(hero);refreshMenu();}if(typeof renderFis==='function')renderFis();}catch(e){}});
 }catch(e){console.warn('telegram',e);}}
 window.addEventListener('resize',updSafe);updSafe();
-toMenu();window.finishMenuBoot();loadHero(hero);window.__g=()=>G;
+toMenu();menuHero(hero);window.finishMenuBoot();window.__g=()=>G;
 if(COURSE_REVIEW)import('./course-review.js').then(({mountCourseReview})=>mountCourseReview({
  stages:STAGES.map(s=>s.name),seek:reviewSeek,
  state:()=>({distance:G.y/20,playing:G.mode==='play',hero}),
  play(){G.mode=G.mode==='play'?'pause':'play';if(G.mode==='pause')setLoops(0,0,null);},
  step(){const mode=G.mode;G.mode='play';G.tx=reviewX;update(1/30);G.mode=mode;render(0);},
  rate(v){reviewRate=v;},position(x){reviewX=x;G.p.x=G.tx=x;reviewContact();render(0);},
- hero(k){hero=k;loadHero(k);reviewContact();render(0);},exit(){openCoursePreview('play');},
+ hero(k){waitForAssets(()=>loadTrackAssets(k),()=>{hero=k;reviewContact();render(0);});},exit(){openCoursePreview('play');},
  effect(k){G.chase=null;G.p.boost=0;G.p.parkFlight=null;G.p.air=0;G.p.alt=0;
   if(k==='coffee')G.p.boost=6;
   if(k==='avalanche')G.chase={y:G.y-400,t:20,k:0.3};
@@ -2353,7 +2187,7 @@ if(COURSE_REVIEW)import('./course-review.js').then(({mountCourseReview})=>mountC
 }));
 requestAnimationFrame(frame);
 
-loadHero('bear');loadHero('owl');loadTrackAssets();
+loadTrackAssets('bear').catch(()=>{});loadTrackAssets('owl').catch(()=>{});
 const testPanel=document.createElement('div');testPanel.id='motion-test-controls';
 testPanel.style.cssText='position:fixed;bottom:calc(var(--sb, 0px) + 8px);left:max(8px, calc((100vw - 544px)/2));right:max(8px, calc((100vw - 544px)/2));z-index:9999;background:#ffffffeb;padding:8px;border-radius:12px;color:#243f4f;font:11px system-ui';
 testPanel.innerHTML='<div id="motion-test-status" style="margin-bottom:6px">Загрузка новых движений…</div><div style="display:flex;gap:4px;flex-wrap:wrap"><button id="test-bear">Мишаня</button><button id="test-owl">Сова</button><button id="test-ride">Стойка</button><button id="test-left">Влево</button><button id="test-right">Вправо</button><button id="test-air">Прыжок</button><button id="test-land">Посадка</button><button id="test-play">Играть</button></div>';

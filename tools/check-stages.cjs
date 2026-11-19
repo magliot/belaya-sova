@@ -32,17 +32,17 @@ window.__stageTest={
   for(let i=0;i<fps*5&&G.mode==='play'&&G.y<first.marker+130;i++){G.tx=x;update(1/fps);}
   return {type,kind,fps,collide,fail:G.failKind||null,mode:G.mode,met:save.meet.yeti-met,dx:actor.x-initial[0],dy:actor.y-initial[1]};
  },
- skiSlope(d,ang){
-  hero='bear';G.mode='pause';reviewSeek(d);
-  // The ray below measures bare piste. A random mogul would put the skier on a different mesh.
+ gearSlope(kind,d,ang){
+  hero=kind;G.mode='pause';reviewSeek(d);
+  // The ray below measures bare piste. A mogul would put the rider on a different mesh.
   for(const o of G.objs)release(o);
   G.objs=[];dropMogPatches(true);reviewContact();G.tilt=null;
-  G.p.ang=ang;const h=HEROMODELS.bear;
+  G.p.ang=ang;const h=HEROMODELS[kind];
   h.motion.active=false;h.motion.lastT=null;h.motion.state={};
   for(let i=0;i<25;i++){G.t+=1/60;syncWorld(1/60);}
   scene.updateMatrixWorld(true);
   const ray=new THREE.Raycaster(),down=new THREE.Vector3(0,-1,0),mins=[];
-  for(const name of ['Left_Ski','Right_Ski']){
+  for(const name of kind==='bear'?['Left_Ski','Right_Ski']:['Snowboard']){
    let lowest=Infinity;h.motion.model.getObjectByName(name).traverse(m=>{
     if(!m.isMesh)return;const positions=m.geometry.attributes.position;
     for(let i=0;i<positions.count;i+=2){
@@ -51,7 +51,7 @@ window.__stageTest={
     }
    });mins.push(lowest);
   }
-  return {d,ang,mins};
+  return {kind,d,ang,mins};
  },
  isSprint:()=>G.sprint,
  sprint(fps){
@@ -182,7 +182,7 @@ const at=html.lastIndexOf('</script>');html=html.slice(0,at)+debug+html.slice(at
    await page.evaluate(args=>__stageTest.park(...args),[kind,60,2,false,'',phase]);
    await page.screenshot({path:path.join(out,kind+'-park-'+phase+'.png')});
   }
-  const encounters=[],trailShots=[],skiContact=[];
+  const encounters=[],trailShots=[],skiContact=[],boardContact=[];
   for(const type of ['snowmobile','mogulYeti']){
    const shot=await page.evaluate(type=>__stageTest.trailShot(type),type);
    assert(shot.visible&&shot.model,JSON.stringify(shot));
@@ -195,11 +195,12 @@ const at=html.lastIndexOf('</script>');html=html.slice(0,at)+debug+html.slice(at
     assert.equal(run.met,type==='mogulYeti'&&!collide?1:0);encounters.push(run);
    }
   }
-  for(const d of [60,100,160,2510])for(const angle of [0,-.8,.8]){
-   const sample=await page.evaluate(args=>__stageTest.skiSlope(...args),[d,angle]);
-   assert(sample.mins.every(v=>Math.abs(v)<.018),JSON.stringify(sample));skiContact.push(sample);
+  for(const kind of ['bear','owl'])for(const d of [60,100,160,2510])for(const angle of [0,-.8,.8]){
+   const sample=await page.evaluate(args=>__stageTest.gearSlope(...args),[kind,d,angle]);
+   assert(sample.mins.every(v=>v>-.003&&v<.018),JSON.stringify(sample));
+   (kind==='bear'?skiContact:boardContact).push(sample);
   }
-  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({viewport:[375,812],scenes,rides,rails,sprints,flights,landmark,encounters,trailShots,skiContact,helmetAlpha:{empty,two},errors},null,2));
-  console.log('PASS: distinct forest/mogul/park geometry and layouts, summit visibility, large HUD with drawn helmets, 12 twenty-second runs, four rideable-box cases, 24 air lines, 3 misses, 16 trail encounter cases, 12 ski contact poses; no JS errors.');
+  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'report.json'),JSON.stringify({viewport:[375,812],scenes,rides,rails,sprints,flights,landmark,encounters,trailShots,skiContact,boardContact,helmetAlpha:{empty,two},errors},null,2));
+  console.log('PASS: distinct forest/mogul/park geometry and layouts, summit visibility, large HUD with drawn helmets, 12 twenty-second runs, four rideable-box cases, 24 air lines, 3 misses, 16 trail encounter cases, 24 ski and snowboard contact poses; no JS errors.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

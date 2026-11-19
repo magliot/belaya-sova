@@ -1,4 +1,4 @@
-"""Reproducible, isolated animation study. Blender 4.3; no live game changes.
+"""Build the editable downhill rigs and the synchronized GLB source clips. Blender 4.3.
 blender -b -t 4 --python tools/build-hero-pilot.py -- art/animation-pilot
 """
 import bpy, math, sys, os, json
@@ -77,6 +77,17 @@ for v in body.data.vertices:
     total=sum(w for _,w in influences)
     for g in list(v.groups):body.vertex_groups[g.group].remove([v.index])
     for idx,w in influences:body.vertex_groups[idx].add([v.index],w/total,'REPLACE')
+# Fit the soles to the binding plates without altering the character above the cuffs.
+ankles={side:rig.matrix_world@loc(side+'Foot') for side in ('Left','Right')}
+body_local=body.matrix_world.inverted()
+for v,w in zip(body.data.vertices,coords):
+    blend=1-ramp(w.z,.055,.165)
+    if not blend: continue
+    ankle=ankles['Left' if w.x>0 else 'Right']
+    w=w.copy(); w.y+=(ankle.y-w.y)*blend*(.17 if OWL else .09)
+    w.z+=.012*blend
+    v.co=body_local@w
+body.data.update()
 # Keep the ordinary linear skinning used by Three.js: no render-only DQ fix.
 for mod in body.modifiers:
     if mod.type=='ARMATURE': mod.use_deform_preserve_volume=False
@@ -85,7 +96,8 @@ def material(name,color,metal=0,rough=.5):
     bs=m.node_tree.nodes.get('Principled BSDF'); bs.inputs['Base Color'].default_value=(*color,1)
     bs.inputs['Metallic'].default_value=metal; bs.inputs['Roughness'].default_value=rough
     return m
-red=material('Ski — vermilion',(.7,.045,.025)); dark=material('Rubber',(.018,.026,.04)); steel=material('Aluminium',(.24,.32,.39),.7)
+dark=material('Rubber',(.018,.026,.04)); steel=material('Aluminium',(.24,.32,.39),.7)
+edge_paint=material('Cobalt sidewall' if OWL else 'Vermilion sidewall',(.025,.19,.65) if OWL else (.64,.035,.018),.08,.4)
 snow=material('Snow',(.65,.75,.82),0,.9)
 def cube(name,position,scale,mat,bevel=.01):
     bpy.ops.mesh.primitive_cube_add(size=1,location=position); o=bpy.context.object; o.name=name; o.dimensions=scale
@@ -93,17 +105,76 @@ def cube(name,position,scale,mat,bevel=.01):
     o.data.materials.append(mat)
     if bevel: m=o.modifiers.new('Soft edges','BEVEL'); m.width=bevel; m.segments=3; o.modifiers.new('Normals','WEIGHTED_NORMAL')
     return o
+def topsheet():
+    mat=material('Original mountain graphics',(.17,.17,.17),0,.38)
+    image_path=os.path.join(os.path.dirname(__file__),'../docs/ui','board.png' if OWL else 'ski.png')
+    image=bpy.data.images.load(os.path.abspath(image_path)); image.pack()
+    tex=mat.node_tree.nodes.new('ShaderNodeTexImage'); tex.image=image; tex.extension='EXTEND'
+    mat.node_tree.links.new(tex.outputs['Color'],mat.node_tree.nodes.get('Principled BSDF').inputs['Base Color'])
+    return mat
+
+deck_top=topsheet()
+def deck(name,position,length,width,is_board=False):
+    # Each section describes a rigid deck with an hourglass outline and lifted ends.
+    # X is the length of the snowboard; ski tips point along -Y.
+    stations=[(0,.05),(.008,.41),(.023,.67),(.049,.86),(.085,.97),(.14,1),
+              (.22,.96),(.34,.89),(.5,.85),(.66,.89),(.78,.96),(.86,1),
+              (.915,.97),(.951,.86),(.977,.67),(.992,.41),(1,.05)]
+    vertices=[]; uvs=[]
+    for t,span in stations:
+        along=(t-.5)*length
+        lift=(.057 if is_board else .074)*max(0,(t-.77)/.23)**2
+        lift+=(.047 if is_board else .025)*max(0,(.17-t)/.17)**2
+        for lateral,height in [(-1,0),(1,0),(1,-.012),(.91,-.021),(-.91,-.021),(-1,-.012)]:
+            across=lateral*span*width/2
+            xy=(along,across) if is_board else (across,-along)
+            vertices.append((*xy,lift+height))
+            # Keep the paint inside the opaque portion of the original artwork.
+            uvs.append((.026+t*.948,.5+lateral*span*.405))
+    faces=[]; materials=[]
+    for section in range(len(stations)-1):
+        for i,mat in enumerate([0,1,2,3,2,1]):
+            a=section*6+i; b=section*6+(i+1)%6
+            faces.append((a,b,b+6,a+6)); materials.append(mat)
+    faces.extend([tuple(range(5,-1,-1)),tuple(range(len(vertices)-6,len(vertices)))]);materials.extend([1,1])
+    mesh=bpy.data.meshes.new(name+' deck'); mesh.from_pydata(vertices,[],faces); mesh.update()
+    mesh.uv_layers.new(name='Topsheet')
+    for mat in [deck_top,edge_paint,steel,dark]: mesh.materials.append(mat)
+    for face,mat in zip(mesh.polygons,materials):
+        face.material_index=mat
+        for loop in face.loop_indices:mesh.uv_layers.active.data[loop].uv=uvs[mesh.loops[loop].vertex_index]
+    obj=bpy.data.objects.new(name,mesh); bpy.context.collection.objects.link(obj); obj.location=position
+    # The mesh uses one consistent clockwise section order for each longitudinal axis.
+    if sum(p.normal.z for p in mesh.polygons if p.material_index==0)<0:
+        for p in mesh.polygons:p.flip()
+        mesh.update()
+    bpy.context.view_layer.update()
+    return obj
+
+def binding_part(parent,name,offset,size,mat):
+    part=cube(name,offset,size,mat,.006); part.parent=parent
+    return part
+
 skis=[]; poles=[]
 if OWL:
-    blue=material('Sova board — blue',(.025,.23,.52),.1,.35)
-    board=cube('Snowboard',(0,-.036,-.011),(.92,.27,.022),blue,.05)
+    board=deck('Snowboard',(0,-.066,0),1.04,.36,True)
     skis.append(('Board',board,board.matrix_world.copy()))
 for side in ['Left','Right']:
     foot=rig.matrix_world@loc(side+'Foot')
+    sign=1 if side=='Left' else -1
     if not OWL:
-        ski=cube(side+'_Ski',(foot.x,foot.y-.03,-.011),(.078,.85,.022),red)
+        ski=deck(side+'_Ski',(foot.x+sign*.014,foot.y-.075,0),1.02,.106)
         skis.append((side,ski,ski.matrix_world.copy()))
-    binding=cube(side+'_Binding',(foot.x,foot.y,.037),(.072,.14,.028),dark,.006)
+    binding=cube(side+'_Binding',(foot.x+sign*(.018 if OWL else .014),foot.y-.035,.006),(.112 if OWL else .092,.186,.012),dark,.004)
+    if OWL:
+        binding_part(binding,side+'_HeelCup',(0,.104,.026),(.116,.030,.061),edge_paint)
+        binding_part(binding,side+'_ToeRamp',(0,-.066,.011),(.109,.042,.024),steel)
+        for rail,x in [('Inner',-sign*.052),('Outer',sign*.052)]:
+            binding_part(binding,side+'_BindingRail'+rail,(x,0,.016),(.013,.104,.033),edge_paint)
+    else:
+        binding_part(binding,side+'_SkiToe',(0,-.082,.013),(.083,.031,.042),edge_paint)
+        binding_part(binding,side+'_SkiHeel',(0,.069,.016),(.080,.028,.046),edge_paint)
+    bpy.context.view_layer.update()
     skis.append((side,binding,binding.matrix_world.copy()))
     if OWL:continue
     # A fixed-length pole, with a local origin at the grip.
@@ -146,15 +217,15 @@ for frame in range(1,END+1):
     comp,shift,lean,hand,air=sample(t)
     if OWL and 4.08<t<4.60:comp+=.027*math.sin(math.pi*(t-4.08)/.52)**2
     if not OWL:
-        shift*=.55
-        lean*=.63
+        shift*=.72
+        lean*=.84
     # One continuous arc: no artificial pauses at intermediate height keys.
     if 3.25<t<4.08:
         u=(t-3.25)/(.83);air=4*.28*u*(1-u);flight=math.sin(math.pi*u)**2
     else:air=0;flight=0
     for b in P: b.matrix_basis=Matrix.Identity(4)
     # Root translation is authored once, then exported with the clip.
-    b=bone('Hips'); m=rest[b.name].copy(); m.translation+=Vector((shift*.45 if OWL else shift,.012+(shift*.7 if OWL else 0),-comp+air+.025)); b.matrix=m
+    b=bone('Hips'); m=rest[b.name].copy(); m.translation+=Vector((shift*.45 if OWL else shift,.012+shift*.7 if OWL else -.014,-comp+air+.025)); b.matrix=m
     turn('Spine',(1,0,0),lean*.5); turn('Spine1',(1,0,0),lean*.3); turn('Spine2',(1,0,0),lean*.2)
     turn('Neck',(1,0,0),-lean*.35); turn('Head',(1,0,0),-lean*.35)
     turn('Spine2',(0,1,0),-shift*(90 if OWL else 30))
@@ -182,7 +253,7 @@ for frame in range(1,END+1):
             # Edge each ski about its contact patch; ankle and binding move together.
             edge=math.radians(-10*shift/.035)*(1-flight)
             contact=Vector((ankle.x,ankle.y,air+.025+.025*flight))
-            lift=.039*abs(math.sin(edge))+.011*(math.cos(edge)-1)
+            lift=.047*abs(math.sin(edge))+.021*(math.cos(edge)-1)
             bank=Matrix.Translation(contact+Vector((0,0,lift)))@Matrix.Rotation(edge,4,'Y')@Matrix.Translation(-contact)
             footmatrix=bank@footmatrix
             ankle=footmatrix.translation.copy()
@@ -194,7 +265,7 @@ for frame in range(1,END+1):
         errors.append(((rig.matrix_world@bone(side+'Foot').head)-ankle).length)
         upper=rig.matrix_world@bone(side+'Arm').head
         sign=1 if side=='Left' else -1
-        wrist=Vector((sign*(.318+.02*flight)+shift*.6,-.115+hand,.445-comp*.65+air+.075*flight))
+        wrist=Vector((sign*(.294-.023*flight)+shift*.42,-.154+hand+sign*shift*.37,.459-comp*.78+air+.045*flight+sign*shift*.32))
         if OWL:wrist=Vector((sign*(.345+.035*flight)+shift*.3,-.075+shift*.7,.505-comp*.6+air+.045*flight))
         l1=(loc(side+'ForeArm')-loc(side+'Arm')).length; l2=(loc(side+'Hand')-loc(side+'ForeArm')).length
         if (wrist-upper).length>l1+l2-.002: wrist=upper+(wrist-upper).normalized()*(l1+l2-.002)
@@ -223,8 +294,9 @@ for f,n in [(1,'СТОЙКА'),(25,'ПОВОРОТ'),(82,'ПОДГОТОВКА')
 scene.frame_set(1)
 # Export an independently reviewable sample. Include rigid equipment and its baked tracks.
 bpy.ops.object.select_all(action='DESELECT')
+gear_roots={part for _,part,_ in skis}|{pole for _,pole in poles}
 for o in bpy.context.scene.objects:
-    if o==rig or o==body or o.name=='Snowboard' or o.name.endswith(('_Ski','_Binding','_Pole','_Shaft','_Grip','_Basket')): o.select_set(True)
+    if o==rig or o==body or o in gear_roots or o.parent in gear_roots:o.select_set(True)
 bpy.context.view_layer.objects.active=rig
 bpy.ops.export_scene.gltf(filepath=os.path.join(OUT,STEM+'.glb'),use_selection=True,export_format='GLB',export_animations=True,export_animation_mode='SCENE',export_frame_range=True,export_force_sampling=True,export_skins=True,export_morph=False)
 # Blender exports one action per object. Merge synchronized body/equipment tracks
@@ -248,6 +320,6 @@ scene.render.resolution_x=640;scene.render.resolution_y=800;scene.render.resolut
 scene.view_settings.view_transform='AgX';scene.render.image_settings.file_format='PNG'
 scene.render.film_transparent=False
 json.dump({'boot_vertices_reweighted':changed,'max_foot_target_error':max(x['foot_target_error'] for x in audit),'frames':audit},open(os.path.join(OUT,'audit.json'),'w'),indent=2)
-bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT,STEM+'.blend'))
+bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT,STEM+'.blend'),compress=True)
 for f in ([] if NO_RENDER else [1,46,92,112,128]):
     scene.frame_set(f);scene.render.filepath=os.path.join(OUT,f'pose-{f:03d}.png');bpy.ops.render.render(write_still=True)
