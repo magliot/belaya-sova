@@ -3,12 +3,39 @@
 // The default keeps one finger on the route. The optional fourth argument "short" tests repeated release/regrip.
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
-const {chromium}=require(process.env.DANCE_BROWSER_MODULE||'playwright');
-const root=new URL(process.argv[2]||'http://127.0.0.1:8784/progression-test/');
-const series=JSON.parse(fs.readFileSync(process.argv[3]||path.join(os.tmpdir(),'OwlSaleRides.json'),'utf8')).rides;
 const continuous=process.argv[4]!=='short';
+async function inventoryLimits(){
+  // An isolated map for boundary cases. The browser below starts with its own empty wallet.
+  require('../unity/OwlSlope/Assets/WebGLTemplates/MountainRace/save.js');
+  const records=new Map(),storage={getItem:k=>records.get(k),setItem:(k,v)=>records.set(k,v)};
+  const open=()=>MountainSaves.create({channel:'progression',storage});
+  const account=open();await account.load();
+  assert.equal(account.buy('carveSkis'),false);
+  account.change(['coins'],d=>{d.coins=10000;});
+  function paid(item){
+    const before=account.data.coins,cost=MountainSaves.price(account.data,item);
+    assert(account.buy(item));assert.equal(account.data.coins,before-cost);
+  }
+  function capped(item){const before=account.data.coins;assert.equal(account.buy(item),false);assert.equal(account.data.coins,before);}
+  for(let i=0;i<3;i++)paid('helmets');capped('helmets');
+  for(const [hero,kit] of [['bear','carveSkis'],['owl','fireboard']]){
+    account.change(['hero'],d=>{d.hero=hero;});
+    paid(kit);capped(kit);assert.equal(account.data.gear[hero],kit);
+    paid('tune');paid('tune');capped('tune');
+  }
+  for(const item of ['boost','mag']){for(let i=0;i<5;i++)paid(item);capped(item);}
+  const restored=open();await restored.load();
+  assert.deepEqual(restored.data.ownedGear.slice().sort(),['carveSkis','fireboard']);
+  assert.deepEqual(restored.data.tuning,{fireboard:2,carveSkis:2});
+  assert.equal(restored.data.helmets,3);assert.equal(restored.data.coins,account.data.coins);
+}
 async function main(){
+  await inventoryLimits();
+  if(process.argv.includes('--inventory')){console.log('PASS inventory prices, caps, repeat purchase and reload');return;}
+  const {chromium}=require(process.env.DANCE_BROWSER_MODULE||'playwright');
+  const root=new URL(process.argv[2]||'http://127.0.0.1:8784/progression-test/');
   assert(root.pathname.endsWith('/progression-test/'),'Use the isolated progression build');
+  const series=JSON.parse(fs.readFileSync(process.argv[3]||path.join(os.tmpdir(),'OwlSaleRides.json'),'utf8')).rides;
   const browser=await chromium.launch({args:['--enable-unsafe-swiftshader']});
   try{
     const context=await browser.newContext({viewport:{width:390,height:780},hasTouch:true});

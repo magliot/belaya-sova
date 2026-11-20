@@ -17,7 +17,8 @@ async function main(){
         });
         const page=await context.newPage(),errors=[];
         page.on('pageerror',e=>errors.push(e.message));
-        const url=new URL(root);url.searchParams.set('seed',seed);url.hash='tgWebAppStartParam=unitytest_progress21';
+        const url=new URL(root);url.searchParams.set('seed',seed);
+        if(!url.pathname.endsWith('/progression-test/'))url.hash='tgWebAppStartParam=unitytest_progress21';
         await page.goto(url.href,{waitUntil:'commit'});
         await page.locator('#play').waitFor({timeout:180000});
         assert(page.url().includes('/progression-test/'));
