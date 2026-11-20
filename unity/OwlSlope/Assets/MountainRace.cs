@@ -19,6 +19,7 @@ public partial class MountainRace : MonoBehaviour {
             feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds,horns;
         public float metres,elapsed,engineNear,enginePan,avalanche,blizzard,edge,boostSeconds,magnetSeconds,chaseSeconds,chaseGap;
         public int letterSide,bonusLocation;
+        public float riderLane;
         public int scoreDistance,scoreFruit,scoreGates,scoreRings,scoreFis,preciseGates,preciseRings;
         public bool rankedResult;
         public bool air,boost,feather,goldenOwl,tubingUnlocked,sledUnlocked;
@@ -209,7 +210,7 @@ public partial class MountainRace : MonoBehaviour {
         Status.scoreFis=25*Status.fis.Length;
         Status.score=CourseMode=="normal"?Status.scoreDistance+Status.scoreFruit+Status.scoreGates+Status.scoreRings+Status.scoreFis:Status.scoreDistance+bonusPoints;
         Status.speed=Mathf.RoundToInt(speed*3.6f);
-        Status.air=airborne;Status.boost=boost>0;Status.edge=angle;
+        Status.air=airborne;Status.boost=boost>0;Status.edge=angle;Status.riderLane=lane;
         Status.courseMode=CourseMode;
         Status.bonusLocation=Status.metres<580?0:Status.metres<1190?1:2;
         Status.boostSeconds=Mathf.Max(0,boost);Status.magnetSeconds=Mathf.Max(0,magnet);

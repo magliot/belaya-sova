@@ -58,9 +58,10 @@ public partial class MountainRace {
             Menu();ChooseHero(hero);
             string config=JsonUtility.ToJson(new Settings{mode=mode,seed=1911,equipment=kit,ownedEquipment=owned,tuning=2,helmets=50,boost=5,mag=5});
             void CheckFinish(Transform root,string scene){
-                var part=System.Array.Find(root.GetComponentsInChildren<Transform>(true),t=>
-                    hero=="owl"?t.name.StartsWith("Snowboard")&&t.GetComponent<Renderer>():t.name.StartsWith("Left_Ski")&&t.GetComponent<Renderer>());
-                Check(part&&part.GetComponent<Renderer>().HasPropertyBlock()==owned,"equipment finish in "+scene+" "+hero);
+                string name=hero=="owl"?"Snowboard":"Left_Ski";
+                var part=System.Array.Find(root.GetComponentsInChildren<Transform>(true),t=>t.name==name||t.name==name+"(Clone)");
+                var renderer=part?part.GetComponentInChildren<Renderer>(true):null;
+                Check(renderer&&renderer.HasPropertyBlock()==owned,"equipment finish in "+scene+" "+hero);
             }
             PreviewGear(config);CheckFinish(stowed,"menu");
             StartRace(config);CheckFinish(rideModel,"race");

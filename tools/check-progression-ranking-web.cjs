@@ -8,7 +8,7 @@ async function main(){
   const reports=[],evidence=path.resolve('course-checks/mountain-race/progression');
   fs.mkdirSync(evidence,{recursive:true});
   try{
-    for(const [hero,seed,leaveAt] of [['owl',1911,42],['bear',783,103]]){
+    for(const [hero,seed] of [['owl',1911],['bear',783]]){
       const context=await browser.newContext({viewport:{width:384,height:832},hasTouch:true});
       try{
         await context.addInitScript(()=>{
@@ -23,13 +23,11 @@ async function main(){
         assert(page.url().includes('/progression-test/'));
         assert.equal(await page.evaluate(()=>mountainRelease.channel),'progression');
         await page.locator('[data-hero="'+hero+'"]').tap();await page.locator('#play').tap();
-        await page.waitForFunction(at=>window.latestRide?.metres>=at||window.latestRide?.phase==='over',leaveAt,{timeout:120000});
-        const cdp=await context.newCDPSession(page);
-        await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:10,y:450}]});
-        await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:376,y:450}]});
+        await page.waitForFunction(()=>window.latestRide?.metres>=3,null,{timeout:60000});
+        console.log('WEB START',hero,seed);
         await page.locator('#exitResult').waitFor({timeout:120000});
-        await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
         const s=await page.evaluate(()=>window.latestRide);
+        console.log('WEB FALL',hero,s.score,Math.floor(s.metres));
         assert(s.rankedResult&&s.mode==='normal'&&s.hero===hero);
         const sum=[s.scoreDistance,s.scoreFruit,s.scoreGates,s.scoreRings,s.scoreFis].reduce((a,b)=>a+b,0);
         assert.equal(s.score,sum);assert.equal(await page.locator('#breakdown .stat').count(),5);

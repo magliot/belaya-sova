@@ -5,7 +5,7 @@ using System.Linq;
 using UnityEngine;
 
 public static class ShopBalanceChecks {
-    [Serializable] public class InputSample { public float at,drag; public bool steer; }
+    [Serializable] public class InputSample { public float at,lane,drag; public bool steer; }
     [Serializable] public class Ride {
         public int seed,coins,metres,score;
         public string hero;
@@ -37,7 +37,7 @@ public static class ShopBalanceChecks {
                         o.distance>=race.Status.metres-.5f&&o.distance<race.Status.metres+(careful?11:5)&&Mathf.Abs(o.lane-aim)<2.3f)
                         .OrderBy(o=>o.distance).FirstOrDefault();
                     if(person!=null)aim=person.lane+(person.lane>0?-2.9f:2.9f);
-                    var sample=new InputSample{at=race.Status.metres,steer=fruit!=null||person!=null};
+                    var sample=new InputSample{at=race.Status.metres,lane=race.Lane,steer=fruit!=null||person!=null};
                     if(sample.steer){
                         float error=Mathf.Sin(race.Status.elapsed*1.3f+seed)*(careful?.24f:.52f);
                         sample.drag=(aim+error-race.Lane)/(27*.79f);

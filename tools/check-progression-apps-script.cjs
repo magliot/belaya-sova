@@ -19,9 +19,8 @@ class Sheet {
       }
     }
     return {getValues:values,getValue:()=>values()[0][0],setValue:v=>write([[v]]),setValues:write,
-      setFontWeight(){},createTextFinder(key){return {matchEntireCell(){
-        return {findNext:()=>values().some(line=>line.includes(key))?{}:null};
-      }};}};
+      setFontWeight(){},createTextFinder(key){return {matchEntireCell(){return this;},matchCase(){return this;},
+        findNext:()=>values().some(line=>line.includes(key))?{}:null};}};
   }
 }
 const properties=new Map(),sheets=new Map(),book={getSheetByName:name=>sheets.get(name),
@@ -42,6 +41,9 @@ assert.deepEqual(guest.rows.map(p=>[p.name,p.score]),[['Лидер',1750],['Ст
 assert.ok(guest.rows.every(p=>!Object.hasOwn(p,'id')));
 const attempt={runId:'check-1911-0001',scoring:2,score:1257,dist:1000,dur:61,hero:'owl',
   coins:35,gates:3,preciseGates:1,rings:2,preciseRings:1,rules:3};
+for(const scoring of [undefined,1,'2']){
+  assert.throws(()=>ctx.submitScore(me,{score:7000,dist:700,dur:50,hero:'owl',scoring}),/Обнови игру/);
+}
 // 1000 + 105 + 24 + 10 + 28 + 14 + 75 = 1256.
 assert.throws(()=>ctx.submitScore(me,attempt),/разбивка/);attempt.score=1256;
 for(const change of [{runId:undefined},{score:1256.5},{dist:1000.2},{hero:'bad'},{preciseGates:4},{rules:11}]){
@@ -59,4 +61,6 @@ const winning={...attempt,runId:'check-1911-win',score:1906,dist:1650};
 assert.equal(ctx.submitScore(me,winning).rank,1);assert.equal(table().best,1906);
 assert.equal(table().runs,57);assert.equal(locks,0);
 assert.equal(ctx.leaderboard(null,'all').rows[0].score,1906);
-console.log('Apps Script VM PASS · original rows 1420/1750 · ranked 1256, 1906 · retry after 38 newer rides ignored · existing records/weekly ranks preserved');
+const longRide={...attempt,runId:'eleven-loops',dist:220000,dur:8200,score:220256};
+assert.equal(ctx.submitScore({id:111,first_name:'Дальняя дистанция'},longRide).best,220256);
+console.log('Apps Script VM PASS · legacy writes rejected, original rows 1420/1750 · ranked 1256, 1906 · retry after 38 newer rides ignored · eleven laps accepted');

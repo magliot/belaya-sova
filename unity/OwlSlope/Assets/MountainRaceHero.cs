@@ -335,10 +335,12 @@ public partial class MountainRace {
             rideModel.localRotation=Quaternion.Euler(0,Hero=="bear"?0:90,0);
         }
         float follow=snap?1:Mathf.Min(1,dt*5);camLane=Mathf.Lerp(camLane,lane,follow);
-        Vector3 eye=World.SampleGround(d-6.4f,camLane*.63f);
+        // At the shoulder the wide camera can pan towards the piste. A portrait camera must keep the rider in frame.
+        float shoulderFollow=(1-Mathf.InverseLerp(.55f,.95f,View.aspect))*StepBlend((Mathf.Abs(camLane)-4)/4);
+        Vector3 eye=World.SampleGround(d-6.4f,camLane*Mathf.Lerp(.63f,.95f,shoulderFollow));
         float targetY=eye.y+2.65f+alt*.48f;
         camY=Mathf.Lerp(camY,targetY,snap?1:Mathf.Min(1,dt*7));eye.y=camY;
-        Vector3 aim=World.SampleGround(d+7.7f,camLane*.72f)+Vector3.up*(1.12f+alt*.48f);
+        Vector3 aim=World.SampleGround(d+7.7f,camLane*Mathf.Lerp(.72f,.87f,shoulderFollow))+Vector3.up*(1.12f+alt*.48f);
         View.fieldOfView=Mathf.Lerp(View.fieldOfView,boost>0?78:72,snap?1:Mathf.Min(1,dt*3));
         if(patrol==PatrolPhase.Looking){
             float glance=Mathf.Sin(Mathf.PI*Mathf.Clamp01((Status.elapsed-lookSince)/1.05f));

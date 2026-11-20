@@ -118,26 +118,21 @@ function playerName(u) {
   return [u.first_name, u.last_name].filter(Boolean).join(' ') || ('Игрок ' + u.id);
 }
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-function num(v) { const n = Number(v); return isFinite(n) ? Math.floor(n) : -1; }
 
 function archivedReceipt(key) {
   const receipts=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Квитанции заездов');
   if(!receipts||receipts.getLastRow()<2)return false;
-  return !!receipts.getRange(2,1,receipts.getLastRow()-1,1).createTextFinder(key).matchEntireCell(true).findNext();
+  return !!receipts.getRange(2,1,receipts.getLastRow()-1,1).createTextFinder(key).matchEntireCell(true).matchCase(true).findNext();
 }
 function submitScore(user, b) {
-  const score = num(b.score), dist = num(b.dist), dur = Number(b.dur) || 0, hero = b.hero === 'owl' ? 'owl' : 'bear';
-  if(b.scoring===2){
-    const fields=['score','dist','coins','gates','rings','preciseGates','preciseRings','rules'];
-    if(typeof b.runId!=='string'||!/^[a-zA-Z0-9.-]{8,80}$/.test(b.runId)||!fields.every(k=>Number.isSafeInteger(b[k])&&b[k]>=0)
-      ||!Number.isFinite(b.dur)||!['bear','owl'].includes(b.hero)
-      ||b.preciseGates>b.gates||b.preciseRings>b.rings||b.rules>10||b.coins>dist+10||b.gates+b.rings>dist/2+3
-      ||score!==dist+3*b.coins+8*b.gates+10*b.preciseGates+14*b.rings+14*b.preciseRings+25*b.rules)throw userError('Неверная разбивка очков');
-  }
-  if (score < 0 || dist < 0 || dur <= 0 || score > 5000000 || dist > 200000) throw userError('Неверные данные');
-  if (dist > dur * (b.scoring===2?65:45) + 20) throw userError('Слишком быстро');
-  const bonus = score - dist;
-  if (bonus < 0 || bonus > dist * 45 + 3000) throw userError('Очки не сходятся');
+  if(b.scoring!==2)throw userError('Обнови игру для нового общего зачёта');
+  const {score,dist,dur,hero}=b;
+  const fields=['score','dist','coins','gates','rings','preciseGates','preciseRings','rules'];
+  if(typeof b.runId!=='string'||!/^[a-zA-Z0-9.-]{8,80}$/.test(b.runId)||!fields.every(k=>Number.isSafeInteger(b[k])&&b[k]>=0)
+    ||!Number.isFinite(dur)||dur<=0||!['bear','owl'].includes(hero)
+    ||b.preciseGates>b.gates||b.preciseRings>b.rings||b.rules>10||b.coins>dist+10||b.gates+b.rings>dist/2+3
+    ||score!==dist+3*b.coins+8*b.gates+10*b.preciseGates+14*b.rings+14*b.preciseRings+25*b.rules)throw userError('Неверная разбивка очков');
+  if (dist > dur*65+20) throw userError('Слишком быстро');
 
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
@@ -145,10 +140,9 @@ function submitScore(user, b) {
     const now = Date.now(), wk = weekId(now), all = readPlayers();
     let p = all.filter(function (x) { return String(x.id) === String(user.id); })[0];
     const recent=p&&p.recent_runs?String(p.recent_runs).split(','):[];
-    if(b.scoring===2&&(recent.indexOf(b.runId)>=0||(recent.length>=32&&archivedReceipt(user.id+':'+b.runId)))){
+    if(recent.indexOf(b.runId)>=0||(recent.length>=32&&archivedReceipt(user.id+':'+b.runId))){
       return {ok:true,rank:(leaderboard(user,'all').me||{}).rank,weekRank:(leaderboard(user,'week').me||{}).rank,best:p.best};
     }
-    if (p && b.scoring!==2 && now - Number(p.last_submit || 0) < 4000) throw userError('Слишком часто');
     const prevBest = p ? Number(p.best) || 0 : 0;
     const prevWeek = p && p.week === wk ? Number(p.week_best) || 0 : 0;
     const newBest = score > prevBest, newWeek = score > prevWeek;
@@ -160,10 +154,10 @@ function submitScore(user, b) {
       week: wk, week_best: Math.max(prevWeek, score),
       week_dist: newWeek ? dist : (p && p.week === wk ? p.week_dist : 0), week_hero: newWeek ? hero : (p && p.week === wk ? p.week_hero : ''),
       runs: (p ? Number(p.runs) || 0 : 0) + 1, last_submit: now, updated: new Date(now),
-      recent_runs:b.scoring===2?recent.concat([b.runId]).slice(-32).join(','):recent.join(','),
+      recent_runs:recent.concat([b.runId]).slice(-32).join(','),
     };
     // Archive before evicting the oldest in-row receipt. A failed sheet write can be retried under the same lock.
-    if(b.scoring===2&&recent.length>=32){
+    if(recent.length>=32){
       const key=user.id+':'+recent[0];
       if(!archivedReceipt(key))sheet('Квитанции заездов',['player:run']).appendRow([key]);
     }

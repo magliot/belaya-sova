@@ -14,6 +14,13 @@ public partial class MountainRace {
         Check(patrol==PatrolPhase.Braking,"no stop at "+station+" lane "+edge);
         for(int i=0;i<400&&patrol==PatrolPhase.Braking&&Status.phase=="play";i++)Advance(1f/60);
         Check(patrol==PatrolPhase.Stopped&&speed<.01f,"failed to stop at "+station+" phase "+patrol+" lane "+lane);
+        View.aspect=.5f;RenderRace(0,true);
+        var riderOnScreen=View.WorldToViewportPoint(actorRoot.position+Vector3.up*.9f);
+        var patientOnScreen=View.WorldToViewportPoint(sitter.obj.transform.position+Vector3.up*.45f);
+        View.ResetAspect();
+        Check(riderOnScreen.x>.12f&&riderOnScreen.x<.88f&&riderOnScreen.y>0&&riderOnScreen.y<1
+            &&patientOnScreen.x>.02f&&patientOnScreen.x<.98f&&patientOnScreen.y>0&&patientOnScreen.y<1,
+            "portrait camera misses rider "+riderOnScreen+" or patient "+patientOnScreen);
         FisAction("witness");Check(patrol==PatrolPhase.Stopped,"reported without contacting patrol");
         FisAction("patrol");FisAction("witness");FisAction("walk");
         for(int i=0;i<390&&patrol==PatrolPhase.Walking&&Status.phase=="play";i++)Advance(1f/60);

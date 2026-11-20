@@ -15,5 +15,6 @@ try{
   const result=db.handle({action:'leaderboard',tester:A,period:'week'});
   assert.deepEqual(result.rows.map(row=>[row.rank,row.score]),[[1,776],[2,576]]);
   assert.equal(result.me.rank,2);assert.equal(db.handle({action:'leaderboard'}).me,null);
+  assert.equal(db.handle({...run,runId:'attempt.0004',dist:200414,score:200576,dur:9130}).rank,1);
   console.log('PASS two anonymous identities, public best per person, private rank, idempotent receipts, score validation');
 }finally{db.close();}

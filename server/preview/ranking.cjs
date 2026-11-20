@@ -51,7 +51,7 @@ function validScore(s){
   const fields=['dist','coins','gates','rings','preciseGates','preciseRings','rules','score'];
   return s.scoring===2&&typeof s.runId==='string'&&/^[a-zA-Z0-9.-]{8,80}$/.test(s.runId)&&
     ['bear','owl'].includes(s.hero)&&fields.every(k=>Number.isSafeInteger(s[k])&&s[k]>=0)&&
-    Number.isFinite(s.dur)&&s.dur>0&&s.dist<=s.dur*65+20&&s.dist<=200000&&s.rules<=10&&
+    Number.isFinite(s.dur)&&s.dur>0&&s.dist<=s.dur*65+20&&s.rules<=10&&
     s.preciseGates<=s.gates&&s.preciseRings<=s.rings&&s.coins<=s.dist+10&&s.gates+s.rings<=s.dist/2+3&&
     s.score===s.dist+3*s.coins+8*s.gates+10*s.preciseGates+14*s.rings+14*s.preciseRings+25*s.rules;
 }
