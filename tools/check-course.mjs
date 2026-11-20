@@ -51,7 +51,7 @@ const context={THREE,...course,console,Math,Number,Array,
 context.landingSpray={visible:false};context.playerSled.visible=false;vm.createContext(context);
 vm.runInContext(slice('const terrainPoint=','const piste='),context);
 vm.runInContext('var piste=slopePlane(21,240,160,new THREE.MeshBasicMaterial(),.02);var powder=slopePlane(80,240,160,new THREE.MeshBasicMaterial(),0);',context);
-vm.runInContext(slice('function objectFrame(','const pickCol='),context);
+vm.runInContext(slice('function objectFrame(','const jacketColors='),context);
 vm.runInContext(slice('const v3=new THREE.Vector3();','// меню: нарисованный'),context);
 const hm=context.HEROMODELS.bear,camera=context.camera;
 let frameSamples=0;

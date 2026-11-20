@@ -12,7 +12,16 @@ export function motionTime(p,state,t){
  if(state.landed!=null&&t-state.landed<.77)return 4.08+Math.max(0,t-state.landed);
  if((p.rampH||0)>.025)return 2.7+.51*clamp(p.popPhase??p.rampH/.65,0,1);
  const a=clamp(p.ang||0,-1,1);
- return a>=0?.8+.7*a:2.7+.55*a;
+ // In a straight glide, use the grounded compression keys from the same rig.
+ // The two turn clips start in this stance, with boots and equipment attached.
+ const turn=Math.abs(a);
+ if(turn<.10){
+   const settle=.09+.059*Math.sin(t*2.5)+.024*Math.sin(t*3.8)
+     +.075*(p.tuck||0)+.06*clamp(Math.abs(p.mvz||0)/3,0,1);
+   return 2.7+settle*(1-turn/.10);
+ }
+ const edge=(turn-.10)/.90;
+ return a>0?.8+.7*edge:2.7-.55*edge;
 }
 function boardContactGeometry(model){
  const deck=model.getObjectByName('Snowboard');if(!deck)return null;

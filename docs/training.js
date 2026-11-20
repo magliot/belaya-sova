@@ -12,7 +12,7 @@ export function trainingRow(seed,n){
  // Moving partners share a rhythm and leave the central lane clear.
  const lessonSide=-side,at=y+(n===0?332:180)+Math.floor(r(40)*58),phase=r(41)*Math.PI*2;
  const pupil=(dy,offset,vy,details)=>obj('npc',200+lessonSide*offset,at-y+dy,{
-   vy,lessonStart:at,amp:vy?11:0,w:.9,ph:phase,vi:Math.floor(r(42)*2),...details});
+   vy,lessonStart:at,amp:vy?(n%5===1?28:23):0,w:.9,ph:phase,vi:Math.floor(r(42)*2),...details});
  if(n%5===0){
    pupil(0,n===0?88:104,42,{kid:true});pupil(88,n===0?103:94,42,{instr:true});
  }else if(n%5===1){
@@ -48,7 +48,9 @@ const unit=x=>Math.max(0,Math.min(1,x));
 export function trainingActorAt(o,playerY,dt=0,prevY=playerY){
  if(o.small){
   const u=unit((playerY-o.marker+920)/1220);
-  o.y=o.marker+155*u*u*(3-2*u);return;
+  const path=u*u*(3-2*u);
+  o.y=o.marker+155*path;o.x=200+o.side*(96+14*Math.sin(Math.PI*path));
+  o.turn=-Math.atan(o.side*14*Math.PI*Math.cos(Math.PI*path)/155);return;
  }
  // A seek starts on the unboosted reference ride. Once activated, motion uses
  // elapsed simulation time, including when the skier slows down or falls.
@@ -57,10 +59,11 @@ export function trainingActorAt(o,playerY,dt=0,prevY=playerY){
  const age=o.age,decay=Math.exp(-age/o.tau);
  const dist=o.vCruise*age-(o.vCruise-o.vStart)*o.tau*(1-decay);
  const u=unit(dist/o.span),turn=o.to-o.from;
- const tangent=o.side*turn*6*u*(1-u)/o.span;
+ const tail=Math.max(0,dist-o.span)/95,settle=4*(1-Math.cos(tail));
+ const tangent=o.side*(turn*6*u*(1-u)/o.span+4*Math.sin(tail)/95);
  const speed=o.vCruise-(o.vCruise-o.vStart)*decay;
- const curvature=u>0&&u<1?o.side*turn*6*(1-2*u)/(o.span*o.span):0;
- o.x=200+o.side*(o.from+turn*u*u*(3-2*u));o.y=o.marker+dist;
+ const curvature=u>0&&u<1?o.side*turn*6*(1-2*u)/(o.span*o.span):dist>o.span?o.side*4*Math.cos(tail)/(95*95):0;
+ o.x=200+o.side*(o.from+turn*u*u*(3-2*u)+settle);o.y=o.marker+dist;
  const slip=Math.max(-.16,Math.min(.16,curvature*speed*.34));
  o.yaw=Math.PI-Math.atan(tangent)+slip;
  o.lean=Math.max(-1,Math.min(1,-curvature*speed*speed*.055));

@@ -48,6 +48,10 @@ const module=fs.readFileSync('docs/hero-motion.js','utf8');portable=portable.rep
 const courseModule=fs.readFileSync('docs/course.js','utf8');portable=portable.replace(/'\.\/course\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(courseModule).toString('base64')));
 const trainingModule=fs.readFileSync('docs/training.js','utf8').replace("'./course.js'",JSON.stringify('data:text/javascript;base64,'+Buffer.from(courseModule).toString('base64')));
 portable=portable.replace("'./training.js'",JSON.stringify('data:text/javascript;base64,'+Buffer.from(trainingModule).toString('base64')));
+for(const name of ['rider-motion','painted-slope','fireworks']){
+  const source=fs.readFileSync('docs/'+name+'.js','utf8').replace("'./course.js'",JSON.stringify('data:text/javascript;base64,'+Buffer.from(courseModule).toString('base64')));
+  portable=portable.replace("'./"+name+".js'",JSON.stringify('data:text/javascript;base64,'+Buffer.from(source).toString('base64')));
+}
 portable=portable.replace("'models/training-cast.glb'",JSON.stringify('data:model/gltf-binary;base64,'+fs.readFileSync('docs/models/training-cast.glb').toString('base64')));
 portable=portable.replace("'models/'+file+'.glb'","(file==='prize-feather'?"+JSON.stringify('data:model/gltf-binary;base64,'+fs.readFileSync('docs/models/prize-feather.glb').toString('base64'))+":'models/'+file+'.glb')");
 const hudModule=fs.readFileSync('docs/race-hud.js','utf8');portable=portable.replace(/'\.\/race-hud\.js(?:\?[^']*)?'/,JSON.stringify('data:text/javascript;base64,'+Buffer.from(hudModule).toString('base64')));

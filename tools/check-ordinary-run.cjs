@@ -9,8 +9,8 @@ const root='http://127.0.0.1:8766/';
 const film=process.argv.includes('--film');
 const html=fs.readFileSync('docs/index.html','utf8').replace('function frame(now){','function frame(now){if(window.fixedClock)return;');
 const probe=`
-const seenPeople=new Map(),seenSigns=new Map(),arches=new Map(),sampledTrees=new Set();
-const spans=[[0,22],[52,83],[2424,2461],[2481,2533],[4928,4959],[7429,7459]];
+const seenPeople=new Map(),readableArches=new Map(),arches=new Map(),sampledTrees=new Set();
+const spans=[[0,22],[52,83],[2460,2533],[4960,5000],[7460,7500]];
 let treeCount=0,maxTreeGap=-Infinity,lowestClearance=Infinity,deepestRoot=0,forestGates=0,blockedGates=0,frameCount=0;
 const sheet=document.createElement('canvas');sheet.width=375;sheet.height=812;
 function observe(){
@@ -28,12 +28,13 @@ function observe(){
       if(ahead<0)a.pass??=d;
     }
     if(o.type==='arch'&&Math.abs(ahead)<100)arches.set(o.m.uuid+'-'+o.y,o.y/20);
-    if(o.type==='entrySign'&&ahead>0&&ahead<70){
-      const face=o.m.getObjectByName('entryFace'),bounds=[[-3.28,0],[3.28,0],[0,-.68],[0,.68]].map(([x,y])=>face.localToWorld(new THREE.Vector3(x,y,0)).project(camera));
+    if(o.type==='entrySign'||o.type==='stageProp')throw Error('Standalone course sign at '+o.y/20);
+    if(o.type==='arch'&&ahead>0&&ahead<70){
+      const face=o.m.getObjectByName('archTitle'),bounds=[[-4.4,0],[4.4,0],[0,-.63],[0,.63]].map(([x,y])=>face.localToWorld(new THREE.Vector3(x,y,0)).project(camera));
       const px=Math.abs(bounds[2].y-bounds[3].y)*406;
       if(bounds.every(p=>p.z>0&&p.z<1&&Math.abs(p.x)<.98&&Math.abs(p.y)<.91)&&px>=16){
-        let a=seenSigns.get(o.caption);
-        if(!a){a={label:o.caption,at:o.y/20,first:d,last:d,firstTime:G.t,lastTime:G.t,maxPx:px};seenSigns.set(o.caption,a);}
+        let a=readableArches.get(face.userData.caption);
+        if(!a){a={label:face.userData.caption,at:o.y/20,first:d,last:d,firstTime:G.t,lastTime:G.t,maxPx:px};readableArches.set(face.userData.caption,a);}
         a.last=d;a.lastTime=G.t;a.maxPx=Math.max(px,a.maxPx);
       }
     }
@@ -74,7 +75,7 @@ window.ordinary={
             const t=Math.max(0,(o.y-G.y)/Math.max(160,G.speed-(o.vy||0)));
             let px=o.x;
             if(o.type==='mogulYeti'||o.type==='snowmobile'){const p={...o,prints:null};trailActorAt(p,G.y+G.speed*t);px=p.x;}
-            if(o.type==='npc')px=o.bx+Math.sin((G.t+t)*(o.w||1.3)+o.ph)*o.amp;
+            if(o.type==='npc'&&o.vy>0){const p={...o};for(let at=0;at<t;at+=.08)advanceCarve(p,Math.min(.08,t-at));px=p.x;}
             if(o.type==='tube'){const p={...o};trainingActorAt(p,G.y+G.speed*t,t,G.y);px=p.x;}
             const safe=o.type==='tree'?o.r*o.s+22:47;
             let projected=G.p.x,v=G.p.vx;
@@ -100,7 +101,7 @@ window.ordinary={
     }
     return {d:G.y/20,mode:G.mode,fail:G.failKind,photos};
   },
-  report:()=>({people:[...seenPeople.values()],signs:[...seenSigns.values()],arches:[...arches.values()],
+  report:()=>({people:[...seenPeople.values()],titles:[...readableArches.values()],arches:[...arches.values()],
     treeCount,lowestClearance,maxTreeGap,deepestRoot,forestGates,blockedGates})
 };`;
 (async()=>{
@@ -140,11 +141,11 @@ window.ordinary={
       assert(r.people.some(p=>p.stand&&p.instructor&&p.maxY===p.y0&&p.near!==null));
       const stages=end>7000?3:1;
       assert.deepEqual(r.arches,Array.from({length:stages},(_,n)=>(n+1)*2500));
-      assert(r.signs.length===stages&&r.signs.every(s=>s.lastTime-s.firstTime>.60&&s.maxPx>21),JSON.stringify(r.signs));
+      assert(r.titles.length===stages&&r.titles.every(s=>Math.round((s.lastTime-s.firstTime)*60)>=36&&s.maxPx>21),JSON.stringify(r.titles));
       assert(r.treeCount>=3&&(end>7000?r.lowestClearance<1.4:r.lowestClearance<3.7)&&r.maxTreeGap<.15&&Number.isFinite(r.maxTreeGap),JSON.stringify(r));
       assert.equal(r.blockedGates,0);
       if(end>7000)assert(r.forestGates>0);
-      console.log('PASS',hero,seed,end,'m, signs:',r.signs.map(s=>[s.label,s.first.toFixed(1),s.last.toFixed(1)]));
+      console.log('PASS',hero,seed,end,'m, arch titles:',r.titles.map(s=>[s.label,s.first.toFixed(1),s.last.toFixed(1)]));
       if(i)execFileSync('ffmpeg',['-y','-hide_banner','-loglevel','error','-framerate','15','-i',path.join(out,'frame-%04d.jpg'),'-frames:v',String(i),'-vf','pad=ceil(iw/2)*2:ceil(ih/2)*2','-c:v','libx264','-pix_fmt','yuv420p','-crf','20','-movflags','+faststart','docs/review/ordinary-run-1911.mp4']);
       await page.close();
     }

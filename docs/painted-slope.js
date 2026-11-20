@@ -4,6 +4,7 @@ import {courseCenter,courseHeight,courseHeading} from './course.js';
 const folder='art/slope/';
 export function createLandscape(group){
   const loader=new THREE.TextureLoader(),maps={},ridges=[],routes=[],auroras=[];
+  const skyTime={value:0};
   let ready=false;
   function panel(map,w,h,parent){
     const mat=new THREE.MeshBasicMaterial({map,transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:false,toneMapped:false});
@@ -24,12 +25,31 @@ export function createLandscape(group){
       const p=panel(maps['tubing-62'+'abc'[i]],620,235,group);
       p.position.set(0,40,-365-i*.2);p.renderOrder=-9+i;routes.push(p);
       const n=panel(maps['aurora-54'+'abc'[i]],300,112,group);
+      n.material.onBeforeCompile=shader=>{
+        shader.uniforms.skyTime=skyTime;
+        shader.uniforms.curtainPhase={value:i*2.13};
+        shader.fragmentShader=shader.fragmentShader
+          .replace('#include <common>','#include <common>\nuniform float skyTime, curtainPhase;')
+          .replace('#include <map_fragment>',`
+            vec2 p=vMapUv;
+            float phase=skyTime*.69+curtainPhase;
+            float fold=p.x*12.+phase+.74*sin(p.x*5.-phase*.43);
+            p.y+=(.050*sin(fold)+.023*sin(2.3*fold-phase))*sin(3.14159*p.y);
+            p.x+=.022*sin(p.y*6.+phase*.58)*sin(3.14159*p.x);
+            vec4 paint=texture2D(map,p);
+            float light=.5+.5*sin(fold+2.*sin(fold*.82));
+            float ray=pow(.5+.5*sin(p.x*91.+2.5*sin(fold)-phase*1.7),3.);
+            paint.rgb*=vec3(.93+.32*light,1.10+.42*ray,1.08+.30*(1.-light));
+            paint.a*=.78+.22*light;
+            diffuseColor*=paint;`);
+      };
       n.position.set((i-1)*246,86,-365);n.rotation.y=-(i-1)*.39;n.renderOrder=-4;auroras.push(n);
     }
     ready=true;
   }
-  function update(d,tubing,zone){
+  function update(d,tubing,zone,time=0){
     if(!ready)return;
+    skyTime.value=time;
     const y=courseHeight(d),x=courseCenter(d);group.position.set(x,y-48,-d);
     const dusk=THREE.MathUtils.smoothstep(d,700,770),trees=THREE.MathUtils.smoothstep(d,305,365);
     const heading=courseHeading(-d)*.72;

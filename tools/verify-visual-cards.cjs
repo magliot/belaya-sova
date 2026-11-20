@@ -9,7 +9,7 @@ window.cardShot=(id,index,d,x)=>{
   if(id===57){for(let i=0;i<80&&!G.objs.some(o=>o.type==='ball');i++)ticks(1);}
   if(id===58){let was=false;for(let i=0;i<600;i++){ticks(1);if(was&&!G.p.air)break;was=!!G.p.air;}}
   animObjs(0);render(0);
-  const codes={6:'npc',7:'npc',8:'npc',9:'npc',10:'npc',11:'npc',12:'cat',13:'snowmobile',22:'ramp',23:'rock',24:'rock',25:'cannon',26:'snowman',27:'dog',28:'mogulYeti',30:'coin',31:'thermos',32:'helmet',33:'gift',34:'magnet',35:'aid',36:'feather',37:'letter',38:'gate',39:'gate',40:'airRing',41:'fence',42:'entrySign',43:'entrySign',44:'entrySign',45:'arch',46:'finish',47:'rail',48:'ramp',49:'mogul',57:'ball',60:'tube',61:'tube'};
+  const codes={6:'npc',7:'npc',8:'npc',9:'npc',10:'npc',11:'npc',12:'cat',13:'snowmobile',22:'ramp',23:'rock',24:'rock',25:'cannon',26:'snowman',27:'dog',28:'mogulYeti',30:'coin',31:'thermos',32:'helmet',33:'gift',34:'magnet',35:'aid',36:'feather',37:'letter',38:'gate',39:'gate',40:'airRing',41:'fence',45:'arch',46:'finish',47:'rail',48:'ramp',49:'mogul',57:'ball',60:'tube',61:'tube'};
   const key=codes[id];
   const signature=o=>{
     if(id===6)return !o.kid&&!o.sit&&!o.sb;
@@ -21,7 +21,6 @@ window.cardShot=(id,index,d,x)=>{
     if(id===26)return o.variant==='snow26'+'ABC'[index];
     if(id===38||id===39)return o.col===id-38;
     if(id===40)return o.ringStyle===index;if(id===41)return o.fenceStyle===index;
-    if(id>=42&&id<=44)return o.theme===['forest','moguls','park'][id-42];
     if(id===48)return o.park;if(id===49)return o.profile===index;
     if(id===60||id===61)return o.variant===(id===60?['tube60B','tube60C']:['tube61A','tube61C'])[index];
     return true;

@@ -4,19 +4,19 @@
     {
       "kind": "bear",
       "fps": 30,
-      "maxContactError": 0.007616948030394958,
-      "maxGripError": 3.3016332765983216e-16,
-      "localFootHeightRange": 0.031767825226343194,
+      "maxContactError": 0.00757431357248772,
+      "maxGripError": 3.398710790756221e-16,
+      "localFootHeightRange": 0.03176782738444006,
       "maxScaleError": 0.0000020265579223632812,
       "tricks": [
         {
           "style": 0,
-          "footGap": 9.914348645670057e-8,
+          "footGap": 0.000042672294610912516,
           "stance": 0.2069396349940029
         },
         {
           "style": 1,
-          "footGap": 8.857328260631602e-8,
+          "footGap": 0.00004264403372879652,
           "stance": 0.3658940213774278
         }
       ]
@@ -24,19 +24,19 @@
     {
       "kind": "bear",
       "fps": 60,
-      "maxContactError": 0.00789885086265288,
-      "maxGripError": 3.368045037175248e-16,
-      "localFootHeightRange": 0.032012576740063386,
+      "maxContactError": 0.007856215324776464,
+      "maxGripError": 3.534137219618326e-16,
+      "localFootHeightRange": 0.032012579620176174,
       "maxScaleError": 0.0000020265579223632812,
       "tricks": [
         {
           "style": 0,
-          "footGap": 9.914348645670057e-8,
+          "footGap": 0.000042672294610912516,
           "stance": 0.2069396349940029
         },
         {
           "style": 1,
-          "footGap": 8.857328260631602e-8,
+          "footGap": 0.00004264403372879652,
           "stance": 0.3658940213774278
         }
       ]
@@ -44,14 +44,14 @@
     {
       "kind": "owl",
       "fps": 30,
-      "maxContactError": 0.01020260769380171,
+      "maxContactError": 0.010173344952221643,
       "maxGripError": 0,
-      "localFootHeightRange": 0.04783338441447613,
+      "localFootHeightRange": 0.04783339048400012,
       "maxScaleError": 0.000004410743713378906,
       "tricks": [
         {
           "style": 0,
-          "footGap": 1.312106785730809e-7,
+          "footGap": 0.00007039482742933206,
           "edgeGap": 0.003483223877062748,
           "wrist": [
             -0.1261740527141644,
@@ -61,7 +61,7 @@
         },
         {
           "style": 1,
-          "footGap": 3.4669250910144033e-7,
+          "footGap": 0.00007036686456281572,
           "edgeGap": 0.00009107202134880997,
           "wrist": [
             0.10064458893861504,
@@ -74,14 +74,14 @@
     {
       "kind": "owl",
       "fps": 60,
-      "maxContactError": 0.010788040210187203,
+      "maxContactError": 0.010766822559162113,
       "maxGripError": 0,
-      "localFootHeightRange": 0.04784080310571051,
+      "localFootHeightRange": 0.047840813208995914,
       "maxScaleError": 0.000004410743713378906,
       "tricks": [
         {
           "style": 0,
-          "footGap": 1.312106785730809e-7,
+          "footGap": 0.00007039482742933206,
           "edgeGap": 0.003483223877062748,
           "wrist": [
             -0.1261740527141644,
@@ -91,7 +91,7 @@
         },
         {
           "style": 1,
-          "footGap": 3.4669250910144033e-7,
+          "footGap": 0.00007036686456281572,
           "edgeGap": 0.00009107202134880997,
           "wrist": [
             0.10064458893861504,

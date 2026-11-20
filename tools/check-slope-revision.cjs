@@ -32,7 +32,7 @@ window.slopeQA={
     });
     return {types,overlap,lampParallel,stoneGates:objs.filter(o=>o.stoneGate).length,aid:aid&&objs.some(o=>o.hurt&&o.sit&&Math.hypot(o.x-aid.x,o.y-aid.y)<48),
       gun:gun&&Math.sin(gun.m.children[0].rotation.y)*gun.m.userData.cannon>.99,
-      archText:arch&&arch.m.children.some(c=>c.geometry?.type==='PlaneGeometry'),
+      archText:arch?.m.getObjectByName('archTitle')?.userData.caption,
       npc:objs.filter(o=>o.type==='npc').map(o=>o.sb?'board':'skier'),
       yetis:objs.filter(o=>o.type==='mogulYeti').map(o=>[o.route,o.leaps,!!o.prints]),
       twin:lamps.some(l=>l.userData.theme===6&&l.userData.second?.every(m=>m.visible)),
@@ -52,7 +52,7 @@ window.slopeQA={
     drag=null;
     return {gates:G.gates,rings:G.rings,lives:G.p.lives,grinds:G.grinds||0,boost:G.p.boost,ok:!!obj.ok};
   },
-  animate(n){G.mode='play';drag={};for(let i=0;i<n;i++){update(1/60);syncWorld(1/60);}render(0);return shells.some(s=>s.visible&&s.material.opacity>.5);}
+  animate(n){G.mode='play';drag={};for(let i=0;i<n;i++){update(1/60);syncWorld(1/60);}render(0);return shells.some(s=>s.visible&&s.material.uniforms.age.value>.29);}
 };`;
 (async()=>{
   fs.mkdirSync(out,{recursive:true});
@@ -74,7 +74,8 @@ window.slopeQA={
       assert.deepEqual(s.overlap,[],d+': '+JSON.stringify(s.overlap));assert(s.lampParallel,'lamps '+d);
       if(d===70||d===10289)assert(s.gun,'cannon '+d);
       if(d===278||d===10484)assert(s.aid,'rescue '+d);
-      if(d===2440)assert(s.types.includes('entrySign')&&s.archText===false);
+      assert(!s.types.includes('entrySign')&&!s.types.includes('stageProp'));
+      if(d===2440)assert.equal(s.archText,'ЛЕСНАЯ ТРОПА');
       if(d===5035||d===5150)assert(!s.types.includes('sideNet')&&!s.types.includes('stageProp'));
       if(d===7510)assert(s.types.includes('ramp')&&s.npc.includes('skier')&&!s.types.includes('stageProp'));
       if(d===12504)assert(s.stoneGates>=1&&s.types.filter(t=>t==='rock').length>=4);

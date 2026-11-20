@@ -27,8 +27,20 @@ window.trainingCheck={
   finishTraining(fps){
     const costumes=new Set();drag={};
     while(G.mode==='play'&&G.y/20<2501){
-      const next=G.objs.find(o=>o.y>G.y-30&&o.y<G.y+750&&['tube','cat','snowman'].includes(o.type));
-      G.tx=next?200-Math.sign(next.x-200)*57:200;
+      const traffic=G.objs.filter(o=>!o.dead&&o.y>G.y-30&&o.y<G.y+650&&['tube','cat','snowman','npc','cannon'].includes(o.type));
+      let best=Infinity;
+      for(let lane=130;lane<=270;lane+=10){
+        let cost=Math.abs(lane-200)*.08+Math.abs(lane-G.p.x)*.04;
+        for(const o of traffic){
+          const t=Math.max(0,(o.y-G.y)/Math.max(100,G.speed-(o.pace||o.vy||0)));
+          const p={...o};
+          if(o.type==='npc'&&o.vy>0)for(let at=0;at<t;at+=.08)advanceCarve(p,Math.min(.08,t-at));
+          if(o.type==='tube'||o.small)trainingActorAt(p,G.y+G.speed*t,t,G.y);
+          const margin=(o.type==='cat'?o.w/2:18)+20;
+          cost+=Math.max(0,margin-Math.abs(lane-p.x))**2/(.15+t);
+        }
+        if(cost<best){best=cost;G.tx=lane;}
+      }
       for(const o of G.objs)if(o.variant)costumes.add(o.variant);
       update(1/fps);
     }
@@ -40,7 +52,9 @@ window.trainingCheck={
     const series=seed=>{
       G.seed=seed;G.speed=300;G.lastGateX=200;G.gateCol=0;
       const start=G.objs.length;addCourse(40000,.75);
-      return G.objs.slice(start).filter(o=>o.type==='gate').map(o=>[o.x,o.y]);
+      const added=G.objs.splice(start),gates=added.filter(o=>o.type==='gate').map(o=>[o.x,o.y]);
+      for(const o of added)release(o);
+      return gates;
     };
     const result={width:machine.x,length:machine.z,coats,rides:[1911,1911,1912].map(series)};
     return result;

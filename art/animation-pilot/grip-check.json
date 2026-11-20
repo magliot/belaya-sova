@@ -3,36 +3,36 @@
     "side": "Left",
     "label": "straight",
     "raysInsideGlove": 10,
-    "elbowFlexDeg": 66.7,
-    "wristBendDeg": 11.4
+    "elbowFlexDeg": 67,
+    "wristBendDeg": 11.2
   },
   {
     "side": "Right",
     "label": "straight",
     "raysInsideGlove": 11,
-    "elbowFlexDeg": 66.7,
-    "wristBendDeg": 9.1
+    "elbowFlexDeg": 67,
+    "wristBendDeg": 8.8
   },
   {
     "side": "Left",
     "label": "left",
     "raysInsideGlove": 10,
     "elbowFlexDeg": 60.8,
-    "wristBendDeg": 5.8
+    "wristBendDeg": 5.9
   },
   {
     "side": "Right",
     "label": "left",
     "raysInsideGlove": 11,
-    "elbowFlexDeg": 74,
-    "wristBendDeg": 13.6
+    "elbowFlexDeg": 73.9,
+    "wristBendDeg": 13.5
   },
   {
     "side": "Left",
     "label": "right",
     "raysInsideGlove": 10,
-    "elbowFlexDeg": 74,
-    "wristBendDeg": 17.6
+    "elbowFlexDeg": 73.9,
+    "wristBendDeg": 17.5
   },
   {
     "side": "Right",
