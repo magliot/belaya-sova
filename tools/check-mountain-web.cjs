@@ -13,7 +13,11 @@ async function main(){
     const page=await browser.newPage({viewport:{width:390,height:780},hasTouch:true});
     const errors=[],artifacts=new Set(),writes=[];
     page.on('pageerror',e=>{errors.push(String(e));console.error('page',e.message);});
-    page.on('console',m=>{if(m.type()==='error'||/Exception:|MOUNTAIN RACE READY/.test(m.text()))console.log(m.text().slice(0,420));});
+    page.on('console',m=>{
+      const line=m.text().slice(0,420);
+      if(/Can't add component|(?:NullReference|MissingReference|InvalidOperation|IndexOutOfRange)Exception:|Shader error/.test(line))errors.push(line);
+      if(m.type()==='error'||/Exception:|MOUNTAIN RACE READY/.test(line))console.log(line);
+    });
     page.on('response',r=>{if(r.ok()&&r.url().includes('/unity-test/Build/'))artifacts.add(new URL(r.url()).pathname);});
     await page.route('https://script.google.com/**',route=>{
       if(page.url().includes('/unity-test/')&&route.request().method()==='POST')writes.push(route.request().url());
@@ -41,6 +45,11 @@ async function main(){
       await page.screenshot({path:path.join(out,'menu-'+hero+'.png')});
       await page.locator('#play').tap();
       await waitState('play',hero);
+      if(hero==='owl'){
+        await page.waitForFunction(()=>lastRace.coins>=1,null,{timeout:60000});
+        await page.waitForTimeout(100);
+        await page.screenshot({path:path.join(out,'mandarin.png')});
+      }
       await page.waitForFunction(()=>lastRace.metres>=22,null,{timeout:60000});
       await page.screenshot({path:path.join(out,'ordinary-'+hero+'.png')});
       await page.locator('#pause').tap();await waitState('pause',hero);
@@ -89,7 +98,8 @@ async function main(){
     await page.waitForFunction(()=>lastRace.courseMode==='tubing' && document.querySelector('#rideStatus').textContent==='Открытый склон · ворота 0');
     await page.locator('#reviewRide').selectOption('normal');
     await page.waitForFunction(()=>lastRace.courseMode==='normal');
-    for(const [name,metre] of [['tube',29],['coffee',105],['forest-arch',2472],['tube-moguls',5150],['ramp',7655],['park',7630],['summit',10104],['night',15050],['holiday',17525]]){
+    for(const [name,metre] of [['tube',29],['cannon',78],['coffee',105],['magnet',653],['forest-arch',2472],['forest-canopy',2510],
+      ['tube-moguls',5150],['ramp',7655],['park',7630],['summit',10104],['black-gate',12507],['night',15050],['groomer',15232],['holiday',17525]]){
       await page.locator('#seek').evaluate((el,value)=>{el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));},metre);
       await page.waitForFunction(n=>Math.abs(lastRace.metres-n)<2,metre,{timeout:30000});
       await page.locator('#reviewFold').tap();

@@ -1,6 +1,7 @@
 // Bake the approved Three.js factories once, with their original transforms and UVs.
 // The resulting static mesh streams and blend shapes are read by Unity, without Three.js at runtime.
 // Start tools/serve.cjs docs 8766, then run this file from the repository root.
+// After rebaking trees, run python tools/unity-world-forest.py to rebuild the approved bent crowns.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {chromium}=require(process.env.DANCE_BROWSER_MODULE||'playwright');
 const root=path.resolve('unity/OwlSlope/Assets/Resources/Race');
@@ -19,7 +20,7 @@ Object.assign(specs,{startArch:['startArch',{}],liftTower:['kit',{model:'tower16
  fence1:['fence',{x1:0,x2:100,fenceStyle:1}],fence2:['fence',{x1:0,x2:100,fenceStyle:2}]});
 for(let i=0;i<8;i++)specs['stageLamp'+i]=['stageLamp',{stage:i}];
 for(const key of ['coin','gift','helmet','thermos','magnet','feather','aid','ball','snowman'])specs[key]=[key,{}];
-for(const key of ['tube60B','tube60C','tube61A','tube61C'])specs[key]=['tube',{variant:key}];
+// The four revised Unity tube riders are built with tools/build-unity-tube-riders.py.
 for(const key of ['snow26A','snow26B','snow26C'])specs[key]=['snowman',{variant:key}];
 for(let i=0;i<8;i++)specs['arch'+i]=['arch',{stage:i}];
 for(let i=0;i<3;i++){
@@ -87,6 +88,10 @@ async function exportModel(type,details){
  // Bake static sprites in their authored facing plane. Gate/ring glow survives the export.
  model.traverseVisible(node=>{
   if(!node.isMesh&&!node.isSprite)return;
+  // The Unity groomer mounts its optics on the actual cab. Legacy helper sprites
+  // and spheres sit at the height of the vehicle's bounding box above its blade.
+  if(type==='cat'&&node.parent===model&&(node.isSprite||node.userData.beacon||
+      (node.geometry===sharedGeo.sphLo&&node.material?.isMeshBasicMaterial)))return;
   const spr=node.isSprite;
   const geometry=spr?new THREE.PlaneGeometry(1,1):node.geometry;
   const pos=geometry.attributes.position,uv=geometry.attributes.uv,col=geometry.attributes.color;

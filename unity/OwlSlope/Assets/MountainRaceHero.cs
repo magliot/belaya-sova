@@ -238,11 +238,11 @@ public partial class MountainRace {
         if(activeEquipment=="tube"){
             tube.transform.localRotation=Quaternion.Euler(0,180-Mathf.Atan2(velocity,speed)*Mathf.Rad2Deg*.86f,-angle*2.2f);
             var skin=tube.GetComponent<SkinnedMeshRenderer>();
-            if(skin&&skin.sharedMesh.blendShapeCount>=2){skin.SetBlendShapeWeight(0,28+24*Mathf.Abs(angle));skin.SetBlendShapeWeight(1,angle*95);}
+            if(skin)RaceWorld.PoseTubeRider(skin,angle, .28f+.24f*Mathf.Abs(angle));
         }else if(activeEquipment=="sled"){
             sled.transform.localPosition=Vector3.zero;sled.transform.localRotation=Quaternion.identity;
             menuModel.localPosition=new Vector3(0,.55f,.25f);menuModel.localScale=Vector3.one;
-            menuModel.localRotation=Quaternion.Euler(8,180,-angle*9);
+            menuModel.localRotation=Quaternion.Euler(8,0,-angle*9);
             foreach(var entry in seatBones){
                 bool left=entry.Key.StartsWith("Left",StringComparison.Ordinal);string name=entry.Key;
                 Vector3 bend=name.EndsWith("UpLeg")?new Vector3(-47,0,0):name.EndsWith("Leg")?new Vector3(64,0,0):
@@ -256,8 +256,9 @@ public partial class MountainRace {
             rideModel.localScale=Vector3.one*scale;
             float authored=airborne&&sample>=3.25f&&sample<=4.08f?.28f*4*u*(1-u)*scale:0;
             rideModel.localPosition=Vector3.up*((Hero=="bear"?.022f:0)-authored);
-            // The Blender FBX import faces +Z on the ski rig; downhill is +Z in Unity.
-            rideModel.localRotation=Quaternion.Euler(0,Hero=="bear"?0:-90,0);
+            // The board is authored across local X with the owl looking towards -X.
+            // Bring its leading boot and gaze onto the course's downhill +Z axis together.
+            rideModel.localRotation=Quaternion.Euler(0,Hero=="bear"?0:90,0);
         }
         float follow=snap?1:Mathf.Min(1,dt*5);camLane=Mathf.Lerp(camLane,lane,follow);
         Vector3 eye=World.SampleGround(d-6.4f,camLane*.63f);

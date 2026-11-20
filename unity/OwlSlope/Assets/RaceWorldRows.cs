@@ -15,11 +15,12 @@ public partial class RaceWorld {
         var o=Entry("npc",x,y,25,1.55f,model);o.pace=speed*.05f;o.amp=amp*.05f;o.phase=phase;
         o.sb=model.StartsWith("board")||model=="snowboarder";o.kid=model=="kid"||model=="boardKid";
         o.instr=model=="instructor"||model=="boardInstructor";o.sit=model=="sitter";o.stand=speed==0&&!o.sit;
-        o.activation=(y-640)*.05f;return o;
+        return o;
     }
-    void Tree(float x,float y,int family,float size){
+    RaceItem Tree(float x,float y,int family,float size){
         int v=Mathf.Min(2,(int)(Roll(seed,Mathf.FloorToInt(y)+Mathf.RoundToInt(x),91)*3));
         var o=Entry("tree",x,y,family==1?36:24,2.2f,"tree"+family+v);o.scale=size;o.yaw=-Mathf.Repeat(y*.13f,6.28f)*Mathf.Rad2Deg;
+        o.offset=-.14f*size;return o;
     }
     RaceItem Cat(float x,float y,float speed,bool small=false){
         string model=small&&((Mathf.FloorToInt(y/1250)/12+seed)&1)==0?"cat12A":speed>0?"rattForward":"rattOncoming";
@@ -91,13 +92,12 @@ public partial class RaceWorld {
     void Training(int n,float y){
         float R(int k)=>Roll(seed,n,k);
         int side=R(13)<.5f?-1:1;
-        foreach(int s in sides)Entry("boundaryPole",200+s*196,y+170,1,1.1f);
         if(n%8==1)Entry("cannon",n%16==1?38:362,y+420,28,2,n%16==1?"cannonLeft":"cannonRight");
         if(n%12==4)Rescue(94,y+780);
         float offset=560+Mathf.Floor(R(9)*260),open=200-side*(52+R(6)*34);
         string kind=n==0?"tube":n==1?"gate":n%12==2?"snowman":n%12==7?"cat":n%6==4?"rest":n%3==0?"tube":R(2)<.48f?"gate":R(3)<.52f?"tube":"snowman";
         float at=y+(n==0?332:180)+Mathf.Floor(R(40)*58),ph=R(41)*Mathf.PI*2;
-        void Pupil(float dy,float x,float v,string name){var o=Person(200-side*x,at+dy,v,name,v==0?0:n%5==1?28:23,ph);o.activation=(at-640)*.05f;}
+        void Pupil(float dy,float x,float v,string name){Person(200-side*x,at+dy,v,name,v==0?0:n%5==1?28:23,ph);}
         if(n%5==0){Pupil(0,n==0?88:104,42,"kid");Pupil(88,n==0?103:94,42,"instructor");}
         if(n%5==1){Pupil(-40,109,49,"snowboarder");Pupil(48,146,0,"boardKid");Pupil(95,129,0,"boardInstructor");}
         if(n%5==3&&R(43)<.68f){Pupil(0,151,0,"sitter");Pupil(47,127,0,"skier");}
@@ -118,8 +118,18 @@ public partial class RaceWorld {
         int id=Mathf.FloorToInt(y/1000);float R(int k)=>Roll(seed,id,k);int side=R(31)>.5f?1:-1;
         if(n==49){Coins(200,y+70,3,100);return;}
         float line=200-side*(56+R(32)*17),j=Mathf.Floor(R(35)*46);
-        Tree(200+side*145,y+260+j,1,.97f);Tree(200+side*(51+R(34)*20),y+332+j,2,.90f);
-        if(!sprint&&n%3==1)Tree(200+side*R(36)*16,y+451+j,0,.83f);
+        bool canopy=!sprint&&n%4==0;
+        if(canopy){
+            float centre=200+side*(12+R(34)*13);
+            foreach(int edge in sides){
+                var stem=Tree(centre+edge*88,y+370+j+edge*12,1,1.08f);
+                stem.variant="canopyFir";stem.lean=-17;stem.yaw=edge<0?0:180;stem.offset=-.24f;
+            }
+            line=centre;
+        }else{
+            Tree(200+side*145,y+260+j,1,.97f);Tree(200+side*(51+R(34)*20),y+332+j,2,.90f);
+            if(!sprint&&n%3==1)Tree(200+side*R(36)*16,y+451+j,0,.83f);
+        }
         Tree(200+side*161,y+409+j,0,1.13f);Tree(200-side*148,y+750-j,0,1.02f);
         if(R(39)>.30f)Tree(200-side*121,y+822-j,2,.88f);
         if(sprint?n==3:n%3==0)TrailActor("snowmobile",y+610,side);
@@ -169,8 +179,28 @@ public partial class RaceWorld {
         int side=(n%2==1?1:-1)*(Roll(seed,stage,98)<.5f?-1:1);
         for(int j=0;j<3;j++){
             float at=y+360+j*525;int turn=(j%2==1?-1:1)*side;float open=200-turn*53;Coins(open,at-207,3,70);
-            if(j==n%3||j==1){Rock(open-64,at,-1==turn);Rock(open+64,at,1==turn);Gate(open,at,78,0,true);}
+            if(j==n%3||j==1){
+                foreach(int edge in sides){
+                    bool wide=edge==turn;
+                    float scale=wide?1.85f:1.65f;
+                    float radius=scale*(wide?.77f:.42f);
+                    var stone=Rock(open+edge*(41+radius*20),at,wide,radius*20);
+                    stone.variant=wide?"gateRockWide":"gateRockTall";stone.scale=scale;
+                    stone.offset=-.13f;stone.length=2*radius;
+                }
+                Gate(open,at,78,0,true);
+            }
             else{Rock(200+turn*23,at,true,20);Rock(200+turn*103,at+67,false,15);}
+        }
+        // Only one moving party per section; its home line is outside all stone openings.
+        float atTraffic=y+280+Roll(seed,n,417)*170;
+        if(n%5==3){
+            var tube=Tube(200-side*147,atTraffic, -side,Tubes[(int)(Roll(seed,n,418)*3.99f)]);
+            tube.release=(atTraffic-780)*.05f;tube.vStart=1.8f;tube.vCruise=3.6f;tube.tau=2.4f;
+            tube.from=8.0f;tube.to=7.3f;tube.pathSpan=17;
+        }else if(n%5!=4){
+            string model=n%5==1?"snowboarder":n%5==2?"kid":"skier";
+            Person(200-side*(149+Roll(seed,n,419)*15),atTraffic,model=="kid"?46:62,model,9,Roll(seed,n,420)*6.28f);
         }
     }
     void Night(float y,int n,int stage){

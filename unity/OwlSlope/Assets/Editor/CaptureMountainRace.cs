@@ -166,6 +166,8 @@ public static class CaptureMountainRace {
             race.ChooseHero("bear");race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
             race.BeginSteer();for(int i=0;i<67;i++)race.Advance(1f/60);Save(race,"03-training");
             Checkpoint(race,2474,0);race.Advance(1f/60);Save(race,"04-forest-entry");
+            Checkpoint(race,2510,0);race.Advance(1f/60);Save(race,"13-forest-canopy");
+            Checkpoint(race,12507,0);race.Advance(1f/60);Save(race,"14-stone-gate");
             AirFrame(race,"bear");AirFrame(race,"owl");Debug.Log("MOUNTAIN CAPTURE PASS");EditorApplication.Exit(0);
         }catch(Exception e){Debug.LogException(e.InnerException??e);EditorApplication.Exit(2);}
     }

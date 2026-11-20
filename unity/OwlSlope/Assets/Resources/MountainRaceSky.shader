@@ -25,17 +25,18 @@ Shader "Owl/MountainRaceSky" {
    CGPROGRAM
    #pragma vertex vert
    #pragma fragment frag
+   #pragma target 3.0
    #include "UnityCG.cginc"
    sampler2D _Ridge,_LeftRidge,_RightRidge,_Aurora,_AuroraA,_AuroraC,_MenuArt,_Route;
    float4 _Forward,_Horizon,_Zenith,_Tint;float _Night,_Storm,_Clock,_Menu,_Tube;
    struct V {float4 pos:SV_POSITION;float3 ray:TEXCOORD0;float4 screen:TEXCOORD1;};
    V vert(float4 p:POSITION){V o;o.pos=UnityObjectToClipPos(p);o.screen=ComputeScreenPos(o.pos);o.ray=p.xyz;return o;}
-   fixed4 mountainPanel(float panel,float2 uv){
+   fixed4 mountainPanel(float panel,float2 uv,float2 du,float2 dv){
     uv=clamp(uv,.002,.998);
     float tile=frac((panel+1.)/3.+.001)*3.;
-    if(tile<.5)return tex2D(_LeftRidge,uv);
-    if(tile>1.5)return tex2D(_RightRidge,uv);
-    return tex2D(_Ridge,uv);
+    if(tile<.5)return tex2Dgrad(_LeftRidge,uv,du,dv);
+    if(tile>1.5)return tex2Dgrad(_RightRidge,uv,du,dv);
+    return tex2Dgrad(_Ridge,uv,du,dv);
    }
    fixed4 frag(V i):SV_Target{
     if(_Menu>.5){
@@ -69,8 +70,13 @@ Shader "Owl/MountainRaceSky" {
     // below the skyline all the way down to the descending foreground geometry.
     float sector=bearing*(9./6.2831853);
     float panel=floor(sector),t=frac(sector),v=.67+dir.y*1.65;
-    fixed4 ridgeA=mountainPanel(panel,float2(.5+t*.78,v));
-    fixed4 ridgeB=mountainPanel(panel+1.,float2(.5+(t-1.)*.78,v));
+    // UV jumps between panels, but a pixel's footprint stays continuous through each seam
+    // (including atan2's wrap). Otherwise the coarsest mip draws a vertical line in clear sky.
+    float inv=1.1172677/max(dot(dir.xz,dir.xz),.001); // .78 * 9 / (2*pi)
+    float2 du=float2(inv*(dir.z*ddx(dir.x)-dir.x*ddx(dir.z)),ddx(v));
+    float2 dv=float2(inv*(dir.z*ddy(dir.x)-dir.x*ddy(dir.z)),ddy(v));
+    fixed4 ridgeA=mountainPanel(panel,float2(.5+t*.78,v),du,dv);
+    fixed4 ridgeB=mountainPanel(panel+1.,float2(.5+(t-1.)*.78,v),du,dv);
     float blend=smoothstep(.36,.64,t);
     fixed3 a=lerp(sky,lerp(ridgeA.rgb*_Tint.rgb,_Horizon.rgb,.20),ridgeA.a);
     fixed3 b=lerp(sky,lerp(ridgeB.rgb*_Tint.rgb,_Horizon.rgb,.20),ridgeB.a);
@@ -78,7 +84,7 @@ Shader "Owl/MountainRaceSky" {
     if(_Storm>.5){
      float ripple=sin(az*5.-_Clock*.65+sin(az*11.+dir.y*18.-_Clock*.31));
      float veil=smoothstep(-.17,.06,dir.y)*(1.-smoothstep(.05,.44,dir.y));
-     sky=lerp(sky,_Horizon.rgb,.35+veil*(.26+.10*ripple));
+     sky=lerp(sky,_Horizon.rgb,.84+veil*(.105+.045*ripple));
     }
     if(_Tube>.5){
      float2 tuv=float2(.50+az*.70,.45+dir.y*2.6);

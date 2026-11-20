@@ -33,6 +33,7 @@ public partial class MountainRace {
         spray.SetActive(false);
     }
     void ClearTracks(){
+        ClearBursts();
         trackIndex=0;previousStamp=-1;splashStart=-10;
         System.Array.Clear(trackVertices,0,trackVertices.Length);trackMesh.vertices=trackVertices;splash.gameObject.SetActive(false);
     }

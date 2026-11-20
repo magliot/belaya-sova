@@ -35,6 +35,32 @@ public partial class MountainRace {
         Check(Status.rings==(taps==0?0:1),result+" upper ring");
         return result;
     }
+    string VerifySnowballThrows(){
+        int onTarget=0,hits=0;
+        for(int sample=0;sample<20;sample++){
+            StartRace("{\"mode\":\"normal\",\"seed\":"+(1911+sample)+",\"helmets\":1}");
+            Checkpoint(106,0);
+            var sender=World.Items.Find(o=>o.kind=="snowman"&&o.distance>135&&o.distance<182);
+            Check(sender!=null,"first training snowman missing");
+            Checkpoint(sender.distance-30,0);
+            RaceItem shot=null;bool hit=false;
+            for(int tick=0;tick<300&&Status.metres<sender.distance+3&&Status.phase=="play";tick++){
+                Advance(1f/60);
+                if(shot==null)shot=World.Items.Find(o=>o.kind=="ball"&&Mathf.Abs(o.originD-sender.originD)<.01f);
+                if(!hit&&snowPuffs&&snowPuffs.particleCount>0){
+                    hit=true;
+                    Check(Status.helmets==1&&wobble==0&&slow==0,"snowball should only shower the player with snow");
+                }
+            }
+            Check(sender.threwSnowball&&shot!=null,"snowman did not throw for seed "+(1911+sample));
+            bool aimed=Mathf.Abs(shot.throwEnd.x)<1;
+            if(aimed)onTarget++;
+            if(hit)hits++;
+            Check(aimed==hit,"throw and physical contact disagree for seed "+(1911+sample));
+        }
+        Check(hits>=11&&hits<20,"sample must contain both hits and misses: "+hits);
+        return "training throws "+hits+"/20 physical hits, "+onTarget+" aimed";
+    }
     public string VerifyMechanics(){
         Initialize();var report=new List<string>();
         try{
@@ -57,6 +83,7 @@ public partial class MountainRace {
             Checkpoint(skier.distance,skier.lane);Advance(1f/60);for(int i=0;i<17;i++)Advance(.1f);
             Check(Status.phase=="over","unprotected collision did not end the ride");
             report.Add("training pickup + protected and unprotected NPC collisions");
+            report.Add(VerifySnowballThrows());
             StartRace("{\"mode\":\"sprint\",\"seed\":1911}");
             Checkpoint(1199,0);Advance(.2f);Check(Status.phase=="finish"&&Status.metres==SprintLength,"sprint finish");
             report.Add("sprint 1200m");
@@ -66,6 +93,7 @@ public partial class MountainRace {
                 Check(item!=null,mode+" pickup missing");
                 Checkpoint(item.distance,item.lane);Advance(1f/60);
                 Check(mode=="sled"?Status.snowmen>0:Status.coins>0,mode+" bonus pickup");
+                if(mode=="tubing")Check(mandarinStars&&mandarinStars.particleCount>0,"no mandarin burst at contact");
                 Status.elapsed=74.96f;Advance(.1f);
                 Check(Status.phase=="finish"&&Mathf.Abs(Status.elapsed-75)<.001f,mode+" limit");
                 report.Add(mode+" pickup and 75s finish");

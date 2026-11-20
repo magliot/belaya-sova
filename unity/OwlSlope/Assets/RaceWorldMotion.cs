@@ -35,28 +35,27 @@ public partial class RaceWorld {
                 float d=o.originD+1.7f*(Mathf.Sin(t*1.2f+ph)-Mathf.Sin(ph))+.95f*t;
                 if(dt>0)o.yaw=Mathf.Atan2(x-o.lane,d-o.distance)*Mathf.Rad2Deg;
                 o.distance=d;o.lane=x;o.offset=.055f*Mathf.Abs(Mathf.Sin(t*14));return;}
-            case "ball":
-                o.lane+=o.velocity*dt;o.height=Mathf.Max(.03f,o.height-dt*.3f);
-                if(Mathf.Abs(o.lane)>11)o.Consume();return;
-            case "snowman":{
-                float ahead=o.distance-player;o.cooldown-=dt;
-                if(o.windup>0){o.windup-=dt;if(o.windup<=0&&ahead>.5f){
-                    float side=o.lane<0?1:-1;var ball=Add("ball",o.distance,o.lane+side*.6f,.8f,1.3f);
-                    ball.velocity=side*(8.5f+3*Roll(seed,Mathf.RoundToInt(o.distance),Mathf.RoundToInt(elapsed)));Place(ball);o.cooldown=1.05f;
-                }}else if(ahead>7&&ahead<50&&o.cooldown<=0)o.windup=.48f;
-                o.yaw=(o.variant=="snowman"?180:0)+(o.lane<0?-20:20);o.lean=o.windup>0?Mathf.Sin(o.windup/.48f*Mathf.PI)*5:0;return;}
+            case "ball":MoveSnowball(o,dt);return;
+            case "snowman":ThrowSnowball(o,player,dt);return;
             case "airRing":o.lean=Mathf.Sin(elapsed*.65f+o.originD)*3;return;
             case "coin":case "feather":case "gift":case "thermos":case "aid":case "helmet":case "magnet":
                 o.yaw=o.kind=="coin"?Mathf.Sin(elapsed*2.5f+o.lane)*34:elapsed*95;o.offset=.075f*Mathf.Sin(elapsed*3+o.lane);return;
         }
     }
     void MoveTube(RaceItem o,float player,float dt){
-        if(o.age==0&&lastDistance>o.release)o.age=Mathf.Max(0,(lastDistance-o.release)/14.5f);
-        if(player>=o.release)o.age+=dt*(lastDistance>=o.release?1:Mathf.Clamp01((player-o.release)/Mathf.Max(.001f,player-lastDistance)));
-        float decay=Mathf.Exp(-o.age/o.tau),d=o.vCruise*o.age-(o.vCruise-o.vStart)*o.tau*(1-decay);
+        if(!o.movingPoseReady){
+            o.age=Mathf.Clamp((player-o.release)/14.5f,-12,16);
+            o.movingPoseReady=true;
+        }
+        // The scheduled point starts acceleration. Higher up the bank the tube
+        // is already gliding into its line, even when seen across a long bend.
+        o.age+=dt;
+        float entrySpeed=Mathf.Max(1.25f,o.vStart);
+        float decay=Mathf.Exp(-Mathf.Max(0,o.age)/o.tau);
+        float d=o.age<0?entrySpeed*o.age:o.vCruise*o.age-(o.vCruise-entrySpeed)*o.tau*(1-decay);
         float t=Mathf.Clamp01(d/o.pathSpan),delta=o.to-o.from,tail=Mathf.Max(0,d-o.pathSpan)/4.75f;
         float tangent=o.side*(delta*6*t*(1-t)/o.pathSpan+.2f*Mathf.Sin(tail)/4.75f);
-        float speed=o.vCruise-(o.vCruise-o.vStart)*decay;
+        float speed=o.vCruise-(o.vCruise-entrySpeed)*decay;
         float curvature=t>0&&t<1?o.side*delta*6*(1-2*t)/(o.pathSpan*o.pathSpan):d>o.pathSpan?o.side*.2f*Mathf.Cos(tail)/(4.75f*4.75f):0;
         o.lane=o.side*(o.from+delta*Smooth(t)+.2f*(1-Mathf.Cos(tail)));o.distance=o.originD+d;
         o.yaw=180+(Mathf.Atan(tangent)-Mathf.Clamp(curvature*speed*.34f,-.16f,.16f))*Mathf.Rad2Deg;
@@ -64,9 +63,16 @@ public partial class RaceWorld {
     }
     void MoveRider(RaceItem o,float player,float elapsed,float dt){
         if(o.walker){o.distance+=o.pace*dt;o.lean=1.5f*Mathf.Sin(elapsed*2);return;}
-        if(o.pace<=0||o.stand||o.sit||player<o.activation){
+        if(o.pace<=0||o.stand||o.sit){
             float f=elapsed*.75f+o.phase;o.yaw=18*Mathf.Sin(f)+(o.instr&&o.stand?145:0);o.lean=2.5f*Mathf.Sin(f*1.9f);
             o.offset=o.kid&&o.stand?.16f*Mathf.Pow(Mathf.Max(0,Mathf.Sin(f*3)),10):0;return;
+        }
+        if(!o.movingPoseReady){
+            o.movingPoseReady=true;
+            o.age=2.1f*Roll(seed,Mathf.RoundToInt(o.originD),317);
+            o.velocity=Mathf.Clamp(.75f*o.amp*Mathf.Cos(o.age+o.phase),-o.pace*.62f,o.pace*.62f);
+            o.yaw=Mathf.Atan2(o.velocity,o.pace)*Mathf.Rad2Deg;
+            o.lean=-3*Mathf.Sin(o.age+o.phase);
         }
         if(dt<=0)return;o.age+=dt;
         float target=o.originX+o.amp*(o.sb?1.2f:1.08f)*Mathf.Sin(o.age+o.phase+.32f*Mathf.Sin(o.age*.54f+o.phase));

@@ -9,9 +9,13 @@ public sealed class RaceItem {
     public bool sb,kid,stand,sit,instr,walker;
     public int points;
     internal float originD,originX,scale=1,side,phase,age,pace,amp,yaw,lean,velocity,offset,windup,cooldown,stride;
-    internal float release,from,to,vStart,vCruise,tau,pathSpan,activation,airStart,airSpan,airLift,airBase;
+    internal float release,from,to,vStart,vCruise,tau,pathSpan,airStart,airSpan,airLift,airBase;
     internal int route;
     internal bool leap,small,decor,bypass;
+    internal bool movingPoseReady;
+    internal bool threwSnowball;
+    internal Vector2 throwEnd;
+    internal float throwDuration,throwEndHeight,throwStartHeight;
     internal GameObject obj;
     internal GameObject prints;
     internal Mesh printMesh;
@@ -99,7 +103,6 @@ public partial class RaceWorld : MonoBehaviour {
                 Release(o);Items.RemoveAt(i);continue;
             }
             MoveItem(o,distance,elapsed,dt);Place(o);
-            if(o.spray&&dt>0)o.spray.Simulate(dt,false,false,false);
         }
         lastDistance=distance;lastTime=elapsed;
     }
@@ -112,13 +115,15 @@ public partial class RaceWorld : MonoBehaviour {
         return o.variant.StartsWith("forestCard")?ForestCard(o.variant):CreateVisual(o.variant,transform);
     }
     void Place(RaceItem o){
+        if(o.stoneGate)return; // Scoring plane between two individually grounded, illuminated boulders.
         if(o.obj&&!Moves(o.kind))return;
         if(!o.obj){
             o.obj=GetVisual(o);o.skin=o.obj.GetComponent<SkinnedMeshRenderer>();o.obj.name=o.kind+" · "+o.variant;
             if(o.kind=="cannon"){
                 o.spray=o.obj.GetComponentInChildren<ParticleSystem>();
                 if(!o.spray)AddCannonSpray(o);
-                o.spray.Clear();
+                o.spray.Simulate(1.05f,false,true,false);
+                o.spray.Play(false);
             }
         }
         bool onRunners=o.kind=="tube"||o.kind=="npc"||o.kind=="cat"||o.kind=="snowmobile";
@@ -138,6 +143,10 @@ public partial class RaceWorld : MonoBehaviour {
         if(o.kind=="fence")sx=o.width/5;
         o.obj.transform.localScale=new Vector3(sx,o.scale,o.scale);
         if(o.skin){
+            if(o.kind=="tube"){
+                PoseTubeRider(o.skin,o.lean/16,.18f+Mathf.Abs(o.lean)/29);
+                return;
+            }
             var m=o.skin.sharedMesh;
             for(int i=0;i<m.blendShapeCount;i++){
                 var k=m.GetBlendShapeName(i);float v=k=="Carve"||k=="1"?o.lean/16:
@@ -155,6 +164,12 @@ public partial class RaceWorld : MonoBehaviour {
                 o.skin.SetBlendShapeWeight(i,Mathf.Clamp(v,-1,1)*100);
             }
         }
+    }
+    public static void PoseTubeRider(SkinnedMeshRenderer skin,float lean,float compression){
+        var mesh=skin.sharedMesh;
+        int carve=mesh.GetBlendShapeIndex("Carve"),absorb=mesh.GetBlendShapeIndex("Absorb");
+        if(carve>=0)skin.SetBlendShapeWeight(carve,Mathf.Clamp(lean,-1,1)*100);
+        if(absorb>=0)skin.SetBlendShapeWeight(absorb,Mathf.Clamp01(compression)*100);
     }
     static bool Moves(string kind){
         switch(kind){

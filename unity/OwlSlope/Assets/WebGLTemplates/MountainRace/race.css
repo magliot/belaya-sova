@@ -41,17 +41,18 @@ button small{display:block;font-size:10px;font-weight:500;margin-top:2px}
 #course{position:absolute;left:0;top:2px;display:grid;gap:8px;color:#264b71;font-size:12px}
 #metres,#stage,#rideStatus{width:max-content;padding:3px 9px;border:1px solid #d6ba92;border-radius:12px;background:#fff8e9f2;box-shadow:0 1px 4px #553b2429}
 #metres{min-width:73px;font-size:13px}#pace{justify-self:start;padding:0 3px;color:#204568;text-shadow:0 0 4px #fff,0 1px 1px #fff}
-#pace.boosting,#multiplier{color:#984917}#multiplier{position:absolute;right:4px;top:52px;font-size:17px;text-shadow:0 0 4px white}
-#rideInfo{position:absolute;left:2px;top:120px;display:grid;gap:3px;font-size:11px;font-weight:800}
+#pace.boosting,#multiplier{color:#984917}#multiplier{padding-left:3px;font-size:14px;text-shadow:0 0 4px white}
+#rideInfo{position:absolute;right:0;top:48px;display:grid;grid-template-columns:minmax(0,1fr);justify-items:end;gap:3px;width:clamp(74px,calc(50% - min(20vw,74px) - 4px),168px);text-align:right;font-size:10px;font-weight:800;line-height:1.13}
+#rideInfo>span,#notice{min-width:0;width:fit-content;max-width:100%;padding:3px 6px;border-radius:6px;overflow-wrap:break-word}
 #rideStatus{max-width:100%;color:#75461b;background:#fff6e3e8;border-color:transparent}#rideStatus.warning{color:#a63626;background:#ffefe4}
 #avalancheMeter{position:absolute;inset:auto 4px 0;height:3px;background:#b5483540;border-radius:3px;overflow:hidden}#avalancheMeter i{display:block;height:100%;background:#bf4433;transform-origin:left}
-.scoreboard{position:absolute;top:0;left:50%;transform:translateX(-50%);width:min(42vw,156px);aspect-ratio:302/223;background:url(art/hud-59b.webp) center/100% 100%;filter:drop-shadow(0 0 4px #a6e1ff);container-type:inline-size}
+.scoreboard{position:absolute;top:clamp(-6px,calc(max(env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px)) - 7px),0px);left:50%;transform:translateX(-50%);width:min(40vw,148px);aspect-ratio:302/223;background:url(art/hud-59b.webp) center/100% 100%;filter:drop-shadow(0 0 4px #a6e1ff);container-type:inline-size}
 #score,#coins{position:absolute;transform:translate(-50%,-50%);line-height:1;color:#0c3b5f}
 #score{left:50%;top:38.6%;font-size:min(35px,22.4cqw,calc(119cqw / max(3,var(--digits,3))))}
 #coins{left:85.1%;top:73.5%;font-size:min(15px,9.6cqw)}#coins.many{font-size:min(12px,7.7cqw)}
 #helmets{position:absolute;left:9.3%;top:62.8%;display:flex;width:46.5%}#helmets img{width:33.33%}
 #pause{pointer-events:auto;position:absolute;top:2px;right:0;width:43px;background:#fff6e5;border-color:#c8a676;font-size:20px}
-#notice{position:absolute;bottom:7%;left:50%;transform:translateX(-50%);width:max-content;max-width:90%;border:1px solid #bea378;border-radius:12px;padding:5px 10px;text-align:center;font-size:13px;font-weight:800;color:#67411b;background:#fff6e8ed;pointer-events:none}
+#notice{width:fit-content;border:1px solid #bea378;color:#67411b;background:#fff6e8ed;pointer-events:none}
 #paused,#result,#panel,#loading,#shareSheet{bottom:50%;transform:translate(-50%,50%);max-height:96%}
 #shareImage{display:block;max-height:52vh;width:100%;object-fit:contain}#closeShare{max-width:40px}
 #resultScore{font-size:34px;color:#17557b}#loadBar{width:100%;accent-color:#317697}

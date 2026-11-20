@@ -94,7 +94,7 @@ public partial class RaceWorld {
         float u=Mathf.InverseLerp(ColumnLane(lo,width),ColumnLane(hi,width),lane);
         int row=(int)((lower-firstSnowRow)*.5f);
         Vector3 p00,p10,p01,p11;
-        if(snowVertices!=null&&row>=0&&row<104){
+        if(snowVertices!=null&&row>=0&&row+1<snowVertices.Length/columns.Length){
             int a=row*columns.Length+lo,b=a+columns.Length;
             p00=snowVertices[a];p10=snowVertices[a+1];p01=snowVertices[b];p11=snowVertices[b+1];
         }else{
@@ -112,7 +112,8 @@ public partial class RaceWorld {
     Material SnowPaint(string key,Color color){var m=new Material(Resources.Load<Material>("SlopeLit"));m.color=color;
         m.mainTexture=Resources.Load<Texture2D>("Art/"+key);m.SetFloat("_Smoothness",.06f);return m;}
     void UpdateTerrain(float centre){
-        const int rows=105,cols=23;
+        // Continue the terrain behind the last streamed trees, past the end of the normal fog.
+        const int rows=151,cols=23;
         var points=new Vector3[rows*cols];var uv=new Vector2[points.Length];
         if(!terrain){
             var go=new GameObject("Groomed run");go.transform.SetParent(transform,false);
@@ -144,11 +145,12 @@ public partial class RaceWorld {
             var tex=Resources.Load<Texture2D>("Race/Forest/"+key);
             int family=key[key.Length-2]-'0';float h=family==0?3.7f:family==1?7.2f:2.45f,w=h*tex.width/tex.height*.5f;
             mesh=new Mesh{name=key};
-            mesh.vertices=new[]{new Vector3(-w,0,0),new Vector3(-w,h,0),new Vector3(w,h,0),new Vector3(w,0,0),
-                new Vector3(0,0,-w),new Vector3(0,h,-w),new Vector3(0,h,w),new Vector3(0,0,w)};
-            mesh.uv=new[]{Vector2.zero,Vector2.up,Vector2.one,Vector2.right,Vector2.zero,Vector2.up,Vector2.one,Vector2.right};
-            mesh.colors=new[]{Color.white,Color.white,Color.white,Color.white,Color.white,Color.white,Color.white,Color.white};
-            mesh.triangles=new[]{0,1,2,0,2,3,4,5,6,4,6,7};mesh.RecalculateNormals();mesh.RecalculateBounds();cards[key]=mesh;
+            mesh.vertices=new[]{new Vector3(-w,0,0),new Vector3(-w,h,0),new Vector3(w,h,0),new Vector3(w,0,0)};
+            mesh.uv=new[]{Vector2.zero,Vector2.up,Vector2.one,Vector2.right};
+            mesh.colors=new[]{Color.white,Color.white,Color.white,Color.white};
+            mesh.triangles=new[]{0,1,2,0,2,3};mesh.RecalculateNormals();
+            // The shader turns the single drawing around its trunk. Bound every possible angle.
+            mesh.bounds=new Bounds(Vector3.up*h*.5f,new Vector3(2*w,h,2*w));cards[key]=mesh;
             var material=new Material(Resources.Load<Shader>("Race/WorldObject"));material.SetTexture("_BaseMap",tex);
             material.SetFloat("_Lit",.2f);material.SetFloat("_LeafCoverage",1);trees[key]=material;
         }
@@ -162,16 +164,23 @@ public partial class RaceWorld {
         if(scenery.Count==0)sceneryRow=start-1;
         for(int row=Mathf.Max(start,sceneryRow+1);row<=end;row++)foreach(int side in sides){
             int stage=StageAt(row*12);int count=1+(Roll(seed,row,100+side)>.38f?2:0);
+            if(stage==1){
+                int grove=Mathf.FloorToInt((row+(side<0?2:0))/5f);
+                int phase=(row+(side<0?2:0))%5;
+                count=phase<3?2+(Roll(seed,grove,207+side)>.45f?1:0):phase==3?1:0;
+            }
             for(int i=0;i<count;i++){
                 float t=row*12+i*1.88f+Roll(seed,row,120+i+side)*2;
                 float offset=(stage==1?9.5f:stage==3?18:14.5f)+i*3.4f+Roll(seed,row,108+i+side)*5;
                 int family=Mathf.Min(2,(int)(Roll(seed,row,130+i+side)*3));
                 int v=Mathf.Min(2,(int)(Roll(seed,row,140+i+side)*3));
+                float scale=.82f+Roll(seed,row,150+i+side)*.82f;
+                float height=family==0?3.7f:family==1?7.2f:2.45f;
                 var obj=new RaceItem{kind="woods",variant="forestCard"+family+v,lane=side*offset,distance=t,
-                    scale=.82f+Roll(seed,row,150+i+side)*.82f,yaw=Roll(seed,row,160+i)*180,decor=true};
+                    scale=scale,offset=-.12f-height*scale*.085f,decor=true};
                 scenery.Add(obj);Place(obj);
             }
-            if(row%3==0&&mode!="tubing"){
+            if(row%3==0&&(stage!=0||mode=="sled")&&mode!="tubing"){
                 var lamp=new RaceItem{kind="lamp",variant="stageLamp"+stage,
                     distance=row*12,lane=side*11.6f,decor=true,yaw=90};scenery.Add(lamp);Place(lamp);
             }

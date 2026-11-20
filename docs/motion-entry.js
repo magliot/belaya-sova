@@ -19,7 +19,7 @@
   const test = start === 'unity' || /^unitytest(?:_[a-z0-9]+)?$/.test(start || '') || pilot;
   const target = new URL((pilot ? '../' : './') + (test ? 'unity-test/' : 'unity/'), location.href);
   query.delete('tgWebAppData');
-  query.set('v', '2026-11-20h');
+  query.set('v', '2026-11-20i');
   target.search = query.toString();
   target.hash = context.toString();
   location.replace(target.href);

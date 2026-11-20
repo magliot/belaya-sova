@@ -108,8 +108,8 @@ public partial class MountainRace : MonoBehaviour {
     public void BeginSteer(){if(Status.phase=="play"){dragging=true;dragTarget=dragStart=lane;}}
     public void DragSteer(float delta){if(dragging)dragTarget=Mathf.Clamp(dragStart+delta*27*sensitivity,-LaneLimit(Status.metres),LaneLimit(Status.metres));}
     public void ReleaseSteer(){dragging=false;}
-    public void PauseRide(){if(Status.phase=="play"){Status.phase="pause";ReleaseSteer();flakes.Pause();fireworks.Pause();Publish();}else if(Review)ReviewRate(0);}
-    public void ResumeRide(){if(Status.phase=="pause"){Status.phase="play";flakes.Play();fireworks.Play();Publish();}}
+    public void PauseRide(){if(Status.phase=="play"){Status.phase="pause";ReleaseSteer();flakes.Pause();fireworks.Pause();World.PauseCannons(true);Publish();}else if(Review)ReviewRate(0);}
+    public void ResumeRide(){if(Status.phase=="pause"){Status.phase="play";flakes.Play();fireworks.Play();World.PauseCannons(false);Publish();}}
     public void EndRide(){
         if(Status.phase!="play"&&Status.phase!="pause")return;
         if(Status.metres<30){Menu();return;}
@@ -121,6 +121,7 @@ public partial class MountainRace : MonoBehaviour {
         if(BonusMode)Status.elapsed=(Mathf.Sqrt(270*270+2*(80f/75)*Status.metres*20)-270)/(80f/75);
         lane=reviewLane;angle=0;rampHeight=0;airborne=false;travelYaw=World.HeadingAt(Status.metres);
         Status.stage=Mathf.FloorToInt(Status.metres/2500)%8;
+        World.SetThrowTarget(lane,14,0,0);
         World.Refresh(Status.metres,Status.elapsed);ReviewContact();
         boost=reviewEffect=="coffee"?5:0;Status.avalanche=reviewEffect=="avalanche"?.85f:0;
         if(reviewEffect=="jump"){
@@ -151,12 +152,13 @@ public partial class MountainRace : MonoBehaviour {
     // Public for editor simulation: the same fixed substeps run in the phone player.
     public void Advance(float elapsed,float keyboard=0){
         if(Status.phase!="play"||elapsed<=0)return;
+        World.SetThrowTarget(lane,speed,velocity+slip,Altitude);
         World.Refresh(Status.metres,Status.elapsed,lane);
         float left=elapsed;
         while(left>.00001f&&Status.phase=="play"){
             float dt=Mathf.Min(left,1f/60);Step(dt,keyboard);left-=dt;
         }
-        RenderRace(elapsed,false);
+        StepBursts(elapsed);RenderRace(elapsed,false);
         if(Status.phase=="play"&&Status.elapsed>=nextHud){Publish();nextHud=Status.elapsed+.10f;}
     }
     void Cue(string cue){Status.cue=cue;Status.eventId=++serial;}

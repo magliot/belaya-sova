@@ -97,6 +97,15 @@ async function main(){
       assert.equal(await p.locator('#multiplier').innerText(),'×3');assert.equal(await p.locator('#score').innerText(),'123456');
       assert.equal(await p.locator('#coins').innerText(),'12');assert.match(await p.locator('#helmets').getAttribute('aria-label'),/2/);
       assert.match(await p.locator('#rideStatus').innerText(),/Ускорение · 3.4 с/);
+      for(const width of [320,384]){
+        await p.setViewportSize({width,height:740});
+        await hud({stage:7,metres:17540,boost:true,boostSeconds:3.4});
+        const [pause,stage,status,board]=await Promise.all(['#pause','#stage','#rideStatus','.scoreboard'].map(s=>p.locator(s).boundingBox()));
+        assert(stage.y>=pause.y+pause.height&&stage.x>=board.x+board.width-1,'Stage should sit below Pause beside the scoreboard');
+        assert(status.y>=stage.y+stage.height&&status.x>=board.x+board.width-1,'Boost must stay in the right column');
+        assert(stage.x+stage.width<=width-7&&status.x+status.width<=width-7,'Long names must wrap inside the safe area');
+      }
+      await p.setViewportSize({width:375,height:667});
       await hud({magnetSeconds:2});assert.match(await p.locator('#rideStatus').innerText(),/Магнит · 2.0 с/);
       await hud({nextLetter:'С',letterSide:-1});assert.equal(await p.locator('#rideStatus').innerText(),'Буква «С» ←');
       await hud({chaseSeconds:2.4,chaseGap:15.4,avalanche:.55});assert(await p.locator('#avalancheMeter').isVisible());

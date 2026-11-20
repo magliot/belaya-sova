@@ -53,18 +53,30 @@ public partial class RaceWorld {
     void AddCannonSpray(RaceItem o){
         float side=o.lane<0?1:-1;
         var go=new GameObject("Snow stream");go.transform.SetParent(o.obj.transform,false);
-        go.transform.localPosition=new Vector3(side*.62f,1.95f,0);
+        // On the 25A mesh the face of the fan is at x=0.59, centred at y=1.91.
+        go.transform.localPosition=new Vector3(side*.65f,1.91f,0);
+        go.transform.localRotation=Quaternion.LookRotation(new Vector3(side,.31f,0));
         var spray=go.AddComponent<ParticleSystem>();spray.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
-        var main=spray.main;main.startLifetime=1.25f;main.startSpeed=0;main.startSize=new ParticleSystem.MinMaxCurve(.075f,.18f);
-        main.maxParticles=60;main.startColor=new Color(.97f,.99f,1,.8f);main.gravityModifier=.7f;
+        var main=spray.main;main.startLifetime=new ParticleSystem.MinMaxCurve(1.0f,1.35f);
+        main.startSpeed=new ParticleSystem.MinMaxCurve(8.7f,11.5f);main.startSize=new ParticleSystem.MinMaxCurve(.095f,.23f);
+        main.maxParticles=165;main.startColor=new Color(.88f,.95f,1,.92f);main.gravityModifier=.50f;
         main.playOnAwake=false;main.simulationSpace=ParticleSystemSimulationSpace.Local;
-        var shape=spray.shape;shape.enabled=false;
-        var emission=spray.emission;emission.rateOverTime=38;
-        var velocity=spray.velocityOverLifetime;velocity.enabled=true;velocity.space=ParticleSystemSimulationSpace.Local;
-        velocity.x=new ParticleSystem.MinMaxCurve(side>0?6:-9,side>0?9:-6);
-        velocity.y=new ParticleSystem.MinMaxCurve(2.2f,3.6f);velocity.z=new ParticleSystem.MinMaxCurve(-.7f,.7f);
+        var shape=spray.shape;shape.enabled=true;shape.shapeType=ParticleSystemShapeType.Cone;
+        shape.angle=8;shape.radius=.29f;shape.radiusThickness=1;
+        var emission=spray.emission;emission.rateOverTime=110;
+        var size=spray.sizeOverLifetime;size.enabled=true;
+        size.size=new ParticleSystem.MinMaxCurve(1,new AnimationCurve(new Keyframe(0,.72f),new Keyframe(.6f,1.65f),new Keyframe(1,2.2f)));
+        var gradient=new Gradient();
+        gradient.SetKeys(new[]{new GradientColorKey(Color.white,0),new GradientColorKey(new Color(.78f,.89f,1),1)},
+            new[]{new GradientAlphaKey(.86f,0),new GradientAlphaKey(.73f,.65f),new GradientAlphaKey(0,1)});
+        var color=spray.colorOverLifetime;color.enabled=true;color.color=gradient;
         if(!gunSnow)gunSnow=new Material(Resources.Load<Shader>("MountainRaceFlake"));
         var renderer=go.GetComponent<ParticleSystemRenderer>();renderer.sharedMaterial=gunSnow;renderer.shadowCastingMode=ShadowCastingMode.Off;
         o.spray=spray;
+    }
+    public void PauseCannons(bool pause){
+        foreach(var item in Items)if(item.spray){
+            if(pause)item.spray.Pause(false);else item.spray.Play(false);
+        }
     }
 }

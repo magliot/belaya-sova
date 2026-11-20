@@ -5,7 +5,7 @@ public partial class MountainRace {
     Light sun,headlight;Material raceSky,flakePaint;
     readonly Light[] nightLamps=new Light[4];
     ParticleSystem flakes,fireworks;
-    int weatherZone=-1;float nextBurst;string backdrop="";
+    int weatherZone=-1;string backdrop="";
 
     void SetupWeather(){
         raceSky=new Material(Resources.Load<Shader>("MountainRaceSky"));
@@ -28,7 +28,8 @@ public partial class MountainRace {
             lamp.color=new Color(1,.76f,.46f);lamp.enabled=false;nightLamps[i]=lamp;
         }
         flakePaint=new Material(Resources.Load<Shader>("MountainRaceFlake"));
-        flakes=Particles("Windblown snow",650);fireworks=Particles("Distant fireworks",420);
+        flakes=Particles("Windblown snow",760);fireworks=Particles("Distant fireworks",FestivalParticleLimit);
+        fireworks.GetComponent<ParticleSystemRenderer>().sharedMaterial=new Material(Resources.Load<Shader>("FestivalSpark"));
         flakes.Stop(false,ParticleSystemStopBehavior.StopEmittingAndClear);
         var main=flakes.main;main.simulationSpace=ParticleSystemSimulationSpace.Local;
         main.startSize=new ParticleSystem.MinMaxCurve(.05f,.135f);
@@ -64,16 +65,16 @@ public partial class MountainRace {
             Color horizon,zenith,light,tint;float level,ambient;
             switch(zone){
             case 1:horizon=new Color(.99f,.77f,.66f);zenith=new Color(.39f,.60f,.83f);light=new Color(1,.82f,.69f);level=.83f;ambient=.73f;tint=new Color(.98f,.86f,.87f);break;
-            case 2:horizon=new Color(.77f,.83f,.88f);zenith=new Color(.55f,.65f,.75f);light=new Color(.85f,.91f,1);level=.64f;ambient=.83f;tint=new Color(.8f,.86f,.90f);break;
-            case 3:horizon=new Color(.085f,.145f,.245f);zenith=new Color(.016f,.035f,.09f);light=new Color(.56f,.70f,.98f);level=.34f;ambient=.38f;tint=new Color(.20f,.31f,.47f);break;
+            case 2:horizon=new Color(.76f,.81f,.85f);zenith=new Color(.59f,.67f,.74f);light=new Color(.85f,.91f,1);level=.57f;ambient=.74f;tint=new Color(.74f,.82f,.88f);break;
+            case 3:horizon=new Color(.027f,.052f,.103f);zenith=new Color(.007f,.014f,.042f);light=new Color(.43f,.58f,.81f);level=.17f;ambient=.18f;tint=new Color(.105f,.17f,.29f);break;
             case 4:horizon=new Color(.96f,.67f,.68f);zenith=new Color(.33f,.36f,.57f);light=new Color(1,.78f,.69f);level=.76f;ambient=.70f;tint=new Color(.86f,.72f,.81f);break;
             default:horizon=new Color(.82f,.9f,.97f);zenith=new Color(.38f,.67f,.91f);light=new Color(1,.96f,.9f);level=.78f;ambient=.79f;tint=Color.white;break;
             }
             sun.color=light;sun.intensity=level;RenderSettings.ambientLight=new Color(.75f,.84f,.96f)*ambient;
-            RenderSettings.fogColor=horizon;RenderSettings.fogStartDistance=zone==3?20:52;RenderSettings.fogEndDistance=zone==3?88:185;
+            RenderSettings.fogColor=horizon;RenderSettings.fogStartDistance=zone==3?12:52;RenderSettings.fogEndDistance=zone==3?59:185;
             raceSky.SetColor("_Horizon",horizon);raceSky.SetColor("_Zenith",zenith);raceSky.SetColor("_Tint",tint);raceSky.SetFloat("_Night",zone==3?1:0);
             raceSky.SetFloat("_Storm",zone==2?1:0);Shader.SetGlobalFloat("_OwlNight",zone==3?1:0);
-            nextBurst=Status.elapsed+.22f;fireworks.Clear();
+            fireworks.Clear();festivalClock=Status.elapsed;
         }
         var forward=Vector3.ProjectOnPlane(View.transform.forward,Vector3.up).normalized;
         var orientation=Quaternion.LookRotation(forward);
@@ -81,9 +82,9 @@ public partial class MountainRace {
         var emission=flakes.emission;var wind=flakes.velocityOverLifetime;
         if(zone==2){
             float strength=Mathf.Abs(gust);
-            emission.rateOverTime=280+135*strength;wind.x=gust*9;wind.y=-3.5f-strength;
+            emission.rateOverTime=310+190*strength;wind.x=gust*11;wind.y=-3.5f-strength;
             wind.z=-Mathf.Clamp(speed*.67f,6,17);
-            RenderSettings.fogStartDistance=26-5*strength;RenderSettings.fogEndDistance=102-16*strength;
+            RenderSettings.fogStartDistance=16-5*strength;RenderSettings.fogEndDistance=58-13*strength;
         }else if(changed){
             emission.rateOverTime=zone==4?23:5;wind.x=-.9f;wind.y=-2.8f;wind.z=-2;
         }
@@ -94,7 +95,7 @@ public partial class MountainRace {
         }
         var position=World.SampleGround(Status.metres,lane);
         headlight.enabled=!IsMenu&&(zone==3||sledMode);
-        if(headlight.enabled){headlight.intensity=sledMode?19:26;
+        if(headlight.enabled){headlight.intensity=sledMode?19:14;headlight.range=sledMode?31:19;headlight.spotAngle=sledMode?65:55;
             var origin=position+Vector3.up*1.55f;
             headlight.transform.SetPositionAndRotation(origin,Quaternion.LookRotation(World.SampleGround(Status.metres+13,lane)-origin));}
         int firstRow=Mathf.FloorToInt((Status.metres+8)/36);
@@ -105,18 +106,15 @@ public partial class MountainRace {
             float intensity=Mathf.SmoothStep(0,1,Mathf.InverseLerp(-9,-2,ahead))*
                 Mathf.SmoothStep(0,1,Mathf.InverseLerp(44,28,ahead));
             lamp.transform.position=World.SampleGround(distance,(i%2==0?-1:1)*10.9f)+Vector3.up*4.5f;
-            lamp.intensity=25*intensity;
+            lamp.intensity=18*intensity;
         }
-        if(zone==4&&Status.elapsed>=nextBurst){
-            float t=nextBurst;nextBurst=Status.elapsed+1.6f;
-            var centre=World.SampleGround(Status.metres+66,Mathf.Sin(t*2.3f)*21)+Vector3.up*(15+4*Mathf.Sin(t));
-            Color color=Color.HSVToRGB(Mathf.Repeat(t*.317f,.99f),.72f,1);
-            for(int i=0;i<54;i++){
-                float z=1-2*(i+.5f)/54, a=i*2.39996f,r=Mathf.Sqrt(1-z*z);
-                var p=new ParticleSystem.EmitParams{position=centre,velocity=new Vector3(Mathf.Cos(a)*r,z,Mathf.Sin(a)*r)*(4+(i%3)*.7f),
-                    startSize=.36f,startLifetime=.9f+.14f*(i%3),startColor=i%5==0?Color.white:color};
-                fireworks.Emit(p,1);
+        foreach(var item in World.Items){
+            if(item.kind!="cat"||!item.obj||item.consumed)continue;
+            if(!item.obj.TryGetComponent<GroomerOptics>(out var optics)){
+                optics=item.obj.AddComponent<GroomerOptics>();optics.Fit(item.variant);
             }
+            optics.IlluminateRoad(zone==3&&Mathf.Abs(item.distance-Status.metres)<62);
         }
+        if(zone==4){festivalClock=Status.elapsed;DrawFestival(festivalClock);}
     }
 }

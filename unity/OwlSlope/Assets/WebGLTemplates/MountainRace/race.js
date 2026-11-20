@@ -99,8 +99,12 @@
       setText('exitPaused',s.metres>=30?'Завершить заезд':'В меню');$('pauseSense').value=profile.data.sens;setText('pauseSenseValue',profile.data.sens);
     }
     if(s.phase==='play'&&s.message&&s.message!==prev?.message){
-      setText('notice',s.message);$('notice').hidden=false;clearTimeout(noticeTimer);
-      noticeTimer=setTimeout(()=>{$('notice').hidden=true;},1500);
+      clearTimeout(noticeTimer);
+      const onTimer=(s.boostSeconds>0&&s.message.startsWith('Кофе'))||
+        (s.magnetSeconds>0&&s.message.startsWith('Магнит'))||
+        (s.chaseSeconds>0&&s.message.startsWith('Лавина!'));
+      $('notice').hidden=onTimer;
+      if(!onTimer){setText('notice',s.message);noticeTimer=setTimeout(()=>{$('notice').hidden=true;},1250);}
     }else if(s.phase!=='play')$('notice').hidden=true;
     if(s.phase!==prev?.phase){
       backUI();

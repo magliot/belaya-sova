@@ -8,6 +8,7 @@ Shader "Owl/Course model" {
         _ZWrite("Depth write",Float)=1
         _LeafCoverage("Foliage alpha to coverage", Float)=0
         _FadeCable("Soften distant lift cable", Float)=0
+        _StoneRim("Icy stone gate edge", Float)=0
     }
     SubShader {
         Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="Opaque" }
@@ -27,15 +28,23 @@ Shader "Owl/Course model" {
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
             CBUFFER_START(UnityPerMaterial)
-            float _Lit,_Glow,_LeafCoverage,_FadeCable;
+            float _Lit,_Glow,_LeafCoverage,_FadeCable,_StoneRim;
             CBUFFER_END
             half _OwlNight;
             struct Input {float4 p:POSITION;float3 n:NORMAL;float2 uv:TEXCOORD0;half4 c:COLOR;};
             struct Output {float4 p:SV_POSITION;float3 n:TEXCOORD0;float2 uv:TEXCOORD1;
                            half4 c:COLOR;float fog:TEXCOORD2;float3 world:TEXCOORD3;};
             Output vert(Input v){
-                Output o;o.world=TransformObjectToWorld(v.p.xyz);o.p=TransformWorldToHClip(o.world);
-                o.n=TransformObjectToWorldNormal(v.n);o.uv=v.uv;o.c=v.c;o.fog=ComputeFogFactor(o.p.z);
+                Output o;o.world=TransformObjectToWorld(v.p.xyz);o.n=TransformObjectToWorldNormal(v.n);
+                if(_LeafCoverage>.5){
+                    float3 root=TransformObjectToWorld(float3(0,0,0));
+                    float3 facing=SafeNormalize(float3(_WorldSpaceCameraPos.x-root.x,0,_WorldSpaceCameraPos.z-root.z));
+                    // A second intersecting drawing gave bent spruces two trunks and four mismatched crowns.
+                    float3 right=float3(-facing.z,0,facing.x);
+                    o.world=root+(right*v.p.x+float3(0,v.p.y,0))*length(TransformObjectToWorldDir(float3(0,1,0),false));
+                    o.n=facing;
+                }
+                o.p=TransformWorldToHClip(o.world);o.uv=v.uv;o.c=v.c;o.fog=ComputeFogFactor(o.p.z);
                 if(_FadeCable>.5)o.c.a*=lerp(1,.18,smoothstep(16.,82.,o.p.w));
                 return o;
             }
@@ -57,6 +66,10 @@ Shader "Owl/Course model" {
                 half3 daylight=max(half3(.12,.14,.18),SampleSH(n))+sun.color*saturate(dot(n,sun.direction))*sun.shadowAttenuation;
                 base.rgb*=lerp(half3(1,1,1),daylight,_Lit)+_Glow;
                 base.rgb*=lerp(half3(1,1,1),half3(.23,.36,.58),_OwlNight*(1-saturate(_Lit))*(1-saturate(_Glow)));
+                if(_StoneRim>.5){
+                    half edge=1.-saturate(abs(dot(n,GetWorldSpaceNormalizeViewDir(i.world))));
+                    base.rgb+=half3(.09,.62,.85)*edge*edge;
+                }
                 base.rgb=MixFog(base.rgb,i.fog);return base;
             }
             ENDHLSL

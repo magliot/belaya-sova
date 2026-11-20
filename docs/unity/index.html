@@ -7,10 +7,10 @@
   <meta name="theme-color" content="#183c56">
   <title>Белая Сова · Спуск</title>
   <link rel="icon" type="image/jpeg" href="art/av_owl.jpg">
-  <link rel="stylesheet" href="race.css?v=34e17c8dcc28">
+  <link rel="stylesheet" href="race.css?v=1a558df34612">
   <script src="vendor/telegram-web-app.js?v=baa788a6f686"></script>
   <script src="../unity/release.js?v=5136babcd319"></script><script src="save.js?v=0b49c0924ee4"></script>
-  <script defer src="mountain-audio.js?v=82dccb256cbd"></script><script defer src="mountain-metrics.js?v=c26b0f1a7ee6"></script>
+  <script defer src="mountain-audio.js?v=a0ba1f7b8ad6"></script><script defer src="mountain-metrics.js?v=c26b0f1a7ee6"></script>
 </head>
 <body><main id="app">
   <canvas id="slope" aria-label="Горнолыжная трасса" tabindex="0"></canvas>
@@ -42,9 +42,8 @@
       <button class="rules-link" data-panel="rules">Правила FIS · <b id="ruleCount">0/10</b></button>
     </section>
     <div id="hud" hidden>
-      <div id="course"><b id="metres"></b><b id="pace"></b></div>
-      <b id="multiplier" hidden></b>
-      <div id="rideInfo"><span id="stage"></span><span id="rideStatus" hidden></span></div>
+      <div id="course"><b id="metres"></b><b id="pace"></b><b id="multiplier" hidden></b></div>
+      <div id="rideInfo"><span id="stage"></span><span id="rideStatus" hidden></span><aside id="notice" hidden></aside></div>
       <div id="avalancheMeter" hidden><i></i></div>
       <div class="scoreboard" aria-label="Счёт, каски и мандарины">
         <b id="score">0</b><div id="helmets"><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""></div>
@@ -52,7 +51,6 @@
       </div>
       <button id="pause" aria-label="Пауза">Ⅱ</button>
     </div>
-    <aside id="notice" hidden></aside>
     <section id="review" class="sheet" hidden>
       <div class="row"><b>Осмотр · <output id="reviewMetres">0</output> м</b><button id="reviewFold" aria-expanded="true">Свернуть</button><button id="reviewExit">В меню</button></div>
       <div id="reviewBody"><div class="row"><select id="reviewRide" aria-label="Трасса осмотра"><option value="normal">Полный спуск</option><option value="sprint">Короткий спуск</option><option value="tubing">Плюшки</option><option value="sled">Снегоход</option></select><select id="reviewHero" aria-label="Герой осмотра"><option value="owl">Сова</option><option value="bear">Мишаня</option></select></div><label>Перемотка
@@ -87,10 +85,10 @@
       <div id="panelBody"></div>
     </section>
   </div>
-</main><script src="race.js?v=570be02404a0"></script>
+</main><script src="race.js?v=cc1c82c76835"></script>
 <script>
   MountainShell.boot({
-    loader:'Build/ae4a62de5d2db3c51ed4b6c58d77f27c.loader.js', data:'Build/5041487117e66281f7135586cbb98077.data.unityweb',
-    framework:'Build/e9d494cef81f8b0f83842c83edc77fd9.framework.js.unityweb', code:'Build/2aaa6e71a41fa65a4953d1ade299ac68.wasm.unityweb'
+    loader:'Build/a798f8cf6e3692b1d76778fd353c0a17.loader.js', data:'Build/25cd492f58a8e2ff2ffe02fc019bab99.data.unityweb',
+    framework:'Build/333c5e2b787f36357f915847e7b38d29.framework.js.unityweb', code:'Build/1b32e072a44db24bc2a9482e9b61af78.wasm.unityweb'
   });
 </script></body></html>

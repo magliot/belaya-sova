@@ -22,7 +22,7 @@ public static class RaceWorldChecks {
     static void StartBanner(MountainRace race,float at){
         race.Seek(at);
         var sign=race.World.Items.First(o=>o.kind=="startArch").Visual;
-        Require(sign.sharedMaterials.Any(m=>m.IsKeywordEnabled("OWL_START_BANNER")),"start banner lacks proximity fade");
+        Require(sign.sharedMaterials.All(m=>m.IsKeywordEnabled("OWL_START_BANNER")),"start arch beam and sign must fade together");
         var t=sign.transform;
         var a=race.View.WorldToViewportPoint(t.TransformPoint(new Vector3(-3.625f,4.6f,0)));
         var b=race.View.WorldToViewportPoint(t.TransformPoint(new Vector3(3.625f,4.6f,0)));
@@ -100,7 +100,7 @@ public static class RaceWorldChecks {
             }
             Require(measured>=42&&maxError<.012f,"ramp/snow skirt contacts "+measured+", max error "+maxError);
         }finally{UnityEngine.Object.Destroy(surface);}
-        foreach(var key in new[]{"thermos","helmet","aid","gift","feather"}){
+        foreach(var key in new[]{"thermos","helmet","aid","gift","feather","magnet"}){
             var item=world.CreateVisual(key,world.transform);var glow=item.transform.Find("Pickup glow");
             Require(glow&&glow.GetComponent<MeshFilter>().sharedMesh.bounds.size.z>1,"missing volume for "+key);
             Require(glow.GetComponent<Renderer>().sharedMaterial.shader.isSupported,"unsupported pickup shader "+key);
@@ -118,6 +118,8 @@ public static class RaceWorldChecks {
             race.View.aspect=390f/844;
             race.StartRace("{\"mode\":\"normal\",\"seed\":1911}");
             string first=Layout(world);
+            Require(world.Items.All(o=>o.kind!="boundaryPole")&&
+                !world.GetComponentsInChildren<Renderer>().Any(r=>r.name=="lamp · stageLamp0"),"training edge posts remain");
             var skier=world.Items.First(o=>o.kid&&!o.sb&&!o.stand);
             var board=world.Items.First(o=>o.sb&&!o.stand);
             var tube=world.Items.First(o=>o.kind=="tube");
@@ -142,16 +144,41 @@ public static class RaceWorldChecks {
                     world.Refresh(boundary+step*86,30+step);
                     foreach(var o in world.Items){
                         if(o.distance<boundary||o.distance>=boundary+1150)continue;
-                        Require(o.Visual!=null&&o.Visual.bounds.size.sqrMagnitude>.001f,"missing mesh "+o.variant);
+                        if(!o.stoneGate)Require(o.Visual!=null&&o.Visual.bounds.size.sqrMagnitude>.001f,"missing mesh "+o.variant);
                         objects.Add(o.kind);
                     }
                 }
                 string[][] required={null,new[]{"tree","snowmobile","npc","ramp"},new[]{"tube","mogulYeti","rail","npc"},
                     new[]{"airRing","feather","ramp","rail","npc"},new[]{"rock","dog","fence","cannon","aid","snowman"},
-                    new[]{"gate","rock"},new[]{"mogulYeti","cat","npc","airRing","thermos"},new[]{"gift","coin","npc"}};
+                    new[]{"gate","rock","npc","tube"},new[]{"mogulYeti","cat","npc","airRing","thermos"},new[]{"gift","coin","npc"}};
                 foreach(string kind in required[stage])Require(objects.Contains(kind),"stage "+stage+" lacks "+kind);
             }
             LaneStones(world,1911,10675);LaneStones(world,1911,17507);LaneStones(world,8573,10675);
+            foreach(int seed in new[]{1911,4903}){
+                world.Configure(seed,"normal");world.Refresh(2510,171);
+                var canopy=world.Items.Where(o=>o.kind=="tree"&&o.variant=="canopyFir"&&o.distance>2517&&o.distance<2524)
+                    .OrderBy(o=>o.lane).ToArray();
+                Require(canopy.Length==2&&canopy[1].lane-canopy[0].lane>8,"forest canopy requires two separated roots");
+                float chamber=0;
+                for(int i=0;i<canopy.Length;i++){
+                    var stem=canopy[i];var root=stem.Visual.transform;
+                    var across=world.SnowSurface(stem.distance,stem.lane+.5f)-world.SnowSurface(stem.distance,stem.lane-.5f);
+                    Require(Vector3.Dot(root.up,across.normalized)*(i==0?1:-1)>.12f&&stem.Visual.sharedMaterial.GetTexture("_BaseMap"),
+                        "textured forest crowns must lean over the passage");
+                    Require(root.position.y<=world.SnowSurface(stem.distance,stem.lane).y,"forest root above snow");
+                    chamber+=stem.lane*.5f;
+                }
+                Require(!world.Items.Any(o=>o.kind=="tree"&&Mathf.Abs(o.distance-canopy[0].distance)<3&&Mathf.Abs(chamber-o.lane)<2),
+                    "trunk in forest passage");
+                world.Refresh(12507,850);var gate=world.Items.First(o=>o.stoneGate&&o.distance>=12507);
+                var stones=world.Items.Where(o=>o.kind=="rock"&&Mathf.Abs(o.distance-gate.distance)<.01f).ToArray();
+                Require(stones.Length==2&&stones.All(o=>o.Visual.transform.Find("Pickup glow")&&o.Visual.bounds.size.y>1.5f),
+                    "black run lacks two lit gate boulders");
+                Require(stones.All(o=>Mathf.Abs(o.lane-gate.lane)-o.width*.5f>=gate.width*.5f),
+                    "gate boulders obstruct scoring passage");
+                Debug.Log("FOREST AND BLACK PASS seed "+seed+" paired roots "+canopy[0].distance+" / "+canopy[1].distance+
+                    " m, rock gate "+gate.distance+" m");
+            }
             world.Configure(1911,"sprint");world.Refresh(1170,100);
             Require(world.Items.Any(o=>o.kind=="finish"&&o.distance==1200),"sprint finish line");
             world.Configure(1911,"tubing");world.Refresh(430,40);
@@ -160,6 +187,7 @@ public static class RaceWorldChecks {
             world.Configure(1911,"sled");
             Require(world.Items.Any(o=>o.kind=="snowman")&&world.Items.Any(o=>o.kind=="gift"),"snowmobile targets and gifts");
             CheckSnowContact(race);
+            RiderCourseChecks.Verify(race);
             Debug.Log("RACE WORLD CHECK PASS: 8 stages, two seeds, signs, portrait people, moving riders, sprint and bonuses");
         }finally{race.View.aspect=aspect;race.Menu();}
     }

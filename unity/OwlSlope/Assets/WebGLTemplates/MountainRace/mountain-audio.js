@@ -54,6 +54,7 @@ const SFX={
   warn(){tone(466,0.16,0.06,'triangle');tone(466,0.16,0.06,'triangle',null,0.2);},
   shield(){noise(0.3,0.2,'highpass',1500,4000);tone(600,0.3,0.06,'sine',300);},
   chime(){tone(1046,0.5,0.04);tone(1568,0.6,0.03,'sine',null,0.12);},
+  snowball(){noise(.13,.13,'lowpass',1150,420);tone(205,.07,.035,'sine',112);},
   wobble(){noise(0.25,0.18,'lowpass',900,300);}
 };
   function loadSample(key){

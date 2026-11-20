@@ -94,7 +94,7 @@ public partial class MountainRace {
                 if(o.air?!TouchAir(o,before,fromLane,1.12f):square>=radius*radius)break;
                 o.Consume();
                 switch(o.kind){
-                    case "coin":Status.coins++;if(BonusMode)BonusReward(15);else bonusPoints+=5;Cue("coin");break;
+                    case "coin":Status.coins++;Burst(o,true);if(BonusMode)BonusReward(15);else bonusPoints+=5;Cue("coin");break;
                     case "thermos":boost=4.5f+settings.boost*.8f;invincible=Mathf.Max(invincible,boost);Notice("Кофе · ускорение +65%","power");break;
                     case "helmet":if(Status.helmets<3)Status.helmets++;else bonusPoints+=50;Notice("Каска EMCO","power");break;
                     case "magnet":magnet=7+settings.mag*2;Notice("Магнит для мандаринов","power");break;
@@ -117,9 +117,13 @@ public partial class MountainRace {
               case "snowman":
                 if(Status.mode=="sled"&&square<2.25f){o.Consume();Status.snowmen++;BonusReward(90);Notice("Снеговик!","smash");}
                 else if(!airborne&&square<1)Hit(o.kind,o);break;
-              case "ball":case "dog":
-                if(!airborne&&square<(o.kind=="dog"?.85f*.85f:.7f*.7f)){
-                    o.Consume();wobble=.6f;slow=o.kind=="dog"?.6f:.4f;Status.combo=0;Notice(o.kind=="dog"?"Осторожно, собака!":"Попали снежком","wobble");}break;
+              case "ball":
+                if(square<1.03f*1.03f&&Mathf.Abs(o.height-(Altitude+1.02f))<.82f){
+                    o.Consume();Burst(o,false);Cue("snowball");
+                }break;
+              case "dog":
+                if(!airborne&&square<.85f*.85f){
+                    o.Consume();wobble=.6f;slow=.6f;Status.combo=0;Notice("Осторожно, собака!","wobble");}break;
               case "mogul":
                 if(!airborne&&square<Mathf.Pow(.45f+o.width*.5f,2)){
                     if(Hero=="bear"||boost>0){o.Consume();bonusPoints+=15;Cue("smash");}

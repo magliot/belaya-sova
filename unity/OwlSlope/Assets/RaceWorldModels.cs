@@ -20,7 +20,7 @@ public partial class RaceWorld {
         string key=map+"/"+blend+"/"+lit+"/"+glow;
         if(paints.TryGetValue(key,out var shared))return shared;
         var m=new Material(Resources.Load<Shader>("Race/WorldObject"));m.name="Course "+key;
-        if(map.Length>0)m.SetTexture("_BaseMap",Resources.Load<Texture2D>("Race/Textures/"+map));
+        if(map.Length>0)m.SetTexture("_BaseMap",Resources.Load<Texture2D>(map.StartsWith("Art/",StringComparison.Ordinal)?map:"Race/Textures/"+map));
         m.SetFloat("_Lit",lit?1:0);m.SetFloat("_Glow",glow/255f);
         if(blend>0){m.SetFloat("_ZWrite",0);m.SetFloat("_SrcBlend",(int)BlendMode.SrcAlpha);
             m.SetFloat("_DstBlend",(int)(blend==2?BlendMode.One:BlendMode.OneMinusSrcAlpha));
@@ -75,19 +75,22 @@ public partial class RaceWorld {
             mesh.AddBlendShapeFrame(shape.Key,100,v,null,null);
         }
         if(key=="startArch"){
+            // Fade the support beam with the lettering as the camera passes underneath.
+            // A solid beam without its sign otherwise draws a screen-wide orange line.
             for(int i=0;i<mats.Count;i++){
-                if(!mats[i].GetTexture("_BaseMap"))continue;
                 var banner=new Material(mats[i]);banner.EnableKeyword("OWL_START_BANNER");
                 banner.SetFloat("_ZWrite",0);banner.SetFloat("_SrcBlend",(int)BlendMode.SrcAlpha);
                 banner.SetFloat("_DstBlend",(int)BlendMode.OneMinusSrcAlpha);
                 banner.renderQueue=(int)RenderQueue.Transparent;mats[i]=banner;
             }
         }
-        mesh.RecalculateBounds();var model=new Model{mesh=mesh,materials=mats.ToArray(),glow=pickupGlow};models.Add(key,model);return model;
+        mesh.RecalculateBounds();
+        if(key=="magnet")pickupGlow=new Bounds(mesh.bounds.center,Vector3.one*1.85f);
+        var model=new Model{mesh=mesh,materials=mats.ToArray(),glow=pickupGlow};models.Add(key,model);return model;
     }
     static Mesh glowShell;
     static readonly Dictionary<string,Material> glowPaints=new Dictionary<string,Material>();
-    static void AddPickupGlow(GameObject item,Bounds original){
+    internal static Mesh UnitSphere(){
         if(!glowShell){
             const int rings=12,sides=20;
             var v=new List<Vector3>();var ix=new List<int>();
@@ -100,24 +103,42 @@ public partial class RaceWorld {
             }
             glowShell=new Mesh{name="Pickup glow sphere"};glowShell.SetVertices(v);glowShell.SetNormals(v);glowShell.SetTriangles(ix,0);
         }
+        return glowShell;
+    }
+    static void AddPickupGlow(GameObject item,Bounds original){
         if(!glowPaints.TryGetValue(item.name,out var paint)){
             paint=new Material(Resources.Load<Shader>("Race/PickupGlow"));
             var tint=item.name=="helmet"?new Color(.40f,.82f,1):item.name=="aid"?new Color(.40f,1,.65f):
-                item.name=="gift"?new Color(1,.49f,.68f):new Color(1,.73f,.26f);
+                item.name=="gift"?new Color(1,.49f,.68f):item.name=="magnet"?new Color(.80f,.37f,1):new Color(1,.73f,.26f);
             paint.SetColor("_Tint",tint);glowPaints.Add(item.name,paint);
         }
         var shell=new GameObject("Pickup glow");shell.transform.SetParent(item.transform,false);
         shell.transform.localPosition=original.center;shell.transform.localScale=Vector3.one*Mathf.Max(original.extents.x,original.extents.y);
-        shell.AddComponent<MeshFilter>().sharedMesh=glowShell;
+        shell.AddComponent<MeshFilter>().sharedMesh=UnitSphere();
         var sr=shell.AddComponent<MeshRenderer>();sr.sharedMaterial=paint;sr.shadowCastingMode=ShadowCastingMode.Off;sr.receiveShadows=false;
     }
     public GameObject CreateVisual(string key,Transform parent){
-        var model=LoadModel(key);var obj=new GameObject(key);obj.transform.SetParent(parent,false);Renderer renderer;
+        bool gateStone=key=="gateRockWide"||key=="gateRockTall";
+        var model=LoadModel(gateStone?(key=="gateRockWide"?"rockWide":"rockTall"):key);
+        var obj=new GameObject(key);obj.transform.SetParent(parent,false);Renderer renderer;
         if(model.mesh.blendShapeCount>0){
             var skin=obj.AddComponent<SkinnedMeshRenderer>();skin.sharedMesh=model.mesh;skin.localBounds=model.mesh.bounds;renderer=skin;
         }else{obj.AddComponent<MeshFilter>().sharedMesh=model.mesh;renderer=obj.AddComponent<MeshRenderer>();}
         renderer.sharedMaterials=model.materials;
+        if(gateStone){
+            if(!gateStones.TryGetValue(key,out var stonePaint)){
+                stonePaint=new Material(model.materials[0]);stonePaint.SetFloat("_StoneRim",1);
+                gateStones.Add(key,stonePaint);
+            }
+            renderer.sharedMaterial=stonePaint;
+            var bounds=model.mesh.bounds;
+            AddPickupGlow(obj,bounds);
+            var halo=obj.transform.Find("Pickup glow");
+            halo.GetComponent<Renderer>().sharedMaterial.SetColor("_Tint",new Color(.09f,.53f,.69f));
+            halo.localScale=bounds.extents*1.55f;
+        }
         if(model.glow.size.sqrMagnitude>0)AddPickupGlow(obj,model.glow);
         return obj;
     }
+    static readonly Dictionary<string,Material> gateStones=new Dictionary<string,Material>();
 }
