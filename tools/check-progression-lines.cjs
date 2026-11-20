@@ -35,7 +35,7 @@ async function check() {
       await page.locator('#reviewAt').press('Enter');
       await page.waitForFunction(m=>trackFrame.metres===m,metres);
     }
-    await seek(300);
+    await seek(321);
     await page.locator('#reviewFold').tap();
     await page.screenshot({path:path.join(out,'training-fork.png')});
     await page.locator('#reviewFold').tap();

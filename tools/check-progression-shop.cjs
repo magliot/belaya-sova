@@ -1,11 +1,12 @@
 // Replay the steering sampled by ShopBalanceChecks through a phone viewport and a real Web player.
 // Generate OwlSaleRides.json first with tools/build-unity-race.ps1 -Verify.
+// The default keeps one finger on the route. The optional fourth argument "short" tests repeated release/regrip.
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {chromium}=require(process.env.DANCE_BROWSER_MODULE||'playwright');
 const root=new URL(process.argv[2]||'http://127.0.0.1:8784/progression-test/');
 const series=JSON.parse(fs.readFileSync(process.argv[3]||path.join(os.tmpdir(),'OwlSaleRides.json'),'utf8')).rides;
-const continuous=process.argv[4]==='hold';
+const continuous=process.argv[4]!=='short';
 async function main(){
   assert(root.pathname.endsWith('/progression-test/'),'Use the isolated progression build');
   const browser=await chromium.launch({args:['--enable-unsafe-swiftshader']});
@@ -80,6 +81,8 @@ async function main(){
     assert.match(await page.locator('#panelBody').innerText(),/Доска «Салют» · выбрано/);
     await page.getByRole('button',{name:/Купить свой комплект/}).tap();
     assert.equal(Number(await page.locator('#bank').textContent()),wallet-price);
+    assert.equal(await page.locator('#panelBody .stat b').first().innerText(),(wallet-price)+' 🍊');
+    assert(await page.locator('#panelBody').getByRole('button',{name:/Настройка · 0\/2/}).isVisible());
     await page.screenshot({path:path.join(out,'purchase.png')});
     await page.reload({waitUntil:'commit'});await page.locator('#play').waitFor({timeout:180000});
     assert.match(await page.locator('[data-hero="owl"]').innerText(),/Салют/);

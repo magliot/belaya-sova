@@ -23,7 +23,12 @@ async function main(){
     assert.equal(await page.evaluate(()=>mountainRelease.channel),'progression');
     const rules=at('[data-panel="rules"]');
     await rules.tap();assert.equal(await at('#panelBody').getByText('Ещё не открыто',{exact:true}).count(),10);
-    await shot('journal-before');await at('#closePanel').tap();
+    await shot('journal-before');
+    const tenth=at('#panelBody .stat').last();await tenth.scrollIntoViewIfNeeded();
+    assert.match(await tenth.innerText(),/10\./);
+    const lastBounds=await tenth.boundingBox();assert.ok(lastBounds.y>=0&&lastBounds.y+lastBounds.height<=640);
+    await tenth.tap();assert.equal(await at('#panelBody details[open]').count(),0);
+    await at('#closePanel').tap();
     const seen={};
     async function act(action){
       await page.waitForFunction(key=>window.fisRide?.fisAction===key,action,{timeout:60000});
@@ -32,6 +37,7 @@ async function main(){
       assert.ok(bounds&&bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=320.01&&bounds.y+bounds.height<=640.01&&bounds.height>=40,
         action+' action is clipped or too small');
       seen[action]={label:await button.innerText(),at:await page.evaluate(()=>Math.round(fisRide.metres)),width:Math.round(bounds.width),height:Math.round(bounds.height)};
+      console.log('FIS touch',action,seen[action]);
       if(action==='patrol'||action==='join')await shot('hud-'+action);
       await button.tap();
     }

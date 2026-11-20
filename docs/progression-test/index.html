@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#183c56">
+  <title>Белая Сова · Спуск</title>
+  <link rel="icon" type="image/jpeg" href="art/av_owl.jpg">
+  <link rel="stylesheet" href="race.css?v=b0d50d2e94aa">
+  <script src="vendor/telegram-web-app.js?v=baa788a6f686"></script>
+  <script src="release.js?v=28659f4dadee"></script><script src="save.js?v=3f4560e33901"></script><script src="equipment.js?v=fc8bea92c0fc"></script>
+  <script defer src="mountain-audio.js?v=385b9dc133b6"></script><script defer src="mountain-metrics.js?v=c26b0f1a7ee6"></script>
+</head>
+<body><main id="app">
+  <canvas id="slope" aria-label="Горнолыжная трасса" tabindex="0"></canvas>
+  <div id="safe">
+    <header id="mast" hidden>
+      <h1>Белая Сова</h1><p class="sign">Горнолыжный спуск • Шахтёрск</p>
+      <span id="profileName" hidden></span>
+      <button id="mute" aria-label="Выключить звук" aria-pressed="false"><span aria-hidden="true">🔊</span></button>
+      <button id="dances" data-panel="dances">Танцы</button>
+    </header>
+    <section id="loading" class="sheet" aria-live="polite">
+      <h2>Готовим склон</h2><p id="loadText">Загружаем игру…</p>
+      <progress id="loadBar" max="1" value="0" aria-label="Загрузка игры"></progress>
+      <button id="retryLoad" hidden>Повторить загрузку</button>
+    </section>
+    <section id="menu" class="sheet home" hidden aria-label="Главное меню">
+      <div class="row picks" aria-label="Выбор героя">
+        <button data-hero="bear" aria-pressed="false"><img src="art/av_bear.jpg" alt=""><span>Мишаня<small>Лыжи · сносит сугробы</small></span></button>
+        <button data-hero="owl" aria-pressed="false"><img src="art/av_owl.jpg" alt=""><span>Сова<small>Сноуборд · долго парит</small></span></button>
+      </div>
+      <div class="balances"><span>⭐ Рекорд <b id="best">0</b></span><button data-panel="top">🏆 Рейтинг<small id="menuRank"></small></button><span>🍊 <b id="bank">0</b></span></div>
+      <div class="start-row"><button id="play" class="primary" data-mode="normal">Поехали!</button></div>
+      <div class="row bonuses"><button data-mode="tubing">Плюшки<small></small></button><button data-mode="sled">Снегоход<small></small></button></div>
+      <div class="row"><button class="sprint" data-mode="free">Свободное катание</button><button class="sprint" data-mode="sprint">Короткий · 1,2 км</button></div>
+      <nav class="utilities" aria-label="Разделы игры">
+        <button data-panel="collection"><span aria-hidden="true">🏅</span>Коллекция</button><button data-panel="missions"><span aria-hidden="true">🎯</span>Задания</button>
+        <button data-panel="shop"><span aria-hidden="true">🎿</span>Прокат и магазин</button><button data-panel="settings"><span aria-hidden="true">⚙️</span>Настройки</button>
+      </nav>
+      <button class="rules-link" data-panel="rules">Правила FIS · <b id="ruleCount">0/10</b></button>
+    </section>
+    <div id="hud" hidden>
+      <div id="course"><b id="metres"></b><b id="pace"></b><b id="multiplier" hidden></b></div>
+      <div id="fisControls" hidden><button id="fisAct" hidden></button><button id="fisLeave" hidden>Продолжить спуск</button></div>
+      <div id="rideInfo"><span id="stage"></span><span id="rideStatus" hidden></span><aside id="notice" hidden></aside></div>
+      <div id="avalancheMeter" hidden><i></i></div>
+      <div class="scoreboard" aria-label="Счёт, каски и мандарины">
+        <b id="score">0</b><div id="helmets"><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""></div>
+        <b id="coins">0</b>
+      </div>
+      <button id="pause" aria-label="Пауза">Ⅱ</button>
+    </div>
+    <section id="review" class="sheet" hidden>
+      <div class="row"><b>Осмотр · <output id="reviewMetres">0</output> м</b><button id="reviewFold" aria-expanded="true">Свернуть</button><button id="reviewExit">В меню</button></div>
+      <div id="reviewBody"><div class="row"><select id="reviewRide" aria-label="Трасса осмотра"><option value="normal">Полный спуск</option><option value="sprint">Короткий спуск</option><option value="tubing">Плюшки</option><option value="sled">Снегоход</option></select><select id="reviewHero" aria-label="Герой осмотра"><option value="owl">Сова</option><option value="bear">Мишаня</option></select></div><label>Перемотка
+      <input id="seek" aria-label="Положение на трассе" type="range" min="0" max="79999" step="1" value="0"></label>
+      <div class="row"><button id="reviewEarlier">−100 м</button><input id="reviewAt" aria-label="Перейти на метр" type="number" min="0" max="79999" step="1" value="0"><button id="reviewLater">+100 м</button></div>
+      <div class="row"><select id="reviewRate" aria-label="Скорость осмотра">
+        <option value="0">Стоп</option><option value=".25">¼×</option><option value="1">1×</option><option value="3">3×</option><option value="6">6×</option></select>
+        <button id="reviewStep">Один кадр</button><button id="reviewPlay">Проехать отсюда</button></div>
+      <label>Положение поперёк склона<input id="reviewLane" type="range" min="-9" max="9" step=".25" value="0"></label>
+      <div class="row"><select id="reviewStage" aria-label="Этап"></select><select id="reviewEffect" aria-label="Событие осмотра"><option value="normal">Обычный спуск</option><option value="coffee">Кофе</option><option value="avalanche">Лавина</option><option value="jump">Прыжок</option></select></div></div>
+    </section>
+    <section id="paused" class="sheet" hidden><h2>Пауза</h2><p id="pausedDist"></p>
+      <div id="pauseVolumes"></div>
+      <label>Чувствительность · <output id="pauseSenseValue">4</output><input type="range" id="pauseSense" min="1" max="10" step="1"></label>
+      <button id="resume" class="primary">Продолжить</button>
+      <div class="row"><button id="restartPaused">Сначала</button><button id="exitPaused">В меню</button></div>
+    </section>
+    <section id="result" class="sheet" hidden><h2 id="resultTitle">Финиш</h2><strong id="resultScore"></strong>
+      <p id="resultStats"></p><p id="resultExtra" hidden></p><p id="rankStatus" role="status"></p>
+      <div id="breakdown" hidden aria-label="Состав очков заезда"></div>
+      <p id="resultRule" hidden></p><details id="resultTasks"><summary>Задания заезда</summary><div></div></details>
+      <button id="again" class="primary">Ещё заезд</button>
+      <div class="row" id="resultBonuses" hidden><button data-mode="tubing">Плюшки</button><button data-mode="sled">Снегоход</button></div>
+      <div class="row"><button id="share">Поделиться</button><button id="exitResult">В меню</button></div>
+    </section>
+    <section id="shareSheet" class="sheet" aria-label="Карточка заезда" hidden>
+      <div class="heading"><h2>Карточка заезда</h2><button id="closeShare" aria-label="Закрыть карточку">×</button></div>
+      <img id="shareImage" alt="Результат спуска">
+      <p id="shareHint" role="status">Удержи картинку, чтобы сохранить её.</p>
+      <div class="row"><button id="copyShare">Копировать текст</button><button id="sendShare" class="primary">Отправить</button></div>
+    </section>
+    <section id="panel" class="sheet" hidden><div class="heading"><h2 id="panelTitle"></h2><button id="closePanel" aria-label="Закрыть">×</button></div>
+      <div id="panelBody"></div>
+    </section>
+  </div>
+</main><script src="race.js?v=9882ee690b5a"></script>
+<script>
+  MountainShell.boot({
+    loader:'Build/ae2d2659b8a1f50a699f6c84e9f9538d.loader.js', data:'Build/3ffd7e132300bd538028276e32d14a59.data.unityweb',
+    framework:'Build/9d79a92b61aff514a8a3b1e04686f89f.framework.js.unityweb', code:'Build/5ce0a4595872581108fc16df832d4a40.wasm.unityweb'
+  });
+</script></body></html>
