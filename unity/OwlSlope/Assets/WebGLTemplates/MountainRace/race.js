@@ -17,7 +17,7 @@
   const fixedSeed=new URLSearchParams(location.search).get('seed');
   let seedOverride=fixedSeed!==null&&/^\d{1,10}$/.test(fixedSeed)&&+fixedSeed<=2147483647?+fixedSeed:null;
   let player,ready=false,snapshot=null,panel='',run=null,finger=null,noticeTimer,rankPeriod='week',topRequest=0,requestPause=false;
-  let catalogData,modelIndex=-1,group='all';
+  let catalogData,modelIndex=-1,group='all',menuFinger=null;
   function command(name,arg){
     if(!player)return;
     if(arg===undefined)player.SendMessage('Mountain race',name);
@@ -144,6 +144,10 @@
     if(snapshot?.phase&&snapshot.phase!=='menu')leave();
   }
   const releaseFinger=e=>{
+    if(menuFinger?.id===e.pointerId){
+      if(menuFinger.moved)command('EndMenuSpin');
+      menuFinger=null;return;
+    }
     if(finger?.id!==e.pointerId)return;
     const f=finger;finger=null;
     if(e.type==='pointerup'&&snapshot?.air&&!f.tricked&&performance.now()-f.at<300&&Math.hypot(e.clientX-f.x,e.clientY-f.y)<20)command('AirTrick','tap');
@@ -151,11 +155,21 @@
     command('ReleaseSteer');
   };
   canvas.addEventListener('pointerdown',e=>{
+    if(ready&&snapshot?.phase==='menu'&&!panel&&!menuFinger&&e.button===0){
+      menuFinger={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};canvas.setPointerCapture(e.pointerId);return;
+    }
     if(snapshot?.phase!=='play'||finger||e.button!==0)return;
     const at=performance.now();finger={id:e.pointerId,x:e.clientX,y:e.clientY,rx:e.clientX,ry:e.clientY,at,since:at,pending:null,tricked:false};
     canvas.setPointerCapture(e.pointerId);command('BeginSteer');canvas.focus();
   });
   canvas.addEventListener('pointermove',e=>{
+    if(menuFinger?.id===e.pointerId){
+      if(snapshot?.phase!=='menu'||panel){releaseFinger(e);return;}
+      const dx=e.clientX-menuFinger.x;
+      if(!menuFinger.moved&&Math.abs(dx)<Math.max(3,Math.abs(e.clientY-menuFinger.y)))return;
+      if(dx){menuFinger.moved=true;menuFinger.x=e.clientX;command('MenuSpin',dx);}
+      return;
+    }
     if(!finger||finger.id!==e.pointerId)return;const f=finger,t=performance.now();
     command('DragSteer',(e.clientX-f.x)/canvas.clientWidth);
     if(!snapshot?.air){f.rx=e.clientX;f.ry=e.clientY;f.since=t;f.pending=null;return;}

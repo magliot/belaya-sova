@@ -15,7 +15,7 @@ function generate(seed,stage){
    const prev=G.nextY;spawnSeg();if(!(G.nextY>prev))throw Error('stalled '+prev);
   }
   return JSON.parse(JSON.stringify(window.extractRows,(key,v)=>key==='m'||key==='lead'||key==='footprint'||key==='prints'?undefined:key==='air'?!!v:v));
- }finally{delete window.extractRows;Math.random=originalRandom;}
+ }finally{delete window.extractRows;delete window.laneExport;Math.random=originalRandom;}
 }
 (async()=>{
  fs.mkdirSync(root,{recursive:true});
@@ -23,7 +23,15 @@ function generate(seed,stage){
  try{const p=await b.newPage();await p.route('https://script.google.com/**',r=>r.abort());
   let src=fs.readFileSync('docs/index.html','utf8');
   for(const [from,to] of [
-   ['G.objs.push(o);o.m=acquire(o);placeObj(o);return true;', 'G.objs.push(o);if(window.extractRows){o.m=true;extractRows.objects.push(o);return true;}o.m=acquire(o);placeObj(o);return true;'],
+   ['G.objs.push(o);o.m=acquire(o);placeObj(o);return true;', `G.objs.push(o);if(window.extractRows){
+       if(window.laneExport)Object.assign(o,laneExport);
+       o.m=true;extractRows.objects.push(o);return true;
+     }o.m=acquire(o);placeObj(o);return true;`],
+   ["case 'lane':{const px=G.p?G.p.x:200;const x=laneDue?clamp(px+rnd(-10,10),30,370):clamp(Math.random()<0.6?px+rnd(-25,25):rnd(70,330),50,350);",
+    `case 'lane':{const px=G.p?G.p.x:200,aim=laneDue||Math.random()<.6;
+      const x=laneDue?clamp(px+rnd(-10,10),30,370):clamp(aim?px+rnd(-25,25):rnd(70,330),50,350);
+      if(window.extractRows&&aim)window.laneExport={laneAt:y,laneBase:x,laneMargin:laneDue?30:50};`],
+   ['len+=40;break;}', 'delete window.laneExport;len+=40;break;}'],
    ['const W=400*U,L=(P.y1-P.y0)*U','if(window.extractRows){extractRows.patches.push(P);return P;}const W=400*U,L=(P.y1-P.y0)*U'],
    ['function tryTrick(idx)',`window.exportLegacyRows=${generate};function tryTrick(idx)`]
   ]){if(!src.includes(from))throw Error('Source marker missing '+from);src=src.replace(from,to);}

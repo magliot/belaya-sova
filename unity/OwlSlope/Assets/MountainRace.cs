@@ -57,6 +57,10 @@ public partial class MountainRace : MonoBehaviour {
     void Start(){Initialize();}
     public void Initialize(){
         if(World)return;
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // The HTML overlay owns keyboard focus while a settings or course-inspection field is edited.
+        WebGLInput.captureAllKeyboardInput=false;
+#endif
         World=GetComponent<RaceWorld>();
         if(!World)World=gameObject.AddComponent<RaceWorld>();
         SetupCamera();Menu();
@@ -132,7 +136,7 @@ public partial class MountainRace : MonoBehaviour {
     void OnApplicationPause(bool paused){if(paused)PauseRide();}
     void Update(){
         if(!World)return;
-        if(IsMenu){RenderMenu(Time.deltaTime);return;}
+        if(IsMenu){NativeMenuPointer();RenderMenu(Time.deltaTime);return;}
         if(Review){if(reviewRate>0)Seek(Status.metres+Time.deltaTime*14*reviewRate);return;}
         if(Input.GetKeyDown(KeyCode.P)||Input.GetKeyDown(KeyCode.Escape)){if(Status.phase=="pause")ResumeRide();else PauseRide();}
         if(Status.phase!="play")return;
@@ -146,7 +150,7 @@ public partial class MountainRace : MonoBehaviour {
     // Public for editor simulation: the same fixed substeps run in the phone player.
     public void Advance(float elapsed,float keyboard=0){
         if(Status.phase!="play"||elapsed<=0)return;
-        World.Refresh(Status.metres,Status.elapsed);
+        World.Refresh(Status.metres,Status.elapsed,lane);
         float left=elapsed;
         while(left>.00001f&&Status.phase=="play"){
             float dt=Mathf.Min(left,1f/60);Step(dt,keyboard);left-=dt;

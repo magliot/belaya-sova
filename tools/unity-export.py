@@ -4,7 +4,7 @@ import bpy,re,base64,tempfile,struct,json,sys,uuid
 root=Path('unity/OwlSlope/Assets/Resources');root.mkdir(parents=True,exist_ok=True)
 only=set(sys.argv[sys.argv.index('--')+1:]) if '--' in sys.argv else set()
 models=[('Owl',None,'art/owl-animation-pilot/sova-board-study.glb'),('Fir','fir','docs/models/trees.js'),('Rock','rock_tall','docs/models/winter.js'),('Snowman','snowman','docs/models/winter.js'),('Mandarin','mandarin','docs/models/props.js'),
- ('Bear',None,'art/animation-pilot/mishanya-ski-study.glb'),('BearMenu',None,'docs/models/bear-menu.glb'),('OwlMenu',None,'docs/models/owl-menu.glb'),('PlayerSled',None,'docs/models/player-sled.glb')]
+ ('Bear',None,'art/animation-pilot/mishanya-ski-study.glb'),('OwlRide',None,'art/owl-animation-pilot/sova-board-study.glb'),('BearMenu',None,'docs/models/bear-menu.glb'),('OwlMenu',None,'docs/models/owl-menu.glb'),('PlayerSled',None,'docs/models/player-sled.glb')]
 
 def meta(path,template):
  target=Path(str(path)+'.meta')
@@ -50,5 +50,5 @@ for name,key,source in models:
    # The glTF importer creates an Icosphere solely as a custom bone display shape.
    if obj.name in names or obj.type=='ARMATURE':obj.select_set(True)
   dest=root/(name+'.fbx')
-  bpy.ops.export_scene.fbx(filepath=str(dest.resolve()),use_selection=True,object_types={'ARMATURE','MESH','EMPTY'},path_mode='STRIP',embed_textures=False,add_leaf_bones=False,bake_anim=name in ('Owl','Bear'),bake_anim_use_all_actions=False,bake_anim_use_nla_strips=False,bake_anim_simplify_factor=0)
-  meta(dest,root/('Owl.fbx.meta' if name in ('Owl','Bear') else 'Fir.fbx.meta'))
+  bpy.ops.export_scene.fbx(filepath=str(dest.resolve()),use_selection=True,object_types={'ARMATURE','MESH','EMPTY'},path_mode='STRIP',embed_textures=False,add_leaf_bones=False,bake_anim=name in ('Owl','Bear','OwlRide'),bake_anim_use_all_actions=False,bake_anim_use_nla_strips=False,bake_anim_simplify_factor=0)
+  meta(dest,root/('Owl.fbx.meta' if name in ('Owl','Bear','OwlRide') else 'Fir.fbx.meta'))

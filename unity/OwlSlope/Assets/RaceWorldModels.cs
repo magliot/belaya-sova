@@ -57,6 +57,15 @@ public partial class RaceWorld {
             var v=new Vector3[positions.Count];foreach(var pair in shape.Value)v[pair.Key]=pair.Value;
             mesh.AddBlendShapeFrame(shape.Key,100,v,null,null);
         }
+        if(key=="startArch"){
+            for(int i=0;i<mats.Count;i++){
+                if(!mats[i].GetTexture("_BaseMap"))continue;
+                var banner=new Material(mats[i]);banner.EnableKeyword("OWL_START_BANNER");
+                banner.SetFloat("_ZWrite",0);banner.SetFloat("_SrcBlend",(int)BlendMode.SrcAlpha);
+                banner.SetFloat("_DstBlend",(int)BlendMode.OneMinusSrcAlpha);
+                banner.renderQueue=(int)RenderQueue.Transparent;mats[i]=banner;
+            }
+        }
         mesh.RecalculateBounds();var model=new Model{mesh=mesh,materials=mats.ToArray()};models.Add(key,model);return model;
     }
     public GameObject CreateVisual(string key,Transform parent){

@@ -4,10 +4,11 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const {chromium} = require(process.env.DANCE_BROWSER_MODULE || 'playwright');
 const root = new URL(process.argv[2] || 'http://127.0.0.1:8784/');
-const out = path.resolve('course-checks','mountain-race',root.hostname);
+const hardware=process.argv.includes('--hardware');
+const out = path.resolve('course-checks','mountain-race',root.hostname+(hardware?'-gpu':''));
 fs.mkdirSync(out,{recursive:true});
 async function main(){
-  const browser=await chromium.launch({args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+  const browser=await chromium.launch({args:hardware?[]:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
   try{
     const page=await browser.newPage({viewport:{width:390,height:780},hasTouch:true});
     const errors=[],artifacts=new Set(),writes=[];
@@ -40,7 +41,7 @@ async function main(){
       await page.screenshot({path:path.join(out,'menu-'+hero+'.png')});
       await page.locator('#play').tap();
       await waitState('play',hero);
-      await page.waitForFunction(()=>lastRace.metres>=5,null,{timeout:60000});
+      await page.waitForFunction(()=>lastRace.metres>=22,null,{timeout:60000});
       await page.screenshot({path:path.join(out,'ordinary-'+hero+'.png')});
       await page.locator('#pause').tap();await waitState('pause',hero);
       const paused=await page.evaluate(()=>lastRace.metres);
@@ -58,14 +59,20 @@ async function main(){
     // Take a real line along the edge to exercise a collision and the result screen.
     const cdp=await page.context().newCDPSession(page);
     await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:28,y:555}]});
-    await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:365,y:555}]});
+    for(const x of [48,65,80,78,63,50,70,95,115,135,175,225,280,325,365]){
+      await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:555}]});
+      await page.waitForTimeout(50);
+    }
     await page.waitForTimeout(950);await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
     await waitState('over','owl');
     await page.screenshot({path:path.join(out,'result.png')});
     await page.locator('#again').tap();await waitState('play','owl');
-    const metrics=await page.evaluate(()=>MountainMetrics.report());
+    const metrics=await page.evaluate(()=>{
+      const gl=document.querySelector('#slope').getContext('webgl2'),info=gl?.getExtension('WEBGL_debug_renderer_info');
+      return {...MountainMetrics.report(),renderer:info?gl.getParameter(info.UNMASKED_RENDERER_WEBGL):null};
+    });
     assert(metrics.measuredFrames>0&&metrics.dragSamples>0);
-    fs.writeFileSync(path.join(out,'desktop-chrome.json'),JSON.stringify({...metrics,environment:'Windows Chrome, software WebGL, touch emulation'},null,2));
+    fs.writeFileSync(path.join(out,'desktop-chrome.json'),JSON.stringify({...metrics,environment:'Windows Chrome, touch emulation'},null,2));
     await page.locator('#pause').tap();await waitState('pause','owl');await page.locator('#exitPaused').tap();await waitState('menu','owl');
     await page.locator('[data-panel="more"]').tap();
     await page.locator('#panel').getByRole('button',{name:'Настройки',exact:true}).tap();
@@ -74,7 +81,9 @@ async function main(){
     for(const [name,metre] of [['forest-arch',2472],['park',7630],['summit',10104],['night',15105],['holiday',17525]]){
       await page.locator('#seek').evaluate((el,value)=>{el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));},metre);
       await page.waitForFunction(n=>Math.abs(lastRace.metres-n)<2,metre,{timeout:30000});
+      await page.locator('#reviewFold').tap();
       await page.waitForTimeout(150);await page.screenshot({path:path.join(out,name+'.png')});
+      await page.locator('#reviewFold').tap();
     }
     assert(artifacts.size>=4,'Incomplete Unity Web load');
     await page.goto(root.href,{waitUntil:'domcontentloaded'});

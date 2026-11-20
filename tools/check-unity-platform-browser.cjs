@@ -41,14 +41,24 @@ function server(){
 async function main(){
   const s=server();await new Promise(resolve=>s.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+s.address().port+'/';
   const browser=await chromium.launch({args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+  const p=await browser.newPage({viewport:{width:375,height:667},hasTouch:true});
+  let phase='legacy';const posts=[],errors=[];
   try{
-    const p=await browser.newPage({viewport:{width:375,height:667},hasTouch:true});
-    const posts=[];let phase='legacy';
+    p.on('pageerror',e=>{if(phase==='unity')errors.push(e.message.slice(0,300));});
     await p.route('https://script.google.com/**',route=>{
       posts.push(phase);return route.fulfill({json:{ok:true,rank:1,weekRank:1,rows:[]}});
     });
+    await p.route('**/race.js',async route=>{
+      const response=await route.fetch(),script=await response.text();
+      const before='      await data;';
+      assert(script.includes(before));
+      // Observe the real JS-to-WASM bridge. Forward all arguments unchanged to Unity.
+      const observe="const send=player.SendMessage.bind(player);player.SendMessage=(...a)=>{if(a[1]==='MenuSpin'||a[1]==='EndMenuSpin')window.spinCalls.push([a[1],a[2]??null]);return send(...a);};";
+      await route.fulfill({response,body:script.replace(before,observe+'\n'+before)});
+    });
     await p.addInitScript(()=>{
       window.hostEvents=[];
+      window.spinCalls=[];
       window.TelegramWebviewProxy={postEvent(name,raw){
         const payload=JSON.parse(raw||'{}');window.hostEvents.push(name);
         if(name!=='web_app_invoke_custom_method')return;
@@ -67,16 +77,21 @@ async function main(){
     assert(caught.caught&&caught.unlock);await p.waitForFunction(()=>localStorage.getItem('fixture-cloud-save')&&JSON.parse(localStorage.getItem('fixture-cloud-save')).meet.prizeFeather);
     const legacy=await p.evaluate(()=>Object.fromEntries(Object.entries(localStorage).filter(([k])=>k.startsWith('bsova_tg127_')||k==='fixture-cloud-save')));
     assert.equal(JSON.parse(legacy.bsova_tg127_hero),'owl');assert(JSON.parse(legacy.bsova_tg127_best)>100);
+    console.log('Archived game earned owl, feather and record.');
     // Preserve the real host's CloudStorage records across HTTP origins, like the Telegram backend.
     if(process.argv[2])await p.addInitScript(snapshot=>{for(const [k,v] of Object.entries(snapshot))if(k.startsWith('fixture-cloud-'))localStorage.setItem(k,v);},legacy);
     phase='unity';await p.goto((process.argv[2]||base).replace(/#.*/,'')+hash,{waitUntil:'domcontentloaded'});
     await p.locator('#play').waitFor({timeout:150000});
+    console.log('New game reached the menu.');
     assert.equal(await p.locator('[data-hero="owl"]').getAttribute('aria-pressed'),'true');
     assert.equal(await p.locator('#best').innerText(),String(JSON.parse(legacy.bsova_tg127_best)));
     for(const mode of ['tubing','sled'])assert(await p.locator('#menu [data-mode="'+mode+'"]').isEnabled());
     await p.evaluate(()=>Telegram.WebView.receiveEvent('viewport_changed',{height:565,is_state_stable:true,is_expanded:true}));
     assert.equal(Math.round((await p.locator('#app').boundingBox()).height),565);
     for(const v of ['#play','[data-hero="bear"]','#menu [data-mode="sled"]'])assert(await p.locator(v).evaluate(el=>{const b=el.getBoundingClientRect();return el.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2));}));
+    await p.locator('#slope').tap({position:{x:90,y:170}});assert.deepEqual(await p.evaluate(()=>spinCalls),[]);
+    await p.mouse.move(80,170);await p.mouse.down();await p.mouse.move(104,170);await p.mouse.move(119,170);await p.mouse.up();
+    assert.deepEqual(await p.evaluate(()=>spinCalls),[['MenuSpin',24],['MenuSpin',15],['EndMenuSpin',null]]);
     const host=(name,data={})=>p.evaluate(([n,d])=>Telegram.WebView.receiveEvent(n,d),[name,data]);
     const nav=name=>p.locator('#panelBody').getByRole('button',{name,exact:true}).click();
     const back=()=>host('back_button_pressed');
@@ -95,6 +110,7 @@ async function main(){
     await nav('Из кода');const subset=await p.locator('.catalog-grid button').count();assert(subset>0&&subset<65);
     await p.locator('.catalog-grid button').first().click();assert((await p.locator('#panelBody>img').count())===1);await back();await back();
     await nav('Осмотр трассы');await p.locator('#review').waitFor();
+    console.log('Opened the Unity course inspector after navigating the catalog.');
     await p.locator('#reviewAt').fill('2507');await p.locator('#reviewAt').press('Enter');
     await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===2507);
     await p.locator('#reviewLater').click();await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===2607);
@@ -105,6 +121,7 @@ async function main(){
     await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===1161);assert(await p.locator('#reviewStage').isDisabled());
     await p.locator('#reviewFold').click();assert(await p.locator('#reviewBody').isHidden());
     await p.locator('#reviewExit').click();await p.locator('#play').waitFor();
+    console.log('Driving from ordinary menu.');
     await p.locator('#play').click();await p.locator('#pause').waitFor();
     await host('back_button_pressed');await p.locator('#resume').waitFor();await p.locator('#resume').click();
     await host('visibility_changed',{is_visible:false});await p.locator('#resume').waitFor();
@@ -120,9 +137,15 @@ async function main(){
     assert(!(await p.evaluate(()=>hostEvents)).includes('web_app_open_tg_link'));await back();await p.locator('#exitResult').click();
     await p.locator('#play').waitFor();
     const old=await p.evaluate(()=>Object.fromEntries(Object.entries(localStorage).filter(([k])=>(k.startsWith('bsova_tg127_')&&!k.includes('unity_'))||k==='fixture-cloud-save')));
+    assert.equal(old['fixture-cloud-save'],legacy['fixture-cloud-save']);
     if(!process.argv[2])assert.deepEqual(old,legacy);
     assert(!posts.includes('unity'));assert((await p.evaluate(()=>hostEvents)).includes('web_app_ready'));
+    assert.deepEqual(errors,[]);
     console.log('PASS earned legacy owl + feather, best and both bonuses survive; missions/shop/FIS/letters/dances/model catalog/review and 1080x1350 share preview; Telegram SDK Back, resize 565 px, minimize, return, explicit resume, restart, isolated writes; '+(process.argv[2]?'Unity Web':'native callbacks simulated'));
+  }catch(error){
+    const state=await p.evaluate(()=>({page:location.pathname,visible:[...document.querySelectorAll('section')].filter(el=>!el.hidden).map(el=>el.id),
+      label:document.getElementById('loadText')?.innerText,metres:document.getElementById('metres')?.innerText})).catch(()=>null);
+    console.error('Failed stage',phase,state,errors);throw error;
   }finally{await browser.close();await new Promise(r=>s.close(r));}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

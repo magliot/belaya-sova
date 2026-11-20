@@ -29,6 +29,13 @@ Shader "Owl/MountainRaceSky" {
    float4 _Forward,_Horizon,_Zenith,_Tint;float _Night,_Clock,_Menu,_Tube;
    struct V {float4 pos:SV_POSITION;float3 ray:TEXCOORD0;float4 screen:TEXCOORD1;};
    V vert(float4 p:POSITION){V o;o.pos=UnityObjectToClipPos(p);o.screen=ComputeScreenPos(o.pos);o.ray=p.xyz;return o;}
+   fixed4 mountainPanel(float panel,float2 uv){
+    uv=clamp(uv,.002,.998);
+    float tile=frac((panel+1.)/3.+.001)*3.;
+    if(tile<.5)return tex2D(_LeftRidge,uv);
+    if(tile>1.5)return tex2D(_RightRidge,uv);
+    return tex2D(_Ridge,uv);
+   }
    fixed4 frag(V i):SV_Target{
     if(_Menu>.5){
      float2 screen=i.screen.xy/i.screen.w;
@@ -55,14 +62,16 @@ Shader "Owl/MountainRaceSky" {
      sky+=aur.rgb*aur.a*mask*_Night*(.64+.22*cos(auruv.x*22-_Clock*.57));
     }
     float bearing=atan2(dir.x,dir.z);
-    float panel=floor(bearing/.628319+.5);
-    float2 uv=float2(.5+(bearing-panel*.628319)*1.47,.39+dir.y*2.65);
-    fixed4 ridge=tex2D(_Ridge,clamp(uv,.002,.998));
-    float tile=frac((panel+1.)/3.)*3.;
-    if(tile<.5)ridge=tex2D(_LeftRidge,clamp(uv,.002,.998));
-    if(tile>1.5)ridge=tex2D(_RightRidge,clamp(uv,.002,.998));
-    float mask=smoothstep(0,.1,min(uv.x,1-uv.x))*smoothstep(0,.08,min(uv.y,1-uv.y));
-    sky=lerp(sky,lerp(ridge.rgb*_Tint.rgb,_Horizon.rgb,.20),ridge.a*mask);
+    // Nine overlapping mountain views complete one revolution. Keep the valley floor
+    // below the skyline all the way down to the descending foreground geometry.
+    float sector=bearing*(9./6.2831853);
+    float panel=floor(sector),t=frac(sector),v=.67+dir.y*1.65;
+    fixed4 ridgeA=mountainPanel(panel,float2(.5+t*.78,v));
+    fixed4 ridgeB=mountainPanel(panel+1.,float2(.5+(t-1.)*.78,v));
+    float blend=smoothstep(.36,.64,t);
+    fixed3 a=lerp(sky,lerp(ridgeA.rgb*_Tint.rgb,_Horizon.rgb,.20),ridgeA.a);
+    fixed3 b=lerp(sky,lerp(ridgeB.rgb*_Tint.rgb,_Horizon.rgb,.20),ridgeB.a);
+    sky=lerp(a,b,blend);
     if(_Tube>.5){
      float2 tuv=float2(.50+az*.70,.45+dir.y*2.6);
      fixed4 route=tex2D(_Route,clamp(tuv,.002,.998));

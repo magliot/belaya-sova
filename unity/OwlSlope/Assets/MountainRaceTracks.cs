@@ -24,7 +24,7 @@ public partial class MountainRace {
         trackObject.AddComponent<MeshFilter>().sharedMesh=trackMesh;
         var r=trackObject.AddComponent<MeshRenderer>();r.shadowCastingMode=ShadowCastingMode.Off;r.receiveShadows=false;
         var shader=Resources.Load<Shader>("MountainRaceSnow");
-        r.sharedMaterial=new Material(shader){mainTexture=Resources.Load<Texture2D>("Art/Race-groove"),color=new Color(1,1,1,.82f)};
+        r.sharedMaterial=new Material(shader){mainTexture=Resources.Load<Texture2D>("Art/Race-groove"),color=new Color(.8f,.89f,.96f,.38f)};
         var spray=new GameObject("Landing snow chips 58A");splash=spray.transform;splash.SetParent(transform,false);
         var plane=new Mesh{name="Snow spray plane",vertices=new[]{new Vector3(-.5f,-.5f),new Vector3(.5f,-.5f),new Vector3(.5f,.5f),new Vector3(-.5f,.5f)},uv=StampUV,triangles=new[]{0,1,2,2,3,0}};
         spray.AddComponent<MeshFilter>().sharedMesh=plane;
@@ -50,8 +50,8 @@ public partial class MountainRace {
         float d=Status.metres;
         if(!airborne&&fall<=0&&rampHeight<.12f&&d-previousStamp>=.28f){
             float len=Mathf.Clamp(d-previousStamp+.12f,.56f,1.65f);
-            if(Hero=="bear"&&!BonusMode){Stamp(lane-.2f,d,.16f,len);Stamp(lane+.2f,d,.16f,len);}
-            else Stamp(lane,d,BonusMode?.68f:.42f,len);
+            if(Hero=="bear"&&!BonusMode){Stamp(lane-.2f,d,.11f,len);Stamp(lane+.2f,d,.11f,len);}
+            else Stamp(lane,d,BonusMode?.63f:.34f,len);
             previousStamp=d;trackMesh.vertices=trackVertices;
             // The camera can only see recent tracks. Avoid culling from stale world-space bounds.
             trackMesh.bounds=new Bounds(World.SampleGround(d,lane),new Vector3(120,120,120));

@@ -46,7 +46,7 @@ public partial class RaceWorld {
             float y=stage*50000+140,end=(stage+1)*50000;
             if(landmarks!=null){
                 // The first 659 metres at the summit are the attended demonstration strip.
-                foreach(var o in landmarks.objects)if(o.y<10675*20)objects.Add(o);
+                foreach(var o in landmarks.objects)if(o.y<10675*20&&o.laneAt<10675*20)objects.Add(o);
                 y=10675*20;
             }
             while(y<end){
@@ -80,10 +80,13 @@ public partial class RaceWorld {
                         float x=Range(90,310);int i=Index(6);var o=Obj("ramp",x,y);o.w=rampWidth[i];o.hh=rampHeight[i];
                         Coins(x,y+60,4,40,0,true);len+=90;break;}
                     case "lane":{
-                        float x=laneDue?200+Range(-10,10):Rand()<.6f?200+Range(-25,25):Range(70,330);
+                        int first=objects.Count;bool aim=laneDue||Rand()<.6f;
+                        float x=laneDue?200+Range(-10,10):aim?200+Range(-25,25):Range(70,330);
                         if(Mathf.Abs(x-200)<22)lastLane=y;Stone(x,y);float s=x<200?1:-1;
                         for(int i=0;i<3;i++)Obj("coin",Mathf.Clamp(x+s*Range(55,70),40,360),y-25+i*28);
-                        if(Rand()<.45f)Stone(Mathf.Clamp(x+s*Range(105,145),50,350),y+Range(120,170));len+=40;break;}
+                        if(Rand()<.45f)Stone(Mathf.Clamp(x+s*Range(105,145),50,350),y+Range(120,170));
+                        if(aim)for(int i=first;i<objects.Count;i++){var o=objects[i];o.laneAt=y;o.laneBase=x;o.laneMargin=laneDue?30:50;}
+                        len+=40;break;}
                     case "mogul":{
                         int n=3+Index(3);for(int i=0;i<n;i++){var o=Obj("mogul",Range(40,360),y+Range(-50,50));o.r=10;o.profile=Mathf.FloorToInt(Roll(seed,Mathf.RoundToInt(o.y),49)*3);}break;}
                     case "mogulBit":len=Bumps(y);break;

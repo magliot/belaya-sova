@@ -11,6 +11,7 @@ public class MountainDances : MonoBehaviour {
     Vector3 origin;
     Quaternion facing;
     string dance;
+    public bool IsDancing=>dance!=null;
     float start;
     public void Dance(string id){
         StopDance();

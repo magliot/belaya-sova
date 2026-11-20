@@ -5,7 +5,7 @@ using UnityEngine;
 public partial class RaceWorld {
     [Serializable] class LegacyObject {
         public string type;
-        public float x,y,w,hh,x1,x2,vy,amp,ph,r,gap,vx,face;
+        public float x,y,w,hh,x1,x2,vy,amp,ph,r,gap,vx,face,laneAt,laneBase,laneMargin;
         public int col,profile,vi,fenceStyle;
         public bool sb,stand,kid,instr,sit,walker,rockWide,air;
     }
@@ -42,7 +42,7 @@ public partial class RaceWorld {
     void UpperRow(int stage,float y,int row){
         var layout=GetLayout(stage);float original=stage*50000+row*1000,delta=y-original;
         foreach(var f in layout.objects){
-            if(f.y<original||f.y>=original+1000)continue;
+            if(f.laneAt>0||f.y<original||f.y>=original+1000)continue;
             float at=f.y+delta;
             switch(f.type){
                 case "npc":{
@@ -63,6 +63,51 @@ public partial class RaceWorld {
                 case "coin":{var o=Entry("coin",f.x,at,22,f.air?1.8f:0);o.air=f.air;break;}
                 case "aid":case "thermos":case "gift":case "helmet":case "magnet":Entry(f.type,f.x,at,24,.85f);break;
             }
+        }
+        // Keep the stone, its three mandarins and the optional downstream stone in
+        // one spawn transaction even when an early mandarin crosses a row boundary.
+        float last=-1;
+        foreach(var f in layout.objects){
+            if(f.laneAt<=0||f.laneAt==last||f.laneAt<original||f.laneAt>=original+1000)continue;
+            last=f.laneAt;SpawnAdaptive(layout,f,delta);
+        }
+    }
+    static float LaneX(LegacyObject obj,float target,float direction){
+        if(obj.type=="rock"&&obj.y==obj.laneAt)return target;
+        float margin=obj.type=="coin"?40:50;
+        return Mathf.Clamp(target+direction*Mathf.Abs(obj.x-obj.laneBase),margin,400-margin);
+    }
+    bool PlacementFree(float x,float y,float radius,float length){
+        foreach(var other in Items){
+            if(other.consumed||(!Solid(other)&&other.kind!="gate"&&!other.bypass))continue;
+            float depth=other.length>0?other.length*.5f:other.kind=="rock"?1.2f:.75f;
+            if(Mathf.Abs(other.distance-y)>depth+length+.15f)continue;
+            if(other.kind=="gate"){
+                if(!other.stoneGate&&Mathf.Abs(Mathf.Abs(x-other.lane)-other.width*.5f)<radius+.45f)return false;
+            }else if(Mathf.Abs(other.lane-x)<radius+(other.bypass?.8f:other.width*.5f)+.15f)return false;
+        }
+        return true;
+    }
+    void SpawnAdaptive(Layout layout,LegacyObject marker,float delta){
+        float target=Mathf.Clamp(marker.laneBase+spawnLane*20,marker.laneMargin,400-marker.laneMargin);
+        float direction=target<200?1:-1;
+        bool Free(float toward){
+            foreach(var obj in layout.objects){
+                if(obj.laneAt!=marker.laneAt)continue;
+                float x=LaneX(obj,target,toward);
+                if(obj.type=="coin"&&Mathf.Abs(x-target)<38)return false;
+                if(!PlacementFree((x-200)*.05f,(obj.y+delta)*.05f,obj.type=="coin"?.8f:.75f,obj.type=="coin"?.55f:1.2f))return false;
+            }return true;
+        }
+        if(!Free(direction)){
+            direction=-direction;
+            if(!Free(direction))return;
+        }
+        foreach(var obj in layout.objects){
+            if(obj.laneAt!=marker.laneAt)continue;
+            float x=LaneX(obj,target,direction),y=obj.y+delta;
+            if(obj.type=="coin")Entry("coin",x,y,22,0).bypass=true;
+            else Rock(x,y,obj.rockWide,obj.r);
         }
     }
     float SummitField(float d,float lane){

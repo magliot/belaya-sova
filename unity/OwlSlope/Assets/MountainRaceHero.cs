@@ -15,6 +15,9 @@ public partial class MountainRace {
     AnimationClip rideClip;
     GameObject tube,sled;
     float camLane,camY;
+    float menuYaw,menuVelocity,menuMouseX;
+    bool spinHeld;
+    MountainDances dances;
     string activeEquipment;
     static void Discard(UnityEngine.Object generated){
         if(Application.isPlaying)Destroy(generated);else DestroyImmediate(generated);
@@ -23,6 +26,7 @@ public partial class MountainRace {
     void SetupCamera(){
         var go=new GameObject("Mountain camera");go.transform.SetParent(transform,false);
         View=go.AddComponent<Camera>();View.tag="MainCamera";View.fieldOfView=72;View.nearClipPlane=.06f;View.farClipPlane=300;
+        dances=GetComponent<MountainDances>();
         actorRoot=new GameObject("Selected rider").transform;actorRoot.SetParent(transform,false);
         SetupWeather();SetupTracks();
         var contact=new GameObject("Ground contact");menuShadow=contact.transform;menuShadow.SetParent(actorRoot,false);
@@ -37,7 +41,7 @@ public partial class MountainRace {
         var prefab=Resources.Load<GameObject>(key);
         if(!prefab)throw new InvalidOperationException("Не загружена модель "+key);
         var instance=Instantiate(prefab,actorRoot);instance.name=key;
-        var metadata=Resources.Load<TextAsset>("Art/"+key+"Materials");
+        var metadata=Resources.Load<TextAsset>("Art/"+(key=="OwlRide"?"Owl":key)+"Materials");
         if(!metadata)throw new InvalidOperationException("Не загружены материалы "+key);
         var palette=JsonUtility.FromJson<MaterialRows>(metadata.text);
         foreach(var renderer in instance.GetComponentsInChildren<Renderer>(true)){
@@ -70,13 +74,17 @@ public partial class MountainRace {
         foreach(var skin in model.GetComponentsInChildren<SkinnedMeshRenderer>(true)){
             // Gloves and pole tips do not determine where the soles meet the snow.
             var mesh=new Mesh();skin.BakeMesh(mesh);
-            foreach(var vertex in mesh.vertices)bottom=Mathf.Min(bottom,model.InverseTransformPoint(skin.transform.TransformPoint(vertex)).y);
+            // BakeMesh already returns deformed vertices in metres. FBX mesh nodes
+            // carry a centimetre scale of 100; applying it here moved the bear below the ground.
+            var bakedToModel=model.worldToLocalMatrix*Matrix4x4.TRS(skin.transform.position,skin.transform.rotation,Vector3.one);
+            foreach(var vertex in mesh.vertices)bottom=Mathf.Min(bottom,bakedToModel.MultiplyPoint3x4(vertex).y);
             Discard(mesh);
         }
         return float.IsInfinity(bottom)?0:-bottom;
     }
     void PrepareActors(){
         string key=Hero=="bear"?"Bear":"Owl";
+        menuYaw=menuVelocity=0;spinHeld=false;
         ClearTracks();
         View.cullingMask=IsMenu?1<<8:~0;menuShadow.gameObject.SetActive(IsMenu);
         foreach(var joint in seatBones.Values)joint.localRotation=menuRest[joint];
@@ -87,8 +95,9 @@ public partial class MountainRace {
         if(tube){tube.SetActive(false);Discard(tube);tube=null;}
         if(stowed){stowed.gameObject.SetActive(false);Discard(stowed.gameObject);stowed=null;}
         activeEquipment=null;
-        rideModel=Instance(key).transform;
-        rideClip=Array.Find(Resources.LoadAll<AnimationClip>(key),c=>!c.name.StartsWith("__preview"));
+        string rigKey=Hero=="owl"?"OwlRide":key;
+        rideModel=Instance(rigKey).transform;
+        rideClip=Array.Find(Resources.LoadAll<AnimationClip>(rigKey),c=>!c.name.StartsWith("__preview"));
         if(!rideClip)throw new InvalidOperationException("Не загружена анимация "+key);
         menuModel=Instance(key+"Menu").transform;
         menuModel.localPosition=Vector3.zero;menuModel.localRotation=Quaternion.identity;menuModel.localScale=Vector3.one;
@@ -119,7 +128,27 @@ public partial class MountainRace {
     }
     void PlaceMenuEquipment(){
         stowed=new GameObject("Equipment in the snow").transform;stowed.SetParent(actorRoot,false);
-        string[] names=Hero=="bear"?new[]{"Left_Ski","Right_Ski"}:new[]{"Snowboard"};
+        if(Hero=="owl"){
+            rideClip.SampleAnimation(rideModel.gameObject,2.77f);
+            var assembly=new GameObject("Snowboard and bindings").transform;assembly.SetParent(stowed,false);
+            foreach(var source in rideModel.GetComponentsInChildren<Transform>(true)){
+                if(source.name!="Snowboard"&&source.name!="Left_Binding"&&source.name!="Right_Binding")continue;
+                var copy=Instantiate(source.gameObject,assembly).transform;
+                copy.localPosition=rideModel.InverseTransformPoint(source.position);
+                copy.localRotation=Quaternion.Inverse(rideModel.rotation)*source.rotation;
+                var original=source.lossyScale;var baseScale=rideModel.lossyScale;
+                copy.localScale=new Vector3(original.x/baseScale.x,original.y/baseScale.y,original.z/baseScale.z);
+            }
+            // The real deck is long on the authored X axis. Turn its printed upper surface and
+            // both bindings towards the menu camera, then plant its tail in the snow.
+            assembly.localRotation=Quaternion.Euler(0,-15,-6)*Quaternion.LookRotation(Vector3.right,Vector3.forward);
+            var meshes=assembly.GetComponentsInChildren<MeshFilter>();
+            var box=ModelBounds(stowed,meshes);assembly.localScale=Vector3.one*(1.46f/box.size.y);
+            box=ModelBounds(stowed,meshes);
+            assembly.localPosition+=new Vector3(.77f-box.center.x,-box.min.y-.045f,.04f-box.center.z);
+            return;
+        }
+        string[] names={"Left_Ski","Right_Ski"};
         int number=0;
         foreach(var source in rideModel.GetComponentsInChildren<Transform>(true)){
             if(Array.IndexOf(names,source.name)<0)continue;
@@ -133,7 +162,7 @@ public partial class MountainRace {
             bounds=ModelBounds(stowed,meshes);
             if(bounds.size.y>.001f)copy.localScale*=1.60f/bounds.size.y;
             bounds=ModelBounds(stowed,meshes);
-            copy.localPosition+=new Vector3(.92f+number*.14f-bounds.center.x,-bounds.min.y-.07f,.05f-bounds.center.z);number++;
+            copy.localPosition+=new Vector3(.77f+number*.12f-bounds.center.x,-bounds.min.y-.07f,.05f-bounds.center.z);number++;
         }
     }
     static Bounds ModelBounds(Transform space,MeshFilter[] meshes){
@@ -149,16 +178,37 @@ public partial class MountainRace {
     }
     void RenderMenu(float dt){
         if(!menuModel)return;
+        if(dances&&dances.IsDancing){
+            spinHeld=false;menuVelocity=0;menuYaw=Mathf.LerpAngle(menuYaw,0,Mathf.Clamp01(dt*6));
+        }else if(!spinHeld&&Mathf.Abs(menuVelocity)>.001f){
+            // Match the old .94 damping per 60Hz frame, including at mobile frame rates.
+            float damping=Mathf.Pow(.94f,dt*60);
+            menuYaw+=menuVelocity*(1-damping)/.06f;menuVelocity*=damping;
+        }
         string key=Hero=="bear"?"Bear":"Owl";float scale=Hero=="bear"?1.3f:1.32f;
         Vector3 ground=World.SampleGround(0,0);
         actorRoot.SetPositionAndRotation(ground,Quaternion.Euler(0,World.HeadingAt(0)*Mathf.Rad2Deg,0));
         menuModel.localScale=Vector3.one*scale;menuModel.localPosition=Vector3.up*menuLifts[key]*scale;
-        menuModel.localRotation=Quaternion.Euler(0,180+Mathf.Sin(Time.time*.5f)*3,0);
+        menuModel.localRotation=Quaternion.Euler(0,menuYaw+Mathf.Sin(Time.time*.5f)*3,0);
         View.fieldOfView=58;
         Vector3 eye=ground+actorRoot.rotation*new Vector3(.17f,1.42f,3.62f);
         Vector3 aim=ground+actorRoot.rotation*new Vector3(.17f,.30f,0);
         View.transform.SetPositionAndRotation(eye,Quaternion.LookRotation(aim-eye,Vector3.up));
         UpdateWeather();
+    }
+    public void MenuSpin(float dx){
+        if(!IsMenu||(dances&&dances.IsDancing))return;
+        spinHeld=true;menuVelocity=-dx*.012f*Mathf.Rad2Deg;menuYaw+=menuVelocity;
+        RenderMenu(0);
+    }
+    public void EndMenuSpin(){spinHeld=false;}
+    void NativeMenuPointer(){
+#if !UNITY_WEBGL || UNITY_EDITOR
+        float x=Input.mousePosition.x;
+        if(Input.GetMouseButtonDown(0)){menuMouseX=x;menuVelocity=0;spinHeld=true;}
+        if(Input.GetMouseButton(0)&&spinHeld){MenuSpin(x-menuMouseX);menuMouseX=x;}
+        if(Input.GetMouseButtonUp(0))EndMenuSpin();
+#endif
     }
     void RenderRace(float dt,bool snap){
         if(!rideModel)return;
@@ -199,7 +249,8 @@ public partial class MountainRace {
             rideModel.localScale=Vector3.one*scale;
             float authored=airborne&&sample>=3.25f&&sample<=4.08f?.28f*4*u*(1-u)*scale:0;
             rideModel.localPosition=Vector3.up*((Hero=="bear"?.022f:0)-authored);
-            rideModel.localRotation=Quaternion.Euler(0,Hero=="bear"?180:90,0);
+            // The Blender FBX import faces +Z on the ski rig; downhill is +Z in Unity.
+            rideModel.localRotation=Quaternion.Euler(0,Hero=="bear"?0:-90,0);
         }
         float follow=snap?1:Mathf.Min(1,dt*5);camLane=Mathf.Lerp(camLane,lane,follow);
         Vector3 eye=World.SampleGround(d-6.4f,camLane*.63f);

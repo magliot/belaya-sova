@@ -81,6 +81,8 @@ public partial class RaceWorld {
                 if(gate&&Solid(b))overlaps=Mathf.Abs(Mathf.Abs(a.lane-b.lane)-a.width*.5f)<b.width*.5f+.45f;
                 else if(gate&&b.kind=="gate"&&!b.stoneGate)overlaps=Mathf.Abs(Mathf.Abs(a.lane-b.lane)-Mathf.Abs(a.width-b.width)*.5f)<.75f;
                 else if(!gate&&b.kind=="gate"&&!b.stoneGate)overlaps=Mathf.Abs(Mathf.Abs(a.lane-b.lane)-b.width*.5f)<a.width*.5f+.45f;
+                else if(b.bypass)overlaps=gate?Mathf.Abs(Mathf.Abs(a.lane-b.lane)-a.width*.5f)<1.1f:
+                    Mathf.Abs(a.lane-b.lane)<a.width*.5f+.8f;
                 else if(Solid(b))overlaps=Mathf.Abs(a.lane-b.lane)<(a.width+b.width)*.5f+.15f;
             }
             if(overlaps)Items.RemoveAt(i--);

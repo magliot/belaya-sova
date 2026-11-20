@@ -38,6 +38,11 @@ public partial class MountainRace {
     public string VerifyMechanics(){
         Initialize();var report=new List<string>();
         try{
+            Menu();ChooseHero("owl");var front=MenuActor.localRotation;
+            MenuSpin(31);var dragged=MenuActor.localRotation;Check(Quaternion.Angle(front,dragged)>15,"menu rotation");
+            EndMenuSpin();RenderMenu(1f/60);Check(Quaternion.Angle(MenuActor.localRotation,dragged)>1,"menu rotation inertia");
+            ChooseHero("bear");Check(Quaternion.Angle(front,MenuActor.localRotation)<2,"new hero starts facing the camera");
+            report.Add("menu drag, inertia and hero reset");
             report.Add(VerifyPrize("bear",2));report.Add(VerifyPrize("owl",2));report.Add(VerifyPrize("bear",1));report.Add(VerifyPrize("owl",0));
             StartRace("{\"mode\":\"normal\",\"seed\":1911}");
             Checkpoint(275,0);var helmet=World.Items.Find(o=>o.kind=="helmet"&&o.distance<315);

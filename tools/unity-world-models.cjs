@@ -40,7 +40,11 @@ async function exportModel(type,details){
   beamMat.opacity=glow*.35;glowMat.opacity=glow*.55;
   model=l.clone();model.position.set(0,0,0);model.rotation.set(0,0,0);
  }
- else if(type==='startArch'){model=arch.clone();model.position.set(0,0,0);model.rotation.set(0,0,0);}
+ else if(type==='startArch'){
+  model=arch.clone();model.position.set(0,0,0);model.rotation.set(0,0,0);
+  const banner=model.children.find(n=>n.material?.map);banner.scale.x*=.58;banner.scale.y*=.58;
+  S3(mk(sharedGeo.box,M(0xb64c17),0,banner.position.y+.44,.03,model),12,.057,.057);
+ }
  else if(type==='liftChair'){
   model=new THREE.Group();const c=NPCM.chair.clone();c.position.y=-NPCM.chair.userData.h-.05;model.add(c);
  }

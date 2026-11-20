@@ -17,6 +17,7 @@ Shader "Owl/Course model" {
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile_local_fragment _ OWL_START_BANNER
             #pragma multi_compile_fog
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
             #pragma multi_compile_fragment _ _SHADOWS_SOFT
@@ -36,6 +37,9 @@ Shader "Owl/Course model" {
                 half4 base=SAMPLE_TEXTURE2D(_BaseMap,sampler_BaseMap,i.uv)*i.c;
                 #ifndef UNITY_COLORSPACE_GAMMA
                 base.rgb=SAMPLE_TEXTURE2D(_BaseMap,sampler_BaseMap,i.uv).rgb*SRGBToLinear(i.c.rgb);
+                #endif
+                #if defined(OWL_START_BANNER)
+                base.a*=smoothstep(7.0,14.0,-TransformWorldToView(i.world).z);
                 #endif
                 clip(base.a-.024);
                 half3 n=normalize(i.n);
