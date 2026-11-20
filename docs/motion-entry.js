@@ -8,7 +8,7 @@
   window.courseLaunch=start==='course';
   if(['course','play'].includes(query.get('preview')))return;
   if(start==='unity'){
-    query.set('v','2026-11-20d');
+    query.set('v','2026-11-20e');
     location.replace('./unity-slope/?'+query+location.hash);
     return;
   }

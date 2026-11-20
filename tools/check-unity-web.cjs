@@ -26,11 +26,11 @@ async function main(){
     assert.match(await page.locator('#objective').innerText(),/мандарин в прыжке/);
     const bounds=await canvas.boundingBox();
     await page.screenshot({path:'course-checks/unity-web/start.png'});
+    await canvas.screenshot({path:'course-checks/unity-web/control-after.png',style:'article,nav,#hud{visibility:hidden}'});
     await go.tap();
     await page.getByText('Ворота слева',{exact:true}).waitFor();
     await page.getByRole('button',{name:'Пауза'}).tap();
     await page.getByRole('button',{name:'Продолжить'}).tap();
-    await page.getByRole('button',{name:'Прыжок'}).tap();
     await page.touchscreen.tap(bounds.x+bounds.width*.72,bounds.y+bounds.height*.24);
     await page.keyboard.down('ArrowRight');
     try{await page.keyboard.press('Space');await page.waitForTimeout(350);}finally{await page.keyboard.up('ArrowRight');}
@@ -48,16 +48,21 @@ async function main(){
         return metres&&Number(metres[1])<=limit;
       },remaining,{polling:'raf',timeout:30000});
     }
-    async function turn(from,to,side){
-      await at(from);
-      await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:bounds.x+bounds.width*side,y:bounds.y+bounds.height*.70}]});
-      try{await at(to);}finally{await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});}
+    const startX=.71, y=bounds.y+bounds.height*.70;
+    async function finger(type,offset=0){
+      // Default sensitivity 4. One continuous drag can choose all three lines.
+      const x=bounds.x+bounds.width*(startX+offset/(27*.79));
+      await touch.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y}]});
     }
-    await turn(92,87,.10); // Left gate
-    await turn(70,60,.90); // Right gate
-    await turn(46,41,.10); // Centre line for the mandarin
-    await at(34);await page.getByRole('button',{name:'Прыжок'}).tap();
-    await turn(29,25,.10); // Last left gate
+    await finger('touchStart');await finger('touchMove',-3.4);
+    await at(70);await finger('touchMove',3.4);
+    await at(46);await finger('touchMove',0);
+    await at(38);await finger('touchEnd');
+    await page.touchscreen.tap(bounds.x+bounds.width*.62,y);
+    await page.getByText('Грэб!',{exact:true}).waitFor({timeout:4000});
+    await page.screenshot({path:'course-checks/unity-web/grab.png'});
+    await at(30);await finger('touchStart');await finger('touchMove',-2.8);
+    await at(13);await finger('touchEnd');
     await replay.waitFor({timeout:30000});
     assert.equal(await page.locator('#objective').innerText(),'Ворота: 3 из 3. Мандарин пойман!');
     await page.screenshot({path:'course-checks/unity-web/finish.png'});
@@ -86,7 +91,7 @@ async function main(){
     assert.match(await cold.locator('#assetMessage').innerText(),/включить 3D/);
     await cold.locator('#assetRetry').tap();
     await cold.waitForFunction(()=>window.__g?.()?.mode==='menu',null,{timeout:60000});
-    console.log('PASS Unity touch slalom 3/3 and airborne fruit, pause, finish, replay, ordinary play after cached Unity, and WebGL retry');
+    console.log('PASS relative drag, ramp takeoff, air tap, 3/3 and fruit, pause, finish, replay, ordinary play after cached Unity, and WebGL retry');
   }finally{await browser.close();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,8 +1,10 @@
 """Run from repository root with blender --background --python tools/unity-export.py."""
 from pathlib import Path
-import bpy,re,base64,tempfile,struct,json
+import bpy,re,base64,tempfile,struct,json,sys
 root=Path('unity/OwlSlope/Assets/Resources');root.mkdir(parents=True,exist_ok=True)
-for name,key,source in [('Owl',None,'art/owl-animation-pilot/sova-board-study.glb'),('Fir','fir','docs/models/trees.js'),('Rock','rock_tall','docs/models/winter.js'),('Snowman','snowman','docs/models/winter.js')]:
+only=set(sys.argv[sys.argv.index('--')+1:]) if '--' in sys.argv else set()
+for name,key,source in [('Owl',None,'art/owl-animation-pilot/sova-board-study.glb'),('Fir','fir','docs/models/trees.js'),('Rock','rock_tall','docs/models/winter.js'),('Snowman','snowman','docs/models/winter.js'),('Mandarin','mandarin','docs/models/props.js')]:
+ if only and name not in only:continue
  bpy.ops.wm.read_factory_settings(use_empty=True)
  with tempfile.TemporaryDirectory() as d:
   f=Path(source)
