@@ -7,9 +7,28 @@ using UnityEngine.Rendering;
 public static class BakeSlope {
  [MenuItem("Owl/Build Telegram Web pilot")] public static void BuildWeb(){
   if(!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.WebGL,BuildTarget.WebGL))throw new System.Exception("Install Web Build Support for this Unity editor");
+  if(Application.isBatchMode)CheckSlalom();
   var report=BuildPipeline.BuildPlayer(new[]{"Assets/Slope.unity"},"Builds/Web",BuildTarget.WebGL,BuildOptions.None);
   if(report.summary.result!=UnityEditor.Build.Reporting.BuildResult.Succeeded)throw new System.Exception("Web build: "+report.summary.result);
   Debug.Log("OWL WEB BUILT: "+report.summary.totalSize+" bytes");
+ }
+ static void CheckSlalom(){
+  var scene=EditorSceneManager.NewPreviewScene();
+  try{
+   var root=new GameObject("Slalom check");
+   UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root,scene);
+   var pilot=root.AddComponent<SlopePilot>();pilot.Setup();
+   foreach(bool steer in new[]{false,true}){
+    pilot.ResetRide();
+    for(int i=0;i<1000&&!pilot.Finished;i++){
+     float d=pilot.Distance,target=d<223?-3.4f:d<247?3.4f:d<263?0:-2.8f;
+     pilot.Tick(1f/60,steer?Mathf.Clamp((target-pilot.Lane)*2,-1,1):0,steer&&d>=260.2f&&d<260.4f&&!pilot.Airborne);
+    }
+    if(!pilot.Finished||pilot.GatesPassed!=(steer?3:0)||pilot.CaughtFruit!=steer)
+     throw new System.Exception("Slalom result: gates="+pilot.GatesPassed+", mandarin="+pilot.CaughtFruit+", finish="+pilot.Finished);
+   }
+   Debug.Log("OWL SLALOM PASS: straight run 0/3, steered run 3/3 with airborne mandarin and finish.");
+  }finally{EditorSceneManager.ClosePreviewScene(scene);}
  }
  public static void RunAndBuild(){Run();BuildPlayer();}
  [MenuItem("Owl/Build Windows player")] public static void BuildPlayer(){
