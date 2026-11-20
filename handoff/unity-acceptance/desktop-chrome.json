@@ -1,0 +1,22 @@
+{
+  "platform": "android",
+  "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/157.0.0.0 Safari/537.36",
+  "viewport": [
+    390,
+    780
+  ],
+  "devicePixelRatio": 1,
+  "seed": 1911,
+  "menuReadyMs": 3453,
+  "navigationToRideMs": 5087,
+  "startButtonToFrameMs": 82,
+  "measuredFrames": 411,
+  "meanFPS": 60.3,
+  "frameP95Ms": 18.5,
+  "slowestFrameMs": 31.4,
+  "dragSamples": 15,
+  "dragToFrameP50Ms": 5.4,
+  "dragToFrameP95Ms": 7.9,
+  "renderer": "ANGLE (AMD, AMD Radeon(TM) Graphics (0x0000164C) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "environment": "Windows Chrome, touch emulation"
+}

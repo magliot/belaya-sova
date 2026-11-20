@@ -8,11 +8,52 @@ using UnityEngine;
 [InitializeOnLoad]
 public static class CaptureMountainRace {
     const string Pending="Owl.Mountain.Capture";
+    const string PendingFilm="Owl.Mountain.JumpFilm";
     const int W=390,H=780;
     static CaptureMountainRace(){EditorApplication.update+=WhenReady;}
     public static void Run(){
         SessionState.SetBool(Pending,true);
         EditorSceneManager.OpenScene("Assets/Mountain.unity");EditorApplication.EnterPlaymode();
+    }
+    public static void Jumps(){
+        SessionState.SetBool(PendingFilm,true);Run();
+    }
+    static void Film(MountainRace race,string hero){
+        race.Menu();race.ChooseHero(hero);race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
+        Checkpoint(race,7620,0);var ramp=race.World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
+        float start=ramp.distance-20,lip=ramp.distance+ramp.length*.5f,end=lip+ramp.span*(hero=="owl"?1.09f:1);
+        Checkpoint(race,start,ramp.lane);
+        var cam=race.View;float originalAspect=cam.aspect;
+        var oldTarget=cam.targetTexture;var previous=RenderTexture.active;
+        var rt=RenderTexture.GetTemporary(W,H,24,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Default,1);
+        var image=new Texture2D(W,H,TextureFormat.RGB24,false);
+        var dir=Path.GetFullPath(Path.Combine(Application.dataPath,"../../../course-checks/mountain-race/jump-film/"+hero));
+        Directory.CreateDirectory(dir);
+        int frame=0,land=-1,ring=-1,feather=-1,trick1=-1,trick2=-1;
+        try{
+            cam.aspect=(float)W/H;cam.targetTexture=rt;
+            while(frame<240){
+                float d=race.Status.metres;
+                if(d>lip&&race.Status.tricks==0||race.Status.tricks==1&&d>lip+.28f*ramp.span)race.AirTrick("tap");
+                race.Advance(1f/30);
+                if(race.Status.tricks>0&&trick1<0)trick1=frame;
+                if(race.Status.tricks>1&&trick2<0)trick2=frame;
+                if(race.Status.rings>0&&ring<0)ring=frame;
+                if(race.Status.feather&&feather<0)feather=frame;
+                if(race.Status.metres>=end&&race.Altitude<.04f&&land<0)land=frame;
+                cam.Render();RenderTexture.active=rt;image.ReadPixels(new Rect(0,0,W,H),0,0);image.Apply();
+                File.WriteAllBytes(Path.Combine(dir,frame.ToString("D4")+".jpg"),image.EncodeToJPG(94));
+                frame++;
+                if(land>=0&&frame>land+17)break;
+            }
+            if(land<0||trick2<0||ring<0||feather<0||race.Status.phase!="play")throw new InvalidOperationException("Incomplete jump film "+hero);
+            string report=hero+" seed 1911, "+start.ToString("F1")+"–"+race.Status.metres.ToString("F1")+" m, frames "+frame+
+                " at 30 fps, tricks "+trick1+"/"+trick2+", ring "+ring+", feather "+feather+", landing "+land;
+            File.WriteAllText(Path.Combine(dir,"take.txt"),report);Debug.Log("MOUNTAIN FILM "+report);
+        }finally{
+            cam.targetTexture=oldTarget;cam.aspect=originalAspect;RenderTexture.active=previous;
+            RenderTexture.ReleaseTemporary(rt);UnityEngine.Object.Destroy(image);
+        }
     }
     static void Save(MountainRace race,string file){
         var cam=race.View;float aspect=cam.aspect;
@@ -61,6 +102,9 @@ public static class CaptureMountainRace {
         var race=UnityEngine.Object.FindFirstObjectByType<MountainRace>();if(!race||!race.View)return;
         SessionState.EraseBool(Pending);
         try{
+            if(SessionState.GetBool(PendingFilm,false)){
+                SessionState.EraseBool(PendingFilm);Film(race,"bear");Film(race,"owl");EditorApplication.Exit(0);return;
+            }
             race.Menu();race.ChooseHero("bear");Save(race,"01-menu-bear");
             race.ChooseHero("owl");Save(race,"02-menu-owl");
             race.ChooseHero("bear");race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
