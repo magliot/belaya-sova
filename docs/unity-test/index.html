@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#183c56">
+  <title>Белая Сова · Спуск</title>
+  <link rel="icon" type="image/jpeg" href="art/av_owl.jpg">
+  <link rel="stylesheet" href="race.css">
+  <script src="vendor/telegram-web-app.js"></script>
+  <script src="release.js"></script><script src="save.js"></script>
+  <script defer src="mountain-audio.js"></script><script defer src="mountain-metrics.js"></script>
+</head>
+<body><main id="app">
+  <canvas id="slope" aria-label="Горнолыжная трасса" tabindex="0"></canvas>
+  <div id="safe">
+    <header id="mast" hidden><h1>Белая Сова</h1></header>
+    <section id="loading" class="sheet" aria-live="polite">
+      <h2>Готовим склон</h2><p id="loadText">Загружаем игру…</p>
+      <progress id="loadBar" max="1" value="0" aria-label="Загрузка игры"></progress>
+      <button id="retryLoad" hidden>Повторить загрузку</button>
+    </section>
+    <section id="menu" class="sheet home" hidden aria-label="Главное меню">
+      <div class="row picks" aria-label="Выбор героя">
+        <button data-hero="bear" aria-pressed="false"><img src="art/av_bear.jpg" alt=""><span>Мишаня<small>Лыжи</small></span></button>
+        <button data-hero="owl" aria-pressed="false"><img src="art/av_owl.jpg" alt=""><span>Сова<small>Сноуборд</small></span></button>
+      </div>
+      <div class="balances"><span>Рекорд <b id="best">0</b></span><span>🍊 <b id="bank">0</b></span></div>
+      <button id="play" class="primary" data-mode="normal">Поехали!</button>
+      <div class="row"><button data-mode="tubing">Плюшки<small></small></button><button data-mode="sled">Снегоход<small></small></button></div>
+      <div class="row"><button data-mode="sprint">Короткий спуск<small>1,2 км</small></button><button data-panel="more">Ещё</button></div>
+    </section>
+    <div id="hud" hidden>
+      <div id="course"><b id="metres"></b><span id="stage"></span><span id="pace"></span></div>
+      <div class="scoreboard" aria-label="Счёт, каски и мандарины">
+        <b id="score">0</b><div id="helmets"><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""></div>
+        <b id="coins">0</b>
+      </div>
+      <button id="pause" aria-label="Пауза">Ⅱ</button>
+    </div>
+    <aside id="notice" hidden></aside>
+    <section id="review" class="sheet" hidden>
+      <div class="row"><b>Осмотр · <output id="reviewMetres">0</output> м</b><button id="reviewFold" aria-expanded="true">Свернуть</button><button id="reviewExit">В меню</button></div>
+      <div id="reviewBody"><div class="row"><select id="reviewRide" aria-label="Трасса осмотра"><option value="normal">Полный спуск</option><option value="sprint">Короткий спуск</option><option value="tubing">Плюшки</option><option value="sled">Снегоход</option></select><select id="reviewHero" aria-label="Герой осмотра"><option value="owl">Сова</option><option value="bear">Мишаня</option></select></div><label>Перемотка
+      <input id="seek" aria-label="Положение на трассе" type="range" min="0" max="19999" step="1" value="0"></label>
+      <div class="row"><button id="reviewEarlier">−100 м</button><input id="reviewAt" aria-label="Перейти на метр" type="number" min="0" max="19999" step="1" value="0"><button id="reviewLater">+100 м</button></div>
+      <div class="row"><select id="reviewRate" aria-label="Скорость осмотра">
+        <option value="0">Стоп</option><option value=".25">¼×</option><option value="1">1×</option><option value="3">3×</option><option value="6">6×</option></select>
+        <button id="reviewStep">Один кадр</button></div>
+      <label>Положение поперёк склона<input id="reviewLane" type="range" min="-9" max="9" step=".25" value="0"></label>
+      <div class="row"><select id="reviewStage" aria-label="Этап"></select><select id="reviewEffect" aria-label="Событие осмотра"><option value="normal">Обычный спуск</option><option value="coffee">Кофе</option><option value="avalanche">Лавина</option><option value="jump">Прыжок</option></select></div></div>
+    </section>
+    <section id="paused" class="sheet" hidden><h2>Пауза</h2><p id="pausedDist"></p>
+      <label>Чувствительность · <output id="pauseSenseValue">4</output><input type="range" id="pauseSense" min="1" max="10" step="1"></label>
+      <button id="resume" class="primary">Продолжить</button>
+      <div class="row"><button id="restartPaused">Сначала</button><button id="exitPaused">В меню</button></div>
+    </section>
+    <section id="result" class="sheet" hidden><h2 id="resultTitle">Финиш</h2><strong id="resultScore"></strong>
+      <p id="resultStats"></p><p id="resultExtra" hidden></p><p id="rankStatus" role="status"></p>
+      <button id="again" class="primary">Ещё заезд</button>
+      <div class="row" id="resultBonuses" hidden><button data-mode="tubing">Плюшки</button><button data-mode="sled">Снегоход</button></div>
+      <div class="row"><button id="share">Поделиться</button><button id="exitResult">В меню</button></div>
+    </section>
+    <section id="shareSheet" class="sheet" aria-label="Карточка заезда" hidden>
+      <div class="heading"><h2>Карточка заезда</h2><button id="closeShare" aria-label="Закрыть карточку">×</button></div>
+      <img id="shareImage" alt="Результат спуска">
+      <p id="shareHint" role="status">Удержи картинку, чтобы сохранить её.</p>
+      <div class="row"><button id="copyShare">Копировать текст</button><button id="sendShare" class="primary">Отправить</button></div>
+    </section>
+    <section id="panel" class="sheet" hidden><div class="heading"><h2 id="panelTitle"></h2><button id="closePanel" aria-label="Закрыть">×</button></div>
+      <div id="panelBody"></div>
+    </section>
+  </div>
+</main><script src="race.js"></script>
+<script>
+  MountainShell.boot({
+    loader:'Build/2d769a99073dac11d5a21412a43bc207.loader.js', data:'Build/ea58bac5f635babc2f1e483dc1877c2a.data.unityweb',
+    framework:'Build/e9d494cef81f8b0f83842c83edc77fd9.framework.js.unityweb', code:'Build/9318cb01c970525c6d1a1aa1403275a8.wasm.unityweb'
+  });
+</script></body></html>
