@@ -18,6 +18,12 @@
   let seedOverride=fixedSeed!==null&&/^\d{1,10}$/.test(fixedSeed)&&+fixedSeed<=2147483647?+fixedSeed:null;
   let player,ready=false,snapshot=null,panel='',run=null,finger=null,noticeTimer,rankPeriod='week',topRequest=0,requestPause=false;
   let catalogData,modelIndex=-1,group='all',menuFinger=null;
+  let pendingStart=null,soundFailed=false;
+  function sound(method,value){
+    if(soundFailed)return;
+    try{window.MountainAudio?.[method](value);}
+    catch(error){soundFailed=true;console.warn('Mountain audio unavailable',error);}
+  }
   function command(name,arg){
     if(!player)return;
     if(arg===undefined)player.SendMessage('Mountain race',name);
@@ -26,7 +32,7 @@
   function setText(id,text){const el=$(id),v=String(text);if(el.textContent!==v)el.textContent=v;}
   const inRace=()=>snapshot?.phase==='play'||snapshot?.phase==='review';
   function changed(){
-    window.MountainAudio?.settings(profile.data);
+    sound('settings',profile.data);
     if(!ready)return;
     updateMenu();
     if(snapshot?.phase==='menu'&&snapshot.hero!==profile.data.hero)command('ChooseHero',profile.data.hero);
@@ -115,8 +121,12 @@
   function onState(s){
     if(!s||typeof s.phase!=='string')return;
     const prev=snapshot;snapshot=s;
-    window.MountainMetrics?.update(s);window.MountainAudio?.update(s);
+    if(pendingStart&&s.mode===pendingStart.mode&&s.seed===pendingStart.seed&&s.phase===(s.mode==='review'?'review':'play')){
+      const {useHelmet,timeout}=pendingStart;pendingStart=null;clearTimeout(timeout);$('loading').hidden=true;
+      if(useHelmet)profile.change(['helmets'],d=>{d.helmets=Math.max(0,d.helmets-1);});
+    }
     if(ready)draw(s,prev);
+    window.MountainMetrics?.update(s);sound('update',s);
     if(s.phase==='play'&&(requestPause||document.hidden||app?.isActive===false)){requestPause=false;command('PauseRide');return;}
     if(run?.practice&&(s.phase==='finish'||s.phase==='over')){
       queueMicrotask(()=>{if(run?.practice)returnToInspection();});return;
@@ -155,19 +165,25 @@
   }
   window.onMountainState=onState;
   function start(mode,retry=false){
-    if(!ready)return;
+    if(!ready||pendingStart)return;
     const d=profile.data;
     if(mode==='tubing'&&!d.meet.prizeFeather||mode==='sled'&&!d.meet.prizeFeather&&!d.meet.goldenOwl)return;
-    const seed=retry&&run?run.seed:seedOverride??(crypto.getRandomValues(new Uint32Array(1))[0]&0x7fffffff);
-    const config={mode,seed,sensitivity:d.sens,helmets:d.helmets,boost:d.boost,mag:d.mag,collectedLetters:d.coll.length};
-    if(mode==='review'){
-      $('reviewRate').value='0';$('reviewLane').value='0';$('reviewEffect').value='normal';
-      $('reviewHero').value=d.hero;$('reviewRide').value='normal';setReviewBounds();
-    }
-    run={id:crypto.randomUUID?.()||String(Date.now())+Math.random(),seed,mode};requestPause=false;panel='';
-    command('ChooseHero',d.hero);performance.mark('mountain-start-input');command('StartRace',JSON.stringify(config));
-    if((mode==='normal'||mode==='sprint')&&config.helmets>0)profile.change(['helmets'],p=>{p.helmets--;});
-    canvas.focus();
+    try{
+      const seed=retry&&run?run.seed:seedOverride??(crypto.getRandomValues(new Uint32Array(1))[0]&0x7fffffff);
+      const config={mode,seed,sensitivity:d.sens,helmets:d.helmets,boost:d.boost,mag:d.mag,collectedLetters:d.coll.length};
+      if(mode==='review'){
+        $('reviewRate').value='0';$('reviewLane').value='0';$('reviewEffect').value='normal';
+        $('reviewHero').value=d.hero;$('reviewRide').value='normal';setReviewBounds();
+      }
+      run={id:crypto.randomUUID?.()||String(Date.now())+Math.random(),seed,mode};requestPause=false;panel='';
+      if(snapshot.hero!==d.hero)command('ChooseHero',d.hero);
+      performance.mark('mountain-start-input');
+      pendingStart={mode,seed,useHelmet:(mode==='normal'||mode==='sprint')&&config.helmets>0,
+        timeout:setTimeout(()=>failed(Error('No start acknowledgement'),'Игра не ответила на запуск заезда. Попробуй перезагрузить игру.'),20000)};
+      $('menu').hidden=true;$('mast').hidden=true;$('paused').hidden=true;$('result').hidden=true;
+      $('loadBar').hidden=true;$('loading').hidden=false;setText('loadText','Выходим на склон…');
+      command('StartRace',JSON.stringify(config));canvas.focus();
+    }catch(error){failed(error,'Не удалось начать заезд. Попробуй перезагрузить игру.');}
   }
   function leave(){
     const restoreHero=snapshot?.hero!==profile.data.hero;
@@ -452,9 +468,11 @@
     if(app.isVersionAtLeast('8.0')&&/android|ios/i.test(app.platform))app.requestFullscreen();
   }
   restoreViewport();
-  function failed(error){
+  function failed(error,message){
+    if(pendingStart){clearTimeout(pendingStart.timeout);pendingStart=null;}
+    ready=false;
     console.error('Unity startup:',String(error));$('loading').hidden=false;$('menu').hidden=true;
-    setText('loadText','Не удалось загрузить 3D-игру. Проверь соединение и повтори загрузку.');
+    setText('loadText',message||'Не удалось загрузить 3D-игру. Проверь соединение и повтори загрузку.');
     $('loadBar').hidden=true;$('retryLoad').hidden=false;
   }
   window.MountainShell={async boot(urls){

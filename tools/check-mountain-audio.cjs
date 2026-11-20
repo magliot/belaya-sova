@@ -21,6 +21,7 @@ async function main(){
     });
     await page.addInitScript(()=>{
       window.clips=[];window.songs=[];window.hornNotes=[];window.motorLevels=[];
+      Object.hasOwn=undefined;
       const oscStart=OscillatorNode.prototype.start;
       OscillatorNode.prototype.start=function(...args){
         if(this.type==='square'&&[311,392].includes(this.frequency.value))hornNotes.push(this.frequency.value);
@@ -53,6 +54,12 @@ async function main(){
       };
       const media=AudioContext.prototype.createMediaElementSource;
       AudioContext.prototype.createMediaElementSource=function(song){songs.push(song);return media.call(this,song);};
+      const fault=location.search.slice(1);
+      window.faultCalls=0;
+      const unavailable=()=>{faultCalls++;throw new Error('Unavailable '+fault);};
+      if(fault==='context')window.AudioContext=class{constructor(){unavailable();}};
+      if(fault==='graph')AudioContext.prototype.createBiquadFilter=unavailable;
+      if(fault==='music')AudioContext.prototype.createMediaElementSource=unavailable;
     });
     await page.goto('http://audio.test/');
     await page.getByRole('button').click();
@@ -103,7 +110,29 @@ async function main(){
     assert.deepEqual(errors,[]);
     assert.equal(await page.evaluate(()=>songs.length),1);
     for(const [,name,duration] of await page.evaluate(()=>clips.filter(c=>c[0]==='play')))assert(duration>0,name);
+    for(const fault of ['context','graph','music']){
+      await page.goto('http://audio.test/?'+fault);
+      await page.getByRole('button').click();
+      await page.getByRole('button').click();
+      await page.evaluate(()=>{
+        const settings={muted:false,vol:{music:6,vox:8,sfx:8}};
+        const state={hero:'bear',elapsed:0,edge:0,speed:0,phase:'play',eventId:1,cue:'start'};
+        MountainAudio.settings(settings);
+        MountainAudio.update(state);
+        MountainAudio.update({...state,phase:'pause',cue:''});
+        MountainAudio.update({...state,eventId:2});
+        MountainAudio.settings({...settings,muted:true});
+        MountainAudio.settings(settings);
+      });
+      assert.equal(await page.evaluate(()=>faultCalls),1,fault+' retried on every tap');
+      if(fault==='music'){
+        await page.evaluate(()=>MountainAudio.update({hero:'bear',elapsed:1,speed:0,phase:'play',eventId:3,cue:'start'}));
+        await waitClip('bear_start.mp3');
+      }
+      assert.deepEqual(errors,[],fault+' broke audio settings or state delivery');
+    }
     console.log('Real MP3 decoding and playback passed for both heroes, both soundtracks and landing. Reward, pause, mute, resume and result events passed.');
+    console.log('Startup passed without Object.hasOwn and with denied audio context, graph or music source.');
   }finally{await browser.close();}
 }
 // Only an actual feather contact may emit this gameplay cue.

@@ -3,6 +3,7 @@
   const save={muted:false,vol:{music:6,sfx:8,vox:8}};
   let state={phase:'menu',hero:'bear'},active=false,lastEvent=-1;
   let song=null,songKey='',musicDuck=null,voice=null,voiceTicket=0,lastVoice=-Infinity;
+  let graphUnavailable=false,musicUnavailable=false;
   const samples=new Map();
   const rare=new Map();
 let engG=null,engP=null,rumG=null;const engO=[];
@@ -10,10 +11,27 @@ let AC=null,master=null,windG=null,carveG=null,windF=null,noiseBuf=null,sfxBus=n
 // три канала громкости: музыка, звуки игры, голоса героев (0…10 из настроек)
 const VOLK={music:0.55,sfx:1,vox:1};
 function applyVol(){if(!AC)return;const t=AC.currentTime;for(const [k,b] of [['music',musBus],['sfx',sfxBus],['vox',voxBus]])b.gain.setTargetAtTime(Math.pow(save.vol[k]/10,1.6)*VOLK[k],t,0.05);}
+function changeContextState(action){
+  try{AC?.[action]?.()?.catch(()=>{});}catch{}
+}
 function initAudio(){
-  if(AC){if(AC.state==='suspended')AC.resume().catch(()=>{});return;}
-  try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;return;}
-  if(AC.state==='suspended')AC.resume().catch(()=>{});
+  if(graphUnavailable)return;
+  if(!AC){
+    try{
+      AC=new (window.AudioContext||window.webkitAudioContext)();
+      createGraph();
+    }catch(error){
+      graphUnavailable=true;
+      changeContextState('close');
+      AC=master=windG=carveG=windF=noiseBuf=sfxBus=voxBus=musBus=engG=engP=rumG=null;
+      engO.length=0;
+      console.warn('Web Audio unavailable:',error);
+      return;
+    }
+  }
+  if(AC.state==='suspended')changeContextState('resume');
+}
+function createGraph(){
   master=AC.createGain();master.gain.value=save.muted?0:0.65;master.connect(AC.destination);
   sfxBus=AC.createGain();voxBus=AC.createGain();musBus=AC.createGain();for(const b of[sfxBus,voxBus,musBus])b.connect(master);applyVol();
   const len=AC.sampleRate*2;noiseBuf=AC.createBuffer(1,len,AC.sampleRate);const d=noiseBuf.getChannelData(0);
@@ -81,15 +99,19 @@ const SFX={
     syncMusic();
   }
   function syncMusic(){
+    if(musicUnavailable)return;
     const key=state.phase==='menu'?'menu':state.phase==='play'?'run':'';
     if(!active||!AC||document.hidden||!key||save.muted||!save.vol.music){song?.pause();return;}
     if(!song){
-      song=new Audio();song.loop=true;
-      musicDuck=AC.createGain();
-      AC.createMediaElementSource(song).connect(musicDuck).connect(musBus);
+      try{
+        const track=new Audio(),duck=AC.createGain();
+        track.loop=true;
+        AC.createMediaElementSource(track).connect(duck).connect(musBus);
+        song=track;musicDuck=duck;
+      }catch(error){musicUnavailable=true;console.warn('Music source unavailable:',error);return;}
     }
     if(songKey!==key){songKey=key;song.src='audio/music_'+key+'.mp3';}
-    if(song.paused)song.play().catch(()=>{});
+    if(song.paused)song.play()?.catch(()=>{});
   }
   async function speak(key,priority=false){
     const now=performance.now();
@@ -145,7 +167,7 @@ const SFX={
     const key=next.cue;
     if(key==='feather')return;
     if(key==='gate')SFX.gate(Math.max(1,next.combo||1),false);
-    else if(Object.hasOwn(SFX,key))SFX[key]();
+    else if(Object.prototype.hasOwnProperty.call(SFX,key))SFX[key]();
     if(['start','jump','crash','helmet','fis','record','polite','warn','miss','stage'].includes(key))speak(key,key==='start');
   }
   function activate(){
@@ -155,7 +177,7 @@ const SFX={
   document.addEventListener('pointerdown',activate,{passive:true});
   document.addEventListener('keydown',activate);
   document.addEventListener('visibilitychange',()=>{
-    if(document.hidden){song?.pause();stopVoice();AC?.suspend().catch(()=>{});}
+    if(document.hidden){song?.pause();stopVoice();changeContextState('suspend');}
     else if(active){initAudio();syncMusic();}
   });
   window.MountainAudio={settings,update};
