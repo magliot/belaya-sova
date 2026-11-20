@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum CourseLine { Ordinary, Wide, Precision }
+
 public sealed class RaceItem {
+    public CourseLine line;
     public string kind,variant,character;
     public float distance,lane,width,height,length,lift,span;
     public bool consumed,judged,ridden,park,needsTrick,prizeLine,trickLine,air,stoneGate;
@@ -16,12 +19,14 @@ public sealed class RaceItem {
     internal bool leap,small,decor,bypass;
     internal bool movingPoseReady;
     internal bool threwSnowball,honked;
-    internal bool positioned,touchingPlayer;
+    internal bool positioned,touchingPlayer,patrolPatient;
+    internal int fisApproachSide;
+    internal float fisClearance=float.PositiveInfinity;
     internal float previousLane,previousDistance,previousOffset;
     internal Vector2 throwEnd;
     internal float throwDuration,throwEndHeight,throwStartHeight;
     internal GameObject obj;
-    internal GameObject prints;
+    internal GameObject prints,rescueBay;
     internal Mesh printMesh;
     internal int printCount=-1;
     public Renderer Visual=>obj?obj.GetComponent<Renderer>():null;
@@ -49,6 +54,7 @@ public partial class RaceWorld : MonoBehaviour {
         }
     }
     public void Configure(int seed,string mode){
+        summitChoiceRows.Clear();
         ClearObjects();this.seed=seed;this.mode=mode??"normal";lastDistance=lastTime=0;snowVertices=null;
         firstSegment=int.MaxValue;lastSegment=int.MinValue;chunk=int.MinValue;
         letter=null;letterAdded=false;letterDistance=float.PositiveInfinity;
@@ -64,6 +70,7 @@ public partial class RaceWorld : MonoBehaviour {
         if(Application.isPlaying)Destroy(value);else DestroyImmediate(value);
     }
     void Release(RaceItem item){
+        if(item.rescueBay)DisposeOwned(item.rescueBay);
         if(item.prints){DisposeOwned(item.printMesh);DisposeOwned(item.prints);}
         if(!item.obj)return;
         if(item.kind=="ramp"||item.kind=="rail"){
@@ -96,7 +103,9 @@ public partial class RaceWorld : MonoBehaviour {
         if(seek){ClearObjects();firstSegment=int.MaxValue;lastSegment=int.MinValue;letterAdded=false;lastDistance=distance;chunk=int.MinValue;dt=0;}
         int first=Segment(distance-Behind),last=Segment(distance+Ahead);
         if(firstSegment==int.MaxValue)firstSegment=first;
-        for(int s=lastSegment==int.MinValue?first:Following(lastSegment);s<=last;s=Following(s)){BuildRow(s);lastSegment=s;}
+        for(int s=lastSegment==int.MinValue?first:Following(lastSegment);s<=last;s=Following(s)){
+            int start=Items.Count;BuildRow(s);IdentifyPatrolPatients(start);lastSegment=s;
+        }
         if(!letterAdded&&!string.IsNullOrEmpty(letter)&&letterDistance<=distance+Ahead&&letterDistance>=distance-Behind){
             var o=Add("letter",letterDistance,0,1.3f,1.3f,"letter"+(int)letter[0]);o.character=letter;letterAdded=true;
         }
@@ -130,6 +139,8 @@ public partial class RaceWorld : MonoBehaviour {
         if(!o.obj){
             o.obj=GetVisual(o);o.skin=o.obj.GetComponent<SkinnedMeshRenderer>();o.obj.name=o.kind+" · "+o.variant;
             if(o.kind=="festivalFountain")StartFountain(o);
+            if(o.kind=="fence")SetDetourArrow(o);
+            if(o.patrolPatient)MarkRescueBay(o);
             if(o.kind=="cannon"){
                 o.spray=o.obj.GetComponentInChildren<ParticleSystem>();
                 if(!o.spray)AddCannonSpray(o);

@@ -3,7 +3,8 @@ param(
     [string] $Editor = 'C:\Program Files\Unity\Hub\Editor\6000.3.27f1\Editor\Unity.exe',
     [string] $Cache,
     [switch] $ImportOnly,
-    [switch] $Verify
+    [switch] $Verify,
+    [switch] $Preview
 )
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -43,10 +44,11 @@ if ($editorProcess.ExitCode -ne 0) {
 }
 if ($Verify) {
     if (!(Select-String -LiteralPath $log -Pattern 'MOUNTAIN GAME CHECKS PASS' -Quiet)) { throw "Missing play-mode checks in $log" }
-    Select-String -LiteralPath $log -Pattern 'MOUNTAIN (WORLD|GAME) CHECKS PASS'
+    if (!(Select-String -LiteralPath $log -Pattern 'CONTINUOUS LAP PASS' -Quiet)) { throw "Missing full ranked lap in $log" }
+    Select-String -LiteralPath $log -Pattern 'MOUNTAIN (WORLD|GAME) CHECKS PASS|CONTINUOUS LAP PASS|SHOP HARVEST'
 } elseif (!$ImportOnly) {
     if (!(Select-String -LiteralPath $log -Pattern 'MOUNTAIN WEB BUILT' -Quiet)) { throw "Missing build completion marker in $log" }
-    $site = Join-Path $root 'docs/unity-test'
+    $site = Join-Path $root $(if ($Preview) { 'docs/progression-test' } else { 'docs/unity-test' })
     [void](New-Item -ItemType Directory -Path $site -Force)
     # Only package files referenced by this build. Repeated Web builds can leave stale hashed binaries behind.
     $html = [IO.File]::ReadAllText((Join-Path $output 'index.html'))
@@ -67,7 +69,12 @@ if ($Verify) {
             Remove-Item -LiteralPath $file.FullName
         }
     }
-    & node (Join-Path $PSScriptRoot 'package-unity-shell.cjs')
-    if ($LASTEXITCODE -ne 0) { throw 'Failed to package the production and test pages.' }
-    Write-Output "Built the production and test Unity pages from $sourceProject. Editor log: $log"
+    if ($Preview) {
+        Copy-Item -LiteralPath (Join-Path $root 'server/preview/release.js') -Destination $site -Force
+        & node (Join-Path $PSScriptRoot 'package-unity-shell.cjs') --preview
+    } else {
+        & node (Join-Path $PSScriptRoot 'package-unity-shell.cjs')
+    }
+    if ($LASTEXITCODE -ne 0) { throw 'Failed to package the Web player.' }
+    Write-Output "Built $site. Editor log: $log"
 }

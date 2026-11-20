@@ -17,6 +17,11 @@ for(const token of ['unitytest','unitytest_20g','unitytest_20h','unity']){
   }
 }
 const data='auth_date=42&user=%7B%22id%22%3A123%7D&start_param=unitytest_20g&hash=fixture';
+const previewData=data.replace('unitytest_20g','unitytest_progress21');
+for(const input of ['?startapp=unitytest_progress21','#tgWebAppStartParam=unitytest_progress21',
+  '#'+new URLSearchParams({tgWebAppData:previewData})]){
+  assert.equal(route(input).pathname,root.pathname+'progression-test/');
+}
 for(const prefix of ['#','#?','#/play?','&']){
   const carried=new URLSearchParams({tgWebAppData:data,tgWebAppPlatform:'android'});
   const target=route('?seed=1911&preview=play'+prefix+carried);

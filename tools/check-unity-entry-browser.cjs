@@ -76,7 +76,8 @@ async function freshTelegramStart(browser,platform){
     assert(await page.locator('#menu').isHidden());
     if(platform==='ios'){
       assert(await page.evaluate(()=>window.soundFailureObserved));
-      assert.equal(await localHelmets(),1);
+      const rentedRanked=await page.evaluate(()=>!!window.MountainEquipment);
+      assert.equal(await localHelmets(),rentedRanked?2:1,'wrong start entitlement for the published ruleset');
     }
     assert.deepEqual(errors,[]);
     console.log('PASS fresh Telegram',platform,'ordinary start, moving HUD');

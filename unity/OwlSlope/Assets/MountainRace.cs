@@ -7,7 +7,11 @@ using UnityEngine;
 public partial class MountainRace : MonoBehaviour {
     [Serializable] public class Settings {
         public string mode="normal",reviewRide="normal";
+        public string equipment="standard";
+        public bool ownedEquipment;
+        public int tuning;
         public int seed=1911, sensitivity=4, helmets, boost, mag, collectedLetters;
+        public bool showFisHints;
     }
     [Serializable] public class State {
         public string phase="menu",hero="bear",mode="normal",courseMode="normal",message="",cue="",nextLetter="";
@@ -15,8 +19,13 @@ public partial class MountainRace : MonoBehaviour {
             feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds,horns;
         public float metres,elapsed,engineNear,enginePan,avalanche,blizzard,edge,boostSeconds,magnetSeconds,chaseSeconds,chaseGap;
         public int letterSide,bonusLocation;
+        public int scoreDistance,scoreFruit,scoreGates,scoreRings,scoreFis,preciseGates,preciseRings;
+        public bool rankedResult;
         public bool air,boost,feather,goldenOwl,tubingUnlocked,sledUnlocked;
         public int[] fis=Array.Empty<int>();
+        public int[] fisContexts=Array.Empty<int>();
+        public string fisAction="";
+        public bool fisCanLeave;
     }
     public State Status {get;private set;}=new State();
     public bool IsMenu=>Status.phase=="menu";
@@ -43,7 +52,7 @@ public partial class MountainRace : MonoBehaviour {
     int rewardChain,challenge,challengeNeed,challengeBaseline,consecutiveGates,bestStage;
     bool challengeDone;
     float challengeClean;
-    string CourseMode=>Review?settings.reviewRide:Status.mode;
+    string CourseMode=>Review?settings.reviewRide:Status.mode=="free"?"normal":Status.mode;
     bool BonusMode=>CourseMode=="sled"||CourseMode=="tubing";
     const float BonusSeconds=75, BonusBoost=1.22f;
     float BonusLaunch=>CourseMode=="sled"?22:20;
@@ -78,6 +87,7 @@ public partial class MountainRace : MonoBehaviour {
         PrepareActors();RenderRace(0,true);Publish();
     }
     public void Menu(){
+        ShowFisWalker(false);
         dragging=false;reviewRate=0;airborne=false;
         Status=new State{hero=Hero,phase="menu"};
         if(!World)return;
@@ -88,7 +98,7 @@ public partial class MountainRace : MonoBehaviour {
         if(!World)Initialize();
         var selected=String.IsNullOrEmpty(json)?new Settings():JsonUtility.FromJson<Settings>(json);
         if(selected==null)return;
-        switch(selected.mode){case "normal":case "sprint":case "tubing":case "sled":case "review":break;default:selected.mode="normal";break;}
+        switch(selected.mode){case "normal":case "free":case "sprint":case "tubing":case "sled":case "review":break;default:selected.mode="normal";break;}
         switch(selected.reviewRide){case "sprint":case "tubing":case "sled":break;default:selected.reviewRide="normal";break;}
         settings=selected;ResetRun();
     }
@@ -97,7 +107,8 @@ public partial class MountainRace : MonoBehaviour {
         string hero=Hero;
         Status=new State{hero=hero,mode=settings.mode,seed=settings.seed,
             phase=settings.mode=="review"?"review":"play",lettersTotal=Mathf.Clamp(settings.collectedLetters,0,16)};
-        Status.helmets=!BonusMode&&!Review&&settings.helmets>0?1:0;
+        Status.helmets=(Status.mode=="free"||Status.mode=="sprint")&&settings.helmets>0?1:0;
+        helmetsIssued=Status.helmets;
         random=new System.Random(settings.seed);World.Configure(settings.seed,CourseMode);
         sensitivity=.35f+.11f*Mathf.Clamp(settings.sensitivity,1,10);
         lane=velocity=slip=angle=dragStart=dragTarget=0;edgeReturn=dragging=airborne=false;
@@ -105,6 +116,7 @@ public partial class MountainRace : MonoBehaviour {
         rampHeight=rampPhase=airTime=flightSpan=crashTimer=cleanStart=reviewRate=reviewLane=noticeUntil=0;
         parkFlight=trickLine=prizeLine=false;trickProgress=-1;lastLanding=-10;lastClose=-10;
         earnedRules.Clear();bonusPoints=flightTricks=rewardChain=consecutiveGates=0;lastReward=-100;
+        ResetFis();
         chaseLeft=0;chaseNext=900;bestStage=0;nextHud=0;reviewEffect="normal";SelectChallenge(0);
         PrepareActors();ScheduleLetter(0,false);World.Refresh(0,0);RenderRace(0,true);
         Cue("start");Publish();
@@ -152,6 +164,7 @@ public partial class MountainRace : MonoBehaviour {
         reviewEffect="normal";Seek(Status.metres);
         Status.mode=settings.reviewRide;Status.phase="play";
         Status.helmets=BonusMode?0:1;
+        helmetsIssued=Status.helmets;
         cleanStart=Status.metres;chaseNext=cleanStart+900;
         bestStage=Status.stage;SelectChallenge(bestStage);
         travelYaw=World.HeadingAt(cleanStart);nextHud=0;
@@ -188,7 +201,14 @@ public partial class MountainRace : MonoBehaviour {
         if(cue.Length>0)Cue(cue);nextHud=0;
     }
     void Publish(){
-        Status.score=Mathf.FloorToInt(Status.metres)+bonusPoints;Status.speed=Mathf.RoundToInt(speed*3.6f);
+        RefreshFisAction();
+        Status.scoreDistance=Mathf.FloorToInt(Status.metres);
+        Status.scoreFruit=3*Status.coins;
+        Status.scoreGates=8*Status.gates+10*Status.preciseGates;
+        Status.scoreRings=14*Status.rings+14*Status.preciseRings;
+        Status.scoreFis=25*Status.fis.Length;
+        Status.score=CourseMode=="normal"?Status.scoreDistance+Status.scoreFruit+Status.scoreGates+Status.scoreRings+Status.scoreFis:Status.scoreDistance+bonusPoints;
+        Status.speed=Mathf.RoundToInt(speed*3.6f);
         Status.air=airborne;Status.boost=boost>0;Status.edge=angle;
         Status.courseMode=CourseMode;
         Status.bonusLocation=Status.metres<580?0:Status.metres<1190?1:2;
@@ -210,7 +230,6 @@ public partial class MountainRace : MonoBehaviour {
     void Finish(bool completed,string description){
         dragging=false;Status.phase=completed?"finish":"over";Status.message=description;Cue(completed?"finish":"crash");Publish();
     }
-    void Rule(int n){if(!earnedRules.Contains(n)){earnedRules.Add(n);Status.fis=earnedRules.ToArray();}}
 #if !UNITY_WEBGL || UNITY_EDITOR
     Vector2 mouseOrigin;float mouseTime;
     void NativePointer(){

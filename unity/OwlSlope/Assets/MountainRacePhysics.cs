@@ -25,15 +25,17 @@ public partial class MountainRace {
         previousAltitude=Altitude;
         s.elapsed+=dt;
         if(crashTimer>0){
-            crashTimer-=dt;speed*=Mathf.Pow(.15f,dt);s.metres+=speed*dt;
+            crashTimer-=dt;speed*=Mathf.Pow(.15f,dt);
             World.Refresh(s.metres,s.elapsed,lane,drawWorld);
-            if(crashTimer<=0)Finish(false,s.message);return;
+            if(crashTimer<=0){s.rankedResult=settings.mode=="normal"&&s.mode=="normal";Finish(false,s.message);}return;
         }
         if(BonusMode)s.elapsed=Mathf.Min(BonusSeconds,s.elapsed);
         if(s.elapsed>noticeUntil)s.message="";
         float d=s.metres,oldLane=lane;
         int stage=BonusMode?0:Mathf.FloorToInt(d/2500)%8;
         if(stage!=bestStage){bestStage=s.stage=stage;SelectChallenge(stage);Cue("stage");}
+        if(StepFisStop(dt,keyboard,drawWorld))return;
+        float previousSpeed=speed;
         float grade=.29f+.22f*Mathf.Sin(d/42)+.09f*Mathf.Sin(d/17+1);
         baseSpeed=Mathf.Min(230+d*.085f,560)*(.8f+.7f*grade)*StageSpeed[stage]*(d>=20000?1.08f:1)*1.1f/20;
         float offTrail=stage==2&&!airborne?World.MogulRoughness(d,lane):0;
@@ -48,16 +50,23 @@ public partial class MountainRace {
         }else if(snowpark){
             targetSpeed=Mathf.Min(targetSpeed,37)*(1-.035f*StepBlend(rampPhase));
             speed=Mathf.MoveTowards(speed,targetSpeed,(speed>targetSpeed?9:6)*dt);
+        }else if((s.mode=="normal"||s.mode=="free")&&d>40&&fall<=0){
+            // Everyone leaves the start at the same pace. The deck gains speed sooner on a steep line.
+            if(Fireboard)targetSpeed*=1+.10f*Mathf.InverseLerp(.16f,.55f,grade);
+            float acceleration=Fireboard?16+FreeTuning*2:CarveSkis?4.6f:8;
+            speed=Mathf.MoveTowards(speed,targetSpeed,(speed<targetSpeed?acceleration:19)*dt);
         }else speed=targetSpeed;
+        speed=FisApproachSpeed(previousSpeed,speed,dt);
         float wind=s.blizzard*(Mathf.Sin(s.elapsed*.55f)*75+Mathf.Sin(s.elapsed*1.7f)*25)/20;
         float heading=World.HeadingAt(d);
-        bool controlled=dragging||keyboard!=0;
+        bool controlled=dragging||keyboard!=0||patrol==PatrolPhase.Braking;
         float target=keyboard!=0?lane+keyboard*3.5f:dragTarget;
         if(dragging)dragTarget=Mathf.Clamp(dragTarget+wind*.5f*dt,-LaneLimit(d),LaneLimit(d));
         float rough=offTrail>0?offTrail*(.35f+.65f*MogulShape(d,lane)):0;
         if(fall>0){velocity=slip=0;travelYaw=heading;}
         else if(controlled){
             float response=(Status.mode=="tubing"?.76f:Hero=="owl"?1.15f:1)*(airborne?.45f:1)*(wobble>0?.5f:1)*(1-.38f*rough);
+            if(Fireboard)response*=.85f;
             float cap=21.5f*Mathf.Sqrt(sensitivity);
             float want=Mathf.Clamp((target-lane)*(3+5*sensitivity),-cap,cap)*response;
             velocity=Mathf.Lerp(velocity,want,dt*(Status.mode=="tubing"?3.4f:5+6*sensitivity));
@@ -66,6 +75,7 @@ public partial class MountainRace {
                 Mathf.Max(1,(World.SampleGround(d+1,0)-World.SampleGround(d-1,0)).magnitude);
             float bank=(World.SampleGround(d,lane+.1f).y-World.SampleGround(d,lane-.1f).y)/.2f;
             slip=airborne?0:Mathf.Lerp(slip,Mathf.Clamp(( -curve*speed*speed-9.81f*bank)*.24f,-1.8f,1.8f),4*dt);
+            if(CarveSkis&&!airborne)slip*=Mathf.Exp(-(7+FreeTuning*2)*dt);
         }else{
             velocity=Status.mode=="tubing"?velocity*Mathf.Exp(-2.4f*dt):0;
             float delta=Mathf.DeltaAngle(heading*Mathf.Rad2Deg,travelYaw*Mathf.Rad2Deg)*Mathf.Deg2Rad;
@@ -87,7 +97,7 @@ public partial class MountainRace {
         if(crashTimer<=0)CheckItems(d,oldLane);
         if(s.phase!="play"||crashTimer>0)return;
         TickTimers(dt);
-        if(!BonusMode){Avalanche(dt);TickChallenge();if(s.metres-cleanStart>=1500)Rule(1);}
+        if(!BonusMode){Avalanche(dt);TickChallenge();FisHints(d,s.metres);}
         if(BonusMode&&s.elapsed>=BonusSeconds)Finish(true,s.mode=="tubing"?"Финиш у бухты!":"Снежная доставка завершена!");
         else if(s.mode=="sprint"&&s.metres>=SprintLength)Finish(true,"Короткий спуск пройден!");
     }

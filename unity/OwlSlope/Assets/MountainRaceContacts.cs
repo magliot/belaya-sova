@@ -83,7 +83,7 @@ public partial class MountainRace {
             }
             if(before>=end||d<end)continue;
             if(o.kind=="ramp"){BeginFlight(o);rampHeight=0;return;}
-            if(o.ridden&&!o.judged){o.judged=true;Status.grinds++;bonusPoints+=120*Mult;Notice("Бокс +"+120*Mult,"trickDone");}
+            if(o.ridden&&!o.judged){o.judged=true;Status.grinds++;bonusPoints+=120*Mult;Notice(CourseMode=="normal"?"Скольжение по боксу":"Бокс +"+120*Mult,"trickDone");}
         }
     }
     void CheckItems(float before,float fromLane){
@@ -93,6 +93,7 @@ public partial class MountainRace {
         foreach(var o in World.Items){
             if(o.consumed)continue;
             float dx=lane-o.lane,dy=d-o.distance,abs=Mathf.Abs(dx),ahead=-dy;
+            if(o.kind=="npc"&&!o.judged&&FisCourse)ObserveRider(o,ahead,dx);
             if(o.kind=="cat"||o.kind=="snowmobile"){
                 float vol=1-Mathf.Clamp01(Mathf.Sqrt(dx*dx*2.56f+dy*dy)/(o.kind=="cat"?56:35));
                 if(vol>Status.engineNear){Status.engineNear=vol;Status.enginePan=Mathf.Clamp(-dx/8,-.9f,.9f);}
@@ -113,24 +114,31 @@ public partial class MountainRace {
                 if(!o.judged&&cross){
                     o.judged=true;
                     float passage=(Mathf.Lerp(fromLane,lane,(o.distance-before)/Mathf.Max(.001f,d-before))-o.lane)*o.side;
-                    if(passage>1.0f&&passage<4.6f){bonusPoints+=25*Mult;Cue("chime");}
+                    float reach=o.line==CourseLine.Precision?2.9f:o.line==CourseLine.Wide?5.5f:4.6f;
+                    if(fall<=0&&passage>1.0f&&passage<reach){
+                        Status.gates++;if(o.line==CourseLine.Precision)Status.preciseGates++;
+                        bonusPoints+=25*Mult;Cue("chime");
+                    }
                 }break;
               case "gate":
                 if(!o.stoneGate&&HandleSolid(o,before,fromLane,.105f,.12f,1.65f,Mathf.Sign(dx)*o.width*.5f))break;
                 if(!o.judged&&cross){
                     o.judged=true;
                     float crossLane=Mathf.Lerp(fromLane,lane,(o.distance-before)/Mathf.Max(.001f,d-before));
+                    if(fall>0)break;
                     // Crossing the opposite fork is a valid choice even when both lines have gates.
                     if(o.points>0&&crossLane*o.lane<0)break;
                     if(Mathf.Abs(crossLane-o.lane)<o.width*.5f){
                         Status.gates++;Status.combo++;consecutiveGates++;Status.maxCombo=Mathf.Max(Status.maxCombo,Status.combo);
+                        if(o.line==CourseLine.Precision)Status.preciseGates++;
                         bonusPoints+=(25+(o.points>0&&consecutiveGates>=3?o.points:0))*Mult;Cue("gate");
-                    }else{consecutiveGates=Status.combo=0;Cue("miss");}
+                    }else if(o.line==CourseLine.Ordinary){consecutiveGates=Status.combo=0;Cue("miss");}
                 }
                 break;
               case "airRing":
                 if(!o.judged&&(!o.needsTrick||(trickLine&&flightTricks>0))&&TouchAir(o,before,fromLane,Mathf.Max(.6f,o.width*.5f-.1f))){
-                    o.judged=true;Status.rings++;bonusPoints+=Mathf.Max(1,o.points)*Mult;Notice("Воздушное кольцо!","gate");
+                    o.judged=true;Status.rings++;if(o.line==CourseLine.Precision)Status.preciseRings++;
+                    bonusPoints+=Mathf.Max(1,o.points)*Mult;Notice("Воздушное кольцо!","gate");
                 }break;
               case "coin":case "thermos":case "helmet":case "magnet":case "feather":
                 if(o.kind=="feather"&&(!prizeLine||flightTricks<2))break;
@@ -146,9 +154,11 @@ public partial class MountainRace {
                 o.Consume();
                 switch(o.kind){
                     case "coin":Status.coins++;Burst(o,true);if(BonusMode)BonusReward(15);else bonusPoints+=5;Cue("coin");break;
-                    case "thermos":boost=4.5f+settings.boost*.8f;Notice(BonusMode?"Кофе · ускорение +22%":"Кофе · ускорение +65%","power");break;
-                    case "helmet":if(Status.helmets<3)Status.helmets++;else bonusPoints+=50;Notice("Каска EMCO","power");break;
-                    case "magnet":magnet=7+settings.mag*2;Notice("Магнит для мандаринов","power");break;
+                    case "thermos":boost=4.5f+FreeUpgrade(settings.boost)*.8f;Notice(BonusMode?"Кофе · ускорение +22%":"Кофе · ускорение +65%","power");break;
+                    case "helmet":
+                        if(Status.helmets==0&&helmetsIssued<MaxHelmetsPerRide){Status.helmets=1;helmetsIssued++;Notice("Каска EMCO","power");}
+                        break;
+                    case "magnet":magnet=7+FreeUpgrade(settings.mag)*2;Notice("Магнит для мандаринов","power");break;
                     case "feather":Status.feather=true;Status.feathers++;bonusPoints+=300*Mult;Notice("Золотое перо! Открыты оба бонуса","feather");break;
                 }break;
               case "goldenOwl":
@@ -164,7 +174,7 @@ public partial class MountainRace {
               case "gift":
                 if(square<1.44f){o.Consume();Status.gifts++;if(BonusMode)BonusReward(120);else bonusPoints+=50*Mult;Notice("Подарок!","power");}break;
               case "aid":
-                if(square<1.69f){o.Consume();bonusPoints+=80*Mult;Rule(9);Notice("Позвал патруль!","polite");}break;
+                if(square<1.69f){o.Consume();bonusPoints+=80*Mult;Notice("Аптечка подобрана","power");}break;
               case "snowman":
                 if(BonusMode&&Altitude<1.5f&&square<2.25f){o.Consume();Burst(o,false);Status.snowmen++;BonusReward(90);Notice("Снеговик!","smash");}
                 else if(o.variant=="snowman")HandleSolid(o,before,fromLane,.89f,.72f,2.50f,0,true);
@@ -182,11 +192,11 @@ public partial class MountainRace {
                 }break;
               case "npc":
                 if(HandleSolid(o,before,fromLane,o.sb&&o.kid?.35f:.55f,o.sit?.44f:o.sb?.78f:.64f,o.sit?.95f:1.4f,0,true))break;
-                if(!o.judged&&dy>0){
+                if(!o.judged&&dy>1.65f){
                     o.judged=true;
                     if(airborne)break;
                     if(abs<2){if(Status.elapsed-lastClose>2.5f){lastClose=Status.elapsed;Status.combo=0;challengeClean=d;Notice("Объезжай с запасом","warn");}}
-                    else if(abs<6){Status.polite++;bonusPoints+=30*Mult;Rule(o.walker?7:o.sit?6:o.kid||o.instr?2:4);if(Status.polite>=5)Rule(3);Notice("Вежливый обгон","polite");}
+                    else if(abs<7&&o.fisClearance>=2){Status.polite++;bonusPoints+=30*Mult;SafePass(o);}
                 }break;
               case "mogulYeti":case "snowmobile":
                 bool yeti=o.kind=="mogulYeti";
@@ -211,9 +221,12 @@ public partial class MountainRace {
                 bool rounded=o.kind=="tube"||o.kind=="rock"||o.kind=="tree";
                 if(HandleSolid(o,before,fromLane,halfWidth,halfLength,top,0,rounded))break;
                 if(!o.judged&&dy>halfLength){o.judged=true;
-                    if(o.kind=="fence")Rule(8);
+                    if(o.kind=="fence"&&!airborne&&Mathf.Abs(o.lane)>.01f){
+                        float margin=-Mathf.Sign(o.lane)*dx-halfWidth;
+                        if(margin>=.8f&&margin<=4.4f)FisRule(8,o.lane<0?1:2,"Объезд по стрелке");
+                    }
                     if(o.kind=="cat"&&abs>halfWidth+1){
-                        if(o.velocity<0||o.pace<0)Rule(5);else{Status.polite++;bonusPoints+=40*Mult;Cue("polite");}
+                        if(o.pace>=0){Status.polite++;bonusPoints+=40*Mult;Cue("polite");}
                     }
                 }break;
             }

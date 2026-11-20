@@ -51,7 +51,11 @@ public partial class MountainRace {
         if(IsMenu||Review)return;
         float d=Status.metres;
         SprayFromCarvingRiders(d);
-        if(!airborne&&fall<=0&&rampHeight<.12f&&d-previousStamp>=.28f){
+        if(patrol==PatrolPhase.Walking&&d-previousStamp>=.65f){
+            float side=(Mathf.FloorToInt((d-walkStart)/.65f)%2==0)?-.13f:.13f;
+            Stamp(lane+side,d,.16f,.33f);previousStamp=d;
+            trackMesh.vertices=trackVertices;trackMesh.bounds=new Bounds(World.SampleGround(d,lane),new Vector3(120,120,120));
+        }else if(patrol!=PatrolPhase.Walking&&!airborne&&fall<=0&&rampHeight<.12f&&d-previousStamp>=.28f){
             float len=Mathf.Clamp(d-previousStamp+.12f,.56f,1.65f);
             if(Hero=="bear"&&!BonusMode){Stamp(lane-.2f,d,.11f,len);Stamp(lane+.2f,d,.11f,len);}
             else Stamp(lane,d,BonusMode?.63f:.34f,len);

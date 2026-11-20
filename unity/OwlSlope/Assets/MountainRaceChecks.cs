@@ -64,7 +64,7 @@ public partial class MountainRace {
         for(int frame=0;frame<3300&&Status.phase=="play"&&Status.metres<end;frame++){
             foreach(var item in World.Items){
                 if(item.distance<start||item.distance>=end)continue;
-                if(item.kind=="coin"||item.kind=="gift"||item.kind=="aid")rewards.Add(item);
+                if(item.line!=CourseLine.Wide&&(item.kind=="coin"||item.kind=="gift"||item.kind=="aid"))rewards.Add(item);
                 if(item.kind=="thermos"||item.kind=="helmet")powers.Add(item);
             }
             // Look a fraction of a second ahead and steer along the visible pickup line.
@@ -81,7 +81,9 @@ public partial class MountainRace {
             Advance(1f/30);
         }
         Check(Status.metres>=end&&Status.phase=="play","failed to ride park reward line at "+Status.metres+" "+Status.message);
-        Check(rewards.Count>250&&Status.gifts>0&&Status.fis!=null&&Array.IndexOf(Status.fis,9)>=0,"park fruit, gift or rescue missing");
+        bool hasKit=false;
+        foreach(var item in rewards)if(item.kind=="aid"&&item.consumed)hasKit=true;
+        Check(rewards.Count>250&&Status.gifts>0&&hasKit,"park fruit, gift or first-aid kit missing");
         foreach(var item in rewards)Check(item.consumed,"missed park "+item.kind+" at "+item.distance+" / lane "+item.lane);
         foreach(var item in powers)Check(!item.consumed,"detour power-up intersected main line at "+item.distance);
         Check(powers.Count>0,"no alternative power-ups on park entry");
@@ -91,7 +93,7 @@ public partial class MountainRace {
         int onTarget=0,hits=0;
         for(int sample=0;sample<=20;sample++){
             bool dodge=sample==20;
-            StartRace("{\"mode\":\"normal\",\"seed\":"+(1911+sample)+",\"helmets\":1}");
+            StartRace("{\"mode\":\"free\",\"seed\":"+(1911+sample)+",\"helmets\":1}");
             Checkpoint(106,0);
             var sender=World.Items.Find(o=>o.kind=="snowman"&&o.distance>135&&o.distance<182);
             Check(sender!=null,"first training snowman missing");
@@ -257,6 +259,7 @@ public partial class MountainRace {
             Check(Status.phase=="over","unprotected collision did not end the ride");
             report.Add("training pickup + protected and unprotected NPC collisions");
             report.Add(VerifyBodyContacts());
+            report.Add(VerifyFisSituations());
             report.Add(VerifySnowballThrows());
             report.Add(VerifyTrainingEncounters());
             StartRace("{\"mode\":\"sprint\",\"seed\":1911}");

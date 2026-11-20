@@ -8,7 +8,7 @@
   <link rel="icon" type="image/jpeg" href="art/av_owl.jpg">
   <link rel="stylesheet" href="race.css">
   <script src="vendor/telegram-web-app.js"></script>
-  <script src="release.js"></script><script src="save.js"></script>
+  <script src="release.js"></script><script src="save.js"></script><script src="equipment.js"></script>
   <script defer src="mountain-audio.js"></script><script defer src="mountain-metrics.js"></script>
 </head>
 <body><main id="app">
@@ -30,18 +30,19 @@
         <button data-hero="bear" aria-pressed="false"><img src="art/av_bear.jpg" alt=""><span>Мишаня<small>Лыжи · сносит сугробы</small></span></button>
         <button data-hero="owl" aria-pressed="false"><img src="art/av_owl.jpg" alt=""><span>Сова<small>Сноуборд · долго парит</small></span></button>
       </div>
-      <div class="balances"><span>⭐ Рекорд <b id="best">0</b></span><button data-panel="top">🏆 Рейтинг</button><span>🍊 <b id="bank">0</b></span></div>
+      <div class="balances"><span>⭐ Рекорд <b id="best">0</b></span><button data-panel="top">🏆 Рейтинг<small id="menuRank"></small></button><span>🍊 <b id="bank">0</b></span></div>
       <div class="start-row"><button id="play" class="primary" data-mode="normal">Поехали!</button></div>
       <div class="row bonuses"><button data-mode="tubing">Плюшки<small></small></button><button data-mode="sled">Снегоход<small></small></button></div>
-      <button class="sprint" data-mode="sprint">Короткий спуск · 1,2 км</button>
+      <div class="row"><button class="sprint" data-mode="free">Свободное катание</button><button class="sprint" data-mode="sprint">Короткий · 1,2 км</button></div>
       <nav class="utilities" aria-label="Разделы игры">
         <button data-panel="collection"><span aria-hidden="true">🏅</span>Коллекция</button><button data-panel="missions"><span aria-hidden="true">🎯</span>Задания</button>
-        <button data-panel="shop"><span aria-hidden="true">🛒</span>Улучшения</button><button data-panel="settings"><span aria-hidden="true">⚙️</span>Настройки</button>
+        <button data-panel="shop"><span aria-hidden="true">🎿</span>Прокат и магазин</button><button data-panel="settings"><span aria-hidden="true">⚙️</span>Настройки</button>
       </nav>
       <button class="rules-link" data-panel="rules">Правила FIS · <b id="ruleCount">0/10</b></button>
     </section>
     <div id="hud" hidden>
       <div id="course"><b id="metres"></b><b id="pace"></b><b id="multiplier" hidden></b></div>
+      <div id="fisControls" hidden><button id="fisAct" hidden></button><button id="fisLeave" hidden>Продолжить спуск</button></div>
       <div id="rideInfo"><span id="stage"></span><span id="rideStatus" hidden></span><aside id="notice" hidden></aside></div>
       <div id="avalancheMeter" hidden><i></i></div>
       <div class="scoreboard" aria-label="Счёт, каски и мандарины">
@@ -69,6 +70,7 @@
     </section>
     <section id="result" class="sheet" hidden><h2 id="resultTitle">Финиш</h2><strong id="resultScore"></strong>
       <p id="resultStats"></p><p id="resultExtra" hidden></p><p id="rankStatus" role="status"></p>
+      <div id="breakdown" hidden aria-label="Состав очков заезда"></div>
       <p id="resultRule" hidden></p><details id="resultTasks"><summary>Задания заезда</summary><div></div></details>
       <button id="again" class="primary">Ещё заезд</button>
       <div class="row" id="resultBonuses" hidden><button data-mode="tubing">Плюшки</button><button data-mode="sled">Снегоход</button></div>

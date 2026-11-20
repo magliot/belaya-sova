@@ -17,7 +17,8 @@
   const start = signedStart(fragment) || signedStart(query) || query.get('tgWebAppStartParam') ||
     fragment.get('tgWebAppStartParam') || query.get('startapp');
   const test = start === 'unity' || /^unitytest(?:_[a-z0-9]+)?$/.test(start || '') || pilot;
-  const target = new URL((pilot ? '../' : './') + (test ? 'unity-test/' : 'unity/'), location.href);
+  const destination = start === 'unitytest_progress21' ? 'progression-test/' : test ? 'unity-test/' : 'unity/';
+  const target = new URL((pilot ? '../' : './') + destination, location.href);
   query.delete('tgWebAppData');
   query.set('v', '2026-11-21a');
   target.search = query.toString();

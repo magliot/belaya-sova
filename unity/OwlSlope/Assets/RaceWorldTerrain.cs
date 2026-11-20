@@ -147,7 +147,7 @@ public partial class RaceWorld {
         for(int i=0;i<rows;i++){
             float d=centre-50+2*i,half=WidthAt(d)*.5f,trail=MeshTrail(d),fork=ForkTrack(d);
             if(i<rows-1){
-                byte mark=mode=="normal"&&StageAt(d)==2&&Mathf.Repeat(d,2500)<2457?(byte)1:fork>.14f?(byte)2:(byte)0;
+                byte mark=fork>.14f?(byte)2:mode=="normal"&&StageAt(d)==2&&Mathf.Repeat(d,2500)<2457?(byte)1:(byte)0;
                 if(mark!=markings[i]){markings[i]=mark;reindex=true;}
             }
             for(int j=0;j<cols;j++){

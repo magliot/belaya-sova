@@ -22,7 +22,14 @@ public partial class RaceWorld {
     }
     public float MogulRoughness(float d,float lane){
         float local=Mathf.Repeat(d,2500);
-        return Smooth((Mathf.Abs(lane-MogulLine(d))-1.52f)/2.25f)*Smooth(local/16)*Smooth((2457-local)/24);
+        float rough=Smooth((Mathf.Abs(lane-MogulLine(d))-1.52f)/2.25f);
+        int row=Mathf.FloorToInt(local/117);
+        if(ChoiceRow(2,row)&&(row+1)*117<=2500){
+            float spread=ChoiceSpread((local-row*117)/117);
+            float split=Smooth((Mathf.Abs(Mathf.Abs(lane)-spread)-1.4f)/2.25f);
+            rough=Mathf.Lerp(rough,split,Smooth(spread/1.2f));
+        }
+        return rough*Smooth(local/16)*Smooth((2457-local)/24);
     }
     void EndlessRoad(float d,ref float x,ref float slope,ref float second){
         const float spacing=154,transition=195;
@@ -44,8 +51,13 @@ public partial class RaceWorld {
         return side*fork*(3.75f+.52f*Mathf.Sin(at/63));
     }
     float ForkTrack(float d){
-        int stage=StageAt(d);
-        return d>=20000&&mode=="normal"&&(stage==1||stage==6)?ForkLane(Mathf.Repeat(d,500),1):0;
+        if(mode!="normal"||d<0)return 0;
+        int index=Mathf.FloorToInt(d/2500),stage=index%8;
+        if(index>=8&&(stage==1||stage==6))return ForkLane(Mathf.Repeat(d,500),1);
+        if(stage==3)return 0;
+        float length=RowLength(index,mode),local=d-index*2500;
+        int row=Mathf.FloorToInt(local/length);
+        return ChoiceRow(index,row)&&(row+1)*length<=2500?ChoiceSpread((local-row*length)/length):0;
     }
     void EndlessFork(int fullStage,int n){
         int stage=fullStage%8,section=n/10,row=n%10;
@@ -58,7 +70,9 @@ public partial class RaceWorld {
         // a free line, a distinct reward, and 75 m to rejoin before the next scene.
         for(int i=0;i<3;i++){
             float offset=8+i*15;
-            Entry("coin",X(offset,side),At(offset),22,0);
+            var fruit=Entry("coin",X(offset,side),At(offset),22,0);
+            if(row>=2&&row<=6)fruit.line=CourseLine.Precision;
+            if(row>=2&&row<=6&&i==2)Entry("coin",X(offset,-side),At(offset),22,0).line=CourseLine.Wide;
             if(row==2&&i==1)Entry(section%2==0?"thermos":"helmet",X(offset,-side),At(offset),24,.85f);
         }
         if(row==8)return;
@@ -72,10 +86,13 @@ public partial class RaceWorld {
             return;
         }
         float fast=X(24,side),quiet=X(24,-side),y=At(24);
-        void ForkGate(float x,float at,float gap,int color){var gate=Gate(x,at,gap,color);gate.points=45;}
+        void ForkGate(float x,float at,float gap,int color){
+            var gate=Gate(x,at,gap,color);bool precise=(x-200)*side>0;
+            gate.line=precise?CourseLine.Precision:CourseLine.Wide;gate.points=precise?45:18;
+        }
         if(row==4||row==6)Entry(row==4?"gift":"magnet",X(15,row==4?side:-side),At(15),24,.85f);
         if(row==2||row==5)ForkGate(X(7,side),At(7),91,row);
-        if(stage==6&&(row==2||row==5))ForkGate(X(7,-side),At(7),119,row+1);
+        if(row==2||row==5)ForkGate(X(7,-side),At(7),119,row+1);
         if(stage==1){
             // Timber chicane / ski school / canopy slalom / sled clearing / jump trail.
             switch(scenario){

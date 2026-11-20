@@ -56,6 +56,10 @@ public partial class RaceWorld {
         bool full=d+rowLength<=(fullStage+1)*2500+.01f;
         if(n==0&&fullStage>0)Entry("arch",200,y,280,5.6f,"arch"+stage);
         if(fullStage>=8&&(stage==1||stage==6)){EndlessFork(fullStage,n);Filter(start);return;}
+        if(full&&ChoiceRow(fullStage,n)){
+            BuildChoice(fullStage,n,d,rowLength);
+            Filter(start);return;
+        }
         switch(stage){
             case 0:Training(Mathf.FloorToInt(y/1250),y);break;
             case 1:Forest(y,n,false);break;
@@ -103,7 +107,7 @@ public partial class RaceWorld {
         string kind=n==0?"tube":n==1?"gate":n%12==2?"snowman":n%12==7?"cat":n%6==4?"rest":n%3==0?"tube":R(2)<.48f?"gate":R(3)<.52f?"tube":"snowman";
         float at=y+(n==0?332:180)+Mathf.Floor(R(40)*58),ph=R(41)*Mathf.PI*2;
         void Pupil(float dy,float x,float v,string name){Person(200-side*x,at+dy,v,name,v==0?0:n%5==1?28:23,ph);}
-        if(n%5==0){Pupil(0,n==0?88:104,42,"kid");Pupil(88,n==0?103:94,42,"instructor");}
+        if(n%5==0){Pupil(0,n==0?-108:104,42,"kid");Pupil(88,n==0?-137:94,42,"instructor");}
         if(n%5==1){Pupil(-40,109,49,"snowboarder");Pupil(48,146,0,"boardKid");Pupil(95,129,0,"boardInstructor");}
         if(n%5==3&&R(43)<.68f){Pupil(0,151,0,"sitter");Pupil(47,127,0,"skier");}
         if(n==0){
@@ -194,6 +198,7 @@ public partial class RaceWorld {
         return 200+side*(tier==0?24:tier==1?46:55);
     }
     void Park(float y,int section,int shortTier=-1){
+        int first=Items.Count;
         bool fullPark=shortTier<0;
         int n=Mathf.FloorToInt(y/1500),tier=fullPark?section%3:shortTier;
         bool trick=fullPark&&section%6==0,prize=fullPark&&section%9==2;
@@ -244,6 +249,7 @@ public partial class RaceWorld {
         }
         if(fullPark&&section%3!=2){Person(200-side*133,y+640,48,section%3==1?"snowboarder":"skier",14,n);
             if(section%6==4)Entry("mogul",200+side*133,y+1080,24,.4f,"mound0");}
+        if(fullPark&&section%3==2)ParkBypass(first,ramp,startLane,endLane,side);
     }
     void Black(float y,int n,int stage){
         int side=(n%2==1?1:-1)*(Roll(seed,stage,98)<.5f?-1:1);

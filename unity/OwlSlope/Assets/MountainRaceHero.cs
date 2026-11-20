@@ -162,8 +162,10 @@ public partial class MountainRace {
         if(!menuLifts.ContainsKey(key))menuLifts[key]=MeasureFeet(menuModel);
         menuModel.gameObject.SetActive(IsMenu||BonusMode);
         rideModel.gameObject.SetActive(!IsMenu&&!BonusMode);
+        PaintKit(rideModel);
         if(IsMenu){
             PlaceMenuEquipment();
+            PaintKit(stowed);
             foreach(var child in actorRoot.GetComponentsInChildren<Transform>(true))child.gameObject.layer=8;
             return;
         }
@@ -321,6 +323,8 @@ public partial class MountainRace {
                 var bootTip=actorRoot.TransformPoint(inflatable?new Vector3(s*.24f,.42f,.46f):new Vector3(s*.384f,.514f,-.19f));
                 AimChild(limb.ankle,limb.toe,bootTip);
             }
+        }else if(patrol==PatrolPhase.Walking){
+            PoseFisWalker();
         }else{
             float liftedByClip=SampleRidePose(u);
             float scale=Hero=="bear"?1.30f:1.32f;
@@ -336,6 +340,11 @@ public partial class MountainRace {
         camY=Mathf.Lerp(camY,targetY,snap?1:Mathf.Min(1,dt*7));eye.y=camY;
         Vector3 aim=World.SampleGround(d+7.7f,camLane*.72f)+Vector3.up*(1.12f+alt*.48f);
         View.fieldOfView=Mathf.Lerp(View.fieldOfView,boost>0?78:72,snap?1:Mathf.Min(1,dt*3));
+        if(patrol==PatrolPhase.Looking){
+            float glance=Mathf.Sin(Mathf.PI*Mathf.Clamp01((Status.elapsed-lookSince)/1.05f));
+            aim=Vector3.Lerp(aim,World.SampleGround(d-10,lane*.5f)+Vector3.up,glance);
+            eye+=World.SnowFrame(d,lane)*Vector3.right*(glance*1.25f);
+        }
         View.transform.SetPositionAndRotation(eye,Quaternion.LookRotation(aim-eye,Vector3.up));
         UpdateWeather();UpdateTracks();
     }

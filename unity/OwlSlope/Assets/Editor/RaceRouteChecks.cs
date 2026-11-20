@@ -9,8 +9,39 @@ public static class RaceRouteChecks {
         world.Configure(seed,"normal");world.Refresh(marker,50);
         return string.Join("|",world.Items.Select(o=>o.variant+"/"+o.lane.ToString("F2")+"/"+o.distance.ToString("F2")));
     }
+    static void LineChoices(MountainRace race){
+        var world=race.World;
+        foreach(int start in new[]{313,2750,5351,7650,10250,12680,15270,17700}){
+            race.StartRace("{\"mode\":\"review\",\"reviewRide\":\"normal\",\"seed\":1911}");
+            race.Seek(start-16);
+            var options=world.Items.Where(o=>o.distance>start+4&&o.distance<start+95).ToArray();
+            var wide=options.First(o=>o.line==CourseLine.Wide&&o.kind=="coin");
+            var hard=options.First(o=>o.line==CourseLine.Precision&&o.kind=="coin");
+            var left=race.View.WorldToViewportPoint(wide.Visual.bounds.center);
+            var right=race.View.WorldToViewportPoint(hard.Visual.bounds.center);
+            Need(wide.lane*hard.lane<0&&left.z>12&&right.z>12&&left.x>.01f&&left.x<.99f&&right.x>.01f&&right.x<.99f,"two branches must be visible before "+start);
+            Need(options.Count(o=>o.kind=="coin"&&o.line==CourseLine.Precision)>options.Count(o=>o.kind=="coin"&&o.line==CourseLine.Wide),"precision lacks fruit "+start);
+            Need(options.Any(o=>o.line==CourseLine.Precision&&(o.kind=="gate"||o.kind=="airRing"||o.kind=="festivalFountain")),"precision goal missing "+start);
+        }
+        int easyFruit=0,easyPoints=0;
+        foreach(var line in new[]{CourseLine.Wide,CourseLine.Precision}){
+            race.StartRace("{\"mode\":\"review\",\"reviewRide\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
+            race.Seek(312.5f);race.ReviewLane(0);race.RideFromReview();race.BeginSteer();
+            var gate=world.Items.First(o=>o.kind=="gate"&&o.line==line&&Mathf.Abs(o.distance-347.5f)<.1f);
+            for(int i=0;i<360&&race.Status.metres<373&&race.Status.phase=="play";i++){
+                float t=(race.Status.metres+4-312.5f)/62.5f;
+                float desired=gate.lane*Mathf.SmoothStep(0,1,t/.34f)*Mathf.SmoothStep(0,1,(1-t)/.28f);
+                race.DragSteer(desired/(27*.79f));race.Advance(1f/60);
+            }
+            Need(race.Status.metres>=373&&race.Status.gates==1&&race.Status.helmets==1,"unclean training "+line+" at "+race.Status.metres);
+            if(line==CourseLine.Wide){easyFruit=race.Status.coins;easyPoints=race.Status.scoreGates;}
+            else Need(race.Status.coins>easyFruit&&race.Status.scoreGates>easyPoints,"precision receives no real extra score");
+            Debug.Log("TRAINING LINE "+line+" seed 1911 312.5–373 m, fruit "+race.Status.coins+", gate points "+race.Status.scoreGates);
+        }
+    }
     public static void Run(MountainRace race){
         var world=race.World;
+        LineChoices(race);
         foreach(int seed in new[]{1911,4903,17,158,-603}){
             foreach(int stage in new[]{1,6}){
                 int previous=-1,older=-1;

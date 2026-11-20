@@ -3,8 +3,9 @@ const fs=require('node:fs');
 const path=require('node:path');
 const assert=require('node:assert/strict');
 const {createHash}=require('node:crypto');
-const site=path.resolve('docs/unity-test');
 const base=new URL(process.argv[2]||'http://127.0.0.1:8784/unity-test/');
+const preview=base.pathname.endsWith('/progression-test/');
+const site=path.resolve('docs',preview?'progression-test':'unity-test');
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 async function main(){
   const page=await fetch(base,{cache:'no-store'});
@@ -44,7 +45,8 @@ async function main(){
   assert(release.ok,'Release config');
   const config=await release.text();
   const live=base.pathname.endsWith('/unity/');
-  assert(config.includes(live?"channel: 'production'":"channel: 'test'"),'Unexpected profile');
+  assert(config.includes(live?"channel: 'production'":preview?"channel: 'progression'":"channel: 'test'"),'Unexpected profile');
+  if(preview)assert(config.includes("previewBoard: 'https://"),'Missing separate test board');
   assert(config.includes(live?"leaderboardEndpoint: 'https://script.google.com/":"leaderboardEndpoint: ''"),'Unexpected leaderboard');
   console.log('PASS',base.href,bytes,'bytes of verified player files');
 }

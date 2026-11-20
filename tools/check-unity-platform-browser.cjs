@@ -89,13 +89,13 @@ async function main(){
     assert.equal(await p.locator('#best').innerText(),String(JSON.parse(legacy.bsova_tg127_best)));
     for(const mode of ['tubing','sled'])assert(await p.locator('#menu [data-mode="'+mode+'"]').isEnabled());
     if(!process.argv[2]){
-      const sample={phase:'play',hero:'owl',mode:'normal',metres:2520,stage:1,elapsed:10.3,speed:57,score:123456,helmets:2,coins:12,multiplier:3,gates:4};
+      const sample={phase:'play',hero:'owl',mode:'normal',metres:2520,stage:1,elapsed:10.3,speed:57,score:123456,helmets:1,coins:12,multiplier:3,gates:4};
       const hud=fields=>p.evaluate(s=>onMountainState(s),{...sample,...fields});
       await hud({boost:true,boostSeconds:3.4});
       assert.equal(await p.locator('#stage').innerText(),'2 · Лесная тропа');
       assert.equal(await p.locator('#metres').innerText(),'2520 м');assert.equal(await p.locator('#pace').innerText(),'57 км/ч');
-      assert.equal(await p.locator('#multiplier').innerText(),'×3');assert.equal(await p.locator('#score').innerText(),'123456');
-      assert.equal(await p.locator('#coins').innerText(),'12');assert.match(await p.locator('#helmets').getAttribute('aria-label'),/2/);
+      assert(await p.locator('#multiplier').isHidden());assert.equal(await p.locator('#score').innerText(),'123456');
+      assert.equal(await p.locator('#coins').innerText(),'12');assert.match(await p.locator('#helmets').getAttribute('aria-label'),/1/);
       assert.match(await p.locator('#rideStatus').innerText(),/Ускорение · 3.4 с/);
       for(const width of [320,384]){
         await p.setViewportSize({width,height:740});
@@ -112,7 +112,8 @@ async function main(){
       assert.equal(await p.locator('#rideStatus').innerText(),'Лавина · 3 с · 15 м');
       await hud({mode:'sprint',metres:101});assert.equal(await p.locator('#stage').innerText(),'Финиш · 1099 м');
       assert(await p.locator('#avalancheMeter').isHidden());assert(await p.locator('#rideStatus').isHidden());
-      await hud({mode:'tubing',metres:490});assert.equal(await p.locator('#stage').innerText(),'Плюшки · 65 с');
+      await hud({mode:'tubing',metres:490,bonusLocation:1});assert.equal(await p.locator('#stage').innerText(),'Плюшки · 65 с');
+      assert.equal(await p.locator('#multiplier').innerText(),'×3');
       assert.equal(await p.locator('#rideStatus').innerText(),'Еловый лес · ворота 4');
       await hud({mode:'review',phase:'review',courseMode:'sled',snowmen:3,gifts:5});
       assert.equal(await p.locator('#rideStatus').innerText(),'Снеговики 3 · подарки 5');assert(await p.locator('#pause').isHidden());
@@ -130,13 +131,28 @@ async function main(){
     const menu=panel=>p.locator('[data-panel="'+panel+'"]').click();
     const back=()=>host('back_button_pressed');
     await menu('top');
-    assert.match(await p.locator('#panelBody').innerText(),/Личные заезды/);await back();
+    await p.locator('#panelBody').getByText(/На этом устройстве|Личные заезды/).waitFor();await back();
     await menu('missions');assert.equal(await p.locator('#panelBody .stat').count(),4);await back();
     await menu('shop');assert.match(await p.locator('#panelBody').innerText(),/Магнит/);
-    assert.match(await p.locator('#panelBody').innerText(),/Каска на старт/);await back();
+    assert.match(await p.locator('#panelBody').innerText(),/Каска на старт/);
+    if(!process.argv[2]){
+      await p.locator('#panelBody').getByRole('button',{name:/взять напрокат/}).click();
+      assert.match(await p.locator('#panelBody').innerText(),/Доска «Салют» · выбрано/);
+      await back();assert.match(await p.locator('[data-hero="owl"]').innerText(),/Салют.*прокат/);
+      await menu('shop');await p.locator('#panelBody').getByRole('button',{name:'Обычная доска'}).click();
+    }
+    await back();
     await menu('collection');assert.equal(await p.locator('.letter-row').count(),3);await back();
-    await menu('rules');await p.locator('#panelBody summary').nth(8).click();
-    assert.match(await p.locator('details[open]').innerText(),/аптечка/);await back();
+    await menu('rules');
+    if(await p.evaluate(()=>!!window.MountainEquipment)){
+      assert.equal(await p.locator('#panelBody>details,#panelBody>.stat').count(),10);
+      assert.match(await p.locator('#panelBody').innerText(),/9\. Помоги пострадавшему/);
+      const opened=p.locator('#panelBody summary');
+      if(await opened.count()){await opened.first().click();assert.match(await p.locator('details[open]').innerText(),/В игре/);}
+    }else{
+      await p.locator('#panelBody summary').nth(8).click();assert.match(await p.locator('details[open]').innerText(),/аптечка/);
+    }
+    await back();
     await menu('dances');assert(await p.locator('#panelBody').getByRole('button',{name:'Ёлочка'}).isEnabled());await back();
     await menu('settings');await nav('Замеры');await p.locator('dialog[open]').waitFor();await back();await p.locator('dialog').waitFor({state:'detached'});
     await nav('Лист моделей');await p.locator('.catalog-grid').waitFor();

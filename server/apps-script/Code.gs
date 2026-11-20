@@ -14,7 +14,7 @@
 
 const GAME_LINK = 'https://t.me/belaya_sovabot/play';
 const HERO = { bear: 'Мишаня', owl: 'Сова' };
-const COLS = ['id', 'name', 'username', 'best', 'best_dist', 'best_hero', 'week', 'week_best', 'week_dist', 'week_hero', 'runs', 'last_submit', 'updated'];
+const COLS = ['id', 'name', 'username', 'best', 'best_dist', 'best_hero', 'week', 'week_best', 'week_dist', 'week_hero', 'runs', 'last_submit', 'updated','recent_runs'];
 const MAX_INITDATA_AGE = 7 * 24 * 3600; // сек: игру могут не закрывать долго
 
 // ---------- вход ----------
@@ -31,6 +31,7 @@ function doPost(e) {
       if (!cache.get(key)) { cache.put(key, '1', 21600); handleUpdate(body); }
       return out({ ok: true });
     }
+    if(body.action==='leaderboard'&&!body.initData)return out(leaderboard(null,body.period));
     const user = verifyInitData(body.initData);
     if (!user) return out({ ok: false, error: 'unauthorized' });
     if (body.action === 'submit') return out(submitScore(user, body));
@@ -97,6 +98,7 @@ function readPlayers() {
 }
 function writePlayer(p) {
   const sh = playersSheet(), row = COLS.map(function (c) { return p[c] === undefined ? '' : p[c]; });
+  if(!sh.getRange(1,COLS.length).getValue())sh.getRange(1,COLS.length).setValue('recent_runs');
   if (p._row) sh.getRange(p._row, 1, 1, COLS.length).setValues([row]); else sh.appendRow(row);
 }
 function getSetting(k) { return PropertiesService.getScriptProperties().getProperty('S_' + k); }
@@ -118,10 +120,22 @@ function playerName(u) {
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function num(v) { const n = Number(v); return isFinite(n) ? Math.floor(n) : -1; }
 
+function archivedReceipt(key) {
+  const receipts=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Квитанции заездов');
+  if(!receipts||receipts.getLastRow()<2)return false;
+  return !!receipts.getRange(2,1,receipts.getLastRow()-1,1).createTextFinder(key).matchEntireCell(true).findNext();
+}
 function submitScore(user, b) {
   const score = num(b.score), dist = num(b.dist), dur = Number(b.dur) || 0, hero = b.hero === 'owl' ? 'owl' : 'bear';
+  if(b.scoring===2){
+    const fields=['score','dist','coins','gates','rings','preciseGates','preciseRings','rules'];
+    if(typeof b.runId!=='string'||!/^[a-zA-Z0-9.-]{8,80}$/.test(b.runId)||!fields.every(k=>Number.isSafeInteger(b[k])&&b[k]>=0)
+      ||!Number.isFinite(b.dur)||!['bear','owl'].includes(b.hero)
+      ||b.preciseGates>b.gates||b.preciseRings>b.rings||b.rules>10||b.coins>dist+10||b.gates+b.rings>dist/2+3
+      ||score!==dist+3*b.coins+8*b.gates+10*b.preciseGates+14*b.rings+14*b.preciseRings+25*b.rules)throw userError('Неверная разбивка очков');
+  }
   if (score < 0 || dist < 0 || dur <= 0 || score > 5000000 || dist > 200000) throw userError('Неверные данные');
-  if (dist > dur * 45 + 20) throw userError('Слишком быстро');
+  if (dist > dur * (b.scoring===2?65:45) + 20) throw userError('Слишком быстро');
   const bonus = score - dist;
   if (bonus < 0 || bonus > dist * 45 + 3000) throw userError('Очки не сходятся');
 
@@ -130,7 +144,11 @@ function submitScore(user, b) {
     rolloverWeek();
     const now = Date.now(), wk = weekId(now), all = readPlayers();
     let p = all.filter(function (x) { return String(x.id) === String(user.id); })[0];
-    if (p && now - Number(p.last_submit || 0) < 4000) throw userError('Слишком часто');
+    const recent=p&&p.recent_runs?String(p.recent_runs).split(','):[];
+    if(b.scoring===2&&(recent.indexOf(b.runId)>=0||(recent.length>=32&&archivedReceipt(user.id+':'+b.runId)))){
+      return {ok:true,rank:(leaderboard(user,'all').me||{}).rank,weekRank:(leaderboard(user,'week').me||{}).rank,best:p.best};
+    }
+    if (p && b.scoring!==2 && now - Number(p.last_submit || 0) < 4000) throw userError('Слишком часто');
     const prevBest = p ? Number(p.best) || 0 : 0;
     const prevWeek = p && p.week === wk ? Number(p.week_best) || 0 : 0;
     const newBest = score > prevBest, newWeek = score > prevWeek;
@@ -142,7 +160,13 @@ function submitScore(user, b) {
       week: wk, week_best: Math.max(prevWeek, score),
       week_dist: newWeek ? dist : (p && p.week === wk ? p.week_dist : 0), week_hero: newWeek ? hero : (p && p.week === wk ? p.week_hero : ''),
       runs: (p ? Number(p.runs) || 0 : 0) + 1, last_submit: now, updated: new Date(now),
+      recent_runs:b.scoring===2?recent.concat([b.runId]).slice(-32).join(','):recent.join(','),
     };
+    // Archive before evicting the oldest in-row receipt. A failed sheet write can be retried under the same lock.
+    if(b.scoring===2&&recent.length>=32){
+      const key=user.id+':'+recent[0];
+      if(!archivedReceipt(key))sheet('Квитанции заездов',['player:run']).appendRow([key]);
+    }
     writePlayer(np);
     if (p) Object.assign(p, np); else all.push(np);
     const rank = 1 + all.filter(function (x) { return Number(x.best) > np.best; }).length;
@@ -174,11 +198,11 @@ function leaderboard(user, period) {
     return period === 'week' ? { s: Number(p.week_best), d: p.week_dist, h: p.week_hero } : { s: Number(p.best), d: p.best_dist, h: p.best_hero };
   };
   let me = null;
-  const mine = t.rows.filter(function (x) { return String(x.id) === String(user.id); })[0];
+  const mine = user && t.rows.filter(function (x) { return String(x.id) === String(user.id); })[0];
   if (mine) { const v = pick(mine); me = { id: mine.id, score: v.s, rank: 1 + t.rows.filter(function (x) { return pick(x).s > v.s; }).length }; }
   return {
     ok: true, period: period, week: wk, me: me,
-    rows: t.top.map(function (p) { const v = pick(p); return { id: Number(p.id), name: p.name, score: v.s, dist: Number(v.d) || 0, hero: v.h }; }),
+    rows: t.top.map(function (p) { const v = pick(p); return { id: user?Number(p.id):undefined, name: p.name, score: v.s, dist: Number(v.d) || 0, hero: v.h }; }),
   };
 }
 

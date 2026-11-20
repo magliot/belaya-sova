@@ -26,6 +26,7 @@ public static class CheckMountainGame {
         try{
             var race=UnityEngine.Object.FindFirstObjectByType<MountainRace>();
             race.Initialize();
+            ShopBalanceChecks.Run(race);
             foreach(string hero in new[]{"bear","owl"}){
                 race.Menu();race.ChooseHero(hero);
                 Require(race.MenuActor&&race.MenuActor.gameObject.activeInHierarchy,"Missing menu actor "+hero);
@@ -52,7 +53,7 @@ public static class CheckMountainGame {
             Debug.Log("MOUNTAIN WORLD CHECKS PASS");
             var verdict=typeof(MountainRace).GetMethod("VerifyMechanics").Invoke(race,null);
             Debug.Log("MOUNTAIN GAME CHECKS PASS "+verdict);
-            EditorApplication.Exit(0);
+            CourseRideChecks.Start(race);
         }catch(Exception e){Debug.LogException(e.InnerException??e);EditorApplication.Exit(2);}
     }
 }

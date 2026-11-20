@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEngine;
 
 public static class SummitRewardChecks {
-    static bool Reward(RaceItem o)=>o.kind=="aid"||o.kind=="coin"||o.kind=="gift";
+    static bool Reward(RaceItem o)=>o.line==CourseLine.Ordinary&&(o.kind=="aid"||o.kind=="coin"||o.kind=="gift");
     static void Need(bool ok,string message){if(!ok)throw new InvalidOperationException("Summit route: "+message);}
     static void Ride(MountainRace race,int seed,int start,int finish){
         race.Menu();race.ChooseHero(seed==1911?"owl":"bear");

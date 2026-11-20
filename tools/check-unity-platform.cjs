@@ -22,9 +22,9 @@ async function main(){
   await p.load();
   assert.equal(p.data.hero,'owl');assert.equal(p.data.best,1200);assert.equal(p.data.sens,7);assert.equal(p.data.coll.length,1);
   assert(p.data.meet.goldenOwl&&p.data.meet.prizeFeather);
-  assert(p.buy('mag'));assert.equal(p.data.coins,351);
+  const price=MountainSaves.price(p.data,'mag');assert(p.buy('mag'));assert.equal(p.data.coins,501-price);
   p.change(['hero'],d=>d.hero='bear');
-  const run={mode:'normal',stage:0,hero:'bear',score:1400,metres:550,elapsed:42,coins:19};
+  const run={mode:'normal',phase:'over',rankedResult:true,stage:0,hero:'bear',score:1400,metres:1343,elapsed:72,coins:19};
   const bank=p.data.coins;
   p.finish('run-1',run);const total=p.data.coins;assert(total>=bank+19);
   assert.equal(p.finish('run-1',run),false);assert.equal(p.data.coins,total);
@@ -53,21 +53,27 @@ async function main(){
   const test=leaderboard({channel:'test',leaderboardEndpoint:'https://example.invalid/should-never-be-called'},app,p);
   assert.equal(await test.submit(run),null);assert.equal((await test.top('all')).rows[0].score,1400);assert.equal(calls.length,0);
   const prod=leaderboard({channel:'production',leaderboardEndpoint:'https://example.invalid/acceptance-fixture'},app,lower);
-  await prod.submit(run);await prod.top('week');
-  assert.deepEqual(calls[0][1],{action:'submit',initData:'fixture',score:1400,dist:550,dur:42,hero:'bear',stage:1});
+  await prod.submit(run,'device.run0001');await prod.top('week');
+  assert.deepEqual(calls[0][1],{action:'submit',initData:'fixture',scoring:2,runId:'device.run0001',score:1400,dist:1343,dur:72,hero:'bear',stage:1,coins:19,gates:0,rings:0,preciseGates:0,preciseRings:0,rules:0});
   assert.deepEqual(calls[1][1],{action:'leaderboard',initData:'fixture',period:'week'});
-  const sent=[],olderNavigator=globalThis.navigator;
-  Object.defineProperty(globalThis,'navigator',{configurable:true,value:{sendBeacon:(url,blob)=>{sent.push([url,blob]);return true;}}});
-  try{
-    const active={...run,phase:'play'};
-    assert(!test.checkpoint(active));assert(!prod.checkpoint({...active,metres:29}));assert(!prod.checkpoint({...active,mode:'review'}));
-    assert(prod.checkpoint(active));assert(!prod.checkpoint({...active,phase:'pause'}));assert.equal(sent.length,1);
-    assert.deepEqual(JSON.parse(await sent[0][1].text()),calls[0][1]);
-    const timer=globalThis.setTimeout;let releaseWait,ms;
-    globalThis.setTimeout=(fn,delay)=>{releaseWait=fn;ms=delay;};
-    let submitting;try{submitting=prod.submit(run);}finally{globalThis.setTimeout=timer;}
-    assert(ms>4000&&ms<=5000);assert.equal(calls.length,2);releaseWait();await submitting;assert.equal(calls.length,3);
-  }finally{Object.defineProperty(globalThis,'navigator',{configurable:true,value:olderNavigator});}
-  console.log('PASS legacy migration incl. late cloud, UID isolation, collection fallback, both unlocks, idempotent replay, isolated test ranks, production payload and early beacon with 5 s cooldown');
+  for(const update of [{phase:'play'},{phase:'pause'},{rankedResult:false},{mode:'review'},{mode:'free'},{mode:'sprint'}])
+    assert.equal(await prod.submit({...run,...update},'device.ignored'),null);
+  assert.equal(calls.length,2);
+  const candidate=create({storage:driver,app,channel:'progression'});await candidate.load();
+  assert.equal(candidate.data.best,0);assert.equal(candidate.data.coins,0);
+  candidate.unlock({fis:[9],fisContexts:[9001,9001,9072]});assert.deepEqual(candidate.data.fisContexts,[9001,9072]);
+  candidate.finish('device.quit0001',{...run,rankedResult:false});assert.equal(candidate.data.best,0);assert.equal(candidate.rows.length,0);
+  candidate.finish('device.new0002',run);assert.equal(candidate.data.best,1400);assert.equal(candidate.rows.length,1);
+  assert(!candidate.finish('device.quit0001',run));assert.equal(candidate.data.coins,38);
+  const previewConfig={channel:'progression',previewBoard:'https://example.invalid/isolated'};
+  const board=leaderboard(previewConfig,app,candidate);
+  const online=global.fetch;global.fetch=async()=>{throw Error('offline');};
+  await assert.rejects(board.submit(run,'device.rank0002'));assert.equal(candidate.pendingScores.length,1);
+  global.fetch=online;
+  const reopened=create({storage:driver,app,channel:'progression'});await reopened.load();
+  await leaderboard(previewConfig,app,reopened).flush();assert.equal(reopened.pendingScores.length,0);
+  const [endpoint,payload]=calls.at(-1);assert.equal(endpoint,previewConfig.previewBoard);
+  assert.equal(payload.runId,'device.rank0002');assert.match(payload.tester,/^[a-f0-9]{32}$/);assert(!('initData' in payload));
+  console.log('PASS legacy cloud, wallet once, FIS mastery, ranked fall eligibility, isolated test ranks and offline retry');
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

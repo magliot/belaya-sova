@@ -4,7 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {createHash} = require('node:crypto');
 const docs = path.resolve(__dirname, '../docs');
-const site = path.join(docs, 'unity-test');
+const preview = process.argv.includes('--preview');
+const site = path.join(docs, preview ? 'progression-test' : 'unity-test');
 const live = path.join(docs, 'unity');
 const testIndex = path.join(site, 'index.html');
 const source = fs.readFileSync(testIndex, 'utf8');
@@ -19,4 +20,4 @@ if (!html.includes('<head>') || !/src="release\.js\?v=[\da-f]+"/.test(html))
 const production = html.replace('<head>', '<head>\n  <base href="../unity-test/">')
   .replace(/src="release\.js\?v=[\da-f]+"/, 'src="../unity/' + version('release.js', live) + '"');
 fs.writeFileSync(testIndex, html);
-fs.writeFileSync(path.join(live, 'index.html'), production);
+if (!preview) fs.writeFileSync(path.join(live, 'index.html'), production);
