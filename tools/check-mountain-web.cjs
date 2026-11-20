@@ -34,24 +34,21 @@ async function main(){
     const launch=new URL(root);
     launch.searchParams.set('seed','1911');
     launch.hash=new URLSearchParams({tgWebAppStartParam:'unitytest',tgWebAppPlatform:'android',tgWebAppVersion:'8.0'}).toString();
-    await page.goto(launch.href,{waitUntil:'commit'});
-    await page.waitForURL(u=>u.pathname.endsWith('/unity-test/'),{timeout:60000});
-    await page.locator('#play').waitFor({timeout:210000});
+    async function openMenu(){
+      await page.goto(launch.href,{waitUntil:'commit'});
+      await page.waitForURL(u=>u.pathname.endsWith('/unity-test/'),{timeout:60000});
+      await page.locator('#play').waitFor({timeout:210000});
+    }
     const waitState=(phase,hero)=>page.waitForFunction(({phase,hero})=>window.lastRace?.phase===phase&&(!hero||lastRace.hero===hero),{phase,hero},{timeout:90000});
     for(const hero of ['bear','owl']){
+      await openMenu();
       await page.locator('[data-hero="'+hero+'"]').tap();
       await waitState('menu',hero);
       await page.waitForTimeout(220);
       await page.screenshot({path:path.join(out,'menu-'+hero+'.png')});
       await page.locator('#play').tap();
       await waitState('play',hero);
-      if(hero==='owl'){
-        await page.waitForFunction(()=>lastRace.coins>=1,null,{timeout:60000});
-        await page.waitForTimeout(100);
-        await page.screenshot({path:path.join(out,'mandarin.png')});
-      }
-      await page.waitForFunction(()=>lastRace.metres>=22,null,{timeout:60000});
-      await page.screenshot({path:path.join(out,'ordinary-'+hero+'.png')});
+      await page.waitForFunction(()=>lastRace.metres>=1,null,{timeout:60000});
       await page.locator('#pause').tap();await waitState('pause',hero);
       const paused=await page.evaluate(()=>lastRace.metres);
       await page.waitForTimeout(400);
@@ -60,12 +57,19 @@ async function main(){
       await page.locator('#pause').tap();await waitState('pause',hero);
       await page.locator('#restartPaused').tap();await waitState('play',hero);
       assert(await page.evaluate(()=>lastRace.metres<10));
-      if(hero==='bear'){
-        await page.locator('#pause').tap();await waitState('pause',hero);
-        await page.locator('#exitPaused').tap();await waitState('menu',hero);
+      // Capture a live descent after the control checks. Software rendering can advance
+      // the rider all the way to an obstacle while Playwright captures the canvas.
+      if(hero==='owl'){
+        await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.coins>=1,null,{timeout:60000});
+        await page.screenshot({path:path.join(out,'mandarin.png')});
       }
+      await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.metres>=22,null,{timeout:60000});
+      await page.screenshot({path:path.join(out,'ordinary-'+hero+'.png')});
     }
     // Take a real line along the edge to exercise a collision and the result screen.
+    await openMenu();
+    await waitState('menu','owl');
+    await page.locator('#play').tap();await waitState('play','owl');
     const cdp=await page.context().newCDPSession(page);
     await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:28,y:555}]});
     for(const x of [48,65,80,78,63,50,70,95,115,135,175,225,280,325,365]){
