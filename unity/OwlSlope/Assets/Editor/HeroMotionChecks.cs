@@ -43,7 +43,7 @@ public static class HeroMotionChecks {
                     }
                 if(ids[side].Count<12)throw new Exception(hero+" actual sole not found on side "+side);
             }
-            float lip=ramp.distance+ramp.length*.5f,landing=lip+ramp.span*(hero=="owl"?1.09f:1);
+            float lip=ramp.distance+ramp.length*.5f,landing=lip+ramp.span;
             var turns=new float[2];
             Quaternion CoursePose()=>Quaternion.Inverse(race.World.SnowFrame(race.Status.metres,ramp.lane))*rider.parent.rotation;
             for(int frame=0;frame<900&&race.Status.phase=="play"&&race.Status.metres<landing+4;frame++){

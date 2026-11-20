@@ -51,16 +51,27 @@ public static class RiderCourseChecks {
         var riders=race.World.Items.Where(o=>o.kind=="npc"&&!o.stand&&!o.sit&&o.Visual is SkinnedMeshRenderer).Take(4).ToArray();
         Require(riders.Any(o=>o.kid)&&riders.Any(o=>o.sb),"missing downhill skiers or snowboarder in action check");
         var min=Enumerable.Repeat(200f,riders.Length).ToArray();var max=Enumerable.Repeat(-200f,riders.Length).ToArray();
-        for(int i=1;i<=156;i++){
+        var slow=Enumerable.Repeat(100f,riders.Length).ToArray();var fast=new float[riders.Length];
+        var left=Enumerable.Repeat(180f,riders.Length).ToArray();var right=Enumerable.Repeat(-180f,riders.Length).ToArray();
+        var lastD=riders.Select(o=>o.distance).ToArray();
+        var stationary=race.World.Items.First(o=>o.kind=="npc"&&(o.stand||o.sit));
+        var station=new Vector2(stationary.lane,stationary.distance);
+        for(int i=1;i<=330;i++){
             race.World.Refresh(0,i/60f);
             for(int j=0;j<riders.Length;j++){
                 var skin=(SkinnedMeshRenderer)riders[j].Visual;var mesh=skin.sharedMesh;
                 float swing=skin.GetBlendShapeWeight(mesh.GetBlendShapeIndex("ReachRight"))-skin.GetBlendShapeWeight(mesh.GetBlendShapeIndex("ReachLeft"));
                 min[j]=Mathf.Min(min[j],swing);max[j]=Mathf.Max(max[j],swing);
+                float v=(riders[j].distance-lastD[j])*60;lastD[j]=riders[j].distance;
+                var ground=race.World.SnowSurface(riders[j].distance,riders[j].lane);
+                Require(Vector3.Distance(ground,skin.transform.position)<.02f,"moving equipment lifted off the beginner piste");
+                float face=Mathf.DeltaAngle(0,(Quaternion.Inverse(race.World.SnowFrame(riders[j].distance,riders[j].lane))*skin.transform.rotation).eulerAngles.y);
+                slow[j]=Mathf.Min(slow[j],v);fast[j]=Mathf.Max(fast[j],v);left[j]=Mathf.Min(left[j],face);right[j]=Mathf.Max(right[j],face);
             }
         }
         for(int j=0;j<riders.Length;j++){
             Require(max[j]-min[j]>55,"fixed arm pose on downhill "+riders[j].variant);
+            Require(fast[j]-slow[j]>.1f&&right[j]-left[j]>12,"constant tempo or heading on "+riders[j].variant);
             var mesh=((SkinnedMeshRenderer)riders[j].Visual).sharedMesh;
             var reach=new Vector3[mesh.vertexCount];mesh.GetBlendShapeFrameVertices(mesh.GetBlendShapeIndex("ReachRight"),0,reach,null,null);
             var verts=mesh.vertices;
@@ -69,6 +80,7 @@ public static class RiderCourseChecks {
                 Require(reach[k].sqrMagnitude<.00001f,"arm action deformed downhill equipment");
         }
         Require(board.distance>start+1 && Mathf.Abs(board.lane-x)>.03f,"Distant rider waited for the player's camera");
+        Require(station==new Vector2(stationary.lane,stationary.distance),"side group left its station");
         race.StartRace("{\"mode\":\"normal\",\"seed\":1911}");
         RaceItem tube=null;
         for(int d=100;d<1600&&tube==null;d+=12){
@@ -76,7 +88,15 @@ public static class RiderCourseChecks {
             tube=race.World.Items.FirstOrDefault(o=>o.kind=="tube"&&o.distance>d+56);
             if(tube==null)continue;
             float at=tube.distance;
-            for(int i=1;i<=30;i++)race.World.Refresh(d,d/14f+i/30f);
+            var seat=(SkinnedMeshRenderer)tube.Visual;int carve=seat.sharedMesh.GetBlendShapeIndex("Carve");
+            float initialYaw=seat.transform.eulerAngles.y,turn=0,lo=100,hi=-100;
+            for(int i=1;i<=240;i++){
+                race.World.Refresh(d,d/14f+i/30f);
+                turn=Mathf.Max(turn,Mathf.Abs(Mathf.DeltaAngle(initialYaw,seat.transform.eulerAngles.y)));
+                lo=Mathf.Min(lo,seat.GetBlendShapeWeight(carve));hi=Mathf.Max(hi,seat.GetBlendShapeWeight(carve));
+                Require(Vector3.Distance(seat.transform.position,race.World.SnowSurface(tube.distance,tube.lane))<.02f,"tube floating during its traverse");
+            }
+            Require(turn>5&&hi-lo>15,"tube glided without steering and bracing");
             Require(tube.distance>at+.8f,"Distant tube stopped before entering the lane");
         }
         Require(tube!=null,"Missing early tube approach");
@@ -95,6 +115,7 @@ public static class RiderCourseChecks {
         }
         Debug.Log("RIDER COURSE PASS seed 1911: owl leading edge "+downhill.ToString("F2")+
             ", board at "+start.ToString("F1")+" m, plus independent tubing approach and seated steering");
+        WeatherFrontChecks.Verify(race);
         race.Menu();
     }
 }

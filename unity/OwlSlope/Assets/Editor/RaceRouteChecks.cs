@@ -32,8 +32,8 @@ public static class RaceRouteChecks {
         foreach(int start in new[]{22500,35000}){
             race.Status.metres=start+92;race.Advance(.04f);
             Need(race.Status.stage==RaceWorld.StageAt(start),"stage after ordinary advance");
-            var lines=world.Items.Where(o=>o.kind=="coin"&&Mathf.Abs(o.distance-start-123)<.04f).ToArray();
-            Need(lines.Length==2&&lines[0].lane*lines[1].lane< -7,"both fork lines must be visible on approach at "+start);
+            var lines=world.Items.Where(o=>Mathf.Abs(o.distance-start-123)<.04f&&(o.kind=="coin"||o.kind=="thermos")).ToArray();
+            Need(lines.Length==2&&lines.Count(o=>o.kind=="coin")==1&&lines[0].lane*lines[1].lane< -7,"fruit and optional coffee on opposite fork lines at "+start);
             Need(lines.All(o=>o.Visual&&o.Visual.gameObject.activeInHierarchy),"invisible split pickups");
             if(start==35000)Need(world.Items.Any(o=>o.variant.EndsWith("Night")&&o.Visual&&o.distance>=start+100),"dark fork missing illumination");
             race.Status.metres=start+410;race.Advance(.04f);
@@ -57,7 +57,7 @@ public static class RaceRouteChecks {
         race.StartRace("{\"mode\":\"review\",\"seed\":1911}");
         foreach(int start in new[]{22500,35000}){
             race.Seek(start+92);Need(race.Status.metres==start+92,"inspector clipped a late stage");
-            var markers=world.Items.Where(o=>o.kind=="coin"&&Mathf.Abs(o.distance-start-123)<.04f).ToArray();
+            var markers=world.Items.Where(o=>(o.kind=="coin"||o.kind=="thermos")&&Mathf.Abs(o.distance-start-123)<.04f).ToArray();
             Need(piste.GetIndexCount(3)>0,"fork has no packed snow tracks");
             Need(markers.Length==2,"inspector and ordinary fork differ");
             foreach(var mark in markers){

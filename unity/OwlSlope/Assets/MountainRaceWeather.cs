@@ -5,8 +5,40 @@ public partial class MountainRace {
     Light sun,headlight;Material raceSky,flakePaint;
     readonly Light[] nightLamps=new Light[4];
     ParticleSystem flakes,fireworks;
-    int weatherZone=-1,tubePanoramaPair=-1;
+    int tubePanoramaPair=-1,previousSkyFrom=-1,previousSkyTo=-1;
+    float previousSkyMix=-1,weatherMetre=float.NaN,festivalVisibility;
     Texture2D[] tubePanoramas;
+
+    readonly struct SkyPalette {
+        public readonly Color horizon,zenith,sun,tint;
+        public readonly float sunlight,ambient;
+        public SkyPalette(Color horizon,Color zenith,Color sun,Color tint,float sunlight,float ambient){
+            this.horizon=horizon;this.zenith=zenith;this.sun=sun;this.tint=tint;this.sunlight=sunlight;this.ambient=ambient;
+        }
+    }
+    static readonly SkyPalette[] skies={
+        new SkyPalette(new Color(.82f,.9f,.97f),new Color(.38f,.67f,.91f),new Color(1,.96f,.9f),Color.white,.78f,.79f),
+        new SkyPalette(new Color(.99f,.77f,.66f),new Color(.39f,.60f,.83f),new Color(1,.82f,.69f),new Color(.98f,.86f,.87f),.83f,.73f),
+        new SkyPalette(new Color(.76f,.81f,.85f),new Color(.59f,.67f,.74f),new Color(.85f,.91f,1),new Color(.74f,.82f,.88f),.57f,.74f),
+        new SkyPalette(new Color(.027f,.052f,.103f),new Color(.007f,.014f,.042f),new Color(.43f,.58f,.81f),new Color(.105f,.17f,.29f),.17f,.18f),
+        new SkyPalette(new Color(.96f,.67f,.68f),new Color(.33f,.36f,.57f),new Color(1,.78f,.69f),new Color(.86f,.72f,.81f),.76f,.70f)
+    };
+    const int ClearSky=0,ParkSky=1,StormSky=2,NightSky=3,HolidaySky=4;
+    static readonly int[] stageSky={ClearSky,ClearSky,ClearSky,ParkSky,StormSky,ClearSky,NightSky,HolidaySky};
+
+    void WeatherFront(out int from,out int to,out float mix){
+        from=to=ClearSky;mix=1;
+        if(CourseMode=="tubing"){
+            to=ParkSky;mix=StepBlend(Mathf.InverseLerp(900,1470,Status.metres));return;
+        }
+        if(IsMenu||CourseMode!="normal")return;
+        // The front rolls in 220 m before its arch; the light and visibility settle 80 m after it.
+        int next=Mathf.FloorToInt((Status.metres+220)/2500);
+        if(next==0)return;
+        from=stageSky[(next-1)%8];to=stageSky[next%8];
+        if(from!=to)mix=StepBlend(Mathf.InverseLerp(-220,80,Status.metres-next*2500));
+    }
+    static float WeatherWeight(int sky,int from,int to,float t)=>Mathf.Lerp(from==sky?1:0,to==sky?1:0,t);
 
     void SetupWeather(){
         raceSky=new Material(Resources.Load<Shader>("MountainRaceSky"));
@@ -50,9 +82,7 @@ public partial class MountainRace {
         ps.Play();return ps;
     }
     void UpdateWeather(){
-        int stage=Status.stage;
         bool tubeMode=CourseMode=="tubing",sledMode=CourseMode=="sled";
-        int zone=sledMode?5:tubeMode?6:stage==3?1:stage==4?2:stage==6?3:stage==7?4:0;
         raceSky.SetFloat("_Menu",IsMenu?1:0);raceSky.SetFloat("_Tube",tubeMode?1:0);
         if(tubeMode){
             if(tubePanoramas==null)tubePanoramas=new[]{Resources.Load<Texture2D>("Art/Race-tubing-62a"),
@@ -68,71 +98,63 @@ public partial class MountainRace {
         }
         float yaw=World.HeadingAt(Status.metres)*Mathf.Rad2Deg;
         raceSky.SetVector("_Forward",tubeMode?Vector3.forward:Quaternion.Euler(0,yaw*.75f,0)*Vector3.forward);raceSky.SetFloat("_Clock",Status.elapsed);
-        bool changed=zone!=weatherZone;
-        if(changed){
-            weatherZone=zone;
-            Color horizon,zenith,light,tint;float level,ambient;
-            switch(zone){
-            case 1:horizon=new Color(.99f,.77f,.66f);zenith=new Color(.39f,.60f,.83f);light=new Color(1,.82f,.69f);level=.83f;ambient=.73f;tint=new Color(.98f,.86f,.87f);break;
-            case 2:horizon=new Color(.76f,.81f,.85f);zenith=new Color(.59f,.67f,.74f);light=new Color(.85f,.91f,1);level=.57f;ambient=.74f;tint=new Color(.74f,.82f,.88f);break;
-            case 3:horizon=new Color(.027f,.052f,.103f);zenith=new Color(.007f,.014f,.042f);light=new Color(.43f,.58f,.81f);level=.17f;ambient=.18f;tint=new Color(.105f,.17f,.29f);break;
-            case 4:horizon=new Color(.96f,.67f,.68f);zenith=new Color(.33f,.36f,.57f);light=new Color(1,.78f,.69f);level=.76f;ambient=.70f;tint=new Color(.86f,.72f,.81f);break;
-            default:horizon=new Color(.82f,.9f,.97f);zenith=new Color(.38f,.67f,.91f);light=new Color(1,.96f,.9f);level=.78f;ambient=.79f;tint=Color.white;break;
-            }
-            sun.color=light;sun.intensity=level;RenderSettings.ambientLight=new Color(.75f,.84f,.96f)*ambient;
-            RenderSettings.fogColor=horizon;RenderSettings.fogStartDistance=zone==3?12:52;RenderSettings.fogEndDistance=zone==3?59:185;
-            raceSky.SetColor("_Horizon",horizon);raceSky.SetColor("_Zenith",zenith);raceSky.SetColor("_Tint",tint);raceSky.SetFloat("_Night",zone==3?1:0);
-            raceSky.SetFloat("_Storm",zone==2?1:0);Shader.SetGlobalFloat("_OwlNight",zone==3?1:0);
-            fireworks.Clear();festivalClock=Status.elapsed;
-        }
-        if(tubeMode){
-            float dusk=Mathf.SmoothStep(0,1,Mathf.InverseLerp(900,1470,Status.metres));
-            var horizon=Color.Lerp(new Color(.82f,.90f,.97f),new Color(.99f,.77f,.66f),dusk);
+        WeatherFront(out int from,out int to,out float mix);
+        float night=WeatherWeight(NightSky,from,to,mix),storm=WeatherWeight(StormSky,from,to,mix);
+        Status.blizzard=storm;
+        float holiday=WeatherWeight(HolidaySky,from,to,mix);
+        if(holiday==0&&festivalVisibility>0)fireworks.Clear();
+        festivalVisibility=holiday;
+        bool skyChanged=from!=previousSkyFrom||to!=previousSkyTo||mix!=previousSkyMix;
+        if(skyChanged){
+            previousSkyFrom=from;previousSkyTo=to;previousSkyMix=mix;
+            var a=skies[from];var b=skies[to];
+            Color horizon=Color.Lerp(a.horizon,b.horizon,mix);
+            sun.color=Color.Lerp(a.sun,b.sun,mix);sun.intensity=Mathf.Lerp(a.sunlight,b.sunlight,mix);
+            RenderSettings.ambientLight=new Color(.75f,.84f,.96f)*Mathf.Lerp(a.ambient,b.ambient,mix);
             RenderSettings.fogColor=horizon;raceSky.SetColor("_Horizon",horizon);
-            raceSky.SetColor("_Zenith",Color.Lerp(new Color(.38f,.67f,.91f),new Color(.39f,.60f,.83f),dusk));
-            raceSky.SetColor("_Tint",Color.Lerp(Color.white,new Color(.98f,.86f,.87f),dusk));
-            sun.color=Color.Lerp(new Color(1,.96f,.90f),new Color(1,.82f,.69f),dusk);
-            RenderSettings.ambientLight=new Color(.75f,.84f,.96f)*Mathf.Lerp(.79f,.73f,dusk);
+            raceSky.SetColor("_Zenith",Color.Lerp(a.zenith,b.zenith,mix));raceSky.SetColor("_Tint",Color.Lerp(a.tint,b.tint,mix));
+            raceSky.SetFloat("_Storm",storm);raceSky.SetFloat("_Night",night);Shader.SetGlobalFloat("_OwlNight",night);
         }
         var forward=Vector3.ProjectOnPlane(View.transform.forward,Vector3.up).normalized;
         var orientation=Quaternion.LookRotation(forward);
         float gust=.75f*Mathf.Sin(Status.elapsed*.55f)+.25f*Mathf.Sin(Status.elapsed*1.7f);
-        var emission=flakes.emission;var wind=flakes.velocityOverLifetime;
-        if(zone==2){
+        if(skyChanged||storm>0){
+            var emission=flakes.emission;var wind=flakes.velocityOverLifetime;
             float strength=Mathf.Abs(gust);
-            emission.rateOverTime=310+190*strength;wind.x=gust*11;wind.y=-3.5f-strength;
-            wind.z=-Mathf.Clamp(speed*.67f,6,17);
-            RenderSettings.fogStartDistance=16-5*strength;RenderSettings.fogEndDistance=58-13*strength;
-        }else if(changed){
-            emission.rateOverTime=zone==4?23:5;wind.x=-.9f;wind.y=-2.8f;wind.z=-2;
+            emission.rateOverTime=Mathf.Lerp(5+18*holiday,310+190*strength,storm);
+            wind.x=Mathf.Lerp(-.9f,gust*11,storm);wind.y=Mathf.Lerp(-2.8f,-3.5f-strength,storm);
+            wind.z=Mathf.Lerp(-2,-Mathf.Clamp(speed*.67f,6,17),storm);
+            RenderSettings.fogStartDistance=Mathf.Lerp(Mathf.Lerp(52,12,night),16-5*strength,storm);
+            RenderSettings.fogEndDistance=Mathf.Lerp(Mathf.Lerp(185,59,night),58-13*strength,storm);
         }
         flakes.transform.SetPositionAndRotation(View.transform.position+forward*9+Vector3.up-
-            orientation*Vector3.right*(zone==2?gust*3:0),orientation);
-        if(changed){
-            flakes.Simulate(zone==2?.85f:.2f,false,true,false);flakes.Play(false);
+            orientation*Vector3.right*(storm*gust*3),orientation);
+        if(float.IsNaN(weatherMetre)||Mathf.Abs(weatherMetre-Status.metres)>45){
+            flakes.Simulate(Mathf.Lerp(.2f,.85f,storm),false,true,false);flakes.Play(false);
         }
+        weatherMetre=Status.metres;
         var position=World.SampleGround(Status.metres,lane);
-        headlight.enabled=!IsMenu&&(zone==3||sledMode);
-        if(headlight.enabled){headlight.intensity=sledMode?19:14;headlight.range=sledMode?31:19;headlight.spotAngle=sledMode?65:55;
+        headlight.enabled=!IsMenu&&(night>.001f||sledMode);
+        if(headlight.enabled){headlight.intensity=sledMode?19:14*night;headlight.range=sledMode?31:19;headlight.spotAngle=sledMode?65:55;
             var origin=position+Vector3.up*1.55f;
             headlight.transform.SetPositionAndRotation(origin,Quaternion.LookRotation(World.SampleGround(Status.metres+13,lane)-origin));}
         int firstRow=Mathf.FloorToInt((Status.metres+8)/36);
         for(int i=0;i<nightLamps.Length;i++){
-            var lamp=nightLamps[i];lamp.enabled=zone==3&&!IsMenu;
+            var lamp=nightLamps[i];lamp.enabled=night>.001f&&!IsMenu;
             if(!lamp.enabled)continue;
             float distance=(firstRow+i/2)*36, ahead=distance-Status.metres;
             float intensity=Mathf.SmoothStep(0,1,Mathf.InverseLerp(-9,-2,ahead))*
                 Mathf.SmoothStep(0,1,Mathf.InverseLerp(44,28,ahead));
             lamp.transform.position=World.SampleGround(distance,(i%2==0?-1:1)*10.9f)+Vector3.up*4.5f;
-            lamp.intensity=18*intensity;
+            lamp.intensity=18*intensity*night;
         }
         foreach(var item in World.Items){
             if(item.kind!="cat"||!item.obj||item.consumed)continue;
             if(!item.obj.TryGetComponent<GroomerOptics>(out var optics)){
                 optics=item.obj.AddComponent<GroomerOptics>();optics.Fit(item.variant);
             }
-            optics.IlluminateRoad(zone==3&&Mathf.Abs(item.distance-Status.metres)<62);
+            optics.IlluminateRoad(night*Mathf.InverseLerp(62,52,Mathf.Abs(item.distance-Status.metres)));
         }
-        if(zone==4){festivalClock=Status.elapsed;DrawFestival(festivalClock);}
+        if(festivalVisibility>0){festivalClock=Status.elapsed;DrawFestival(festivalClock);}
     }
 }

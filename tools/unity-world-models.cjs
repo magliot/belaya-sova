@@ -17,6 +17,7 @@ const specs={skier:['npc',{}],kid:['npc',{kid:true}],instructor:['npc',{instr:tr
  cannonLeft:['cannon',{x:38}],cannonRight:['cannon',{x:362}]};
 // cat12A, snowmobile and playerSled are now authored in tools/build-unity-vehicles.py.
 Object.assign(specs,{startArch:['startArch',{}],liftTower:['kit',{model:'tower16C'}],liftChair:['liftChair',{}],
+ holidayFir:['holidayFir',{}],festivalFountain:['festivalFountain',{}],
  emptyChair:['emptyChair',{}],boardKid1:['npc',{sb:true,kid:true,vi:1}],walker:['npc',{walker:true}],
  fence1:['fence',{x1:0,x2:100,fenceStyle:1}],fence2:['fence',{x1:0,x2:100,fenceStyle:2}]});
 for(let i=0;i<8;i++)specs['stageLamp'+i]=['stageLamp',{stage:i}];
@@ -35,7 +36,49 @@ for(const ch of Array.from(new Set('EMCOСОВАШАХТЕРСК')))specs['lette
 // This function runs in the source game's module, so factory fixes flow through to the next bake.
 async function exportModel(type,details){
  const o={x:200,y:0,...details};let model;
- if(type==='kit')model=kit[o.model].clone();
+ if(type==='holidayFir'||type==='festivalFountain'){
+  model=new THREE.Group();
+  const jewel=(color,glow=0)=>new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:glow,roughness:.34});
+  const gold=jewel(0xffc54b,.3),pearl=jewel(0xfff2bd,.65);
+  function part(shape,paint,x,y,z){
+   const mesh=new THREE.Mesh(shape,paint);mesh.position.set(x,y,z);model.add(mesh);return mesh;
+  }
+  function star(radius){
+   const outline=new THREE.Shape();
+   for(let i=0;i<10;i++){const a=Math.PI/2+i*Math.PI/5,r=i%2?radius*.44:radius;
+    const x=r*Math.cos(a),y=r*Math.sin(a);if(i)outline.lineTo(x,y);else outline.moveTo(x,y);}
+   outline.closePath();return new THREE.ExtrudeGeometry(outline,{depth:radius*.27,bevelEnabled:true,bevelThickness:.014,bevelSize:.015,bevelSegments:1});
+  }
+  if(type==='holidayFir'){
+   const spruce=FACT.tree({...o,fir:false,pine:false,treeStyle:0});model.add(spruce);spruce.updateMatrixWorld(true);
+   const ball=new THREE.SphereGeometry(.155,12,9),clasp=new THREE.CylinderGeometry(.045,.05,.07,8);
+   const colors=[0xf13649,0x14cde3,0xffbe32,0xb145de,0x94e644].map(color=>jewel(color,.13));
+   const ray=new THREE.Raycaster();
+   // Hang each bauble on the first real branch facing out, preserving the snow-laden spruce mesh.
+   for(const [tier,y,count] of [[0,.84,10],[1,1.46,9],[2,2.07,7],[3,2.65,5]]){
+    for(let i=0;i<count;i++){
+     const a=2*Math.PI*i/count+tier*1.17,radial=new THREE.Vector3(Math.cos(a),0,Math.sin(a));
+     const start=radial.clone().multiplyScalar(3);start.y=y+.11*Math.sin(i*2.7);
+     ray.set(start,radial.clone().negate());const hit=ray.intersectObject(spruce,true)[0];if(!hit)continue;
+     const pos=hit.point.clone().addScaledVector(radial,.055);
+     part(clasp,gold,pos.x,pos.y-.025,pos.z);part(ball,colors[(i+2*tier)%colors.length],pos.x,pos.y-.18,pos.z);
+    }
+   }
+   part(new THREE.CylinderGeometry(.032,.04,.29,8),gold,0,3.63,0);
+   const top=star(.38);part(top,pearl,0,3.93,-.055);part(top,gold,-.05,3.93,0).rotation.y=Math.PI/2;
+  }else{
+   const enamel=jewel(0x673591),navy=jewel(0x34344e),red=jewel(0xd82b55);
+   const drum=(lower,upper,h,y,paint)=>part(new THREE.CylinderGeometry(upper,lower,h,12),paint,0,y,0);
+   drum(.51,.49,.13,.065,navy);drum(.42,.29,.49,.36,enamel);
+   drum(.421,.411,.08,.17,gold);drum(.315,.30,.08,.54,gold);
+   drum(.42,.42,.095,.65,red);drum(.425,.36,.05,.719,gold);drum(.30,.24,.045,.756,navy);
+   const emblem=star(.145);
+   for(const a of [0,2.0944,4.1888]){
+    const badge=part(emblem,pearl,.359*Math.sin(a),.37,.359*Math.cos(a));badge.rotation.y=a;
+   }
+  }
+ }
+ else if(type==='kit')model=kit[o.model].clone();
  else if(type==='stageLamp'){
   const l=lamps[0];styleLamp(l,o.stage);
   const glow=o.stage===6?1:o.stage===7?.65:0;

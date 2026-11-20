@@ -11,10 +11,13 @@ public sealed class RaceItem {
     internal float originD,originX,scale=1,side,phase,age,pace,amp,yaw,lean,velocity,offset,windup,cooldown,stride;
     internal float release,from,to,vStart,vCruise,tau,pathSpan,airStart,airSpan,airLift,airBase;
     internal float landedAt=-10;
+    internal float turnRate,glidePace,sprayDistance=float.NaN;
     internal int route;
     internal bool leap,small,decor,bypass;
     internal bool movingPoseReady;
     internal bool threwSnowball,honked;
+    internal bool positioned,touchingPlayer;
+    internal float previousLane,previousDistance,previousOffset;
     internal Vector2 throwEnd;
     internal float throwDuration,throwEndHeight,throwStartHeight;
     internal GameObject obj;
@@ -56,7 +59,7 @@ public partial class RaceWorld : MonoBehaviour {
         for(int i=Items.Count-1;i>=0;i--)if(Items[i].kind=="letter"){Release(Items[i]);Items.RemoveAt(i);}
         letter=character;letterDistance=metres;letterAdded=false;
     }
-    void ClearObjects(){foreach(var i in Items)Release(i);Items.Clear();foreach(var i in scenery)Release(i);scenery.Clear();}
+    void ClearObjects(){foreach(var i in Items)Release(i);Items.Clear();foreach(var i in scenery)Release(i);scenery.Clear();summitTurns.Clear();}
     static void DisposeOwned(UnityEngine.Object value){
         if(Application.isPlaying)Destroy(value);else DestroyImmediate(value);
     }
@@ -86,7 +89,7 @@ public partial class RaceWorld : MonoBehaviour {
         return (index+1)*RowLength(stage,mode)>=2500?(stage+1)*1000:seg+1;
     }
     public void Refresh(float distance,float elapsed)=>Refresh(distance,elapsed,0);
-    public void Refresh(float distance,float elapsed,float riderLane){
+    public void Refresh(float distance,float elapsed,float riderLane,bool draw=true){
         spawnLane=mode=="normal"?riderLane:0;
         distance=Mathf.Max(0,distance);float dt=Mathf.Clamp(elapsed-lastTime,0,.15f);
         bool seek=distance<lastDistance-.001f||distance>lastDistance+Ahead;
@@ -99,12 +102,17 @@ public partial class RaceWorld : MonoBehaviour {
         }
         int next=Mathf.FloorToInt(distance/14);
         if(next!=chunk){chunk=next;UpdateTerrain(next*14);UpdateScenery(distance);}
-        RefreshLift(distance,elapsed);
+        if(draw)RefreshLift(distance,elapsed);
         for(int i=Items.Count-1;i>=0;i--){
             var o=Items[i];if(o.consumed||Mathf.Max(o.distance,o.originD)+o.length*.5f+o.span<distance-Behind){
                 Release(o);Items.RemoveAt(i);continue;
             }
-            MoveItem(o,distance,elapsed,dt);Place(o);
+            o.previousLane=o.lane;o.previousDistance=o.distance;o.previousOffset=o.offset;
+            MoveItem(o,distance,elapsed,dt);
+            if(!o.positioned){
+                o.previousLane=o.lane;o.previousDistance=o.distance;o.previousOffset=o.offset;o.positioned=true;
+            }
+            if(draw||!o.obj)Place(o);
         }
         lastDistance=distance;lastTime=elapsed;
     }
@@ -121,6 +129,7 @@ public partial class RaceWorld : MonoBehaviour {
         if(o.obj&&!Moves(o.kind))return;
         if(!o.obj){
             o.obj=GetVisual(o);o.skin=o.obj.GetComponent<SkinnedMeshRenderer>();o.obj.name=o.kind+" · "+o.variant;
+            if(o.kind=="festivalFountain")StartFountain(o);
             if(o.kind=="cannon"){
                 o.spray=o.obj.GetComponentInChildren<ParticleSystem>();
                 if(!o.spray)AddCannonSpray(o);
@@ -146,9 +155,11 @@ public partial class RaceWorld : MonoBehaviour {
         o.obj.transform.localScale=new Vector3(sx,o.scale,o.scale);
         if(o.skin){
             if(o.kind=="tube"){
-                float ripple=.5f+.5f*Mathf.Sin(o.distance*1.12f+o.phase);
+                float ripple=.5f+.5f*Mathf.Sin(o.distance*.94f+o.phase);
                 float turn=o.lean/16;
-                PoseTubeRider(o.skin,turn+.12f*Mathf.Sin(o.age*2.1f+o.phase),.14f+.37f*ripple*ripple+.39f*Mathf.Abs(turn));
+                // The rider braces into the next edge and compresses over the snow. The ring stays planted.
+                PoseTubeRider(o.skin,turn+.16f*Mathf.Sin(o.age*1.85f+o.phase),
+                    .10f+.50f*ripple*ripple+.42f*Mathf.Abs(turn));
                 return;
             }
             if(o.kind=="npc"&&!o.stand&&!o.sit&&!o.walker){PoseMovingRider(o);return;}

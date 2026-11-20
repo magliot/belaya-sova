@@ -24,7 +24,7 @@ public static class CaptureMountainRace {
     static IEnumerator Film(MountainRace race,string hero){
         race.Menu();race.ChooseHero(hero);race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
         Checkpoint(race,7620,0);var ramp=race.World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
-        float start=ramp.distance-20,lip=ramp.distance+ramp.length*.5f,end=lip+ramp.span*(hero=="owl"?1.09f:1);
+        float start=ramp.distance-20,lip=ramp.distance+ramp.length*.5f,end=lip+ramp.span;
         Checkpoint(race,start,ramp.lane);
         var cam=race.View;float originalAspect=cam.aspect;
         var oldTarget=cam.targetTexture;var previous=RenderTexture.active;

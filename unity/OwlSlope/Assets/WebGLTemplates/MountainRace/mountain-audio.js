@@ -125,7 +125,7 @@ const SFX={
     if(!AC)return;
     const riding=next.phase==='play'&&!document.hidden&&!save.muted;
     const t=AC.currentTime;
-    const storm=next.stage===4&&next.mode==='normal'?Math.abs(.75*Math.sin(next.elapsed*.55)+.25*Math.sin(next.elapsed*1.7)):0;
+    const storm=(next.blizzard||0)*Math.abs(.75*Math.sin(next.elapsed*.55)+.25*Math.sin(next.elapsed*1.7));
     windF.frequency.setTargetAtTime(420+storm*340,t,.3);
     windG.gain.setTargetAtTime(riding?.015+.025*Math.min(1,(next.speed||0)/80)+.09*storm:0,t,.15);
     carveG.gain.setTargetAtTime(riding&&!next.air?.05*Math.abs(next.edge||0):0,t,.08);

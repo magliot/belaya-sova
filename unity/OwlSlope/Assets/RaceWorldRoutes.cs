@@ -59,9 +59,9 @@ public partial class RaceWorld {
         for(int i=0;i<3;i++){
             float offset=8+i*15;
             Entry("coin",X(offset,side),At(offset),22,0);
-            if(Mathf.Abs(ForkLane(local+offset,side))>1.45f)Entry("coin",X(offset,-side),At(offset),22,0);
+            if(row==2&&i==1)Entry(section%2==0?"thermos":"helmet",X(offset,-side),At(offset),24,.85f);
         }
-        if(row==8){Entry("thermos",X(12,side),At(12),24,.85f);return;}
+        if(row==8)return;
         if(row>=7)return;
         if(row<2){
             if(row==1){
@@ -73,7 +73,7 @@ public partial class RaceWorld {
         }
         float fast=X(24,side),quiet=X(24,-side),y=At(24);
         void ForkGate(float x,float at,float gap,int color){var gate=Gate(x,at,gap,color);gate.points=45;}
-        if(row==4||row==6)Entry(row==4?"gift":"magnet",fast,At(15),24,.85f);
+        if(row==4||row==6)Entry(row==4?"gift":"magnet",X(15,row==4?side:-side),At(15),24,.85f);
         if(row==2||row==5)ForkGate(X(7,side),At(7),91,row);
         if(stage==6&&(row==2||row==5))ForkGate(X(7,-side),At(7),119,row+1);
         if(stage==1){

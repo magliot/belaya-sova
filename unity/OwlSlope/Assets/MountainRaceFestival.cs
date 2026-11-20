@@ -12,7 +12,7 @@ public partial class MountainRace {
 
     void LateUpdate(){
         // A visitor can stop the course inspection and watch a complete display.
-        if(weatherZone==4&&Review&&reviewRate==0){festivalClock+=Time.deltaTime;DrawFestival(festivalClock);}
+        if(festivalVisibility>0&&Review&&reviewRate==0){festivalClock+=Time.deltaTime;DrawFestival(festivalClock);}
     }
 
     void DrawFestival(float time){
@@ -20,7 +20,7 @@ public partial class MountainRace {
         int first=Mathf.FloorToInt((Status.metres+58)/70);
         for(int pad=first;pad<=first+2;pad++){
             float marker=pad*70,range=marker-Status.metres;
-            float visible=Mathf.SmoothStep(0,1,Mathf.InverseLerp(45,74,range))
+            float visible=festivalVisibility*Mathf.SmoothStep(0,1,Mathf.InverseLerp(45,74,range))
                 *Mathf.SmoothStep(0,1,Mathf.InverseLerp(190,156,range));
             if(visible<=0)continue;
             float interval=3.62f+.25f*(pad%3),clock=time+pad*1.31f;

@@ -7,6 +7,7 @@ public partial class MountainRace {
     Mesh trackMesh;
     Transform splash;
     Material splashPaint;
+    ParticleSystem carvingSnow;
     int trackIndex;
     float previousStamp=-1,splashStart=-10;
     static readonly Vector2[] StampUV={Vector2.zero,Vector2.right,Vector2.one,Vector2.up};
@@ -49,6 +50,7 @@ public partial class MountainRace {
     void UpdateTracks(){
         if(IsMenu||Review)return;
         float d=Status.metres;
+        SprayFromCarvingRiders(d);
         if(!airborne&&fall<=0&&rampHeight<.12f&&d-previousStamp>=.28f){
             float len=Mathf.Clamp(d-previousStamp+.12f,.56f,1.65f);
             if(Hero=="bear"&&!BonusMode){Stamp(lane-.2f,d,.11f,len);Stamp(lane+.2f,d,.11f,len);}
@@ -63,5 +65,28 @@ public partial class MountainRace {
             splash.gameObject.SetActive(true);splash.rotation=View.transform.rotation;
             splash.localScale=new Vector3(1.6f+age*3,.72f+age*2,1);splashPaint.color=new Color(1,1,1,.68f*(1-age/.32f));
         }else if(splash.gameObject.activeSelf)splash.gameObject.SetActive(false);
+    }
+    void SprayFromCarvingRiders(float player){
+        foreach(var o in World.Items){
+            bool tube=o.kind=="tube";
+            if(!tube&&o.kind!="npc"||!o.obj||o.consumed||o.stand||o.sit||o.walker||o.offset>.12f)continue;
+            float ahead=o.distance-player;
+            if(ahead< -4||ahead>52||Mathf.Abs(o.lean)<5)continue;
+            if(!float.IsNaN(o.sprayDistance)&&o.distance-o.sprayDistance<.48f)continue;
+            o.sprayDistance=o.distance;
+            if(!carvingSnow)carvingSnow=MakeBurst("Пудра из-под канта","MountainRaceFlake");
+            var pose=o.obj.transform;
+            var back=pose.forward*(tube?1:-1);
+            var outside=pose.right*((tube?-1:1)*Mathf.Sign(o.lean));
+            var snow=pose.position+pose.up*.08f+back*(tube?.45f:.37f)+outside*(tube?.47f:.22f);
+            float pressure=Mathf.Clamp01(Mathf.Abs(o.lean)/16);
+            var tint=Color.Lerp(new Color(.54f,.64f,.77f,.47f),new Color(.87f,.96f,1,.66f),
+                Mathf.InverseLerp(.17f,.77f,sun.intensity));
+            for(int j=0;j<3;j++){
+                carvingSnow.Emit(new ParticleSystem.EmitParams{position=snow+back*(j*.045f),
+                    velocity=outside*(.8f+.42f*j+pressure)+pose.up*(.45f+.29f*j)+back*.65f,
+                    startSize=.105f+.04f*j+.05f*pressure,startLifetime=.34f+.08f*j,startColor=tint},1);
+            }
+        }
     }
 }

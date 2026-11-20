@@ -12,36 +12,80 @@ public partial class MountainRace {
     void Checkpoint(float metres,float x){
         Status.metres=metres;Status.elapsed=metres/18;
         lane=x;dragging=false;velocity=slip=0;travelYaw=World.HeadingAt(metres);
+        if(CourseMode=="normal"&&RaceWorld.StageAt(metres)==3)speed=ParkPace(metres);
         World.Refresh(metres,Status.elapsed);BeginSteer();
     }
-    string VerifyPrize(string hero,int taps){
+    string VerifyPrize(string hero,int taps,int lap=0,bool coffee=false){
         Menu();ChooseHero(hero);StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
-        Checkpoint(7620,0);
+        Checkpoint(7620+lap*20000,0);
         var ramp=World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
         var feather=World.Items.Find(o=>o.kind=="feather");
         Check(ramp!=null&&feather!=null,"prize row missing from seed 1911");
         float target=feather.distance;
         Checkpoint(ramp.distance-ramp.length*.5f-1,ramp.lane);
+        if(coffee){boost=.54f;speed=37;}
         int gestures=0;
-        float takeoffSpeed=0,crestSpeed=0,flightDuration=0;
-        for(int frame=0;frame<900&&Status.metres<target+2&&Status.phase=="play";frame++){
+        float takeoffSpeed=0,crestSpeed=0,flightDuration=0,nextTap=.10f;
+        bool wasTurning=false,landed=false;float exitDistance=ramp.distance+ramp.length*.5f+ramp.span+2;
+        for(int frame=0;frame<900&&Status.metres<exitDistance&&Status.phase=="play";frame++){
             if(airborne){
                 if(takeoffSpeed==0){takeoffSpeed=speed;flightDuration=airMax;}
                 if(Mathf.Abs(airTime/airMax-.5f)<.015f)crestSpeed=speed;
                 Check(Mathf.Approximately(airMax,flightDuration),"airtime changed after takeoff");
+                Check(Mathf.Abs(speed-takeoffSpeed)<.05f,"horizontal momentum changed in midair");
+                if(wasTurning&&trickProgress<0)nextTap=airTime+.12f;
             }
-            if(airborne&&trickProgress<0&&gestures<taps){AirTrick("tap");if(trickProgress>=0)gestures++;}
+            if(airborne&&airTime>=nextTap&&trickProgress<0&&gestures<taps){AirTrick("tap");if(trickProgress>=0)gestures++;}
+            wasTurning=trickProgress>=0;
+            bool flying=airborne;float metres=Status.metres,oldSpeed=speed;
             Advance(1f/60);
+            if(flying&&!airborne){
+                landed=true;
+                Check(Mathf.Abs(speed-oldSpeed)<.05f&&Mathf.Abs(Status.metres-metres-oldSpeed/60)<.012f,
+                    "landing jumped in distance or speed");
+            }else if(landed)Check(Mathf.Abs(speed-oldSpeed)<.17f,"ground speed snapped on the frame after landing");
         }
         Publish();
         string result=hero+" @"+target.ToString("F1")+"m, "+Status.tricks+" tricks, "+Status.rings+" rings, feather "+Status.feather+
             ", takeoff/crest "+takeoffSpeed.ToString("F1")+"/"+crestSpeed.ToString("F1")+" m/s, flight "+flightDuration.ToString("F2")+" s";
-        Check(Status.phase=="play"&&Status.metres>=target,result+" failed to reach target: "+Status.message);
-        Check(takeoffSpeed<=26.1f&&crestSpeed>.70f*takeoffSpeed&&crestSpeed<.80f*takeoffSpeed,result+" park glide");
+        Check(Status.phase=="play"&&landed&&Status.metres>=exitDistance,result+" failed to land: "+Status.message);
+        Check(flightDuration>1.35f&&flightDuration<2.36f&&Mathf.Abs(crestSpeed-takeoffSpeed)<.05f,result+" park flight");
+        if(coffee)Check(takeoffSpeed>34&&boost==0,result+" airborne coffee expiry");
         Check(Status.tricks==taps,result+" gesture count");
         Check(Status.feather==(taps==2)&&Status.tubingUnlocked==Status.feather&&Status.sledUnlocked==Status.feather,result+" feather gate");
         Check(Status.rings==(taps==0?0:1),result+" upper ring");
         return result;
+    }
+    string VerifyParkRewardLine(int lap){
+        Menu();ChooseHero("bear");StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
+        float start=7500+lap*20000,end=start+2500;
+        Checkpoint(start,0);chaseNext=end+900;
+        var rewards=new HashSet<RaceItem>();var powers=new HashSet<RaceItem>();
+        for(int frame=0;frame<3300&&Status.phase=="play"&&Status.metres<end;frame++){
+            foreach(var item in World.Items){
+                if(item.distance<start||item.distance>=end)continue;
+                if(item.kind=="coin"||item.kind=="gift"||item.kind=="aid")rewards.Add(item);
+                if(item.kind=="thermos"||item.kind=="helmet")powers.Add(item);
+            }
+            // Look a fraction of a second ahead and steer along the visible pickup line.
+            float look=Status.metres+speed*.16f;
+            RaceItem previous=null,next=null;
+            foreach(var item in rewards){
+                if(item.distance<=look&&(previous==null||item.distance>previous.distance))previous=item;
+                else if(item.distance>look&&(next==null||item.distance<next.distance))next=item;
+            }
+            if(next!=null){
+                float x=previous==null?next.lane:Mathf.Lerp(previous.lane,next.lane,Mathf.InverseLerp(previous.distance,next.distance,look));
+                DragSteer((x-dragStart)/(27*sensitivity));
+            }
+            Advance(1f/30);
+        }
+        Check(Status.metres>=end&&Status.phase=="play","failed to ride park reward line at "+Status.metres+" "+Status.message);
+        Check(rewards.Count>250&&Status.gifts>0&&Status.fis!=null&&Array.IndexOf(Status.fis,9)>=0,"park fruit, gift or rescue missing");
+        foreach(var item in rewards)Check(item.consumed,"missed park "+item.kind+" at "+item.distance+" / lane "+item.lane);
+        foreach(var item in powers)Check(!item.consumed,"detour power-up intersected main line at "+item.distance);
+        Check(powers.Count>0,"no alternative power-ups on park entry");
+        return "park lap "+(lap+1)+": all "+rewards.Count+" fruit/gift/rescue pickups on a single steered line";
     }
     string VerifySnowballThrows(){
         int onTarget=0,hits=0;
@@ -71,6 +115,36 @@ public partial class MountainRace {
         }
         Check(hits>=19,"snowmen missed too many steady riders: "+hits);
         return "training throws "+hits+"/20 physical hits, "+onTarget+" aimed; late dodge escaped";
+    }
+    string VerifyBodyContacts(){
+        foreach(string hero in new[]{"bear","owl"}){
+            Menu();ChooseHero(hero);
+            foreach(var sample in new[]{("npc","snowboarder",.88f,true),("npc","skier",1.55f,false),
+                ("yeti","yeti",1.76f,true),("yeti","yeti",2.65f,false),("tube","tube60B",1.05f,true)}){
+                StartRace("{\"mode\":\"normal\",\"seed\":1911,\"helmets\":1}");
+                // The first unobstructed metres isolate the mesh and the coffee contact, using normal Step and CheckItems.
+                var actor=World.Add(sample.Item1,6,0,2,2,sample.Item2);
+                actor.stand=true;
+                if(actor.kind=="tube"){actor.tau=2;actor.vCruise=2;actor.vStart=1.5f;actor.pathSpan=12;actor.release=6;actor.side=1;}
+                World.Add("thermos",2,sample.Item3,1,.85f);
+                Checkpoint(.1f,sample.Item3);Status.helmets=2;
+                for(int tick=0;tick<14;tick++)Advance(1f/30);
+                Check(boost>0,"coffee not active at contact");
+                Check(Status.helmets==(sample.Item4?1:2),hero+" "+sample.Item2+" lateral offset "+sample.Item3+" helmets "+Status.helmets);
+                if(sample.Item4)Check(!actor.consumed,"contact deleted the actor");
+            }
+        }
+        // A moving arm can cross between the start and end of the tick. A clear jump must pass above it.
+        var crossing=new RaceItem{kind="mogulYeti",lane=3,previousLane=-3,distance=10,previousDistance=10};
+        lane=0;Status.metres=10;Status.helmets=2;fall=0;airborne=false;rampHeight=previousAltitude=0;
+        Check(HandleSolid(crossing,10,0,1.7f,.96f,3.2f,0,true)&&Status.helmets==1,"crossing yeti tunnelled");
+        fall=0;
+        Check(HandleSolid(crossing,10,0,1.7f,.96f,3.2f,0,true)&&Status.helmets==1,"same overlap charged twice");
+        previousAltitude=rampHeight=3.7f;
+        Check(!HandleSolid(crossing,10,0,1.7f,.96f,3.2f,0,true)&&Status.helmets==1,"jump over yeti lost helmet");
+        previousAltitude=rampHeight=0;
+        Check(HandleSolid(crossing,10,0,1.7f,.96f,3.2f,0,true)&&Status.helmets==0,"separate contact did not charge a second helmet");
+        return "both heroes: side hits, clear passes, coffee, swept crossing, height and one helmet per contact";
     }
     string VerifyTrainingEncounters(){
         Menu();ChooseHero("bear");StartRace("{\"mode\":\"normal\",\"seed\":1911}");
@@ -167,6 +241,8 @@ public partial class MountainRace {
             foreach(var vehicle in new[]{"tubing","sled"})foreach(var rider in new[]{"owl","bear"})
                 report.Add(VerifyBonusJump(vehicle,rider));
             report.Add(VerifyPrize("bear",2));report.Add(VerifyPrize("owl",2));report.Add(VerifyPrize("bear",1));report.Add(VerifyPrize("owl",0));
+            report.Add(VerifyPrize("bear",2,1));report.Add(VerifyPrize("owl",2,1,true));
+            report.Add(VerifyParkRewardLine(0));report.Add(VerifyParkRewardLine(1));
             StartRace("{\"mode\":\"normal\",\"seed\":1911}");
             Checkpoint(275,0);var helmet=World.Items.Find(o=>o.kind=="helmet"&&o.distance<315);
             Check(helmet!=null,"training helmet missing");
@@ -180,6 +256,7 @@ public partial class MountainRace {
             Checkpoint(skier.distance,skier.lane);Advance(1f/60);for(int i=0;i<17;i++)Advance(.1f);
             Check(Status.phase=="over","unprotected collision did not end the ride");
             report.Add("training pickup + protected and unprotected NPC collisions");
+            report.Add(VerifyBodyContacts());
             report.Add(VerifySnowballThrows());
             report.Add(VerifyTrainingEncounters());
             StartRace("{\"mode\":\"sprint\",\"seed\":1911}");

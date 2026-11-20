@@ -332,7 +332,7 @@ public partial class MountainRace {
         }
         float follow=snap?1:Mathf.Min(1,dt*5);camLane=Mathf.Lerp(camLane,lane,follow);
         Vector3 eye=World.SampleGround(d-6.4f,camLane*.63f);
-        float targetY=eye.y+2.65f+(airborne?alt*.48f:rampHeight*.6f);
+        float targetY=eye.y+2.65f+alt*.48f;
         camY=Mathf.Lerp(camY,targetY,snap?1:Mathf.Min(1,dt*7));eye.y=camY;
         Vector3 aim=World.SampleGround(d+7.7f,camLane*.72f)+Vector3.up*(1.12f+alt*.48f);
         View.fieldOfView=Mathf.Lerp(View.fieldOfView,boost>0?78:72,snap?1:Mathf.Min(1,dt*3));

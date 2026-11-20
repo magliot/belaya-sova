@@ -102,11 +102,13 @@ public partial class MountainRace {
         }
     }
     void StepBursts(float dt){
+        if(carvingSnow&&carvingSnow.particleCount>0)carvingSnow.Simulate(dt,false,false,false);
         if(mandarinPeels&&mandarinPeels.particleCount>0)mandarinPeels.Simulate(dt,false,false,false);
         if(snowPuffs&&snowPuffs.particleCount>0)snowPuffs.Simulate(dt,false,false,false);
         if(moundChips&&moundChips.particleCount>0)moundChips.Simulate(dt,false,false,false);
     }
     void ClearBursts(){
+        if(carvingSnow)carvingSnow.Clear();
         if(mandarinPeels)mandarinPeels.Clear();
         if(snowPuffs)snowPuffs.Clear();
         if(moundChips)moundChips.Clear();

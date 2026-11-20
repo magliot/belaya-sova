@@ -104,8 +104,8 @@ async function main(){
     await page.waitForFunction(()=>lastRace.courseMode==='normal');
     for(const [name,metre] of [['tube',29],['cannon',78],['coffee',105],['magnet',653],['forest-arch',2472],['forest-canopy',2510],
       ['training-mound',205],['uphill-groomer',443],['tube-moguls',5150],['ramp',7655],['park',7630],['summit',10104],
-      ['black-gate',12507],['night',15050],['night-slalom',15082],['groomer',15232],['holiday',17525],
-      ['forest-fork',22620],['night-fork',35120]]){
+      ['summit-approach',9910],['black-gate',12507],['night-approach',14910],['night',15050],['night-slalom',15082],
+      ['groomer',15232],['holiday',17525],['holiday-slalom',17618],['forest-fork',22620],['park-lap-two',27643],['night-fork',35120]]){
       await page.locator('#seek').evaluate((el,value)=>{el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));},metre);
       await page.waitForFunction(n=>Math.abs(lastRace.metres-n)<2,metre,{timeout:30000});
       if(metre>=20000)assert.equal(await page.evaluate(()=>lastRace.stage),Math.floor(metre/2500)%8);
@@ -129,6 +129,18 @@ async function main(){
     await page.locator('#exitPaused').tap();await waitState('review','owl');
     assert.equal(await page.evaluate(()=>lastRace.metres),35120);
     assert.equal(await page.evaluate(()=>JSON.stringify({...localStorage})),profileBefore,'inspection practice modified the saved profile');
+    // The summit encounter uses the original stationary Yeti mesh on the left edge.
+    // Compare a brush against its arm and a safe pass with the same camera, seed and approach.
+    for(const [lane,helmets] of [[-7.75,0],[-5,1]]){
+      await page.locator('#reviewAt').fill('11782');await page.locator('#reviewAt').press('Enter');
+      await page.locator('#reviewLane').evaluate((e,x)=>{e.value=x;e.dispatchEvent(new Event('input',{bubbles:true}));},lane);
+      await page.waitForFunction(()=>lastRace.phase==='review'&&lastRace.metres===11782);
+      await page.locator('#reviewPlay').tap();
+      await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.metres>11790,null,{timeout:20000});
+      assert.equal(await page.evaluate(()=>lastRace.helmets),helmets,'summit Yeti at lane '+lane);
+      await page.locator('#pause').tap();await waitState('pause','owl');
+      await page.locator('#exitPaused').tap();await waitState('review','owl');
+    }
     const weather=await page.evaluate(async images=>{
       const decoded={};let width,height;
       for(const [name,source] of Object.entries(images)){

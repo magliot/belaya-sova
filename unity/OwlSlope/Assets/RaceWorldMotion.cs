@@ -39,16 +39,16 @@ public partial class RaceWorld {
         }
     }
     static void PoseMovingRider(RaceItem o){
-        float pressure=Mathf.Clamp(o.lean/(o.sb?12:8),-1,1);
-        float cycle=o.age*(o.kid?2.9f:o.sb?1.85f:2.4f)+o.phase;
+        float pressure=Mathf.Clamp(o.lean/(o.sb?14:10),-1,1);
+        float cycle=o.age*(o.kid?2.85f:o.sb?1.95f:2.55f)+o.phase;
         float transfer=Mathf.Sin(cycle);
         float wave=.5f+.5f*Mathf.Sin(2*cycle-.8f);
         // Extension between edges, compression on a bump, a tuck at the apex and a deep landing.
         float flight=o.airSpan>0?Mathf.Sin(Mathf.PI*Mathf.Clamp01((o.distance-o.airStart)/o.airSpan)):0;
         float landing=Mathf.Clamp01(1-(o.age-o.landedAt)/.56f);
-        float compression=Mathf.Clamp01(.12f+.26f*wave+.31f*Mathf.Abs(pressure)+
-            .12f*Mathf.Clamp01(o.offset)+.38f*flight+.61f*landing);
-        float reach=Mathf.Clamp(.76f*transfer+.44f*pressure,-1,1)*(1-.55f*flight);
+        float compression=Mathf.Clamp01(.08f+.23f*wave+.48f*Mathf.Abs(pressure)+
+            .18f*Mathf.Clamp01(o.offset)+.42f*flight+.67f*landing);
+        float reach=Mathf.Clamp(.77f*transfer+.62f*pressure,-1,1)*(1-.42f*flight);
         var skin=o.skin;var mesh=skin.sharedMesh;
         skin.SetBlendShapeWeight(mesh.GetBlendShapeIndex("0"),compression*100);
         skin.SetBlendShapeWeight(mesh.GetBlendShapeIndex("1"),(pressure*.82f+.16f*transfer)*100);
@@ -95,7 +95,8 @@ public partial class RaceWorld {
         }
     }
     void MoveTube(RaceItem o,float player,float dt){
-        if(!o.movingPoseReady){
+        bool entering=!o.movingPoseReady;
+        if(entering){
             o.age=Mathf.Clamp((player-o.release)/14.5f,-12,16);
             o.movingPoseReady=true;
         }
@@ -105,13 +106,20 @@ public partial class RaceWorld {
         float entrySpeed=Mathf.Max(1.25f,o.vStart);
         float decay=Mathf.Exp(-Mathf.Max(0,o.age)/o.tau);
         float d=o.age<0?entrySpeed*o.age:o.vCruise*o.age-(o.vCruise-entrySpeed)*o.tau*(1-decay);
-        float t=Mathf.Clamp01(d/o.pathSpan),delta=o.to-o.from,tail=Mathf.Max(0,d-o.pathSpan)/4.75f;
-        float tangent=o.side*(delta*6*t*(1-t)/o.pathSpan+.2f*Mathf.Sin(tail)/4.75f);
+        float t=Mathf.Clamp01(d/o.pathSpan),delta=o.to-o.from;
+        // A quintic crossing keeps lateral acceleration continuous at both ends. A smaller
+        // traverse persists on the approach and rollout, instead of locking the tube to a rail.
+        float curve=t*t*t*(10+t*(-15+6*t));
+        float weave=d*.27f+o.phase,wiggle=.67f;
+        float tangent=o.side*(delta*30*t*t*(1-t)*(1-t)/o.pathSpan+wiggle*.27f*Mathf.Cos(weave));
         float speed=o.vCruise-(o.vCruise-entrySpeed)*decay;
-        float curvature=t>0&&t<1?o.side*delta*6*(1-2*t)/(o.pathSpan*o.pathSpan):d>o.pathSpan?o.side*.2f*Mathf.Cos(tail)/(4.75f*4.75f):0;
-        o.lane=o.side*(o.from+delta*Smooth(t)+.2f*(1-Mathf.Cos(tail)));o.distance=o.originD+d;
-        o.yaw=180+(Mathf.Atan(tangent)-Mathf.Clamp(curvature*speed*.34f,-.16f,.16f))*Mathf.Rad2Deg;
-        o.lean=14*Mathf.Clamp(-curvature*speed*speed*1.1f,-1,1);o.scale=.84f;
+        float curvature=o.side*(delta*60*t*(t-1)*(2*t-1)/(o.pathSpan*o.pathSpan)-wiggle*.27f*.27f*Mathf.Sin(weave));
+        o.lane=o.side*(o.from+delta*curve+wiggle*Mathf.Sin(weave));o.distance=o.originD+d;
+        float drift=Mathf.Clamp(curvature*speed*.47f,-.24f,.24f);
+        float heading=180+(Mathf.Atan(tangent)-drift)*Mathf.Rad2Deg;
+        float load=16*Mathf.Clamp(-curvature*speed*speed*.97f,-1,1);
+        o.yaw=entering?heading:Mathf.LerpAngle(o.yaw,heading,1-Mathf.Exp(-6*dt));
+        o.lean=entering?load:Mathf.Lerp(o.lean,load,1-Mathf.Exp(-4*dt));o.scale=.84f;
     }
     void MoveRider(RaceItem o,float player,float elapsed,float dt){
         if(o.walker){o.distance+=o.pace*dt;o.lean=1.5f*Mathf.Sin(elapsed*2);return;}
@@ -119,15 +127,26 @@ public partial class RaceWorld {
             float f=elapsed*.75f+o.phase;o.yaw=18*Mathf.Sin(f)+(o.instr&&o.stand?145:0);o.lean=2.5f*Mathf.Sin(f*1.9f);
             o.offset=o.kid&&o.stand?.16f*Mathf.Pow(Mathf.Max(0,Mathf.Sin(f*3)),10):0;return;
         }
-        if(!o.movingPoseReady){
+        bool starting=!o.movingPoseReady;
+        if(starting){
             o.movingPoseReady=true;
-            o.age=2.1f*Roll(seed,Mathf.RoundToInt(o.originD),317);
-            o.velocity=Mathf.Clamp(.75f*o.amp*Mathf.Cos(o.age+o.phase),-o.pace*.62f,o.pace*.62f);
-            o.yaw=Mathf.Atan2(o.velocity,o.pace)*Mathf.Rad2Deg;
-            o.lean=-3*Mathf.Sin(o.age+o.phase);
+            int row=Mathf.RoundToInt(o.originD*4+o.originX);
+            o.age=4*Roll(seed,row,317);
+            o.turnRate=(o.sb?.91f:o.kid?1.18f:1.48f)*Mathf.Lerp(.82f,1.18f,Roll(seed,row,318));
+            o.glidePace=o.pace*(o.kid?1.10f:o.sb?1.45f:1.33f);
         }
-        if(dt<=0)return;o.age+=dt;
-        float target=o.originX+o.amp*(o.sb?1.2f:1.08f)*Mathf.Sin(o.age+o.phase+.32f*Mathf.Sin(o.age*.54f+o.phase));
+        o.age+=dt;
+        float rhythm=o.age*o.turnRate+o.phase+.48f*Mathf.Sin(o.age*.47f+o.phase);
+        float width=Mathf.Clamp(o.amp*(o.sb?1.45f:1.22f)+.15f,.30f,2.45f);
+        float edge=Mathf.Sin(rhythm);
+        float target=o.originX+width*edge;
+        float shoulder=Mathf.Min(8.5f,WidthAt(o.distance)*.5f-.55f);
+        if(starting){
+            o.lane=Mathf.Clamp(target,-shoulder,shoulder);
+            o.velocity=Mathf.Clamp(width*o.turnRate*Mathf.Cos(rhythm),-o.glidePace*.80f,o.glidePace*.80f);
+            o.yaw=Mathf.Atan2(o.velocity,o.glidePace)*Mathf.Rad2Deg;o.lean=edge*(o.sb?12:8);
+        }
+        if(dt<=0)return;
         float influence=0,previous=o.distance;
         foreach(var q in Items){
             if(q==o||q.consumed)continue;float ahead=q.distance-o.distance;
@@ -142,18 +161,29 @@ public partial class RaceWorld {
             }
             float dx=o.lane-q.lane;if(Mathf.Abs(dx)<r)influence+=(dx>=0?1:-1)*k*(2-Mathf.Abs(dx)/r);
         }
-        target=Mathf.Clamp(target+Mathf.Clamp(influence,-2.5f,2.5f)*1.3f,-8.5f,8.5f);
-        float a=Mathf.Clamp((target-o.lane)*9-o.velocity*4.6f,-6.4f,6.4f);
-        o.velocity=Mathf.Clamp(o.velocity+a*dt,-o.pace*.87f,o.pace*.87f);
-        o.lane=Mathf.Clamp(o.lane+o.velocity*dt,-8.5f,8.5f);float yaw=Mathf.Atan2(o.velocity,o.pace);
-        o.distance+=o.pace*(1-.16f*Mathf.Abs(Mathf.Sin(yaw)))*dt;o.yaw=yaw*Mathf.Rad2Deg;
-        o.lean=Mathf.Lerp(o.lean,-a/6.5f*(o.sb?14:9),1-Mathf.Exp(-5*dt));o.offset=0;
+        target=Mathf.Clamp(target+Mathf.Clamp(influence,-2.5f,2.5f)*1.3f,-shoulder,shoulder);
+        float a=Mathf.Clamp((target-o.lane)*10-o.velocity*4.4f,-6.4f,6.4f);
+        float rolling=o.kid?1.13f:o.sb?1.54f:1.41f;
+        float desiredPace=o.pace*rolling*(1+.36f*(Grade(o.distance)-.29f)-.22f*Mathf.Abs(edge));
+        o.glidePace=Mathf.MoveTowards(o.glidePace,desiredPace,dt*(o.kid?.60f:1.05f));
+        o.velocity=Mathf.Clamp(o.velocity+a*dt,-o.glidePace*.92f,o.glidePace*.92f);
+        o.lane=Mathf.Clamp(o.lane+o.velocity*dt,-shoulder,shoulder);
+        o.distance+=o.glidePace*dt;
+        o.yaw=Mathf.Atan2(o.velocity,o.glidePace)*Mathf.Rad2Deg;
+        o.lean=Mathf.Lerp(o.lean,Mathf.Clamp(-a*(o.sb?6.6f:5.2f),-18,18),1-Mathf.Exp(-5*dt));o.offset=0;
         if(o.airSpan>0){float t=(o.distance-o.airStart)/o.airSpan;
             o.offset=(1-t)*(o.airBase+4*o.airLift*t);if(t>=1){o.airSpan=0;o.offset=0;o.landedAt=o.age;}return;}
         foreach(var q in Items){
             if(q.kind!="ramp"||Mathf.Abs(q.lane-o.lane)>q.width*.5f)continue;
             float lip=q.distance+q.length*.5f;
-            if(previous<lip&&o.distance>=lip){o.airStart=lip;o.airSpan=q.park?q.span:Mathf.Max(2,o.pace*.8f);o.airLift=q.park?q.lift:.8f;o.offset=o.airBase=q.height;return;}
+            if(previous<lip&&o.distance>=lip){
+                // Each rider leaves at their own speed. A pupil on a large park kicker
+                // lands in front of it rather than following the much faster player's arc.
+                o.airStart=lip;o.offset=o.airBase=q.height;
+                float riseSpeed=Mathf.Clamp(1.8f+.32f*o.glidePace+.50f*q.height,2,5.2f);
+                float seconds=(riseSpeed+Mathf.Sqrt(riseSpeed*riseSpeed+19.62f*q.height))/9.81f;
+                o.airSpan=o.glidePace*seconds;o.airLift=1.22625f*seconds*seconds;return;
+            }
             if(o.distance>=lip-q.length&&o.distance<=lip){float t=1+(o.distance-lip)/q.length;o.offset=q.height*t*(q.park?.65f+.35f*t:1);return;}
         }
     }

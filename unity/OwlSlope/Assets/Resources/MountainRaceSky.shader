@@ -62,7 +62,7 @@ Shader "Owl/MountainRaceSky" {
      fixed3 distant=lerp(_Horizon.rgb,location,.96*smoothstep(-.175,.035,dir.y));
      return fixed4(lerp(distant,sky,smoothstep(.29,.67,dir.y)),1);
     }
-    if(_Night>.01){
+    if(_Night>0.){
      float2 st=float2(az,dir.y)*135;
      float noise=frac(sin(dot(floor(st),float2(12.9898,78.233)))*43758.5);
      sky+=_Night*step(.991,noise)*(1-smoothstep(.02,.24,length(frac(st)-.5)))*.7;
@@ -92,10 +92,10 @@ Shader "Owl/MountainRaceSky" {
     fixed3 a=lerp(sky,lerp(ridgeA.rgb*_Tint.rgb,_Horizon.rgb,.20),ridgeA.a);
     fixed3 b=lerp(sky,lerp(ridgeB.rgb*_Tint.rgb,_Horizon.rgb,.20),ridgeB.a);
     sky=lerp(a,b,blend);
-    if(_Storm>.5){
+    if(_Storm>0.){
      float ripple=sin(az*5.-_Clock*.65+sin(az*11.+dir.y*18.-_Clock*.31));
      float veil=smoothstep(-.17,.06,dir.y)*(1.-smoothstep(.05,.44,dir.y));
-     sky=lerp(sky,_Horizon.rgb,.84+veil*(.105+.045*ripple));
+     sky=lerp(sky,_Horizon.rgb,_Storm*(.84+veil*(.105+.045*ripple)));
     }
     return fixed4(sky,1);
    }

@@ -34,13 +34,61 @@ public partial class MountainRace {
             if((o.kind!="ramp"&&o.kind!="rail")||Mathf.Abs(lane-o.lane)>o.width*.5f)continue;
             float lip=o.distance+o.length*.5f;
             if(Mathf.Abs(Status.metres-o.distance)<o.length*.5f)rampHeight=SurfaceHeight(o,Status.metres);
-            if(o.park&&o.kind=="ramp"&&Status.metres>lip&&Status.metres<lip+o.span*(Hero=="owl"?1.09f:1)){
-                BeginFlight(o);airTime=airMax*Mathf.Clamp01((Status.metres-flightStart)/flightSpan);return;
+            if(o.park&&o.kind=="ramp"&&Status.metres>lip&&Status.metres<lip+o.span){
+                BeginFlight(o);
+                if(Status.metres<lip+flightSpan)return;
+                airborne=false;
             }
         }
     }
+    static bool ClipContact(float start,float end,float low,float high,ref float enter,ref float exit){
+        float delta=end-start;
+        if(Mathf.Abs(delta)<.00001f)return start>=low&&start<=high;
+        float a=(low-start)/delta,b=(high-start)/delta;
+        enter=Mathf.Max(enter,Mathf.Min(a,b));exit=Mathf.Min(exit,Mathf.Max(a,b));
+        return enter<=exit;
+    }
+    bool HandleSolid(RaceItem o,float before,float fromLane,float halfWidth,float halfLength,float height,float post=0,bool round=false){
+        // Both bodies move during a physics tick. Clip first to the height interval,
+        // then test the corresponding part of the sweep against the footprint.
+        float enter=0,exit=1;
+        bool hit=ClipContact(previousAltitude-o.previousOffset,Altitude-o.offset,-1.45f,height,ref enter,ref exit);
+        if(hit){
+            float a=o.yaw*Mathf.Deg2Rad,c=Mathf.Cos(a),s=Mathf.Sin(a);
+            var origin=new Vector2(fromLane-o.previousLane-post,before-o.previousDistance);
+            var end=new Vector2(lane-o.lane-post,Status.metres-o.distance);
+            float bodyWidth=Hero=="bear"?.53f:.57f,bodyLength=Hero=="bear"?.74f:.66f;
+            halfWidth+=Mathf.Abs(c)*bodyWidth+Mathf.Abs(s)*bodyLength;
+            halfLength+=Mathf.Abs(s)*bodyWidth+Mathf.Abs(c)*bodyLength;
+            Vector2 Local(Vector2 v)=>new Vector2((v.x*c-v.y*s)/halfWidth,(v.x*s+v.y*c)/halfLength);
+            var p=Local(origin);var q=Local(end);
+            if(round){
+                var delta=q-p;
+                float t=Mathf.Clamp(-Vector2.Dot(p,delta)/Mathf.Max(.000001f,delta.sqrMagnitude),enter,exit);
+                hit=(p+t*delta).sqrMagnitude<=1;
+            }else hit=ClipContact(p.x,q.x,-1,1,ref enter,ref exit)&&ClipContact(p.y,q.y,-1,1,ref enter,ref exit);
+        }
+        if(hit&&!o.touchingPlayer){o.judged=true;Hit(o.kind);}
+        o.touchingPlayer=hit;
+        return hit;
+    }
+    void UpdateRidingSurface(float before,float d){
+        rampHeight=rampPhase=0;
+        if(airborne||fall>0)return;
+        foreach(var o in World.Items){
+            if(o.consumed||(o.kind!="ramp"&&o.kind!="rail")||Mathf.Abs(lane-o.lane)>=o.width*.5f)continue;
+            float halfLength=o.length*.5f,end=o.distance+halfLength;
+            if(Mathf.Abs(d-o.distance)<=halfLength){
+                rampHeight=SurfaceHeight(o,d);rampPhase=Mathf.Clamp01((d-o.distance)/o.length+.5f);o.ridden=true;
+            }
+            if(before>=end||d<end)continue;
+            if(o.kind=="ramp"){BeginFlight(o);rampHeight=0;return;}
+            if(o.ridden&&!o.judged){o.judged=true;Status.grinds++;bonusPoints+=120*Mult;Notice("Бокс +"+120*Mult,"trickDone");}
+        }
+    }
     void CheckItems(float before,float fromLane){
-        float d=Status.metres;rampHeight=rampPhase=0;int letterChange=0;
+        float d=Status.metres;int letterChange=0;
+        UpdateRidingSurface(before,d);
         Status.engineNear=0;Status.enginePan=0;
         foreach(var o in World.Items){
             if(o.consumed)continue;
@@ -55,21 +103,20 @@ public partial class MountainRace {
             }
             if(ahead>12||ahead< -9) {
                 // Park ramps and very long boxes still have drivable surfaces within this window.
-                if(Mathf.Abs(dy)>o.length*.5f+1)continue;
+                if(Mathf.Abs(dy)>o.length*.5f+1){o.touchingPlayer=false;continue;}
             }
             float square=dx*dx+dy*dy;
             bool cross=before<o.distance&&d>=o.distance;
             switch(o.kind){
-              case "ramp":case "rail":{
-                float end=o.distance+o.length*.5f;
-                if(!airborne&&fall<=0&&abs<o.width*.5f){
-                    if(Mathf.Abs(dy)<=o.length*.5f){rampHeight=SurfaceHeight(o,d);rampPhase=Mathf.Clamp01(dy/o.length+.5f);o.ridden=true;}
-                    if(before<end&&d>=end){
-                        if(o.kind=="ramp"){BeginFlight(o);rampHeight=0;}
-                        else if(o.ridden&&!o.judged){o.judged=true;Status.grinds++;bonusPoints+=120*Mult;Notice("Бокс +"+120*Mult,"trickDone");}
-                    }
-                }break;}
+              case "festivalFountain":
+                if(HandleSolid(o,before,fromLane,.52f,.52f,.78f))break;
+                if(!o.judged&&cross){
+                    o.judged=true;
+                    float passage=(Mathf.Lerp(fromLane,lane,(o.distance-before)/Mathf.Max(.001f,d-before))-o.lane)*o.side;
+                    if(passage>1.0f&&passage<4.6f){bonusPoints+=25*Mult;Cue("chime");}
+                }break;
               case "gate":
+                if(!o.stoneGate&&HandleSolid(o,before,fromLane,.105f,.12f,1.65f,Mathf.Sign(dx)*o.width*.5f))break;
                 if(!o.judged&&cross){
                     o.judged=true;
                     float crossLane=Mathf.Lerp(fromLane,lane,(o.distance-before)/Mathf.Max(.001f,d-before));
@@ -80,9 +127,7 @@ public partial class MountainRace {
                         bonusPoints+=(25+(o.points>0&&consecutiveGates>=3?o.points:0))*Mult;Cue("gate");
                     }else{consecutiveGates=Status.combo=0;Cue("miss");}
                 }
-                if(!airborne&&!o.stoneGate&&wobble<=0&&Mathf.Abs(dy)<.3f&&Mathf.Abs(abs-o.width*.5f)<.3f){
-                    wobble=.4f;velocity*=-.4f;Cue("wobble");
-                }break;
+                break;
               case "airRing":
                 if(!o.judged&&(!o.needsTrick||(trickLine&&flightTricks>0))&&TouchAir(o,before,fromLane,Mathf.Max(.6f,o.width*.5f-.1f))){
                     o.judged=true;Status.rings++;bonusPoints+=Mathf.Max(1,o.points)*Mult;Notice("Воздушное кольцо!","gate");
@@ -101,7 +146,7 @@ public partial class MountainRace {
                 o.Consume();
                 switch(o.kind){
                     case "coin":Status.coins++;Burst(o,true);if(BonusMode)BonusReward(15);else bonusPoints+=5;Cue("coin");break;
-                    case "thermos":boost=4.5f+settings.boost*.8f;invincible=Mathf.Max(invincible,boost);Notice(BonusMode?"Кофе · ускорение +22%":"Кофе · ускорение +65%","power");break;
+                    case "thermos":boost=4.5f+settings.boost*.8f;Notice(BonusMode?"Кофе · ускорение +22%":"Кофе · ускорение +65%","power");break;
                     case "helmet":if(Status.helmets<3)Status.helmets++;else bonusPoints+=50;Notice("Каска EMCO","power");break;
                     case "magnet":magnet=7+settings.mag*2;Notice("Магнит для мандаринов","power");break;
                     case "feather":Status.feather=true;Status.feathers++;bonusPoints+=300*Mult;Notice("Золотое перо! Открыты оба бонуса","feather");break;
@@ -122,21 +167,21 @@ public partial class MountainRace {
                 if(square<1.69f){o.Consume();bonusPoints+=80*Mult;Rule(9);Notice("Позвал патруль!","polite");}break;
               case "snowman":
                 if(BonusMode&&Altitude<1.5f&&square<2.25f){o.Consume();Burst(o,false);Status.snowmen++;BonusReward(90);Notice("Снеговик!","smash");}
-                else if(!airborne&&square<1)Hit(o.kind,o);break;
+                else if(o.variant=="snowman")HandleSolid(o,before,fromLane,.89f,.72f,2.50f,0,true);
+                else HandleSolid(o,before,fromLane,.62f,.52f,1.67f,0,true);break;
               case "ball":
                 if(square<1.03f*1.03f&&Mathf.Abs(o.height-(Altitude+1.02f))<.82f){
                     o.Consume();Burst(o,false);Cue("snowball");
                 }break;
               case "dog":
-                if(!airborne&&square<.85f*.85f){
-                    o.Consume();wobble=.6f;slow=.6f;Status.combo=0;Notice("Осторожно, собака!","wobble");}break;
+                HandleSolid(o,before,fromLane,.20f,.40f,.8f,0,true);break;
               case "mogul":
                 if(!airborne&&square<Mathf.Pow(.45f+o.width*.5f,2)){
                     if(Hero=="bear"||boost>0){BreakSnowMound(o);o.Consume();bonusPoints+=15;Cue("smash");}
                     else if(!o.judged){o.judged=true;slow=Mathf.Max(slow,.25f);rampHeight=Mathf.Max(rampHeight,.24f);}
                 }break;
               case "npc":
-                if(!airborne&&square<(o.kid?.49f:.9025f)){Hit(o.kind,o);break;}
+                if(HandleSolid(o,before,fromLane,o.sb&&o.kid?.35f:.55f,o.sit?.44f:o.sb?.78f:.64f,o.sit?.95f:1.4f,0,true))break;
                 if(!o.judged&&dy>0){
                     o.judged=true;
                     if(airborne)break;
@@ -144,14 +189,27 @@ public partial class MountainRace {
                     else if(abs<6){Status.polite++;bonusPoints+=30*Mult;Rule(o.walker?7:o.sit?6:o.kid||o.instr?2:4);if(Status.polite>=5)Rule(3);Notice("Вежливый обгон","polite");}
                 }break;
               case "mogulYeti":case "snowmobile":
-                if(abs<(o.kind=="mogulYeti"?1.45f:1.10f)&&Mathf.Abs(dy)<(o.kind=="mogulYeti"?1.1f:1.9f)
-                   && Mathf.Abs((airborne?FlightHeight(d):0)-o.offset)<(o.kind=="mogulYeti"?2.7f:1.8f))Hit(o.kind,o);
+                bool yeti=o.kind=="mogulYeti";
+                if(HandleSolid(o,before,fromLane,yeti?1.70f:.64f,yeti?.96f:1.50f,yeti?3.2f:1.88f,0,yeti))break;
                 if(o.kind=="mogulYeti"&&!o.judged&&dy>1.1f){o.judged=true;if(Status.encounters==0)Status.encounters++;}break;
               case "yeti":
-                if(!o.judged&&dy> -3){o.judged=true;Status.encounters++;bonusPoints+=500*Mult;Notice("Встреча с йети!","chime");}break;
+                if(HandleSolid(o,before,fromLane,1.7f,.96f,3.2f,0,true))break;
+                if(!o.judged&&dy>2){o.judged=true;Status.encounters++;bonusPoints+=500*Mult;Notice("Встреча с йети!","chime");}break;
               case "fence":case "cat":case "tree":case "rock":case "cannon":case "tube":
-                float halfWidth=o.width*.5f+.36f,halfLength=Mathf.Max(.38f,o.length*.5f);
-                if(!airborne&&abs<halfWidth&&Mathf.Abs(dy)<halfLength){Hit(o.kind,o);break;}
+                float halfWidth=o.width*.5f,halfLength=o.length*.5f,top=o.height;
+                switch(o.kind){
+                    case "tube":halfWidth=1.03f*o.scale;halfLength=.92f*o.scale;top=1.73f*o.scale;break;
+                    case "cat":halfWidth=o.small?1.84f:2.1f;halfLength=o.small?2.85f:3.3f;top=o.small?3.56f:4;break;
+                    case "tree":halfLength=halfWidth;top=Mathf.Max(3.6f,o.height)*o.scale;break;
+                    case "cannon":halfLength=.68f;top=2.55f;break;
+                    case "rock":
+                        bool wide=o.variant=="rockWide"||o.variant=="gateRockWide";
+                        halfWidth=(wide?.77f:.42f)*o.scale;halfLength=(wide?.72f:.39f)*o.scale;
+                        top=(wide?.87f:1.52f)*o.scale;break;
+                    case "fence":halfLength=.12f;break;
+                }
+                bool rounded=o.kind=="tube"||o.kind=="rock"||o.kind=="tree";
+                if(HandleSolid(o,before,fromLane,halfWidth,halfLength,top,0,rounded))break;
                 if(!o.judged&&dy>halfLength){o.judged=true;
                     if(o.kind=="fence")Rule(8);
                     if(o.kind=="cat"&&abs>halfWidth+1){

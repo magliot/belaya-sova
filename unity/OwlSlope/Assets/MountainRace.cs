@@ -13,7 +13,7 @@ public partial class MountainRace : MonoBehaviour {
         public string phase="menu",hero="bear",mode="normal",courseMode="normal",message="",cue="",nextLetter="";
         public int seed,score,coins,helmets,stage,gates,tricks,rings,combo,maxCombo,polite,gifts,snowmen,
             feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds,horns;
-        public float metres,elapsed,engineNear,enginePan,avalanche,edge,boostSeconds,magnetSeconds,chaseSeconds,chaseGap;
+        public float metres,elapsed,engineNear,enginePan,avalanche,blizzard,edge,boostSeconds,magnetSeconds,chaseSeconds,chaseGap;
         public int letterSide,bonusLocation;
         public bool air,boost,feather,goldenOwl,tubingUnlocked,sledUnlocked;
         public int[] fis=Array.Empty<int>();
@@ -32,8 +32,8 @@ public partial class MountainRace : MonoBehaviour {
     int bonusPoints, serial;
     bool airborne,dragging,edgeReturn;
     float lane,velocity,slip,travelYaw,dragStart,dragTarget,angle,sensitivity;
-    float speed,baseSpeed,boost,magnet,slow,wobble,invincible,fall,fallSide,edgeOrigin;
-    float airTime,airMax,lipHeight,flightStart,flightSpan,flightLift,trickAt,trickProgress,trickLength;
+    float speed,baseSpeed,boost,magnet,slow,wobble,fall,fallSide,edgeOrigin,previousAltitude;
+    float airTime,airMax,lipHeight,flightStart,flightSpan,flightLift,trickProgress,trickLength;
     bool parkFlight,trickLine,prizeLine;
     int flightTricks,trickType,poseStyle;
     float rampHeight,rampPhase,lastLanding,crashTimer,cleanStart,lastClose;
@@ -101,7 +101,7 @@ public partial class MountainRace : MonoBehaviour {
         random=new System.Random(settings.seed);World.Configure(settings.seed,CourseMode);
         sensitivity=.35f+.11f*Mathf.Clamp(settings.sensitivity,1,10);
         lane=velocity=slip=angle=dragStart=dragTarget=0;edgeReturn=dragging=airborne=false;
-        speed=baseSpeed=BonusMode?BonusLaunch:12;travelYaw=World.HeadingAt(0);boost=magnet=slow=wobble=invincible=fall=0;
+        speed=baseSpeed=BonusMode?BonusLaunch:12;travelYaw=World.HeadingAt(0);boost=magnet=slow=wobble=fall=0;
         rampHeight=rampPhase=airTime=flightSpan=crashTimer=cleanStart=reviewRate=reviewLane=noticeUntil=0;
         parkFlight=trickLine=prizeLine=false;trickProgress=-1;lastLanding=-10;lastClose=-10;
         earnedRules.Clear();bonusPoints=flightTricks=rewardChain=consecutiveGates=0;lastReward=-100;
@@ -133,6 +133,7 @@ public partial class MountainRace : MonoBehaviour {
         }
         lane=reviewLane;angle=0;rampHeight=0;airborne=false;travelYaw=World.HeadingAt(Status.metres);
         Status.stage=BonusMode?0:Mathf.FloorToInt(Status.metres/2500)%8;
+        if(Status.stage==3)speed=ParkPace(Status.metres);
         World.SetThrowTarget(lane,14,0,0);
         World.Refresh(Status.metres,Status.elapsed);ReviewContact();
         boost=reviewEffect=="coffee"?5:0;Status.avalanche=reviewEffect=="avalanche"?.85f:0;
@@ -174,11 +175,9 @@ public partial class MountainRace : MonoBehaviour {
     // Public for editor simulation: the same fixed substeps run in the phone player.
     public void Advance(float elapsed,float keyboard=0){
         if(Status.phase!="play"||elapsed<=0)return;
-        World.SetThrowTarget(lane,speed,velocity+slip,Altitude);
-        World.Refresh(Status.metres,Status.elapsed,lane);
         float left=elapsed;
         while(left>.00001f&&Status.phase=="play"){
-            float dt=Mathf.Min(left,1f/60);Step(dt,keyboard);left-=dt;
+            float dt=Mathf.Min(left,1f/60);left-=dt;Step(dt,keyboard,left<=.00001f);
         }
         StepBursts(elapsed);RenderRace(elapsed,false);
         if(Status.phase=="play"&&Status.elapsed>=nextHud){Publish();nextHud=Status.elapsed+.10f;}

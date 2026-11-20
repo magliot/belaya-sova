@@ -6,6 +6,9 @@ public partial class MountainRace {
     static readonly float[] TrickTimes={1,1.15f,1.15f,1.05f,1.35f,.8f,1.3f,1.4f};
     static readonly string[] TrickNames={"Вертушка 360","Сальто назад","Сальто вперёд","Бочка","Корк 720","Грэб","Вертолёт 720","Мисти-флип"};
     static float StepBlend(float t){t=Mathf.Clamp01(t);return t*t*(3-2*t);}
+    static float ParkPace(float d){
+        return (26+3*RaceWorld.Grade(d))*(d>=20000?1.08f:1);
+    }
     float LaneLimit(float d){
         if(Status.mode=="tubing")return 8.1f+1.6f;
         float local=Mathf.Repeat(d,2500);
@@ -17,11 +20,13 @@ public partial class MountainRace {
         if(t<.4f)return Mathf.Lerp(.6f,.1f,t/.4f);
         return t<.72f?.06f:Mathf.Lerp(.06f,.85f,(t-.72f)/.28f);
     }
-    void Step(float dt,float keyboard){
+    void Step(float dt,float keyboard,bool drawWorld){
         var s=Status;
+        previousAltitude=Altitude;
         s.elapsed+=dt;
         if(crashTimer>0){
             crashTimer-=dt;speed*=Mathf.Pow(.15f,dt);s.metres+=speed*dt;
+            World.Refresh(s.metres,s.elapsed,lane,drawWorld);
             if(crashTimer<=0)Finish(false,s.message);return;
         }
         if(BonusMode)s.elapsed=Mathf.Min(BonusSeconds,s.elapsed);
@@ -35,18 +40,16 @@ public partial class MountainRace {
         if(stage==2)baseSpeed*=1-.13f*offTrail;
         if(BonusMode)baseSpeed=BonusSpeed(s.elapsed);
         bool snowpark=stage==3&&!BonusMode;
-        if(snowpark)baseSpeed=Mathf.Min(baseSpeed,20+4*grade);
+        if(snowpark)baseSpeed=ParkPace(d);
         float targetSpeed=baseSpeed*(boost>0?(BonusMode?BonusBoost:1.65f):1)*(slow>0?.62f:1)*(fall>0?FallSlow():1);
-        if(snowpark){
-            // The final metres up the kicker load the legs and trade some speed for height.
-            targetSpeed=Mathf.Min(targetSpeed,26)*(1-.13f*StepBlend(rampPhase));
+        if(airborne&&parkFlight){
+            // No ground traction in the air. Finishing a trick or losing coffee cannot brake a flying rider.
+            speed=flightSpan/airMax;
+        }else if(snowpark){
+            targetSpeed=Mathf.Min(targetSpeed,37)*(1-.035f*StepBlend(rampPhase));
             speed=Mathf.MoveTowards(speed,targetSpeed,(speed>targetSpeed?9:6)*dt);
         }else speed=targetSpeed;
-        if(airborne&&parkFlight){
-            float u=Mathf.Clamp01((airTime+.5f*dt)/airMax);
-            speed=flightSpan/airMax*(1+ParkGlide*Mathf.Cos(2*Mathf.PI*u));
-        }
-        float wind=stage==4&&!BonusMode?(Mathf.Sin(s.elapsed*.55f)*75+Mathf.Sin(s.elapsed*1.7f)*25)/20:0;
+        float wind=s.blizzard*(Mathf.Sin(s.elapsed*.55f)*75+Mathf.Sin(s.elapsed*1.7f)*25)/20;
         float heading=World.HeadingAt(d);
         bool controlled=dragging||keyboard!=0;
         float target=keyboard!=0?lane+keyboard*3.5f:dragTarget;
@@ -72,18 +75,15 @@ public partial class MountainRace {
         lane=Mathf.Clamp(lane+dt*(velocity+slip+wind*.5f+rut),-LaneLimit(d),LaneLimit(d));
         angle=Mathf.Lerp(angle,Mathf.Clamp((velocity+slip*.5f)/21.5f,-1,1),dt*10);
         if(!edgeReturn&&Mathf.Abs(lane)>=LaneLimit(d)-.001f&&fall<=0){
-            edgeOrigin=lane;Hit("edge",null);edgeReturn=fall>0;if(!BonusMode)travelYaw=heading;
+            edgeOrigin=lane;Hit("edge");edgeReturn=fall>0;if(!BonusMode)travelYaw=heading;
         }
         if(edgeReturn){float t=Mathf.Clamp01((1-fall/FallTime)*1.7f);lane=Mathf.Lerp(edgeOrigin,0,StepBlend(t));dragTarget=lane;if(t>=1)edgeReturn=false;}
         float next=d+speed*dt;
-        if(airborne&&parkFlight){
-            float u=Mathf.Min(1,(airTime+dt)/airMax);
-            // Integrate the horizontal velocity exactly, including any remainder past landing.
-            next=flightStart+flightSpan*(u+ParkGlide*Mathf.Sin(2*Mathf.PI*u)/(2*Mathf.PI))+
-                speed*Mathf.Max(0,airTime+dt-airMax);
-        }
+        if(airborne&&parkFlight)next=flightStart+speed*(airTime+dt);
         s.metres=Status.mode=="sprint"?Mathf.Min(SprintLength,next):next;
         TickAir(dt);
+        World.SetThrowTarget(lane,speed,velocity+slip,Altitude);
+        World.Refresh(s.metres,s.elapsed,lane,drawWorld);
         if(crashTimer<=0)CheckItems(d,oldLane);
         if(s.phase!="play"||crashTimer>0)return;
         TickTimers(dt);
@@ -99,23 +99,28 @@ public partial class MountainRace {
     }
     void TickTimers(float dt){
         boost=Mathf.Max(0,boost-dt);magnet=Mathf.Max(0,magnet-dt);slow=Mathf.Max(0,slow-dt);
-        wobble=Mathf.Max(0,wobble-dt);fall=Mathf.Max(0,fall-dt);invincible=Mathf.Max(0,invincible-dt);
+        wobble=Mathf.Max(0,wobble-dt);fall=Mathf.Max(0,fall-dt);
     }
-    // Entry and exit have the same longitudinal speed; the crest has about 23% less.
-    const float ParkGlide=.13f;
     void BeginFlight(RaceItem item){
         airborne=true;parkFlight=item.park;trickLine=item.trickLine;prizeLine=item.prizeLine;
         lipHeight=item.height;flightStart=item.distance+item.length*.5f;
-        flightSpan=item.span*(Hero=="owl"?1.09f:1);flightLift=item.park?item.lift:2.3f*Mathf.Sqrt(Mathf.Max(.1f,lipHeight)/.75f);
-        airMax=parkFlight?flightSpan*(1+ParkGlide)/Mathf.Max(1,speed):(Hero=="owl"?1.45f:.85f)*(1+(speed*20-245)/1400)*(.75f+.25f*flightLift/2.3f);
-        airTime=Mathf.Max(0,(Status.metres-flightStart)/Mathf.Max(1,speed));trickProgress=-1;trickAt=-1;flightTricks=0;
+        if(parkFlight){
+            // A slow rider lands short, without stretching the same jump into slow motion.
+            float maxTime=1.1f+.34f*item.lift;
+            flightSpan=Mathf.Min(item.span,Mathf.Max(1,speed)*maxTime);
+            flightLift=item.lift*(flightSpan/item.span);
+            airMax=flightSpan/Mathf.Max(1,speed);
+        }else{
+            flightSpan=0;flightLift=2.3f*Mathf.Sqrt(Mathf.Max(.1f,lipHeight)/.75f);
+            airMax=(Hero=="owl"?1.45f:.85f)*(1+(speed*20-245)/1400)*(.75f+.25f*flightLift/2.3f);
+        }
+        airTime=Mathf.Max(0,(Status.metres-flightStart)/Mathf.Max(1,speed));trickProgress=-1;flightTricks=0;
         Notice(prizeLine?"Два трюка за полёт":trickLine?"Тап в воздухе — оборот":"Прыжок!","jump");
     }
     float FlightHeight(float d){
         float t=parkFlight?Mathf.Clamp01((d-flightStart)/Mathf.Max(.01f,flightSpan)):Mathf.Clamp01(airTime/Mathf.Max(.01f,airMax));
         if(!parkFlight)return lipHeight*(1-t)+flightLift*Mathf.Sin(Mathf.PI*t);
-        float rise=trickAt<0?0:StepBlend((d-trickAt)/Mathf.Max(.1f,flightSpan*.25f));
-        return (1-t)*(lipHeight+4*flightLift*t)+2.7f*Mathf.Sin(Mathf.PI*t)*rise;
+        return RaceWorld.KickerArc(t,lipHeight,flightLift);
     }
     public void AirTrick(string gesture){
         if(!airborne||Status.phase!="play"||trickProgress>=0||Status.mode=="tubing"||Status.mode=="sled")return;
@@ -132,10 +137,10 @@ public partial class MountainRace {
         bool spread=gesture=="tap"&&Hero=="bear"&&flightTricks%2==1;
         poseStyle=spread?1:type==5?flightTricks%2:-1;
         float preferred=type==5?.8f:TrickTimes[type]*.94f;
-        if(parkFlight&&flightTricks==0)preferred=Mathf.Clamp(airMax*.46f-.07f,minimum,preferred);
+        if(prizeLine)preferred=Mathf.Clamp(airMax*.32f,minimum,preferred);
+        else if(parkFlight&&flightTricks==0)preferred=Mathf.Clamp(airMax*.46f-.07f,minimum,preferred);
         trickLength=Mathf.Clamp(airMax-airTime-.10f,minimum,preferred);
         trickProgress=0;
-        if(trickAt<0&&trickLine)trickAt=Status.metres;
         string name=spread?"Spread eagle 360":poseStyle<0?TrickNames[type]:Hero=="bear"?(poseStyle==0?"Shifty":"Spread eagle"):(poseStyle==0?"Indy":"Melon");
         Notice(name,"trick");
     }
@@ -157,7 +162,7 @@ public partial class MountainRace {
         bonusPoints+=Mathf.RoundToInt(TrickScores[trickType]*Mult*(Status.stage==3?2:1)*(!landing&&flightTricks>1?1.5f:1));
         Cue("trickDone");
     }
-    void Hit(string kind,RaceItem item){
+    void Hit(string kind){
         if(Review||fall>0||crashTimer>0)return;
         if(BonusMode){
             // Banks and trees break the chain and cost speed. The prize ride lasts its full 75 seconds.
@@ -172,13 +177,10 @@ public partial class MountainRace {
             return;
         }
         challengeClean=cleanStart=Status.metres;
-        if(invincible>0&&kind!="edge"){
-            if(item!=null)item.Consume();Cue("smash");return;
-        }
         if(Status.helmets>0){
-            Status.helmets--;fall=FallTime;fallSide=random.Next(2)==0?-1:1;invincible=FallTime+1.1f;airborne=parkFlight=false;
+            Status.helmets--;fall=FallTime;fallSide=random.Next(2)==0?-1:1;airborne=parkFlight=false;
             trickProgress=-1;flightTricks=0;dragTarget=lane;
-            if(item!=null)item.Consume();Notice("Каска спасла! Осталось: "+Status.helmets,"helmet");return;
+            Notice("Каска спасла! Осталось: "+Status.helmets,"helmet");return;
         }
         crashTimer=1.5f;airborne=false;trickProgress=-1;fallSide=1;
         string msg;
@@ -186,7 +188,8 @@ public partial class MountainRace {
             case "edge":msg="Снежный борт! Рули на поворотах";break;case "rock":msg="Камень на трассе";break;
             case "avalanche":msg="Лавина догнала";break;case "cat":msg="Столкновение с ратраком";break;
             case "npc":msg="Держи дистанцию при обгоне";break;case "tube":msg="Плюшка пересекла твою линию";break;
-            case "tree":msg="Столкновение с елью";break;case "mogulYeti":msg="Йети пересёк трассу";break;
+            case "tree":msg="Столкновение с деревом";break;case "mogulYeti":case "yeti":msg="Столкновение с йети";break;
+            case "gate":msg="Задел стойку ворот";break;case "dog":msg="Столкновение с собакой";break;
             case "snowmobile":msg="Столкновение со снегоходом";break;case "snowman":msg="Столкновение со снеговиком";break;
             default:msg="Столкновение на трассе";break;
         }
@@ -202,7 +205,7 @@ public partial class MountainRace {
         float chasePace=airborne&&parkFlight?Mathf.Min(baseSpeed,speed):baseSpeed;
         chaseLeft-=dt;chaseDistance+=chasePace*.94f*dt;
         Status.avalanche=Mathf.Clamp01(1-(Status.metres-chaseDistance)/28);
-        if(Status.metres-chaseDistance<.75f&&fall<=0){Hit("avalanche",null);chaseDistance=Status.metres-21;}
+        if(Status.metres-chaseDistance<.75f&&fall<=0){Hit("avalanche");chaseDistance=Status.metres-21;}
         if(chaseLeft<=0&&crashTimer<=0){bonusPoints+=600*Mult;Status.avalanche=0;Notice("Ушёл от лавины!","chime");}
     }
     void SelectChallenge(int stage){

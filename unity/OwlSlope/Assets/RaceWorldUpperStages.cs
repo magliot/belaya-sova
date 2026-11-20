@@ -38,77 +38,106 @@ public partial class RaceWorld {
         }
         return layout;
     }
-    void Mountain(float y,int row){UpperRow(4,y,row);}
-    void Holiday(float y,int row){UpperRow(7,y,row);}
-    void UpperRow(int stage,float y,int row){
-        var layout=GetLayout(stage,Mathf.FloorToInt(y/400000));float original=stage*50000+row*1000,delta=y-original;
+    struct SummitTurn {public float stone,lane;}
+    readonly Dictionary<float,SummitTurn> summitTurns=new Dictionary<float,SummitTurn>();
+
+    float SummitBase(float metres){
+        float local=Mathf.Repeat(metres,2500),phase=Roll(seed,Mathf.FloorToInt(metres/20000),736)*6.28f;
+        return (3.0f*Mathf.Sin(local/71+phase)+.7f*Mathf.Sin(local/41-phase))*Smooth(local/33)*Smooth((2500-local)/35);
+    }
+
+    public float SummitLine(float metres){
+        float lane=SummitBase(metres),weight=0,target=0;
+        foreach(var pair in summitTurns){
+            float d=Mathf.Abs(metres-pair.Key);
+            if(d>=46)continue;
+            float blend=Smooth((46-d)/40);
+            weight+=blend;target+=pair.Value.lane*blend;
+        }
+        return weight>0?Mathf.Lerp(lane,target/weight,Mathf.Min(weight,1)):lane;
+    }
+
+    void PlanSummitTurns(Layout layout,float start,float delta){
+        // Lock the bypass before emitting any rewards in its approach. It stays fixed while in view.
+        foreach(var marker in layout.objects){
+            if(marker.laneAt<=0||marker.y!=marker.laneAt||marker.type!="rock")continue;
+            float at=(marker.y+delta)*.05f;
+            if(at<start-46||at>start+96||summitTurns.ContainsKey(at))continue;
+            float stone=(Mathf.Clamp(marker.laneBase+spawnLane*20,marker.laneMargin,400-marker.laneMargin)-200)*.05f;
+            float natural=SummitBase(at),side=natural<stone?-1:1;
+            if(Mathf.Abs(stone+side*2.95f)>6.3f)side=-side;
+            float lane=Mathf.Abs(natural-stone)>=2.95f?natural:stone+side*2.95f;
+            // Two adjacent stones form one chicane with a continuous clear side.
+            foreach(var other in summitTurns){
+                if(Mathf.Abs(at-other.Key)>=55)continue;
+                lane=other.Value.lane;
+                if(Mathf.Abs(stone-lane)<2.65f)stone=lane+(stone<lane?-2.95f:2.95f);
+                break;
+            }
+            summitTurns[at]=new SummitTurn{stone=stone,lane=lane};
+        }
+    }
+
+    static float BesideSummitLine(float x,float lane,float clearance){
+        if(Mathf.Abs(x-lane)>=clearance)return x;
+        float side=x>=lane?1:-1;
+        if(Mathf.Abs(lane+side*clearance)>10)side=-side;
+        return lane+side*clearance;
+    }
+
+    void Mountain(float y,int row){
+        var layout=GetLayout(4,Mathf.FloorToInt(y/400000));
+        float original=200000+row*1000,delta=y-original,start=y*.05f;
+        if(row==0)summitTurns.Clear();
+        PlanSummitTurns(layout,start,delta);
         foreach(var f in layout.objects){
             if(f.laneAt>0||f.y<original||f.y>=original+1000)continue;
-            float at=f.y+delta;
+            float at=f.y+delta,d=at*.05f,lane=SummitLine(d),x=(f.x-200)*.05f;
+            float Clear(float clearance)=>200+20*BesideSummitLine(x,lane,clearance);
             switch(f.type){
                 case "npc":{
                     string model=f.sit?"sitter":f.sb?(f.instr?"boardInstructor":f.kid?"boardKid":"snowboarder"):
                         f.kid?"kid":f.instr?"instructor":"skier";
-                    var o=Person(f.x,at,f.vy,model,f.amp,f.ph);o.walker=f.walker;o.yaw=f.face*Mathf.Rad2Deg;
+                    float actorX=Clear(f.vy==0?2.2f:3.5f);
+                    if(f.sit)foreach(var aid in layout.objects){
+                        if(aid.type!="aid"||Mathf.Abs(aid.y+12-f.y)>2)continue;
+                        float patientLane=SummitLine((aid.y+delta)*.05f)+(aid.x>200?2.45f:-2.45f);
+                        actorX=200+20*patientLane;break;
+                    }
+                    var o=Person(actorX,at,f.vy,model,Mathf.Min(f.amp,21),f.ph);o.walker=f.walker;o.yaw=f.face*Mathf.Rad2Deg;
                     if(f.walker)o.variant="walker";else if(model=="boardKid"&&f.vi%2==1)o.variant="boardKid1";break;}
-                case "ramp":Kicker(f.x,at,f.w>0?f.w:54,64,f.hh>0?f.hh:.75f);break;
-                case "gate":Entry("gate",f.x,at,f.gap,0,f.col!=0?"gateBlue":"gateRed");break;
-                case "snowman":Snowman(f.x,at);break;
-                case "rock":Rock(f.x,at,f.rockWide,f.r);break;
-                case "mogul":Entry("mogul",f.x,at,2*f.r,.4f,"mound"+Mathf.Clamp(f.profile,0,2));break;
-                case "cannon":Entry("cannon",f.x,at,28,2,f.x<200?"cannonLeft":"cannonRight");break;
-                case "fence":Entry("fence",f.x,at,f.x2-f.x1,1.4f,f.fenceStyle>0?"fence"+f.fenceStyle:"fence");break;
-                case "cat":Cat(f.x,at,f.vy);break;
-                case "dog":Entry("dog",f.x,at,24,.8f);break;
-                case "yeti":Entry("yeti",f.x,at,38,2);break;
-                case "coin":{var o=Entry("coin",f.x,at,22,f.air?1.8f:0);o.air=f.air;break;}
-                case "aid":case "thermos":case "gift":case "helmet":case "magnet":Entry(f.type,f.x,at,24,.85f);break;
+                case "ramp":Kicker(Clear(3.5f),at,f.w>0?f.w:54,64,f.hh>0?f.hh:.75f);break;
+                case "gate":Entry("gate",200+20*lane,at,f.gap,0,f.col!=0?"gateBlue":"gateRed");break;
+                case "snowman":Snowman(Clear(2.8f),at);break;
+                case "rock":Rock(Clear(2.65f),at,f.rockWide,f.r);break;
+                case "mogul":Entry("mogul",Clear(2.45f),at,2*f.r,.4f,"mound"+Mathf.Clamp(f.profile,0,2));break;
+                case "cannon":Entry("cannon",Clear(2.8f),at,28,2,f.x<200?"cannonLeft":"cannonRight");break;
+                case "fence":Entry("fence",Clear((f.x2-f.x1)*.025f+2.25f),at,f.x2-f.x1,1.4f,f.fenceStyle>0?"fence"+f.fenceStyle:"fence");break;
+                case "cat":Cat(Clear(5.7f),at,f.vy);break;
+                case "dog":Entry("dog",Clear(4.7f),at,24,.8f);break;
+                case "yeti":Entry("yeti",Clear(3.65f),at,38,2);break;
+                case "coin":Add("coin",d,lane,1.1f,0);break;
+                case "aid":case "gift":Add(f.type,d,lane,1.2f,.85f);break;
+                case "thermos":case "helmet":case "magnet":Entry(f.type,Clear(3.65f),at,24,.85f);break;
             }
         }
-        // Keep the stone, its three mandarins and the optional downstream stone in
-        // one spawn transaction even when an early mandarin crosses a row boundary.
-        float last=-1;
+        // Add the stone, its three mandarins and any downstream boulder as one group.
         foreach(var f in layout.objects){
-            if(f.laneAt<=0||f.laneAt==last||f.laneAt<original||f.laneAt>=original+1000)continue;
-            last=f.laneAt;SpawnAdaptive(layout,f,delta);
+            if(f.laneAt<=0||f.laneAt<original||f.laneAt>=original+1000)continue;
+            float d=(f.y+delta)*.05f;
+            var turn=summitTurns[(f.laneAt+delta)*.05f];
+            if(f.type=="coin")Add("coin",d,turn.lane,1.1f,0).bypass=true;
+            else if(f.type=="rock"){
+                float x=f.y==f.laneAt?turn.stone:BesideSummitLine((f.x-200)*.05f,SummitLine(d),2.75f);
+                Rock(200+20*x,f.y+delta,f.rockWide,f.r);
+            }
         }
-    }
-    static float LaneX(LegacyObject obj,float target,float direction){
-        if(obj.type=="rock"&&obj.y==obj.laneAt)return target;
-        float margin=obj.type=="coin"?40:50;
-        return Mathf.Clamp(target+direction*Mathf.Abs(obj.x-obj.laneBase),margin,400-margin);
-    }
-    bool PlacementFree(float x,float y,float radius,float length){
-        foreach(var other in Items){
-            if(other.consumed||(!Solid(other)&&other.kind!="gate"&&!other.bypass))continue;
-            float depth=other.length>0?other.length*.5f:other.kind=="rock"?1.2f:.75f;
-            if(Mathf.Abs(other.distance-y)>depth+length+.15f)continue;
-            if(other.kind=="gate"){
-                if(!other.stoneGate&&Mathf.Abs(Mathf.Abs(x-other.lane)-other.width*.5f)<radius+.45f)return false;
-            }else if(Mathf.Abs(other.lane-x)<radius+(other.bypass?.8f:other.width*.5f)+.15f)return false;
-        }
-        return true;
-    }
-    void SpawnAdaptive(Layout layout,LegacyObject marker,float delta){
-        float target=Mathf.Clamp(marker.laneBase+spawnLane*20,marker.laneMargin,400-marker.laneMargin);
-        float direction=target<200?1:-1;
-        bool Free(float toward){
-            foreach(var obj in layout.objects){
-                if(obj.laneAt!=marker.laneAt)continue;
-                float x=LaneX(obj,target,toward);
-                if(obj.type=="coin"&&Mathf.Abs(x-target)<38)return false;
-                if(!PlacementFree((x-200)*.05f,(obj.y+delta)*.05f,obj.type=="coin"?.8f:.75f,obj.type=="coin"?.55f:1.2f))return false;
-            }return true;
-        }
-        if(!Free(direction)){
-            direction=-direction;
-            if(!Free(direction))return;
-        }
-        foreach(var obj in layout.objects){
-            if(obj.laneAt!=marker.laneAt)continue;
-            float x=LaneX(obj,target,direction),y=obj.y+delta;
-            if(obj.type=="coin")Entry("coin",x,y,22,0).bypass=true;
-            else Rock(x,y,obj.rockWide,obj.r);
+        // Some of the archived sequences have no fruit between events. Leave a lead-in there.
+        for(int i=0;i<3;i++){
+            float d=start+8+16*i;
+            bool occupied=Array.Exists(layout.objects,o=>Mathf.Abs((o.y+delta)*.05f-d)<8&&
+                (o.type=="coin"||o.type=="aid"||o.type=="gift"));
+            if(!occupied)Add("coin",d,SummitLine(d),1.1f,0);
         }
     }
     float SummitField(float d,float lane){

@@ -41,7 +41,7 @@ public sealed class GroomerOptics : MonoBehaviour {
         roadBeam.range=25;roadBeam.color=new Color(1,.88f,.64f);roadBeam.intensity=75;roadBeam.shadows=LightShadows.None;
         roadBeam.renderMode=LightRenderMode.ForcePixel;roadBeam.enabled=false;
     }
-    public void IlluminateRoad(bool night){roadBeam.enabled=night;}
+    public void IlluminateRoad(float night){roadBeam.enabled=night>.001f;roadBeam.intensity=75*night;}
     void Lamp(string name,Vector3 anchor,float front,float radius,Material paint){
         var lamp=new GameObject(name);lamp.transform.SetParent(transform,false);
         lamp.transform.localPosition=anchor;lamp.transform.localRotation=Quaternion.LookRotation(Vector3.forward*front);
