@@ -5,6 +5,12 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 public static class BakeSlope {
+ [MenuItem("Owl/Build Telegram Web pilot")] public static void BuildWeb(){
+  if(!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.WebGL,BuildTarget.WebGL))throw new System.Exception("Install Web Build Support for this Unity editor");
+  var report=BuildPipeline.BuildPlayer(new[]{"Assets/Slope.unity"},"Builds/Web",BuildTarget.WebGL,BuildOptions.None);
+  if(report.summary.result!=UnityEditor.Build.Reporting.BuildResult.Succeeded)throw new System.Exception("Web build: "+report.summary.result);
+  Debug.Log("OWL WEB BUILT: "+report.summary.totalSize+" bytes");
+ }
  public static void RunAndBuild(){Run();BuildPlayer();}
  [MenuItem("Owl/Build Windows player")] public static void BuildPlayer(){
   PlayerSettings.fullScreenMode=FullScreenMode.Windowed;PlayerSettings.defaultScreenWidth=375;PlayerSettings.defaultScreenHeight=667;
