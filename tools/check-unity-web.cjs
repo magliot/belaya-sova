@@ -73,7 +73,7 @@ async function main(){
     await page.goto(base.href,{waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>window.__g?.()?.mode==='menu',null,{timeout:60000});
     assert.equal(await page.evaluate(()=>Telegram.WebApp.initDataUnsafe.start_param),'unity');
-    assert(await page.getByRole('link',{name:'Склон Unity'}).isVisible());
+    assert(await page.getByRole('link',{name:'Полная игра · Unity'}).isVisible());
     await page.locator('#bPlay').tap();
     await page.waitForFunction(()=>window.__g?.()?.mode==='play'&&window.__g().y>10,null,{timeout:90000});
     assert.equal(new URL(page.url()).pathname,base.pathname);
