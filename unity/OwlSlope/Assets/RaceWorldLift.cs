@@ -7,14 +7,19 @@ public partial class RaceWorld {
     readonly Transform[] towers=new Transform[TowerCount],chairs=new Transform[ChairCount*2];
     readonly Vector3[,] anchors=new Vector3[2,TowerCount];
     readonly LineRenderer[] cables=new LineRenderer[2];
+    Material cablePaint;
     int firstTower=int.MinValue,liftSeed;
     void PrepareLift(){
         lift=new GameObject("Кресельный подъёмник");lift.transform.SetParent(transform,false);
+        if(!cablePaint){
+            cablePaint=new Material(Paint("",1,false,0));cablePaint.name="Lift cable";
+            cablePaint.SetFloat("_FadeCable",1);
+        }
         for(int i=0;i<towers.Length;i++)towers[i]=CreateVisual("liftTower",lift.transform).transform;
         for(int line=0;line<2;line++){
             var go=new GameObject("Трос");go.transform.SetParent(lift.transform,false);
-            var wire=go.AddComponent<LineRenderer>();wire.sharedMaterial=Paint("",0,false,0);
-            wire.startColor=wire.endColor=new Color32(51,58,68,255);wire.startWidth=wire.endWidth=.05f;
+            var wire=go.AddComponent<LineRenderer>();wire.sharedMaterial=cablePaint;
+            wire.startColor=wire.endColor=new Color32(74,88,102,230);wire.startWidth=wire.endWidth=.07f;
             wire.positionCount=TowerCount;wire.useWorldSpace=true;wire.shadowCastingMode=ShadowCastingMode.Off;
             cables[line]=wire;
             for(int i=0;i<ChairCount;i++){

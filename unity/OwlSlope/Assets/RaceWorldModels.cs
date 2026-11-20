@@ -11,6 +11,7 @@ public partial class RaceWorld {
     sealed class Model {
         public Mesh mesh;
         public Material[] materials;
+        public Bounds glow;
     }
     static readonly Dictionary<string,Model> models=new Dictionary<string,Model>();
     static readonly Dictionary<string,Material> paints=new Dictionary<string,Material>();
@@ -32,21 +33,37 @@ public partial class RaceWorld {
         if(!asset)throw new InvalidDataException("Missing course model: "+key);
         var positions=new List<Vector3>();var normals=new List<Vector3>();var uv=new List<Vector2>();var colors=new List<Color32>();
         var mats=new List<Material>();var faces=new List<List<int>>();var shapes=new Dictionary<string,Dictionary<int,Vector3>>();
+        Bounds pickupGlow=default;
+        bool pickup=key=="thermos"||key=="helmet"||key=="aid"||key=="gift"||key=="feather";
         using(var input=new BinaryReader(new MemoryStream(asset.bytes))){
             int parts=input.ReadInt32();
             for(int i=0;i<parts;i++){
                 string map=Text(input);int blend=input.ReadInt32();bool lit=input.ReadInt32()!=0;int glow=input.ReadInt32();
-                var mat=Paint(map,blend,lit,glow);int group=mats.IndexOf(mat);
-                if(group<0){group=mats.Count;mats.Add(mat);faces.Add(new List<int>());}
                 int count=input.ReadInt32(),first=positions.Count;
+                // The old renderer supplied a camera-facing sprite and placed a painted shadow on a flat floor.
+                // A rotating Unity mesh cannot use either of these planes on the sloped snow.
+                bool glowSprite=pickup&&blend==2&&count==4&&map=="d4b9333d982a875f";
+                bool shadowCard=key.StartsWith("tube",StringComparison.Ordinal)&&blend==1&&map=="d2e6db75e1a2a063";
+                bool omit=glowSprite||shadowCard;
                 for(int j=0;j<count;j++)positions.Add(new Vector3(input.ReadSingle(),input.ReadSingle(),input.ReadSingle()));
                 for(int j=0;j<count;j++)normals.Add(new Vector3(input.ReadSByte(),input.ReadSByte(),input.ReadSByte()).normalized);
                 for(int j=0;j<count;j++)uv.Add(new Vector2(input.ReadSingle(),input.ReadSingle()));
                 for(int j=0;j<count;j++)colors.Add(new Color32(input.ReadByte(),input.ReadByte(),input.ReadByte(),input.ReadByte()));
-                int indices=input.ReadInt32();for(int j=0;j<indices;j++)faces[group].Add(first+input.ReadInt32());
+                int indices=input.ReadInt32();
+                if(omit)input.BaseStream.Seek(indices*4,SeekOrigin.Current);
+                else{
+                    var mat=Paint(map,blend,lit,glow);int group=mats.IndexOf(mat);
+                    if(group<0){group=mats.Count;mats.Add(mat);faces.Add(new List<int>());}
+                    for(int j=0;j<indices;j++)faces[group].Add(first+input.ReadInt32());
+                }
                 int morphs=input.ReadInt32();for(int m=0;m<morphs;m++){
                     string name=Text(input);if(!shapes.TryGetValue(name,out var delta)){delta=new Dictionary<int,Vector3>();shapes.Add(name,delta);}
                     for(int j=0;j<count;j++){var v=new Vector3(input.ReadInt16(),input.ReadInt16(),input.ReadInt16())*.0001f;if(v!=Vector3.zero)delta[first+j]=v;}
+                }
+                if(omit){
+                    if(glowSprite){pickupGlow=new Bounds(positions[first],Vector3.zero);
+                        for(int j=1;j<count;j++)pickupGlow.Encapsulate(positions[first+j]);}
+                    positions.RemoveRange(first,count);normals.RemoveRange(first,count);uv.RemoveRange(first,count);colors.RemoveRange(first,count);
                 }
             }
         }
@@ -66,13 +83,41 @@ public partial class RaceWorld {
                 banner.renderQueue=(int)RenderQueue.Transparent;mats[i]=banner;
             }
         }
-        mesh.RecalculateBounds();var model=new Model{mesh=mesh,materials=mats.ToArray()};models.Add(key,model);return model;
+        mesh.RecalculateBounds();var model=new Model{mesh=mesh,materials=mats.ToArray(),glow=pickupGlow};models.Add(key,model);return model;
+    }
+    static Mesh glowShell;
+    static readonly Dictionary<string,Material> glowPaints=new Dictionary<string,Material>();
+    static void AddPickupGlow(GameObject item,Bounds original){
+        if(!glowShell){
+            const int rings=12,sides=20;
+            var v=new List<Vector3>();var ix=new List<int>();
+            for(int r=0;r<=rings;r++)for(int s=0;s<sides;s++){
+                float a=Mathf.PI*r/rings,b=2*Mathf.PI*s/sides;
+                v.Add(new Vector3(Mathf.Sin(a)*Mathf.Cos(b),Mathf.Cos(a),Mathf.Sin(a)*Mathf.Sin(b)));
+                if(r==0)continue;
+                int i=(r-1)*sides+s,k=(r-1)*sides+(s+1)%sides;
+                ix.Add(i);ix.Add(k);ix.Add(i+sides);ix.Add(k);ix.Add(k+sides);ix.Add(i+sides);
+            }
+            glowShell=new Mesh{name="Pickup glow sphere"};glowShell.SetVertices(v);glowShell.SetNormals(v);glowShell.SetTriangles(ix,0);
+        }
+        if(!glowPaints.TryGetValue(item.name,out var paint)){
+            paint=new Material(Resources.Load<Shader>("Race/PickupGlow"));
+            var tint=item.name=="helmet"?new Color(.40f,.82f,1):item.name=="aid"?new Color(.40f,1,.65f):
+                item.name=="gift"?new Color(1,.49f,.68f):new Color(1,.73f,.26f);
+            paint.SetColor("_Tint",tint);glowPaints.Add(item.name,paint);
+        }
+        var shell=new GameObject("Pickup glow");shell.transform.SetParent(item.transform,false);
+        shell.transform.localPosition=original.center;shell.transform.localScale=Vector3.one*Mathf.Max(original.extents.x,original.extents.y);
+        shell.AddComponent<MeshFilter>().sharedMesh=glowShell;
+        var sr=shell.AddComponent<MeshRenderer>();sr.sharedMaterial=paint;sr.shadowCastingMode=ShadowCastingMode.Off;sr.receiveShadows=false;
     }
     public GameObject CreateVisual(string key,Transform parent){
         var model=LoadModel(key);var obj=new GameObject(key);obj.transform.SetParent(parent,false);Renderer renderer;
         if(model.mesh.blendShapeCount>0){
             var skin=obj.AddComponent<SkinnedMeshRenderer>();skin.sharedMesh=model.mesh;skin.localBounds=model.mesh.bounds;renderer=skin;
         }else{obj.AddComponent<MeshFilter>().sharedMesh=model.mesh;renderer=obj.AddComponent<MeshRenderer>();}
-        renderer.sharedMaterials=model.materials;return obj;
+        renderer.sharedMaterials=model.materials;
+        if(model.glow.size.sqrMagnitude>0)AddPickupGlow(obj,model.glow);
+        return obj;
     }
 }

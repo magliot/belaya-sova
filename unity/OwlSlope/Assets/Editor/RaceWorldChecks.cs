@@ -43,6 +43,73 @@ public static class RaceWorldChecks {
         Require(Mathf.Abs(right-left-6)<.035f&&Mathf.Abs(right-centre-3)<.035f,"lane targeting at "+marker);
         Require(Mathf.Abs(Spawn("normal",-3)-left)<.001f,"seed+steering failed replay at "+marker);
     }
+    static float RubberGap(SkinnedMeshRenderer skin,MeshCollider piste){
+        Mesh mesh=new Mesh();
+        float low=float.PositiveInfinity;
+        try{
+            skin.BakeMesh(mesh);
+            foreach(var v in mesh.vertices){
+                if(v.y>.12f)continue;
+                var p=skin.transform.TransformPoint(v);
+                if(piste.Raycast(new Ray(p+Vector3.up*3,Vector3.down),out var hit,6))low=Mathf.Min(low,p.y-hit.point.y);
+            }
+        }finally{UnityEngine.Object.Destroy(mesh);}
+        return low;
+    }
+    public static void CheckSnowContact(MountainRace race){
+        var world=race.World;
+        race.StartRace("{\"mode\":\"normal\",\"seed\":1911}");
+        var tube=world.Items.First(o=>o.kind=="tube");
+        var piste=world.transform.Find("Groomed run").GetComponent<MeshFilter>();
+        var surface=piste.gameObject.AddComponent<MeshCollider>();int measured=0;float maxError=0;
+        float worstTilt=0,worstRubberGap=0;
+        try{
+            for(int i=1;i<=180;i++){
+                world.Refresh(i*.25f,i/60f);
+                var t=tube.Visual.transform;
+                Require(Vector3.Distance(t.position,world.SnowSurface(tube.distance,tube.lane))<.005f,"NPC tube left the snow");
+                worstTilt=Mathf.Max(worstTilt,Vector3.Angle(t.up,world.SnowFrame(tube.distance,tube.lane)*Vector3.up));
+                if(i%45==0){
+                    surface.sharedMesh=null;surface.sharedMesh=piste.sharedMesh;
+                    worstRubberGap=Mathf.Max(worstRubberGap,Mathf.Abs(RubberGap((SkinnedMeshRenderer)tube.Visual,surface)));
+                }
+            }
+            Require(worstTilt<3.5f,"NPC tube rolled under the snow by "+worstTilt+" degrees");
+            Require(!tube.Visual.sharedMaterials.Any(m=>m.renderQueue>2500),"baked tube shadow intersects the snow");
+            race.StartRace("{\"mode\":\"tubing\",\"seed\":1911}");race.BeginSteer();race.DragSteer(.22f);
+            for(int i=0;i<36;i++)race.Advance(1f/60);
+            var riderTube=race.transform.Find("Selected rider").GetComponentsInChildren<SkinnedMeshRenderer>()
+                .First(s=>s.sharedMesh.name.StartsWith("tube",StringComparison.Ordinal));
+            surface.sharedMesh=null;surface.sharedMesh=piste.sharedMesh;
+            worstRubberGap=Mathf.Max(worstRubberGap,Mathf.Abs(RubberGap(riderTube,surface)));
+            Require(worstRubberGap<.08f,"rubber/snow separation at contact "+worstRubberGap+" m");
+            race.StartRace("{\"mode\":\"review\",\"seed\":1911}");
+            foreach(float at in new[]{2530f,5100f,7620f,15500f}){
+                race.Seek(at);surface.sharedMesh=null;surface.sharedMesh=piste.sharedMesh;
+                foreach(var item in world.Items.Where(o=>o.kind=="ramp"||o.kind=="rail")){
+                    if(item.distance<at-18||item.distance>at+105)continue;
+                    var mesh=item.Visual.GetComponent<MeshFilter>().sharedMesh;
+                    // Read actual bottom vertices on both sides of the mesh, raycast against the rendered snow.
+                    var verts=mesh.vertices;var colors=mesh.colors32;
+                    for(int i=0;i<verts.Length;i++)if(colors[i].r==44){
+                        var p=item.Visual.transform.TransformPoint(verts[i]);
+                        Require(surface.Raycast(new Ray(p+Vector3.up*5,Vector3.down),out var hit,12),"ramp lacks snow under footing");
+                        maxError=Mathf.Max(maxError,Mathf.Abs(hit.point.y-p.y-.12f));measured++;
+                    }
+                }
+            }
+            Require(measured>=42&&maxError<.012f,"ramp/snow skirt contacts "+measured+", max error "+maxError);
+        }finally{UnityEngine.Object.Destroy(surface);}
+        foreach(var key in new[]{"thermos","helmet","aid","gift","feather"}){
+            var item=world.CreateVisual(key,world.transform);var glow=item.transform.Find("Pickup glow");
+            Require(glow&&glow.GetComponent<MeshFilter>().sharedMesh.bounds.size.z>1,"missing volume for "+key);
+            Require(glow.GetComponent<Renderer>().sharedMaterial.shader.isSupported,"unsupported pickup shader "+key);
+            UnityEngine.Object.Destroy(item);
+        }
+        Debug.Log("SNOW CONTACT PASS: tube max roll "+worstTilt.ToString("F2")+" degrees, max rubber/snow gap "+
+            (worstRubberGap*1000).ToString("F0")+" mm; "+measured+
+            " ramp-footing raycasts, max error "+(1000*maxError).ToString("F1")+" mm; 5 volumetric pickup meshes");
+    }
     public static void RunAt(RaceWorld world){
         var race=world.GetComponent<MountainRace>();
         Require(race&&race.View,"requires the initialized Mountain race scene");
@@ -92,6 +159,7 @@ public static class RaceWorldChecks {
             world.Refresh(850,80);Require(world.Items.Any(o=>o.kind=="gift"),"tubing gift finish");
             world.Configure(1911,"sled");
             Require(world.Items.Any(o=>o.kind=="snowman")&&world.Items.Any(o=>o.kind=="gift"),"snowmobile targets and gifts");
+            CheckSnowContact(race);
             Debug.Log("RACE WORLD CHECK PASS: 8 stages, two seeds, signs, portrait people, moving riders, sprint and bonuses");
         }finally{race.View.aspect=aspect;race.Menu();}
     }

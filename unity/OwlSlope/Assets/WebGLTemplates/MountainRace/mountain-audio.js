@@ -1,8 +1,9 @@
 // The Web player uses the same three audio channels and recorded voices as the original.
 (() => {
   const save={muted:false,vol:{music:6,sfx:8,vox:8}};
-  let state={phase:'menu',hero:'bear'},active=false,lastEvent=-1,lastStage=-1;
-  let song=null,songKey='',voicePlayer=null,lastVoice=-Infinity;
+  let state={phase:'menu',hero:'bear'},active=false,lastEvent=-1;
+  let song=null,songKey='',musicDuck=null,voice=null,voiceTicket=0,lastVoice=-Infinity;
+  const samples=new Map();
   const rare=new Map();
 let engG=null,engP=null,rumG=null;const engO=[];
 let AC=null,master=null,windG=null,carveG=null,windF=null,noiseBuf=null,sfxBus=null,voxBus=null,musBus=null;
@@ -12,6 +13,7 @@ function applyVol(){if(!AC)return;const t=AC.currentTime;for(const [k,b] of [['m
 function initAudio(){
   if(AC){if(AC.state==='suspended')AC.resume().catch(()=>{});return;}
   try{AC=new (window.AudioContext||window.webkitAudioContext)();}catch(e){AC=null;return;}
+  if(AC.state==='suspended')AC.resume().catch(()=>{});
   master=AC.createGain();master.gain.value=save.muted?0:0.65;master.connect(AC.destination);
   sfxBus=AC.createGain();voxBus=AC.createGain();musBus=AC.createGain();for(const b of[sfxBus,voxBus,musBus])b.connect(master);applyVol();
   const len=AC.sampleRate*2;noiseBuf=AC.createBuffer(1,len,AC.sampleRate);const d=noiseBuf.getChannelData(0);
@@ -54,9 +56,19 @@ const SFX={
   chime(){tone(1046,0.5,0.04);tone(1568,0.6,0.03,'sine',null,0.12);},
   wobble(){noise(0.25,0.18,'lowpass',900,300);}
 };
-// мягкий «поп» на всех кнопках меню и окон: пузырёк вверх + лёгкий звон (выбор героя звучит по-своему)
-
-  function level(channel){return save.muted?0:Math.pow(save.vol[channel]/10,1.6)*VOLK[channel];}
+  function loadSample(key){
+    if(samples.has(key))return samples.get(key);
+    const pending=fetch('audio/'+key+'.mp3').then(response=>{
+      if(!response.ok)throw Error(response.status);
+      return response.arrayBuffer();
+    }).then(bytes=>AC.decodeAudioData(bytes)).catch(()=>{samples.delete(key);return null;});
+    samples.set(key,pending);return pending;
+  }
+  function stopVoice(){
+    voiceTicket++;
+    if(voice){voice.onended=null;voice.stop();voice.disconnect();voice=null;}
+    if(musicDuck)musicDuck.gain.setTargetAtTime(1,AC.currentTime,.15);
+  }
   function settings(profile){
     save.muted=Boolean(profile.muted);
     for(const key of ['music','sfx','vox']){
@@ -64,57 +76,84 @@ const SFX={
       if(Number.isFinite(value))save.vol[key]=Math.max(0,Math.min(10,value));
     }
     if(AC){master.gain.setTargetAtTime(save.muted?0:.65,AC.currentTime,.05);applyVol();}
-    if(voicePlayer)voicePlayer.volume=level('vox');syncMusic();
+    if(save.muted||!save.vol.vox)stopVoice();
+    syncMusic();
   }
   function syncMusic(){
     const key=state.phase==='menu'?'menu':state.phase==='play'?'run':'';
-    if(!active||document.hidden||!key||!level('music')){song?.pause();return;}
-    if(songKey!==key){
-      song?.pause();songKey=key;song=new Audio('audio/music_'+key+'.mp3');song.loop=true;
+    if(!active||!AC||document.hidden||!key||save.muted||!save.vol.music){song?.pause();return;}
+    if(!song){
+      song=new Audio();song.loop=true;
+      musicDuck=AC.createGain();
+      AC.createMediaElementSource(song).connect(musicDuck).connect(musBus);
     }
-    song.volume=level('music')*.65;
+    if(songKey!==key){songKey=key;song.src='audio/music_'+key+'.mp3';}
     if(song.paused)song.play().catch(()=>{});
   }
-  function speak(key){
+  async function speak(key,priority=false){
     const now=performance.now();
-    if(!active||save.muted||document.hidden||now-lastVoice<2500)return;
-    if((key==='polite'||key==='miss')&&now-(rare.get(key)??-Infinity)<40000)return;
-    lastVoice=now;rare.set(key,now);voicePlayer?.pause();
-    voicePlayer=new Audio('audio/'+state.hero+'_'+key+'.mp3');
-    voicePlayer.volume=level('vox');voicePlayer.play().catch(()=>{});
+    if(!active||save.muted||!save.vol.vox||document.hidden)return;
+    const cooldown={polite:40000,miss:40000,warn:16000,jump:14000}[key]||0;
+    if(!priority&&(voice||now-lastVoice<3000||now-(rare.get(key)??-Infinity)<cooldown))return;
+    stopVoice();const ticket=voiceTicket;
+    lastVoice=now;rare.set(key,now);
+    const buffer=await loadSample(state.hero+'_'+key);
+    if(!buffer||ticket!==voiceTicket||state.phase!=='play'||document.hidden)return;
+    const source=AC.createBufferSource();source.buffer=buffer;source.connect(voxBus);voice=source;
+    musicDuck?.gain.setTargetAtTime(.38,AC.currentTime,.045);
+    source.onended=()=>{
+      source.disconnect();if(voice!==source)return;
+      voice=null;musicDuck?.gain.setTargetAtTime(1,AC.currentTime,.18);
+    };
+    source.start();
   }
-  function playS(_,rate,volume){
-    if(!active||!level('sfx'))return false;
-    const sound=new Audio('audio/land.mp3');sound.playbackRate=rate||1;
-    sound.volume=Math.min(1,(volume??.4)*level('sfx'));sound.play().catch(()=>{});return true;
+  let landingBuffer=null;
+  function playS(_,rate,volume,delay=0){
+    if(!landingBuffer||save.muted||!save.vol.sfx)return false;
+    const source=AC.createBufferSource(),gain=AC.createGain();
+    source.buffer=landingBuffer;source.playbackRate.value=rate;gain.gain.value=volume;
+    source.connect(gain).connect(sfxBus);source.onended=()=>{source.disconnect();gain.disconnect();};
+    source.start(AC.currentTime+delay);return true;
   }
   function update(next){
-    const oldPhase=state.phase;state=next;
-    if(oldPhase!==next.phase){syncMusic();if(next.phase==='menu'||next.phase==='play'&&oldPhase!=='pause')lastEvent=-1;}
+    const previous=state;state=next;
+    if(previous.phase!==next.phase){
+      if(next.phase!=='play'||previous.phase!=='pause')stopVoice();
+      syncMusic();
+    }
     if(!AC)return;
     const riding=next.phase==='play'&&!document.hidden&&!save.muted;
     const t=AC.currentTime;
-    windG.gain.setTargetAtTime(riding?.015+.025*Math.min(1,(next.speed||0)/80):0,t,.15);
+    const storm=next.stage===4&&next.mode==='normal'?Math.abs(.75*Math.sin(next.elapsed*.55)+.25*Math.sin(next.elapsed*1.7)):0;
+    windF.frequency.setTargetAtTime(420+storm*340,t,.3);
+    windG.gain.setTargetAtTime(riding?.015+.025*Math.min(1,(next.speed||0)/80)+.09*storm:0,t,.15);
     carveG.gain.setTargetAtTime(riding&&!next.air?.05*Math.abs(next.edge||0):0,t,.08);
     const proximity=next.mode==='sled'?.65:(next.engineNear||0);
     engG.gain.setTargetAtTime(riding?.2*proximity*proximity:0,t,.10);
     engP?.pan.setTargetAtTime(next.enginePan||0,t,.1);
     rumG.gain.setTargetAtTime(riding?.16*(next.avalanche||0):0,t,.12);
-    if(next.phase==='play'&&lastStage!==-1&&lastStage!==next.stage)speak('stage');
-    lastStage=next.phase==='play'?next.stage:-1;
-    if(!next.cue||next.eventId===lastEvent||document.hidden)return;
+    if(!riding){lastEvent=next.eventId;return;}
+    // Several contacts can share one HUD snapshot. The pickup counter survives a later cue in that frame.
+    if(next.feather&&next.feathers>(previous.feathers||0)){
+      lastEvent=next.eventId;SFX.feather();speak('feather',true);return;
+    }
+    if(!next.cue||next.eventId===lastEvent)return;
     lastEvent=next.eventId;
     const key=next.cue;
+    if(key==='feather')return;
     if(key==='gate')SFX.gate(Math.max(1,next.combo||1),false);
     else if(Object.hasOwn(SFX,key))SFX[key]();
-    if(['start','jump','crash','helmet','fis','record','polite','warn','miss','feather'].includes(key))speak(key);
+    if(['start','jump','crash','helmet','fis','record','polite','warn','miss','stage'].includes(key))speak(key,key==='start');
   }
-  function activate(){active=true;initAudio();syncMusic();}
+  function activate(){
+    active=true;initAudio();syncMusic();
+    if(AC&&!samples.has('land'))loadSample('land').then(buffer=>{landingBuffer=buffer;});
+  }
   document.addEventListener('pointerdown',activate,{passive:true});
   document.addEventListener('keydown',activate);
   document.addEventListener('visibilitychange',()=>{
-    if(document.hidden){song?.pause();voicePlayer?.pause();AC?.suspend().catch(()=>{});}
-    else{syncMusic();}
+    if(document.hidden){song?.pause();stopVoice();AC?.suspend().catch(()=>{});}
+    else if(active){initAudio();syncMusic();}
   });
   window.MountainAudio={settings,update};
 })();

@@ -10,10 +10,11 @@ public partial class MountainRace : MonoBehaviour {
         public int seed=1911, sensitivity=4, helmets, boost, mag, collectedLetters;
     }
     [Serializable] public class State {
-        public string phase="menu",hero="bear",mode="normal",message="",cue="";
+        public string phase="menu",hero="bear",mode="normal",courseMode="normal",message="",cue="",nextLetter="";
         public int seed,score,coins,helmets,stage,gates,tricks,rings,combo,maxCombo,polite,gifts,snowmen,
             feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds;
-        public float metres,elapsed,engineNear,enginePan,avalanche,edge;
+        public float metres,elapsed,engineNear,enginePan,avalanche,edge,boostSeconds,magnetSeconds,chaseSeconds,chaseGap;
+        public int letterSide;
         public bool air,boost,feather,goldenOwl,tubingUnlocked,sledUnlocked;
         public int[] fis=Array.Empty<int>();
     }
@@ -166,6 +167,16 @@ public partial class MountainRace : MonoBehaviour {
     void Publish(){
         Status.score=Mathf.FloorToInt(Status.metres)+bonusPoints;Status.speed=Mathf.RoundToInt(speed*3.6f);
         Status.air=airborne;Status.boost=boost>0;Status.edge=angle;
+        Status.courseMode=CourseMode;
+        Status.boostSeconds=Mathf.Max(0,boost);Status.magnetSeconds=Mathf.Max(0,magnet);
+        Status.chaseSeconds=Mathf.Max(0,chaseLeft);Status.chaseGap=Mathf.Max(0,Status.metres-chaseDistance);
+        Status.nextLetter="";Status.letterSide=0;
+        if(!IsMenu && World) foreach(var item in World.Items){
+            if(item.kind!="letter"||item.consumed||item.distance<=Status.metres||item.distance>=Status.metres+75)continue;
+            Status.nextLetter=item.character;
+            Status.letterSide=item.lane<lane?-1:1;
+            break;
+        }
         Status.multiplier=BonusMode?Mathf.Min(4,1+(Status.elapsed-lastReward<=3?rewardChain:0)/5):Mult;
         Status.tubingUnlocked=Status.feather;Status.sledUnlocked=Status.feather||Status.goldenOwl;
 #if UNITY_WEBGL && !UNITY_EDITOR

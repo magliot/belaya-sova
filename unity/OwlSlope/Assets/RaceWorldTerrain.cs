@@ -80,6 +80,35 @@ public partial class RaceWorld {
     }
     static readonly int[] sides={-1,1};
     static readonly float[] columns={-54,-26,-16,-13,-11,-9.4f,-7.5f,-6,-4.5f,-3,-1.5f,0,1.5f,3,4.5f,6,7.5f,9.4f,11,13,16,26,54};
+    Vector3[] snowVertices;
+    float firstSnowRow;
+    static float ColumnLane(int column,float width){
+        float x=columns[column];return Mathf.Abs(x)<=11?x*width/22:x;
+    }
+    // Use the very triangles drawn under the runner, including banks, moguls and narrow forest stretches.
+    public Vector3 SnowSurface(float d,float lane){
+        float lower=Mathf.Floor(d*.5f)*2,t=(d-lower)*.5f;
+        float width0=WidthAt(lower),width1=WidthAt(lower+2),width=Mathf.Lerp(width0,width1,t);
+        int lo=0,hi=columns.Length-1;
+        while(hi-lo>1){int mid=(lo+hi)/2;if(lane<ColumnLane(mid,width))hi=mid;else lo=mid;}
+        float u=Mathf.InverseLerp(ColumnLane(lo,width),ColumnLane(hi,width),lane);
+        int row=(int)((lower-firstSnowRow)*.5f);
+        Vector3 p00,p10,p01,p11;
+        if(snowVertices!=null&&row>=0&&row<104){
+            int a=row*columns.Length+lo,b=a+columns.Length;
+            p00=snowVertices[a];p10=snowVertices[a+1];p01=snowVertices[b];p11=snowVertices[b+1];
+        }else{
+            // A seeded row can queue a jump beyond the end of the current snow patch.
+            p00=SampleGround(lower,ColumnLane(lo,width0));p10=SampleGround(lower,ColumnLane(hi,width0));
+            p01=SampleGround(lower+2,ColumnLane(lo,width1));p11=SampleGround(lower+2,ColumnLane(hi,width1));
+        }
+        return u+t<=1?p00+(p10-p00)*u+(p01-p00)*t:p11+(p01-p11)*(1-u)+(p10-p11)*(1-t);
+    }
+    public Quaternion SnowFrame(float d,float lane){
+        var forward=SnowSurface(d+.65f,lane)-SnowSurface(d-.65f,lane);
+        var across=SnowSurface(d,lane+.55f)-SnowSurface(d,lane-.55f);
+        return Quaternion.LookRotation(forward,Vector3.Cross(forward,across));
+    }
     Material SnowPaint(string key,Color color){var m=new Material(Resources.Load<Material>("SlopeLit"));m.color=color;
         m.mainTexture=Resources.Load<Texture2D>("Art/"+key);m.SetFloat("_Smoothness",.06f);return m;}
     void UpdateTerrain(float centre){
@@ -94,10 +123,11 @@ public partial class RaceWorld {
         for(int i=0;i<rows;i++){
             float d=centre-50+2*i,half=WidthAt(d)*.5f;
             for(int j=0;j<cols;j++){
-                float x=columns[j];if(Mathf.Abs(x)<=11)x*=half/11;
+                float x=ColumnLane(j,half*2);
                 points[i*cols+j]=SampleGround(d,x);uv[i*cols+j]=new Vector2(x/4.2f,d/10);
             }
         }
+        snowVertices=points;firstSnowRow=centre-50;
         terrain.vertices=points;terrain.uv=uv;
         if(terrain.GetIndexCount(0)==0){
             var middle=new List<int>();var banks=new List<int>();
@@ -119,7 +149,8 @@ public partial class RaceWorld {
             mesh.uv=new[]{Vector2.zero,Vector2.up,Vector2.one,Vector2.right,Vector2.zero,Vector2.up,Vector2.one,Vector2.right};
             mesh.colors=new[]{Color.white,Color.white,Color.white,Color.white,Color.white,Color.white,Color.white,Color.white};
             mesh.triangles=new[]{0,1,2,0,2,3,4,5,6,4,6,7};mesh.RecalculateNormals();mesh.RecalculateBounds();cards[key]=mesh;
-            var material=new Material(Resources.Load<Shader>("Race/WorldObject"));material.SetTexture("_BaseMap",tex);material.SetFloat("_Lit",.2f);trees[key]=material;
+            var material=new Material(Resources.Load<Shader>("Race/WorldObject"));material.SetTexture("_BaseMap",tex);
+            material.SetFloat("_Lit",.2f);material.SetFloat("_LeafCoverage",1);trees[key]=material;
         }
         var obj=new GameObject(key);obj.transform.SetParent(transform,false);obj.AddComponent<MeshFilter>().sharedMesh=mesh;
         var mr=obj.AddComponent<MeshRenderer>();mr.sharedMaterial=trees[key];mr.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;return obj;
@@ -150,18 +181,29 @@ public partial class RaceWorld {
     GameObject Ramp(RaceItem item){
         bool rail=item.kind=="rail";const int rows=13;
         float half=item.width*.5f,len=item.length;
+        float[] cross={-half,-half,-half*.90f,0,half*.90f,half,half};
+        int cols=cross.Length;
+        Vector3 origin=SnowSurface(item.distance,item.lane);
         var positions=new List<Vector3>();var triangles=new List<int>();var colors=new List<Color32>();var uv=new List<Vector2>();
         for(int r=0;r<=rows;r++){
             float t=(float)r/rows,y=rail?item.height*Mathf.Clamp01(Mathf.Min(t,1-t)*len/2):
                 item.height*t*(item.park?.65f+.35f*t:1);
             float z=(t-.5f)*len;
-            foreach(float x in new[]{-half,-half,-half*.90f,half*.90f,half,half}){
-                int c=positions.Count%6;positions.Add(new Vector3(x,c==0||c==5?0:y+.02f,z));uv.Add(new Vector2(x/4.2f,z/10));
-                colors.Add(c==0||c==5?new Color32(44,71,96,255):c==1||c==4||r==rows?new Color32(255,173,43,255):new Color32(225,241,255,255));
+            for(int c=0;c<cols;c++){
+                float x=cross[c];bool skirt=c==0||c==cols-1;
+                Vector3 basePoint=SnowSurface(item.distance+z,item.lane+x)-origin;
+                positions.Add(basePoint+Vector3.up*(skirt?-.12f:y+.015f));uv.Add(new Vector2(x/4.2f,z/10));
+                colors.Add(skirt?new Color32(44,71,96,255):c==1||c==cols-2||r==rows?new Color32(255,173,43,255):new Color32(225,241,255,255));
             }
         }
-        for(int i=0;i<rows;i++)for(int j=0;j<5;j++){int a=i*6+j;triangles.AddRange(new[]{a,a+6,a+1,a+1,a+6,a+7});}
-        int tip=rows*6;triangles.AddRange(new[]{tip,tip+1,tip+4,tip,tip+4,tip+5});
+        for(int i=0;i<rows;i++)for(int j=0;j<cols-1;j++){int a=i*cols+j;triangles.AddRange(new[]{a,a+cols,a+1,a+1,a+cols,a+cols+1});}
+        // Close the lip all the way down to the snow across the complete ramp width.
+        int tip=rows*cols,baseStart=positions.Count;
+        for(int j=1;j<cols-1;j++){
+            positions.Add(positions[tip+j]-Vector3.up*(item.height*(rail?0:1)+.135f));
+            uv.Add(uv[tip+j]);colors.Add(new Color32(77,102,127,255));
+            if(j>1){int b=baseStart+j-2;triangles.AddRange(new[]{tip+j-1,tip+j,b,b,tip+j,b+1});}
+        }
         var mesh=new Mesh{name=item.kind};mesh.SetVertices(positions);mesh.SetColors(colors);mesh.SetUVs(0,uv);
         mesh.SetTriangles(triangles,0);mesh.RecalculateNormals();mesh.RecalculateBounds();
         var obj=new GameObject(item.kind);obj.transform.SetParent(transform,false);obj.AddComponent<MeshFilter>().sharedMesh=mesh;

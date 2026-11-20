@@ -25,7 +25,10 @@ public partial class MountainRace {
 
     void SetupCamera(){
         var go=new GameObject("Mountain camera");go.transform.SetParent(transform,false);
-        View=go.AddComponent<Camera>();View.tag="MainCamera";View.fieldOfView=72;View.nearClipPlane=.06f;View.farClipPlane=300;
+        View=go.AddComponent<Camera>();View.tag="MainCamera";View.fieldOfView=72;
+        // The chase and portrait cameras both stand metres from the rider. Give the
+        // depth buffer more precision where skis, treads and snow meet down the slope.
+        View.nearClipPlane=.35f;View.farClipPlane=250f;
         dances=GetComponent<MountainDances>();
         actorRoot=new GameObject("Selected rider").transform;actorRoot.SetParent(transform,false);
         SetupWeather();SetupTracks();
@@ -226,10 +229,14 @@ public partial class MountainRace {
         if(rotation>0){float twirl=Mathf.Clamp01(rotation/.4f);flip.x=-360*(1-Mathf.Pow(1-twirl,3));flip.z=fallSide*75*(rotation<.4f?twirl:rotation<.72f?1:(1-rotation)/.28f);}
         else if(trickProgress>=0&&poseStyle<0)flip=TrickEuler(trickType,trickProgress);
         var orientation=Quaternion.LookRotation(forward,slopeUp)*Quaternion.Euler(0,angle*24,-angle*16);
+        if(activeEquipment=="tube"){
+            ground=World.SnowSurface(d,lane);
+            orientation=World.SnowFrame(d,lane)*Quaternion.Euler(0,angle*24,0);
+        }
         Vector3 pivot=Vector3.up*.62f;
         actorRoot.SetPositionAndRotation(ground+Vector3.up*alt+orientation*(pivot-Quaternion.Euler(flip)*pivot),orientation*Quaternion.Euler(flip));
         if(activeEquipment=="tube"){
-            tube.transform.localRotation=Quaternion.Euler(0,180-Mathf.Atan2(velocity,speed)*Mathf.Rad2Deg*.86f,-angle*11);
+            tube.transform.localRotation=Quaternion.Euler(0,180-Mathf.Atan2(velocity,speed)*Mathf.Rad2Deg*.86f,-angle*2.2f);
             var skin=tube.GetComponent<SkinnedMeshRenderer>();
             if(skin&&skin.sharedMesh.blendShapeCount>=2){skin.SetBlendShapeWeight(0,28+24*Mathf.Abs(angle));skin.SetBlendShapeWeight(1,angle*95);}
         }else if(activeEquipment=="sled"){

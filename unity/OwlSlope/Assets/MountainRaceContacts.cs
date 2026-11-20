@@ -102,13 +102,13 @@ public partial class MountainRace {
                 }break;
               case "goldenOwl":
                 if(square<1.5f*1.5f&&Mathf.Abs((airborne?FlightHeight(d):0)+1-o.height)<1.7f){
-                    o.Consume();Status.goldenOwl=true;bonusPoints+=500*Mult;Notice("Золотая сова! Снегоход открыт","feather");}
+                    o.Consume();Status.goldenOwl=true;bonusPoints+=500*Mult;Notice("Золотая сова! Снегоход открыт","chime");}
                 break;
               case "letter":
                 if(square<1.4f*1.4f&&(!o.air||airborne)){
                     o.Consume();Status.letters++;Status.lettersTotal++;
                     bool word=Status.lettersTotal==4||Status.lettersTotal==8||Status.lettersTotal==16;
-                    bonusPoints+=(word?1000:200)*Mult;Notice(word?"Слово собрано!":"Буква "+o.character,"feather");letterChange=1;
+                    bonusPoints+=(word?1000:200)*Mult;Notice(word?"Слово собрано!":"Буква "+o.character,"chime");letterChange=1;
                 }else if(!o.judged&&dy>2){o.judged=true;letterChange=-1;}break;
               case "gift":
                 if(square<1.44f){o.Consume();Status.gifts++;if(BonusMode)BonusReward(120);else bonusPoints+=50*Mult;Notice("Подарок!","power");}break;
@@ -138,7 +138,7 @@ public partial class MountainRace {
                    && Mathf.Abs((airborne?FlightHeight(d):0)-o.offset)<(o.kind=="mogulYeti"?2.7f:1.8f))Hit(o.kind,o);
                 if(o.kind=="mogulYeti"&&!o.judged&&dy>1.1f){o.judged=true;if(Status.encounters==0)Status.encounters++;}break;
               case "yeti":
-                if(!o.judged&&dy> -3){o.judged=true;Status.encounters++;bonusPoints+=500*Mult;Notice("Встреча с йети!","feather");}break;
+                if(!o.judged&&dy> -3){o.judged=true;Status.encounters++;bonusPoints+=500*Mult;Notice("Встреча с йети!","chime");}break;
               case "fence":case "cat":case "tree":case "rock":case "cannon":case "tube":
                 float halfWidth=o.width*.5f+.36f,halfLength=Mathf.Max(.38f,o.length*.5f);
                 if(!airborne&&abs<halfWidth&&Mathf.Abs(dy)<halfLength){Hit(o.kind,o);break;}

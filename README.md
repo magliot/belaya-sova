@@ -4,8 +4,8 @@
 
 - Играть в Telegram: https://t.me/belaya_sovabot/play
 - Играть в браузере: https://magliot.github.io/belaya-sova/
-- Код игры — `docs/index.html` (three.js 0.160, без сборки). Сервер рекордов — `server/apps-script/Code.gs`.
+- Игровая сцена Unity 6.3 LTS + URP — `unity/OwlSlope/Assets/Mountain.unity`. Основное и тестовое меню используют эту сцену. Сервер рекордов — `server/apps-script/Code.gs`.
 
 Запуск локально: `node tools/serve.cjs docs 8766` → http://localhost:8766/
 
-Перед работой прочитайте **[AGENTS.md](AGENTS.md)** (устройство кода, выпуск версии, правила), затем **[handoff/ОТЧЁТ_О_РАБОТЕ.md](handoff/ОТЧЁТ_О_РАБОТЕ.md)** и **[handoff/ПЛАН.md](handoff/ПЛАН.md)**.
+Команды сборки и запуска приведены в [инструкции Unity](unity/OwlSlope/README.md). Перед работой прочитайте [AGENTS.md](AGENTS.md) и [текущий статус](handoff/STATUS.md). Снимок исходной игры и способ возврата описаны в [архиве Three.js](handoff/АРХИВ_THREE.md).

@@ -20,7 +20,7 @@ async function main(){
       return route.abort();
     });
     await page.addInitScript(()=>{
-      if(!location.pathname.includes('/unity-test/'))return;
+      if(!/\/unity(?:-test)?\/$/.test(location.pathname))return;
       let callback;window.raceEvents=[];
       Object.defineProperty(window,'onMountainState',{get(){return callback;},set(fn){
         callback=s=>{window.lastRace=s;window.raceEvents.push([s.phase,s.mode,s.hero,s.metres,s.cue,s.message]);
@@ -74,24 +74,65 @@ async function main(){
     assert(metrics.measuredFrames>0&&metrics.dragSamples>0);
     fs.writeFileSync(path.join(out,'desktop-chrome.json'),JSON.stringify({...metrics,environment:'Windows Chrome, touch emulation'},null,2));
     await page.locator('#pause').tap();await waitState('pause','owl');await page.locator('#exitPaused').tap();await waitState('menu','owl');
-    await page.locator('[data-panel="more"]').tap();
-    await page.locator('#panel').getByRole('button',{name:'Настройки',exact:true}).tap();
+    await page.locator('[data-panel="settings"]').tap();
     await page.locator('#panel').getByRole('button',{name:'Осмотр трассы',exact:true}).tap();
     await waitState('review','owl');
-    for(const [name,metre] of [['forest-arch',2472],['park',7630],['summit',10104],['night',15105],['holiday',17525]]){
+    const weatherFrames={};
+    await page.locator('#reviewEffect').selectOption('coffee');
+    await page.waitForFunction(()=>lastRace.boostSeconds===5 && document.querySelector('#rideStatus').textContent.includes('5.0 с'));
+    await page.locator('#reviewEffect').selectOption('avalanche');
+    await page.waitForFunction(()=>lastRace.avalanche>0 && !document.querySelector('#avalancheMeter').hidden);
+    await page.locator('#reviewEffect').selectOption('normal');
+    await page.locator('#reviewRide').selectOption('sled');
+    await page.waitForFunction(()=>lastRace.courseMode==='sled' && document.querySelector('#rideStatus').textContent==='Снеговики 0 · подарки 0');
+    await page.locator('#reviewRide').selectOption('tubing');
+    await page.waitForFunction(()=>lastRace.courseMode==='tubing' && document.querySelector('#rideStatus').textContent==='Открытый склон · ворота 0');
+    await page.locator('#reviewRide').selectOption('normal');
+    await page.waitForFunction(()=>lastRace.courseMode==='normal');
+    for(const [name,metre] of [['tube',29],['coffee',105],['forest-arch',2472],['tube-moguls',5150],['ramp',7655],['park',7630],['summit',10104],['night',15050],['holiday',17525]]){
       await page.locator('#seek').evaluate((el,value)=>{el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));},metre);
       await page.waitForFunction(n=>Math.abs(lastRace.metres-n)<2,metre,{timeout:30000});
       await page.locator('#reviewFold').tap();
-      await page.waitForTimeout(150);await page.screenshot({path:path.join(out,name+'.png')});
+      await page.waitForTimeout(850);const frame=await page.screenshot({path:path.join(out,name+'.png')});
+      if(['summit','park','night'].includes(name))weatherFrames[name]=frame.toString('base64');
+      if(name==='summit'){
+        await page.waitForTimeout(350);
+        weatherFrames.gust=(await page.screenshot({path:path.join(out,'summit-gust.png')})).toString('base64');
+      }
       await page.locator('#reviewFold').tap();
     }
+    const weather=await page.evaluate(async images=>{
+      const decoded={};let width,height;
+      for(const [name,source] of Object.entries(images)){
+        const img=new Image();img.src='data:image/png;base64,'+source;await img.decode();
+        width=img.width;height=img.height;
+        const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+        const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0);decoded[name]=ctx.getImageData(0,0,width,height).data;
+      }
+      let changed=0,count=0,day=0,night=0,road=0;
+      for(let y=Math.floor(.29*height);y<.75*height;y++)for(let x=Math.floor(.08*width);x<.92*width;x++){
+        const i=4*(y*width+x);count++;
+        if([0,1,2].some(c=>Math.abs(decoded.summit[i+c]-decoded.gust[i+c])>24))changed++;
+        if(y>.56*height&&x>.22*width&&x<.78*width){
+          const luma=img=>.213*img[i]+.715*img[i+1]+.072*img[i+2];
+          day+=luma(decoded.park);night+=luma(decoded.night);road++;
+        }
+      }
+      return {summitMovingPixels:changed,area:count,movingFraction:changed/count,parkLuma:day/road,nightLuma:night/road};
+    },weatherFrames);
+    console.log('Stationary chase camera: storm motion and road luminance',weather);
+    assert(weather.movingFraction>.003,'No visible blowing snow while the summit camera is held still');
+    assert(weather.nightLuma<.9*weather.parkLuma,'The night run is as bright as the daytime piste');
+    fs.writeFileSync(path.join(out,'weather.json'),JSON.stringify(weather,null,2));
     assert(artifacts.size>=4,'Incomplete Unity Web load');
-    await page.goto(root.href,{waitUntil:'domcontentloaded'});
-    await page.waitForFunction(()=>window.__g?.()?.mode==='menu',null,{timeout:120000});
-    await page.locator('#bPlay').tap();await page.waitForFunction(()=>window.__g?.()?.mode==='play'&&__g().y>15,null,{timeout:120000});
-    assert.equal(new URL(page.url()).pathname,root.pathname);
+    await page.goto(root.href,{waitUntil:'commit'});
+    await page.waitForURL(u=>u.pathname===root.pathname+'unity/',{timeout:60000});
+    await page.locator('#play').waitFor({timeout:210000});
+    assert.equal(await page.evaluate(()=>mountainRelease.channel),'production');
+    await page.locator('#play').tap();await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.metres>15,null,{timeout:60000});
+    assert.equal(await page.evaluate(()=>typeof window.__g),'undefined');
     assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
-    console.log('PASS actual Web player: both heroes, normal run, touch, collision, pause/resume/replay, stage views, isolated score, default Three.js route. Assets:',artifacts.size);
+    console.log('PASS compiled Unity: both heroes, touch, collision, pause/resume/replay, stage views, isolated score, default bot route. Assets:',artifacts.size);
     console.log('Desktop emulation',JSON.stringify(metrics));
   }finally{await browser.close();}
 }

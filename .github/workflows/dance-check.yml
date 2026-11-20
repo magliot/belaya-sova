@@ -1,106 +1,53 @@
-name: Game browser checks
+name: Unity Web game checks
 on:
   push:
-    branches: [main, 'codex/**']
+    branches: [main, 'migration/unity-web']
     paths:
-      - docs/index.html
-      - docs/version.txt
-      - docs/motion-entry.js
-      - docs/course.js
-      - docs/course-review.js
-      - docs/race-hud.js
-      - docs/trail-visuals.js
-      - docs/models/*.glb
-      - tools/check-golden-run.cjs
-      - tools/check-stages.cjs
-      - tools/check-driving.cjs
-      - tools/check-course.mjs
-      - tools/check-course-browser.cjs
-      - docs/hero-motion.js
-      - docs/animation-test.html
-      - docs/models/studies/**
-      - tools/check-motion-browser.cjs
-      - tools/check-motion-integration.mjs
-      - docs/models/mishka.js
-      - docs/models/sova.js
-      - docs/models/winter.js
-      - tools/check-dances.cjs
-      - tools/check-gameplay.cjs
-      - tools/check-assets.cjs
-      - .github/workflows/dance-check.yml
+      - 'docs/**'
+      - 'tools/check-*'
+      - 'unity/OwlSlope/**'
+      - '.github/workflows/dance-check.yml'
+  workflow_dispatch:
 concurrency:
-  group: dance-${{ github.ref }}
+  group: unity-web-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
 jobs:
   browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Prepare browser
+      - name: Verify routing, profile isolation and model catalog
         run: |
-          npm install --prefix "$RUNNER_TEMP/dance-browser" --no-package-lock playwright
-          "$RUNNER_TEMP/dance-browser/node_modules/.bin/playwright" install --with-deps chromium
-      - name: Check dances and gameplay at phone size
+          node tools/check-unity-entry.cjs
+          node tools/check-unity-platform.cjs
+          node tools/check-unity-platform-catalog.cjs
+      - name: Install Chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/unity-browser" --no-package-lock playwright
+          "$RUNNER_TEMP/unity-browser/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Play the compiled Unity Web release
         env:
-          DANCE_BROWSER_MODULE: ${{ runner.temp }}/dance-browser/node_modules/playwright
+          DANCE_BROWSER_MODULE: ${{ runner.temp }}/unity-browser/node_modules/playwright
         run: |
-          node tools/serve.cjs docs 8766 > "$RUNNER_TEMP/dance-server.log" 2>&1 &
-          for attempt in {1..30}; do curl -fsS http://127.0.0.1:8766/version.txt && break || sleep 1; done
-          node tools/check-dances.cjs
-          node tools/check-gameplay.cjs
-          node tools/check-driving.cjs
-          node tools/check-golden-run.cjs
-          node tools/check-stages.cjs
-          node tools/check-assets.cjs
-          node tools/check-course.mjs
-          node tools/check-course-browser.cjs
-          node tools/check-motion-integration.mjs
-          node tools/check-motion-browser.cjs
+          node tools/serve.cjs docs 8784 > "$RUNNER_TEMP/unity-http.log" 2>&1 &
+          for attempt in {1..30}; do curl -fsS http://127.0.0.1:8784/version.txt && break || sleep 1; done
+          node tools/check-unity-host.cjs http://127.0.0.1:8784/unity/
+          node tools/check-unity-host.cjs http://127.0.0.1:8784/unity-test/
+          node tools/check-unity-entry-browser.cjs http://127.0.0.1:8784/ --software
+          node tools/check-mountain-web.cjs http://127.0.0.1:8784/
+          node tools/check-unity-platform-browser.cjs http://127.0.0.1:8784/unity-test/
+          node tools/check-mountain-audio.cjs
       - uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: dance-phone-check
-          path: dance-checks
-          retention-days: 7
-      - uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: winter-asset-phone-check
-          path: asset-checks
-          retention-days: 7
-      - uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: gameplay-phone-check
-          path: gameplay-checks
-          retention-days: 7
-      - uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: stage-identity-check
-          path: stage-checks
-          retention-days: 7
-      - uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: driving-and-review-check
-          path: driving-checks
-          retention-days: 7
-      - uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: course-phone-check
-          path: course-checks
-          retention-days: 7
-      - uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: motion-phone-check
-          path: motion-checks
+          name: unity-web-mobile
+          path: course-checks/mountain-race
           retention-days: 7

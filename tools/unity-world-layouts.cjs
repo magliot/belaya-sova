@@ -21,7 +21,9 @@ function generate(seed,stage){
  fs.mkdirSync(root,{recursive:true});
  const b=await chromium.launch({args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  try{const p=await b.newPage();await p.route('https://script.google.com/**',r=>r.abort());
-  let src=fs.readFileSync('docs/index.html','utf8');
+  let src=require('./archived-three.cjs')('index.html');
+  await p.route('**/motion-entry.js*',r=>r.fulfill({contentType:'text/javascript',body:''}));
+  await p.route('**/version.txt*',r=>r.fulfill({body:require('./archived-three.cjs')('version.txt')}));
   for(const [from,to] of [
    ['G.objs.push(o);o.m=acquire(o);placeObj(o);return true;', `G.objs.push(o);if(window.extractRows){
        if(window.laneExport)Object.assign(o,laneExport);

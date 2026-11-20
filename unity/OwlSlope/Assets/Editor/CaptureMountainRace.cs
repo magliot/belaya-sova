@@ -9,6 +9,7 @@ using UnityEngine;
 public static class CaptureMountainRace {
     const string Pending="Owl.Mountain.Capture";
     const string PendingFilm="Owl.Mountain.JumpFilm";
+    const string PendingSurfaces="Owl.Mountain.SurfaceFrames";
     const int W=390,H=780;
     static CaptureMountainRace(){EditorApplication.update+=WhenReady;}
     public static void Run(){
@@ -18,6 +19,7 @@ public static class CaptureMountainRace {
     public static void Jumps(){
         SessionState.SetBool(PendingFilm,true);Run();
     }
+    public static void Surfaces(){SessionState.SetBool(PendingSurfaces,true);Run();}
     static void Film(MountainRace race,string hero){
         race.Menu();race.ChooseHero(hero);race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
         Checkpoint(race,7620,0);var ramp=race.World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
@@ -58,7 +60,8 @@ public static class CaptureMountainRace {
     static void Save(MountainRace race,string file){
         var cam=race.View;float aspect=cam.aspect;
         var prev=RenderTexture.active;var oldTarget=cam.targetTexture;
-        var rt=RenderTexture.GetTemporary(W,H,24,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Default,1);
+        var pipeline=UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
+        var rt=RenderTexture.GetTemporary(W,H,24,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Default,pipeline?pipeline.msaaSampleCount:1);
         Texture2D pixels=null;
         try{
             cam.aspect=(float)W/H;cam.targetTexture=rt;cam.Render();RenderTexture.active=rt;
@@ -87,6 +90,38 @@ public static class CaptureMountainRace {
         // Re-anchor the actual chase camera to the checkpoint, as the menu does at the start.
         typeof(MountainRace).GetMethod("RenderRace",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(race,new object[]{0f,true});
     }
+    static void FilmObstacles(MountainRace race){
+        var folder=Path.GetFullPath(Path.Combine(Application.dataPath,"../../../course-checks/mountain-race/surface-film"));
+        Directory.CreateDirectory(folder);
+        var camera=race.View;var previous=RenderTexture.active;var oldTarget=camera.targetTexture;float aspect=camera.aspect;
+        var rp=UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
+        var rt=RenderTexture.GetTemporary(W,H,24,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Default,rp?rp.msaaSampleCount:1);
+        var pixels=new Texture2D(W,H,TextureFormat.RGB24,false);
+        try{
+            camera.aspect=(float)W/H;camera.targetTexture=rt;
+            string[] targets={"tube","tree","mogulYeti","cat"};float[] searches={0,2510,5000,15180};int frame=0;
+            for(int shot=0;shot<targets.Length;shot++){
+                race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"helmets\":1}");
+                RaceItem target=null;float at=searches[shot];
+                for(int row=0;row<12&&target==null;row++,at+=45){
+                    Checkpoint(race,at,0);target=race.World.Items.Find(o=>o.kind==targets[shot]&&o.distance>at+8);
+                }
+                if(target==null)throw new InvalidOperationException("No filming checkpoint for "+targets[shot]);
+                float start=target.distance-(shot==0?16:22),lane=Mathf.Clamp(target.lane,-6,6);
+                Checkpoint(race,start,lane-Mathf.Sign(lane)*2.4f);
+                for(int i=0;i<60;i++){
+                    race.Advance(1f/30);camera.Render();RenderTexture.active=rt;
+                    pixels.ReadPixels(new Rect(0,0,W,H),0,0);pixels.Apply();
+                    File.WriteAllBytes(Path.Combine(folder,(frame++).ToString("D4")+".jpg"),pixels.EncodeToJPG(96));
+                }
+                Debug.Log("OBSTACLE FILM "+targets[shot]+" "+target.variant+" seed 1911, "+start.ToString("F1")+".."+
+                    race.Status.metres.ToString("F1")+" m, "+race.Status.phase);
+            }
+        }finally{
+            camera.targetTexture=oldTarget;camera.aspect=aspect;RenderTexture.active=previous;RenderTexture.ReleaseTemporary(rt);
+            UnityEngine.Object.Destroy(pixels);
+        }
+    }
     static void AirFrame(MountainRace race,string hero){
         race.Menu();race.ChooseHero(hero);race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
         Checkpoint(race,7620,0);var ramp=race.World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
@@ -102,6 +137,27 @@ public static class CaptureMountainRace {
         var race=UnityEngine.Object.FindFirstObjectByType<MountainRace>();if(!race||!race.View)return;
         SessionState.EraseBool(Pending);
         try{
+            if(SessionState.GetBool(PendingSurfaces,false)){
+                SessionState.EraseBool(PendingSurfaces);
+                int mobile=Array.IndexOf(QualitySettings.names,"Mobile");if(mobile>=0)QualitySettings.SetQualityLevel(mobile,true);
+                RaceWorldChecks.CheckSnowContact(race);
+                race.Menu();race.ChooseHero("owl");race.StartRace("{\"mode\":\"normal\",\"seed\":1911}");
+                var tube=race.World.Items.Find(o=>o.kind=="tube");
+                Checkpoint(race,tube.distance-7,tube.lane);Save(race,"07-tube-training");
+                Checkpoint(race,7620,0);var ramp=race.World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
+                Checkpoint(race,ramp.distance-ramp.length*.5f-6,ramp.lane);Save(race,"08-ramp-snow");
+                Checkpoint(race,20,0);var cup=race.World.Items.Find(o=>o.kind=="thermos"&&o.distance>24);
+                if(cup==null){Checkpoint(race,15150,0);cup=race.World.Items.Find(o=>o.kind=="thermos");}
+                if(cup==null)throw new InvalidOperationException("No reproducible thermos in course");
+                Checkpoint(race,cup.distance-5,cup.lane);Save(race,"09-coffee-glow");
+                race.StartRace("{\"mode\":\"tubing\",\"seed\":1911}");for(int i=0;i<45;i++)race.Advance(1f/60);
+                Save(race,"10-tubing-bonus");
+                race.StartRace("{\"mode\":\"normal\",\"seed\":1911}");
+                Checkpoint(race,10104,0);race.Advance(1f/60);Save(race,"11-summit-blizzard");
+                Checkpoint(race,15105,0);race.Advance(1f/60);Save(race,"12-night-chase");
+                FilmObstacles(race);
+                Debug.Log("MOUNTAIN SURFACES PASS");EditorApplication.Exit(0);return;
+            }
             if(SessionState.GetBool(PendingFilm,false)){
                 SessionState.EraseBool(PendingFilm);Film(race,"bear");Film(race,"owl");EditorApplication.Exit(0);return;
             }

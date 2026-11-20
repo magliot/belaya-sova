@@ -171,7 +171,10 @@ function encode(data){
  try{
   const p=await b.newPage({viewport:{width:375,height:667}});
   await p.route('https://script.google.com/**',r=>r.abort());
-  await p.route(base,r=>r.fulfill({contentType:'text/html',body:fs.readFileSync('docs/index.html','utf8').replace('function tryTrick(idx)',`window.worldReady=()=>loadTrackAssets();window.worldExport=${exportModel};function tryTrick(idx)`)}));
+  const archived=require('./archived-three.cjs');
+  await p.route('**/motion-entry.js*',r=>r.fulfill({contentType:'text/javascript',body:''}));
+  await p.route('**/version.txt*',r=>r.fulfill({body:archived('version.txt')}));
+  await p.route(base,r=>r.fulfill({contentType:'text/html',body:archived('index.html').replace('function tryTrick(idx)',`window.worldReady=()=>loadTrackAssets();window.worldExport=${exportModel};function tryTrick(idx)`)}));
   await p.goto(base,{waitUntil:'domcontentloaded'});await p.waitForFunction(()=>window.worldReady&&window.__g?.()?.mode==='menu');
   await p.evaluate(()=>worldReady());
   for(const [key,spec] of Object.entries(specs)){

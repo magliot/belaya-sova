@@ -29,6 +29,8 @@ function server(){
     const filename=path.resolve(root,name);if(!filename.startsWith(root+path.sep)){res.writeHead(404);return res.end();}
     fs.readFile(filename,(e,data)=>{
       if(e){res.writeHead(404);return res.end();}
+      if(legacy&&['index.html','motion-entry.js','version.txt'].includes(name))
+        data=Buffer.from(require('./archived-three.cjs')(name));
       if(legacy&&name==='index.html'){
         const html=data.toString().replace('function frame(now){','function frame(now){if(window.stopFrames)return;');
         const n=html.lastIndexOf('</script>');data=html.slice(0,n)+goldenSource+html.slice(n);
@@ -48,7 +50,7 @@ async function main(){
     await p.route('https://script.google.com/**',route=>{
       posts.push(phase);return route.fulfill({json:{ok:true,rank:1,weekRank:1,rows:[]}});
     });
-    await p.route('**/race.js',async route=>{
+    await p.route(/\/race\.js(?:\?|$)/,async route=>{
       const response=await route.fetch(),script=await response.text();
       const before='      await data;';
       assert(script.includes(before));
@@ -86,6 +88,28 @@ async function main(){
     assert.equal(await p.locator('[data-hero="owl"]').getAttribute('aria-pressed'),'true');
     assert.equal(await p.locator('#best').innerText(),String(JSON.parse(legacy.bsova_tg127_best)));
     for(const mode of ['tubing','sled'])assert(await p.locator('#menu [data-mode="'+mode+'"]').isEnabled());
+    if(!process.argv[2]){
+      const sample={phase:'play',hero:'owl',mode:'normal',metres:2520,stage:1,elapsed:10.3,speed:57,score:123456,helmets:2,coins:12,multiplier:3,gates:4};
+      const hud=fields=>p.evaluate(s=>onMountainState(s),{...sample,...fields});
+      await hud({boost:true,boostSeconds:3.4});
+      assert.equal(await p.locator('#stage').innerText(),'2 · Лесная тропа');
+      assert.equal(await p.locator('#metres').innerText(),'2520 м');assert.equal(await p.locator('#pace').innerText(),'57 км/ч');
+      assert.equal(await p.locator('#multiplier').innerText(),'×3');assert.equal(await p.locator('#score').innerText(),'123456');
+      assert.equal(await p.locator('#coins').innerText(),'12');assert.match(await p.locator('#helmets').getAttribute('aria-label'),/2/);
+      assert.match(await p.locator('#rideStatus').innerText(),/Ускорение · 3.4 с/);
+      await hud({magnetSeconds:2});assert.match(await p.locator('#rideStatus').innerText(),/Магнит · 2.0 с/);
+      await hud({nextLetter:'С',letterSide:-1});assert.equal(await p.locator('#rideStatus').innerText(),'Буква «С» ←');
+      await hud({chaseSeconds:2.4,chaseGap:15.4,avalanche:.55});assert(await p.locator('#avalancheMeter').isVisible());
+      assert.equal(await p.locator('#rideStatus').innerText(),'Лавина · 3 с · 15 м');
+      await hud({mode:'sprint',metres:101});assert.equal(await p.locator('#stage').innerText(),'Финиш · 1099 м');
+      assert(await p.locator('#avalancheMeter').isHidden());assert(await p.locator('#rideStatus').isHidden());
+      await hud({mode:'tubing',metres:490});assert.equal(await p.locator('#stage').innerText(),'Плюшки · 65 с');
+      assert.equal(await p.locator('#rideStatus').innerText(),'Еловый лес · ворота 4');
+      await hud({mode:'review',phase:'review',courseMode:'sled',snowmen:3,gifts:5});
+      assert.equal(await p.locator('#rideStatus').innerText(),'Снеговики 3 · подарки 5');assert(await p.locator('#pause').isHidden());
+      await hud({phase:'pause'});assert(await p.locator('#hud').isVisible());assert(await p.locator('#paused').isVisible());
+      await hud({phase:'menu'});
+    }
     await p.evaluate(()=>Telegram.WebView.receiveEvent('viewport_changed',{height:565,is_state_stable:true,is_expanded:true}));
     assert.equal(Math.round((await p.locator('#app').boundingBox()).height),565);
     for(const v of ['#play','[data-hero="bear"]','#menu [data-mode="sled"]'])assert(await p.locator(v).evaluate(el=>{const b=el.getBoundingClientRect();return el.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2));}));
@@ -94,17 +118,18 @@ async function main(){
     assert.deepEqual(await p.evaluate(()=>spinCalls),[['MenuSpin',24],['MenuSpin',15],['EndMenuSpin',null]]);
     const host=(name,data={})=>p.evaluate(([n,d])=>Telegram.WebView.receiveEvent(n,d),[name,data]);
     const nav=name=>p.locator('#panelBody').getByRole('button',{name,exact:true}).click();
+    const menu=panel=>p.locator('[data-panel="'+panel+'"]').click();
     const back=()=>host('back_button_pressed');
-    await p.locator('[data-panel="more"]').click();await nav('Рейтинг');
+    await menu('top');
     assert.match(await p.locator('#panelBody').innerText(),/Личные заезды/);await back();
-    await nav('Задания');assert.equal(await p.locator('#panelBody .stat').count(),4);await back();
-    await nav('Улучшения');assert.match(await p.locator('#panelBody').innerText(),/Магнит/);
+    await menu('missions');assert.equal(await p.locator('#panelBody .stat').count(),4);await back();
+    await menu('shop');assert.match(await p.locator('#panelBody').innerText(),/Магнит/);
     assert.match(await p.locator('#panelBody').innerText(),/Каска на старт/);await back();
-    await nav('Коллекция');assert.equal(await p.locator('.letter-row').count(),3);await back();
-    await nav('Правила FIS');await p.locator('summary').nth(8).click();
+    await menu('collection');assert.equal(await p.locator('.letter-row').count(),3);await back();
+    await menu('rules');await p.locator('#panelBody summary').nth(8).click();
     assert.match(await p.locator('details[open]').innerText(),/аптечка/);await back();
-    await nav('Танцы');assert(await p.locator('#panelBody').getByRole('button',{name:'Ёлочка'}).isEnabled());await back();
-    await nav('Настройки');await nav('Замеры');await p.locator('dialog[open]').waitFor();await back();await p.locator('dialog').waitFor({state:'detached'});
+    await menu('dances');assert(await p.locator('#panelBody').getByRole('button',{name:'Ёлочка'}).isEnabled());await back();
+    await menu('settings');await nav('Замеры');await p.locator('dialog[open]').waitFor();await back();await p.locator('dialog').waitFor({state:'detached'});
     await nav('Лист моделей');await p.locator('.catalog-grid').waitFor();
     assert.equal(await p.locator('.catalog-grid button').count(),65);
     await nav('Из кода');const subset=await p.locator('.catalog-grid button').count();assert(subset>0&&subset<65);
@@ -123,7 +148,9 @@ async function main(){
     await p.locator('#reviewExit').click();await p.locator('#play').waitFor();
     console.log('Driving from ordinary menu.');
     await p.locator('#play').click();await p.locator('#pause').waitFor();
-    await host('back_button_pressed');await p.locator('#resume').waitFor();await p.locator('#resume').click();
+    await host('back_button_pressed');await p.locator('#resume').waitFor();
+    assert.equal(await p.locator('#pauseVolumes input[type="range"]').count(),3);
+    await p.locator('#resume').click();
     await host('visibility_changed',{is_visible:false});await p.locator('#resume').waitFor();
     await host('visibility_changed',{is_visible:true});assert(await p.locator('#resume').isVisible());
     await p.locator('#resume').click();await p.locator('#pause').click();await p.locator('#restartPaused').click();await p.locator('#pause').waitFor();
@@ -131,7 +158,10 @@ async function main(){
     await p.locator('[data-hero="bear"]').click();
     await p.locator('#play').click();await p.locator('#pause').waitFor();await p.locator('#slope').tap({position:{x:174,y:310}});
     await p.waitForFunction(()=>parseInt(document.getElementById('metres').innerText,10)>=30);
-    await p.locator('#pause').click();await p.locator('#exitPaused').click();await p.locator('#share').click();
+    await p.locator('#pause').click();await p.locator('#exitPaused').click();
+    assert.match(await p.locator('#resultStats').innerText(),/серия.*трюки[\s\S]*рекорд/);
+    await p.locator('#resultTasks summary').click();assert.equal(await p.locator('#resultTasks .stat').count(),3);
+    await p.locator('#share').click();
     await p.waitForFunction(()=>document.getElementById('shareImage').naturalWidth===1080);
     assert.equal(await p.locator('#shareImage').evaluate(e=>e.naturalHeight),1350);
     assert(!(await p.evaluate(()=>hostEvents)).includes('web_app_open_tg_link'));await back();await p.locator('#exitResult').click();

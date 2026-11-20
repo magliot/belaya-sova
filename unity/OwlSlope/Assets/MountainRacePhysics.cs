@@ -162,7 +162,7 @@ public partial class MountainRace {
         chaseLeft-=dt;chaseDistance+=baseSpeed*.94f*dt;
         Status.avalanche=Mathf.Clamp01(1-(Status.metres-chaseDistance)/28);
         if(Status.metres-chaseDistance<.75f&&fall<=0){Hit("avalanche",null);chaseDistance=Status.metres-21;}
-        if(chaseLeft<=0&&crashTimer<=0){bonusPoints+=600*Mult;Status.avalanche=0;Notice("Ушёл от лавины!","feather");}
+        if(chaseLeft<=0&&crashTimer<=0){bonusPoints+=600*Mult;Status.avalanche=0;Notice("Ушёл от лавины!","chime");}
     }
     void SelectChallenge(int stage){
         if(random==null)return;
@@ -175,6 +175,6 @@ public partial class MountainRace {
     }
     void TickChallenge(){
         if(challengeDone||Progress()-challengeBaseline<challengeNeed)return;
-        challengeDone=true;bonusPoints+=(300+100*Status.stage)*Mult;Notice("Испытание этапа пройдено!","feather");
+        challengeDone=true;bonusPoints+=(300+100*Status.stage)*Mult;Notice("Испытание этапа пройдено!","chime");
     }
 }

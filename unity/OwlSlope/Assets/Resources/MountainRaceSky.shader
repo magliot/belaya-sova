@@ -15,6 +15,7 @@ Shader "Owl/MountainRaceSky" {
   _Zenith("Zenith",Color)=(.38,.67,.91,1)
   _Tint("Landscape tint",Color)=(1,1,1,1)
   _Night("Night",Range(0,1))=0
+  _Storm("Blowing snow",Range(0,1))=0
   _Clock("Ride clock",Float)=0
  }
  SubShader {
@@ -26,7 +27,7 @@ Shader "Owl/MountainRaceSky" {
    #pragma fragment frag
    #include "UnityCG.cginc"
    sampler2D _Ridge,_LeftRidge,_RightRidge,_Aurora,_AuroraA,_AuroraC,_MenuArt,_Route;
-   float4 _Forward,_Horizon,_Zenith,_Tint;float _Night,_Clock,_Menu,_Tube;
+   float4 _Forward,_Horizon,_Zenith,_Tint;float _Night,_Storm,_Clock,_Menu,_Tube;
    struct V {float4 pos:SV_POSITION;float3 ray:TEXCOORD0;float4 screen:TEXCOORD1;};
    V vert(float4 p:POSITION){V o;o.pos=UnityObjectToClipPos(p);o.screen=ComputeScreenPos(o.pos);o.ray=p.xyz;return o;}
    fixed4 mountainPanel(float panel,float2 uv){
@@ -41,6 +42,8 @@ Shader "Owl/MountainRaceSky" {
      float2 screen=i.screen.xy/i.screen.w;
      float crop=(_ScreenParams.x/_ScreenParams.y)/(889./1580.);
      float2 uv=.5+(screen-.5)*float2(min(crop,1.),min(1./crop,1.));
+     // Anchor the snow platform under the menu rider when a wide viewport crops the artwork.
+     uv.y=.40+(screen.y-.40)*min(1./crop,1.);
      return tex2D(_MenuArt,uv);
     }
     float3 dir=normalize(i.ray);
@@ -72,6 +75,11 @@ Shader "Owl/MountainRaceSky" {
     fixed3 a=lerp(sky,lerp(ridgeA.rgb*_Tint.rgb,_Horizon.rgb,.20),ridgeA.a);
     fixed3 b=lerp(sky,lerp(ridgeB.rgb*_Tint.rgb,_Horizon.rgb,.20),ridgeB.a);
     sky=lerp(a,b,blend);
+    if(_Storm>.5){
+     float ripple=sin(az*5.-_Clock*.65+sin(az*11.+dir.y*18.-_Clock*.31));
+     float veil=smoothstep(-.17,.06,dir.y)*(1.-smoothstep(.05,.44,dir.y));
+     sky=lerp(sky,_Horizon.rgb,.35+veil*(.26+.10*ripple));
+    }
     if(_Tube>.5){
      float2 tuv=float2(.50+az*.70,.45+dir.y*2.6);
      fixed4 route=tex2D(_Route,clamp(tuv,.002,.998));

@@ -67,5 +67,7 @@ if ($Verify) {
             Remove-Item -LiteralPath $file.FullName
         }
     }
-    Write-Output "Built $site from $sourceProject. Editor log: $log"
+    & node (Join-Path $PSScriptRoot 'package-unity-shell.cjs')
+    if ($LASTEXITCODE -ne 0) { throw 'Failed to package the production and test pages.' }
+    Write-Output "Built the production and test Unity pages from $sourceProject. Editor log: $log"
 }

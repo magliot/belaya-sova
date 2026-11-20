@@ -41,7 +41,7 @@ public partial class RaceWorld : MonoBehaviour {
         }
     }
     public void Configure(int seed,string mode){
-        ClearObjects();this.seed=seed;this.mode=mode??"normal";lastDistance=lastTime=0;
+        ClearObjects();this.seed=seed;this.mode=mode??"normal";lastDistance=lastTime=0;snowVertices=null;
         firstSegment=int.MaxValue;lastSegment=int.MinValue;chunk=int.MinValue;
         letter=null;letterAdded=false;letterDistance=float.PositiveInfinity;
         firstTower=int.MinValue;BuildTurns();Refresh(0,0);
@@ -58,7 +58,9 @@ public partial class RaceWorld : MonoBehaviour {
     void Release(RaceItem item){
         if(item.prints){DisposeOwned(item.printMesh);DisposeOwned(item.prints);}
         if(!item.obj)return;
-        if(item.kind=="ramp"||item.kind=="rail"){DisposeOwned(item.obj.GetComponent<MeshFilter>().sharedMesh);DisposeOwned(item.obj);return;}
+        if(item.kind=="ramp"||item.kind=="rail"){
+            item.obj.SetActive(false);DisposeOwned(item.obj.GetComponent<MeshFilter>().sharedMesh);DisposeOwned(item.obj);return;
+        }
         if(!pool.TryGetValue(item.variant,out var stack))pool[item.variant]=stack=new Stack<GameObject>();
         item.obj.SetActive(false);stack.Push(item.obj);
     }
@@ -119,13 +121,18 @@ public partial class RaceWorld : MonoBehaviour {
                 o.spray.Clear();
             }
         }
-        float pitch=o.kind=="tube"||o.kind=="npc"||o.kind=="cat"||o.kind=="snowmobile"||o.kind=="ramp"||o.kind=="rail"?
-            Mathf.Atan2(SampleGround(o.distance-.2f,o.lane).y-SampleGround(o.distance+.2f,o.lane).y,.4f):0;
+        bool onRunners=o.kind=="tube"||o.kind=="npc"||o.kind=="cat"||o.kind=="snowmobile";
+        Quaternion attitude;
+        if(o.kind=="ramp"||o.kind=="rail")attitude=Quaternion.identity; // Mesh already follows the snow.
+        else if(onRunners){
+            // Yaw about the snow normal. Turning a downhill-facing mesh around must never reverse its bank or grade.
+            float roll=o.kind=="tube"?o.lean*.15f:o.lean;
+            attitude=SnowFrame(o.distance,o.lane)*Quaternion.Euler(0,o.yaw,roll);
+        }else attitude=Quaternion.Euler(0,HeadingAt(o.distance)*Mathf.Rad2Deg+o.yaw,o.lean);
         float y=o.offset;
         if(o.air||o.kind=="ball"||o.kind=="letter"||o.kind=="goldenOwl")y+=o.height;
         else if(o.kind=="coin")y+=.6f;else if(o.kind=="thermos"||o.kind=="helmet"||o.kind=="magnet"||o.kind=="aid"||o.kind=="gift")y+=.84f;
-        o.obj.transform.SetPositionAndRotation(SampleGround(o.distance,o.lane)+Vector3.up*y,
-            Quaternion.Euler(0,HeadingAt(o.distance)*Mathf.Rad2Deg+o.yaw,0)*Quaternion.Euler(pitch*Mathf.Rad2Deg,0,o.lean));
+        o.obj.transform.SetPositionAndRotation(SnowSurface(o.distance,o.lane)+Vector3.up*y,attitude);
         float sx=o.scale;
         if(o.kind=="gate")sx=o.width/(o.stoneGate?3.9f:5);
         if(o.kind=="fence")sx=o.width/5;
