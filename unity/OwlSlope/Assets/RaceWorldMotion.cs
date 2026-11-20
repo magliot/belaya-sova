@@ -1,6 +1,60 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public partial class RaceWorld {
+    // The archived models merge jacket, mittens and equipment into one textured mesh.
+    // Bake two opposing upper-body poses once per shared mesh. The player's rig is separate.
+    static void AddRiderPoses(Mesh mesh,string key,List<Vector3> vertices,List<Vector3> normals){
+        bool board=key=="snowboarder"||key=="boardKid"||key=="boardKid1"||key=="boardInstructor";
+        bool pupil=key=="kid";
+        if(!board&&!pupil&&key!="skier"&&key!="instructor")return;
+        foreach(int side in new[]{-1,1}){
+            var shift=new Vector3[vertices.Count];var normalShift=new Vector3[vertices.Count];
+            for(int i=0;i<vertices.Count;i++){
+                var p=vertices[i];
+                Quaternion rotation;Vector3 pivot;
+                if(board){
+                    // Look into the next traverse. The leading arm opens and the trailing shoulder follows.
+                    float chest=Smooth(Mathf.InverseLerp(.38f,.98f,p.y));
+                    float arm=Smooth(Mathf.InverseLerp(.12f,.49f,Mathf.Abs(p.z)))*
+                        Smooth(Mathf.InverseLerp(.48f,.76f,p.y));
+                    float reach=arm*(p.z*side>0?1:.48f);
+                    rotation=Quaternion.Euler(reach*side*(p.z>0?-11:11),side*(chest*18+reach*10),side*chest*4);
+                    pivot=new Vector3(0,.75f,-.02f);
+                }else{
+                    // The adult's pole below the glove has the same shoulder pivot as the sleeve.
+                    // Skis extend fore and aft at snow height; keep these vertices and the boots fixed.
+                    float hand=Smooth(Mathf.InverseLerp(pupil?.23f:.15f,pupil?.45f:.34f,Mathf.Abs(p.x)));
+                    hand*=1-Smooth(Mathf.InverseLerp(.82f,1.01f,p.y));
+                    float pole=!pupil&&Mathf.Abs(p.x)>.39f&&Mathf.Abs(p.z)<.31f?1:0;
+                    hand*=Mathf.Max(pole,Smooth(Mathf.InverseLerp(.27f,.56f,p.y)));
+                    float swing=p.x*side>0?-26:16;
+                    rotation=Quaternion.Euler(hand*swing,0,hand*side*(pupil?10:3));
+                    pivot=new Vector3(Mathf.Sign(p.x)*.19f,pupil?.76f:.88f,-.16f);
+                }
+                shift[i]=pivot+rotation*(p-pivot)-p;
+                normalShift[i]=rotation*normals[i]-normals[i];
+            }
+            mesh.AddBlendShapeFrame(side<0?"ReachLeft":"ReachRight",100,shift,normalShift,null);
+        }
+    }
+    static void PoseMovingRider(RaceItem o){
+        float pressure=Mathf.Clamp(o.lean/(o.sb?12:8),-1,1);
+        float cycle=o.age*(o.kid?2.9f:o.sb?1.85f:2.4f)+o.phase;
+        float transfer=Mathf.Sin(cycle);
+        float wave=.5f+.5f*Mathf.Sin(2*cycle-.8f);
+        // Extension between edges, compression on a bump, a tuck at the apex and a deep landing.
+        float flight=o.airSpan>0?Mathf.Sin(Mathf.PI*Mathf.Clamp01((o.distance-o.airStart)/o.airSpan)):0;
+        float landing=Mathf.Clamp01(1-(o.age-o.landedAt)/.56f);
+        float compression=Mathf.Clamp01(.12f+.26f*wave+.31f*Mathf.Abs(pressure)+
+            .12f*Mathf.Clamp01(o.offset)+.38f*flight+.61f*landing);
+        float reach=Mathf.Clamp(.76f*transfer+.44f*pressure,-1,1)*(1-.55f*flight);
+        var skin=o.skin;var mesh=skin.sharedMesh;
+        skin.SetBlendShapeWeight(mesh.GetBlendShapeIndex("0"),compression*100);
+        skin.SetBlendShapeWeight(mesh.GetBlendShapeIndex("1"),(pressure*.82f+.16f*transfer)*100);
+        skin.SetBlendShapeWeight(mesh.GetBlendShapeIndex("ReachLeft"),Mathf.Max(0,-reach)*100);
+        skin.SetBlendShapeWeight(mesh.GetBlendShapeIndex("ReachRight"),Mathf.Max(0,reach)*100);
+    }
     void MoveItem(RaceItem o,float player,float elapsed,float dt){
         switch(o.kind){
             case "npc":MoveRider(o,player,elapsed,dt);return;
@@ -97,7 +151,7 @@ public partial class RaceWorld {
         o.distance+=o.pace*(1-.16f*Mathf.Abs(Mathf.Sin(yaw)))*dt;o.yaw=yaw*Mathf.Rad2Deg;
         o.lean=Mathf.Lerp(o.lean,-a/6.5f*(o.sb?14:9),1-Mathf.Exp(-5*dt));o.offset=0;
         if(o.airSpan>0){float t=(o.distance-o.airStart)/o.airSpan;
-            o.offset=(1-t)*(o.airBase+4*o.airLift*t);if(t>=1){o.airSpan=0;o.offset=0;}return;}
+            o.offset=(1-t)*(o.airBase+4*o.airLift*t);if(t>=1){o.airSpan=0;o.offset=0;o.landedAt=o.age;}return;}
         foreach(var q in Items){
             if(q.kind!="ramp"||Mathf.Abs(q.lane-o.lane)>q.width*.5f)continue;
             float lip=q.distance+q.length*.5f;

@@ -2,7 +2,29 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 public partial class MountainRace {
-    ParticleSystem mandarinStars,snowPuffs;
+    ParticleSystem mandarinPeels,snowPuffs;
+
+    static Mesh CurlPeel(){
+        // A tapered ribbon cut from a mandarin. The cross curve gives the pith a concave face.
+        const int sections=8;
+        var vertices=new Vector3[(sections+1)*3];var uv=new Vector2[vertices.Length];
+        var faces=new int[sections*12];int index=0;
+        for(int j=0;j<=sections;j++){
+            float t=(float)j/sections,angle=Mathf.Lerp(-1.55f,2.45f,t);
+            float width=.045f+.22f*Mathf.Pow(Mathf.Max(0,Mathf.Sin(Mathf.PI*t)),.78f);
+            for(int i=0;i<3;i++){
+                float side=i-1,radius=.40f+side*side*.062f;
+                vertices[j*3+i]=new Vector3(radius*Mathf.Sin(angle),side*width+(t-.5f)*.29f,radius*Mathf.Cos(angle)-.13f);
+                uv[j*3+i]=new Vector2(i*.5f,t);
+                if(j==sections||i==2)continue;
+                int a=j*3+i;
+                faces[index++]=a;faces[index++]=a+3;faces[index++]=a+1;
+                faces[index++]=a+1;faces[index++]=a+3;faces[index++]=a+4;
+            }
+        }
+        var mesh=new Mesh{name="Завиток мандариновой кожуры",vertices=vertices,uv=uv,triangles=faces};
+        mesh.RecalculateNormals();mesh.RecalculateBounds();return mesh;
+    }
 
     ParticleSystem MakeBurst(string label,string shader){
         var go=new GameObject(label);go.transform.SetParent(transform,false);
@@ -21,36 +43,42 @@ public partial class MountainRace {
         return ps;
     }
     void Burst(RaceItem item,bool fruit){
-        var ps=fruit?mandarinStars:snowPuffs;
+        var ps=fruit?mandarinPeels:snowPuffs;
         if(!ps){
-            ps=fruit?MakeBurst("Мандарин · искры","MountainRaceSpark"):MakeBurst("Попадание снежка","MountainRaceFlake");
-            if(fruit)mandarinStars=ps;else snowPuffs=ps;
+            if(fruit){
+                ps=mandarinPeels=MakeBurst("Кожура мандарина","MandarinPeel");
+                var r=ps.GetComponent<ParticleSystemRenderer>();r.renderMode=ParticleSystemRenderMode.Mesh;r.mesh=CurlPeel();
+                var main=ps.main;main.gravityModifier=1.25f;main.startRotation3D=true;
+                var spin=ps.rotationOverLifetime;spin.enabled=true;spin.separateAxes=true;
+                spin.x=3.8f;spin.y=2.9f;spin.z=-4.2f;
+            }else ps=snowPuffs=MakeBurst("Попадание снежка","MountainRaceFlake");
         }
         var rider=World.SnowSurface(Status.metres,lane)+Vector3.up*(Altitude+1.06f);
         var origin=fruit&&item.Visual?item.Visual.transform.position+Vector3.up*.32f:rider;
         var forward=World.SnowFrame(Status.metres,lane)*Vector3.forward;
         var right=Vector3.Cross(Vector3.up,forward).normalized;
-        int count=fruit?10:15;
+        int count=fruit?6:15;
         for(int i=0;i<count;i++){
             float angle=(i+.35f*Status.coins)*2.39996f;
             Vector3 spread=right*Mathf.Cos(angle)+Vector3.up*Mathf.Sin(angle);
             var p=new ParticleSystem.EmitParams{
                 position=origin+(fruit?.33f:.10f)*spread,
-                velocity=forward*(speed*(fruit?.70f:.82f))+spread*((fruit?2.35f:1.7f)+.21f*(i%4))+Vector3.up*1.1f,
-                startLifetime=.36f+.035f*(i%6),startSize=(fruit?.36f:.17f)+.024f*(i%4),
-                startColor=fruit?(i%3==0?new Color32(255,227,95,255):new Color32(255,142,29,255)):
+                velocity=forward*(speed*(fruit?.77f:.82f))+spread*((fruit?2.35f:1.7f)+.21f*(i%4))+Vector3.up*(fruit?2.5f:1.1f),
+                startLifetime=(fruit?.55f:.36f)+.035f*(i%6),startSize=(fruit?.30f:.17f)+.024f*(i%4),
+                startColor=fruit?new Color32(255,255,255,255):
                     (i%3==0?new Color32(145,208,248,235):new Color32(248,252,255,245)),
                 rotation=i*31f
             };
+            if(fruit)p.rotation3D=new Vector3(37*i,23*i+13*Status.coins,71*i);
             ps.Emit(p,1);
         }
     }
     void StepBursts(float dt){
-        if(mandarinStars&&mandarinStars.particleCount>0)mandarinStars.Simulate(dt,false,false,false);
+        if(mandarinPeels&&mandarinPeels.particleCount>0)mandarinPeels.Simulate(dt,false,false,false);
         if(snowPuffs&&snowPuffs.particleCount>0)snowPuffs.Simulate(dt,false,false,false);
     }
     void ClearBursts(){
-        if(mandarinStars)mandarinStars.Clear();
+        if(mandarinPeels)mandarinPeels.Clear();
         if(snowPuffs)snowPuffs.Clear();
     }
 }

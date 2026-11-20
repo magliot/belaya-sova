@@ -102,12 +102,18 @@ public partial class MountainRace {
         switch(gesture){
           case "up":type=1;break;case "big-up":type=7;break;case "down":type=5;break;case "big-down":type=2;break;
           case "left":type=3;break;case "big-left":type=4;break;case "right":type=0;break;case "big-right":type=6;break;
-          default:type=trickLine?5:random.Next(8);break;
+          default:type=5;break;
         }
         float duration=Hero=="bear"?.42f:.5f;
         if(airMax-airTime<duration*TrickTimes[type]*.8f)type=5;
         if(airMax-airTime<duration*TrickTimes[type]*.8f)return;
-        trickType=type;poseStyle=type==5?flightTricks%2:-1;trickLength=duration*TrickTimes[type];trickProgress=0;
+        trickType=type;poseStyle=type==5?flightTricks%2:-1;
+        float minimum=duration*TrickTimes[type];
+        // Small kickers still accept a quick gesture. On longer flights the rider
+        // can extend and hold the pose, then unwind with room to absorb the landing.
+        float preferred=type==5?(Hero=="bear"?.76f:.82f):minimum*1.45f;
+        trickLength=Mathf.Clamp(airMax-airTime-.13f,minimum,preferred);
+        trickProgress=0;
         if(trickAt<0&&trickLine)trickAt=Status.metres;
         string name=poseStyle<0?TrickNames[type]:Hero=="bear"?(poseStyle==0?"Shifty":"Spread eagle"):(poseStyle==0?"Indy":"Melon");
         Notice(name,"trick");

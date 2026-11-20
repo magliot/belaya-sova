@@ -11,8 +11,47 @@ public partial class MountainRace {
     readonly Dictionary<string,float> menuLifts=new Dictionary<string,float>();
     readonly Dictionary<Transform,Quaternion> menuRest=new Dictionary<Transform,Quaternion>();
     readonly Dictionary<string,Transform> seatBones=new Dictionary<string,Transform>();
+    sealed class SeatSide {
+        public Transform shoulder,elbow,wrist,palm,hip,knee,ankle,toe;
+        public float side;
+        public SeatSide(Dictionary<string,Transform> bones,string prefix){
+            shoulder=bones[prefix+"Arm"];elbow=bones[prefix+"ForeArm"];wrist=bones[prefix+"Hand"];
+            if(!bones.TryGetValue(prefix+"HandMiddle1",out palm))palm=bones[prefix+"HandIndex1"];
+            hip=bones[prefix+"UpLeg"];knee=bones[prefix+"Leg"];ankle=bones[prefix+"Foot"];toe=bones[prefix+"ToeBase"];
+        }
+    }
+    SeatSide[] seatedLimbs;
+    Quaternion seatFacing;
     Transform actorRoot,menuModel,rideModel,stowed,menuShadow;
     AnimationClip rideClip;
+    readonly Dictionary<Transform,PoseBuffer> poseBuffers=new Dictionary<Transform,PoseBuffer>();
+    PoseBuffer ridePose;
+    // Sample the synchronized tracks for the skin and its rigid equipment together.
+    // Cache only animated joints and equipment roots, with no per-frame allocations.
+    sealed class PoseBuffer {
+        readonly Transform[] joints;
+        readonly Vector3[] positions;
+        readonly Quaternion[] rotations;
+        public PoseBuffer(Transform root){
+            var moving=new List<Transform>();
+            foreach(var part in root.GetComponentsInChildren<Transform>(true)){
+                string name=part.name;
+                if(name.StartsWith("mixamorig",StringComparison.OrdinalIgnoreCase)||name=="Snowboard"||
+                   name.EndsWith("_Ski",StringComparison.Ordinal)||name.EndsWith("_Binding",StringComparison.Ordinal))moving.Add(part);
+            }
+            joints=moving.ToArray();positions=new Vector3[joints.Length];rotations=new Quaternion[joints.Length];
+        }
+        public void Sample(AnimationClip clip,GameObject model,float a,float b,float mix){
+            if(mix<=.001f||mix>=.999f){clip.SampleAnimation(model,mix<.5f?a:b);return;}
+            clip.SampleAnimation(model,a);
+            for(int i=0;i<joints.Length;i++){positions[i]=joints[i].localPosition;rotations[i]=joints[i].localRotation;}
+            clip.SampleAnimation(model,b);
+            for(int i=0;i<joints.Length;i++){
+                joints[i].SetLocalPositionAndRotation(Vector3.LerpUnclamped(positions[i],joints[i].localPosition,mix),
+                    Quaternion.SlerpUnclamped(rotations[i],joints[i].localRotation,mix));
+            }
+        }
+    }
     GameObject tube,sled;
     float camLane,camY;
     float menuYaw,menuVelocity,menuMouseX;
@@ -95,11 +134,13 @@ public partial class MountainRace {
         if(flakes.isPaused)flakes.Play();
         if(fireworks.isPaused)fireworks.Play();
         foreach(var item in instances.Values)item.SetActive(false);
+        if(sled)sled.SetActive(false);
         if(tube){tube.SetActive(false);Discard(tube);tube=null;}
         if(stowed){stowed.gameObject.SetActive(false);Discard(stowed.gameObject);stowed=null;}
         activeEquipment=null;
         string rigKey=Hero=="owl"?"OwlRide":key;
         rideModel=Instance(rigKey).transform;
+        if(!poseBuffers.TryGetValue(rideModel,out ridePose))poseBuffers.Add(rideModel,ridePose=new PoseBuffer(rideModel));
         rideClip=Array.Find(Resources.LoadAll<AnimationClip>(rigKey),c=>!c.name.StartsWith("__preview"));
         if(!rideClip)throw new InvalidOperationException("Не загружена анимация "+key);
         menuModel=Instance(key+"Menu").transform;
@@ -107,10 +148,14 @@ public partial class MountainRace {
         foreach(var joint in menuModel.GetComponentsInChildren<Transform>(true)){
             if(joint.name.EndsWith("_Pole"))joint.gameObject.SetActive(CourseMode!="sled");
             if(CourseMode!="sled")continue;
-            string bone=joint.name.Replace("mixamorig:","").Replace("mixamorig_","");
+            string bone=joint.name;
+            if(bone.StartsWith("mixamorig",StringComparison.Ordinal))bone=bone.Substring(9).TrimStart(':','_');
             switch(bone){
-            case "LeftUpLeg":case "RightUpLeg":case "LeftLeg":case "RightLeg":case "LeftArm":case "RightArm":
-            case "LeftForeArm":case "RightForeArm":case "Head":case "Spine":
+            case "Hips":case "Head":case "LeftUpLeg":case "RightUpLeg":case "LeftLeg":case "RightLeg":
+            case "LeftFoot":case "RightFoot":case "LeftToeBase":case "RightToeBase":
+            case "LeftArm":case "RightArm":case "LeftForeArm":case "RightForeArm":
+            case "LeftHand":case "RightHand":case "LeftHandMiddle1":case "RightHandMiddle1":
+            case "LeftHandIndex1":case "RightHandIndex1":
                 seatBones[bone]=joint;if(!menuRest.ContainsKey(joint))menuRest.Add(joint,joint.localRotation);break;
             }
         }
@@ -122,7 +167,16 @@ public partial class MountainRace {
             foreach(var child in actorRoot.GetComponentsInChildren<Transform>(true))child.gameObject.layer=8;
             return;
         }
-        if(CourseMode=="sled"){sled=Instance("PlayerSled");activeEquipment="sled";}
+        if(CourseMode=="sled"){
+            if(!sled)sled=World.CreateVisual("playerSled",actorRoot);
+            sled.SetActive(true);activeEquipment="sled";
+            seatedLimbs=new[]{new SeatSide(seatBones,"Left"),new SeatSide(seatBones,"Right")};
+            var left=seatedLimbs[0];var right=seatedLimbs[1];
+            var toeDirection=actorRoot.InverseTransformDirection(left.toe.position-left.ankle.position+right.toe.position-right.ankle.position);
+            seatFacing=Quaternion.Euler(0,-Mathf.Atan2(toeDirection.x,toeDirection.z)*Mathf.Rad2Deg,0);
+            foreach(var limb in seatedLimbs)
+                limb.side=Mathf.Sign((seatFacing*actorRoot.InverseTransformPoint(limb.shoulder.position)).x);
+        }
         if(CourseMode=="tubing"){
             string[] models={"tube60B","tube60C","tube61A","tube61C"};
             int index=(Hero=="owl"?2:0)+(RaceWorld.Roll(settings.seed,0,75)>=.5f?1:0);
@@ -223,11 +277,18 @@ public partial class MountainRace {
         var slopeUp=Vector3.Cross(forward,right).normalized;
         if(slopeUp.y<0)slopeUp=-slopeUp;
         float u=airborne?Mathf.Clamp01(airTime/Mathf.Max(.01f,airMax)):0;
-        float sample=PoseTime(u);
         float rotation=fall>0?(1-fall/FallTime):crashTimer>0?Mathf.Min(.7f,(1.5f-crashTimer)/1.4f):0;
         Vector3 flip=Vector3.zero;
         if(rotation>0){float twirl=Mathf.Clamp01(rotation/.4f);flip.x=-360*(1-Mathf.Pow(1-twirl,3));flip.z=fallSide*75*(rotation<.4f?twirl:rotation<.72f?1:(1-rotation)/.28f);}
         else if(trickProgress>=0&&poseStyle<0)flip=TrickEuler(trickType,trickProgress);
+        else if(trickProgress>=0&&Hero=="owl"){
+            // Tweak across the fall line after takeoff. Present the toe edge to the
+            // chase camera for Indy and the heel edge for Melon. The loaded rig
+            // and board pivot together, keeping the wing on that edge.
+            float reach=StepBlend(trickProgress/.36f)*StepBlend((1-trickProgress)/.31f);
+            float side=poseStyle==0?1:-1;
+            flip=new Vector3(poseStyle==0?-9*reach:12*reach,side*58*reach,-side*17*reach);
+        }
         var orientation=Quaternion.LookRotation(forward,slopeUp)*Quaternion.Euler(0,angle*24,-angle*16);
         if(activeEquipment=="tube"){
             ground=World.SnowSurface(d,lane);
@@ -241,21 +302,29 @@ public partial class MountainRace {
             if(skin)RaceWorld.PoseTubeRider(skin,angle, .28f+.24f*Mathf.Abs(angle));
         }else if(activeEquipment=="sled"){
             sled.transform.localPosition=Vector3.zero;sled.transform.localRotation=Quaternion.identity;
-            menuModel.localPosition=new Vector3(0,.55f,.25f);menuModel.localScale=Vector3.one;
-            menuModel.localRotation=Quaternion.Euler(8,0,-angle*9);
-            foreach(var entry in seatBones){
-                bool left=entry.Key.StartsWith("Left",StringComparison.Ordinal);string name=entry.Key;
-                Vector3 bend=name.EndsWith("UpLeg")?new Vector3(-47,0,0):name.EndsWith("Leg")?new Vector3(64,0,0):
-                    name.EndsWith("ForeArm")?new Vector3(-34,0,0):name.EndsWith("Arm")?new Vector3(-35+(left?1:-1)*5*angle,0,left?9:-9):
-                    name=="Head"?new Vector3(-4,-13*angle,3*angle):new Vector3(6+3*Mathf.Abs(angle),-7*angle,-9*angle);
-                entry.Value.localRotation=menuRest[entry.Value]*Quaternion.Euler(bend);
+            foreach(var bone in seatBones.Values)bone.localRotation=menuRest[bone];
+            menuModel.localScale=Vector3.one*1.82f;
+            menuModel.localRotation=Quaternion.Euler(19+Mathf.Abs(angle)*3,0,-angle*7)*seatFacing;
+            var hips=seatBones["Hips"];
+            menuModel.position+=actorRoot.TransformPoint(new Vector3(0,.92f,-.46f))-hips.position;
+            foreach(var limb in seatedLimbs){
+                float s=limb.side;
+                var grip=actorRoot.TransformPoint(new Vector3(s*.355f,1.13f,-.060f));
+                float palmLength=Vector3.Distance(limb.wrist.position,limb.palm.position);
+                // The owl's right wing is weighted almost entirely to the wrist; its index root lies only 2 mm away.
+                var wrist=grip+actorRoot.TransformDirection(new Vector3(0,.31f,-.951f))*palmLength;
+                AimLimb(limb.shoulder,limb.elbow,limb.wrist,wrist,actorRoot.TransformDirection(new Vector3(s*.42f,-.55f,-.75f)));
+                if(palmLength>.01f)AimChild(limb.wrist,limb.palm,grip);
+                var ankle=actorRoot.TransformPoint(new Vector3(s*.335f,.665f,-.42f));
+                AimLimb(limb.hip,limb.knee,limb.ankle,ankle,actorRoot.TransformDirection(new Vector3(s*.22f,.16f,1)));
+                var bootTip=actorRoot.TransformPoint(new Vector3(s*.384f,.514f,-.19f));
+                AimChild(limb.ankle,limb.toe,bootTip);
             }
         }else{
-            rideClip.SampleAnimation(rideModel.gameObject,sample);
+            float liftedByClip=SampleRidePose(u);
             float scale=Hero=="bear"?1.30f:1.32f;
             rideModel.localScale=Vector3.one*scale;
-            float authored=airborne&&sample>=3.25f&&sample<=4.08f?.28f*4*u*(1-u)*scale:0;
-            rideModel.localPosition=Vector3.up*((Hero=="bear"?.022f:0)-authored);
+            rideModel.localPosition=Vector3.up*((Hero=="bear"?.022f:0)-liftedByClip*scale);
             // The board is authored across local X with the owl looking towards -X.
             // Bring its leading boot and gaze onto the course's downhill +Z axis together.
             rideModel.localRotation=Quaternion.Euler(0,Hero=="bear"?0:90,0);
@@ -269,18 +338,48 @@ public partial class MountainRace {
         View.transform.SetPositionAndRotation(eye,Quaternion.LookRotation(aim-eye,Vector3.up));
         UpdateWeather();UpdateTracks();
     }
-    float PoseTime(float u){
-        if(airborne&&trickProgress>=0&&poseStyle>=0)return 6+poseStyle+Mathf.Min(.999f,trickProgress);
-        if(airborne)return 3.25f+.83f*u;
+    static void AimChild(Transform joint,Transform child,Vector3 target){
+        joint.rotation=Quaternion.FromToRotation(child.position-joint.position,target-joint.position)*joint.rotation;
+    }
+    // Aim two rigid bone segments with their original lengths and explicit elbow/knee bend directions.
+    static void AimLimb(Transform joint,Transform bend,Transform end,Vector3 target,Vector3 hint){
+        float a=Vector3.Distance(joint.position,bend.position),b=Vector3.Distance(bend.position,end.position);
+        var delta=target-joint.position;var direction=delta.normalized;
+        float distance=Mathf.Clamp(delta.magnitude,Mathf.Abs(a-b)+.0001f,a+b-.0001f);
+        float projection=(a*a-b*b+distance*distance)/(2*distance);
+        var normal=Vector3.ProjectOnPlane(hint,direction).normalized;
+        var pivot=joint.position+direction*projection+normal*Mathf.Sqrt(Mathf.Max(0,a*a-projection*projection));
+        AimChild(joint,bend,pivot);
+        AimChild(bend,end,target);
+    }
+    float SampleRidePose(float u){
+        // Feet and equipment in the original jump study rise together. Remove its
+        // baked vertical travel because the game supplies the actual ballistic path.
+        if(airborne){
+            float flight=3.25f+.83f*u,mix=0,trick=flight;
+            if(trickProgress>=0&&poseStyle>=0){
+                mix=StepBlend(trickProgress/.20f)*StepBlend((1-trickProgress)/.19f);
+                trick=6+poseStyle+Mathf.Min(.966f,trickProgress);
+            }
+            ridePose.Sample(rideClip,rideModel.gameObject,flight,trick,mix);
+            return .28f*4*u*(1-u)*(1-mix);
+        }
+        // Three 61-frame loops at 30 fps include the duplicate closing frame.
+        const float span=61f/30;
+        float glide=8+2*Mathf.Repeat(Status.elapsed*.28f+Status.metres*.011f,1);
+        float edge=glide+(angle>0?span:2*span);
+        float load=StepBlend(Mathf.Min(1,Mathf.Abs(angle)*1.15f));
         float since=Status.elapsed-lastLanding;
-        if(since<.77f)return 4.08f+since;
-        if(rampHeight>.025f)return 2.7f+.51f*rampPhase;
-        float magnitude=Mathf.Abs(angle);
-        if(magnitude<.1f)return 2.7f+(.11f+.059f*Mathf.Sin(Status.elapsed*2.5f)+.024f*Mathf.Sin(Status.elapsed*3.8f))*(1-magnitude/.1f);
-        float edge=(magnitude-.10f)/.90f;return angle>0?.8f+.7f*edge:2.7f-.55f*edge;
+        if(since<.77f)
+            ridePose.Sample(rideClip,rideModel.gameObject,4.08f+since,load>.5f?edge:glide,StepBlend((since-.48f)/.29f));
+        else if(rampHeight>.005f)
+            ridePose.Sample(rideClip,rideModel.gameObject,load>.5f?edge:glide,2.7f+.55f*rampPhase,StepBlend(rampPhase/.3f));
+        else ridePose.Sample(rideClip,rideModel.gameObject,glide,edge,load);
+        return 0;
     }
     static Vector3 TrickEuler(int type,float t){
-        float full=t*360,arc=Mathf.Sin(t*Mathf.PI);
+        // Build and shed angular velocity progressively as the rider tucks and opens.
+        float full=360*(t-.55f*Mathf.Sin(2*Mathf.PI*t)/(2*Mathf.PI)),arc=Mathf.Sin(t*Mathf.PI);
         switch(type){case 0:return new Vector3(0,full,0);case 1:return new Vector3(-full,0,0);
             case 2:return new Vector3(full,0,0);case 3:return new Vector3(0,0,full);
             case 4:return new Vector3(arc*54,full*2,0);case 6:return new Vector3(0,full*2,0);

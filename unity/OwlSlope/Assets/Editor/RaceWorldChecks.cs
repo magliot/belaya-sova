@@ -153,31 +153,49 @@ public static class RaceWorldChecks {
                     new[]{"gate","rock","npc","tube"},new[]{"mogulYeti","cat","npc","airRing","thermos"},new[]{"gift","coin","npc"}};
                 foreach(string kind in required[stage])Require(objects.Contains(kind),"stage "+stage+" lacks "+kind);
             }
+            world.Configure(1911,"normal");world.Refresh(15064,1000);
+            var nightGate=world.Items.First(o=>o.kind=="gate"&&o.distance>15110);
+            var caps=nightGate.Visual.transform.Find("Огни на стойках");
+            Require(caps&&caps.GetComponent<MeshFilter>().sharedMesh.vertexCount==8&&caps.GetComponent<MeshRenderer>().sharedMaterial.shader.isSupported,
+                "night slalom needs a distant light on both pole caps");
             LaneStones(world,1911,10675);LaneStones(world,1911,17507);LaneStones(world,8573,10675);
             foreach(int seed in new[]{1911,4903}){
-                world.Configure(seed,"normal");world.Refresh(2510,171);
-                var canopy=world.Items.Where(o=>o.kind=="tree"&&o.variant=="canopyFir"&&o.distance>2517&&o.distance<2524)
+                world.Configure(seed,"normal");
+                foreach(var passage in new[]{(at:2510,tree:"canopyPine"),(at:2710,tree:"canopyFir")}){
+                    world.Refresh(passage.at,passage.at/14f);
+                    var canopy=world.Items.Where(o=>o.kind=="tree"&&o.variant==passage.tree&&o.distance>passage.at+7&&o.distance<passage.at+14)
                     .OrderBy(o=>o.lane).ToArray();
-                Require(canopy.Length==2&&canopy[1].lane-canopy[0].lane>8,"forest canopy requires two separated roots");
-                float chamber=0;
-                for(int i=0;i<canopy.Length;i++){
-                    var stem=canopy[i];var root=stem.Visual.transform;
-                    var across=world.SnowSurface(stem.distance,stem.lane+.5f)-world.SnowSurface(stem.distance,stem.lane-.5f);
-                    Require(Vector3.Dot(root.up,across.normalized)*(i==0?1:-1)>.12f&&stem.Visual.sharedMaterial.GetTexture("_BaseMap"),
-                        "textured forest crowns must lean over the passage");
-                    Require(root.position.y<=world.SnowSurface(stem.distance,stem.lane).y,"forest root above snow");
-                    chamber+=stem.lane*.5f;
+                    Require(canopy.Length==2&&canopy[1].lane-canopy[0].lane>8,"forest canopy requires two separated roots");
+                    float chamber=0;
+                    for(int i=0;i<canopy.Length;i++){
+                        var stem=canopy[i];var root=stem.Visual.transform;
+                        var across=world.SnowSurface(stem.distance,stem.lane+.5f)-world.SnowSurface(stem.distance,stem.lane-.5f);
+                        var inward=Vector3.ProjectOnPlane(across,Vector3.up).normalized*(i==0?1:-1);
+                        Require(Vector3.Dot(root.up,inward)>.12f&&stem.Visual.sharedMaterial.GetTexture("_BaseMap"),
+                            "textured forest crowns must lean over the passage");
+                        Require(root.position.y<=world.SnowSurface(stem.distance,stem.lane).y,"forest root above snow");
+                        var mesh=root.GetComponent<MeshFilter>().sharedMesh;
+                        float lowReach=0,highReach=0;
+                        foreach(var v in mesh.vertices){
+                            var delta=root.TransformVector(v);
+                            if(delta.y<2.5f)lowReach=Mathf.Max(lowReach,Vector3.Dot(delta,inward));
+                            if(delta.y>5)highReach=Mathf.Max(highReach,Vector3.Dot(delta,inward));
+                        }
+                        float halfWidth=(canopy[1].lane-canopy[0].lane)*.5f;
+                        Require(halfWidth-lowReach>1.35f&&highReach>3.1f,"forest canopy corridor closes at rider height or lacks an overhanging crown");
+                        chamber+=stem.lane*.5f;
+                    }
+                    Require(!world.Items.Any(o=>o.kind=="tree"&&Mathf.Abs(o.distance-canopy[0].distance)<3&&Mathf.Abs(chamber-o.lane)<2),
+                        "trunk in forest passage");
+                    Debug.Log("FOREST PASS seed "+seed+" "+passage.tree+" at "+canopy[0].distance+" / "+canopy[1].distance);
                 }
-                Require(!world.Items.Any(o=>o.kind=="tree"&&Mathf.Abs(o.distance-canopy[0].distance)<3&&Mathf.Abs(chamber-o.lane)<2),
-                    "trunk in forest passage");
                 world.Refresh(12507,850);var gate=world.Items.First(o=>o.stoneGate&&o.distance>=12507);
                 var stones=world.Items.Where(o=>o.kind=="rock"&&Mathf.Abs(o.distance-gate.distance)<.01f).ToArray();
                 Require(stones.Length==2&&stones.All(o=>o.Visual.transform.Find("Pickup glow")&&o.Visual.bounds.size.y>1.5f),
                     "black run lacks two lit gate boulders");
                 Require(stones.All(o=>Mathf.Abs(o.lane-gate.lane)-o.width*.5f>=gate.width*.5f),
                     "gate boulders obstruct scoring passage");
-                Debug.Log("FOREST AND BLACK PASS seed "+seed+" paired roots "+canopy[0].distance+" / "+canopy[1].distance+
-                    " m, rock gate "+gate.distance+" m");
+                Debug.Log("BLACK GATE PASS seed "+seed+" rock gate "+gate.distance+" m");
             }
             world.Configure(1911,"sprint");world.Refresh(1170,100);
             Require(world.Items.Any(o=>o.kind=="finish"&&o.distance==1200),"sprint finish line");

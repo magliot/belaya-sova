@@ -74,6 +74,7 @@ public partial class RaceWorld {
             var v=new Vector3[positions.Count];foreach(var pair in shape.Value)v[pair.Key]=pair.Value;
             mesh.AddBlendShapeFrame(shape.Key,100,v,null,null);
         }
+        AddRiderPoses(mesh,key,positions,normals);
         if(key=="startArch"){
             // Fade the support beam with the lettering as the camera passes underneath.
             // A solid beam without its sign otherwise draws a screen-wide orange line.
@@ -119,12 +120,25 @@ public partial class RaceWorld {
     }
     public GameObject CreateVisual(string key,Transform parent){
         bool gateStone=key=="gateRockWide"||key=="gateRockTall";
-        var model=LoadModel(gateStone?(key=="gateRockWide"?"rockWide":"rockTall"):key);
+        bool nightGate=key=="gateBlueNight"||key=="gateRedNight";
+        string source=nightGate?key.Substring(0,key.Length-5):key;
+        var model=LoadModel(gateStone?(key=="gateRockWide"?"rockWide":"rockTall"):source);
         var obj=new GameObject(key);obj.transform.SetParent(parent,false);Renderer renderer;
         if(model.mesh.blendShapeCount>0){
             var skin=obj.AddComponent<SkinnedMeshRenderer>();skin.sharedMesh=model.mesh;skin.localBounds=model.mesh.bounds;renderer=skin;
         }else{obj.AddComponent<MeshFilter>().sharedMesh=model.mesh;renderer=obj.AddComponent<MeshRenderer>();}
         renderer.sharedMaterials=model.materials;
+        if(nightGate){
+            if(!nightGatePaint.TryGetValue(key,out var stripes)){
+                stripes=new Material[model.materials.Length];
+                for(int i=0;i<stripes.Length;i++){
+                    stripes[i]=new Material(model.materials[i]);stripes[i].EnableKeyword("OWL_NIGHT_GATE");
+                    stripes[i].SetColor("_GateTint",key=="gateBlueNight"?new Color(.20f,.85f,1):new Color(1,.40f,.23f));
+                }
+                nightGatePaint.Add(key,stripes);
+            }
+            renderer.sharedMaterials=stripes;AddGateLamps(obj,key=="gateBlueNight");
+        }
         if(gateStone){
             if(!gateStones.TryGetValue(key,out var stonePaint)){
                 stonePaint=new Material(model.materials[0]);stonePaint.SetFloat("_StoneRim",1);
@@ -141,4 +155,5 @@ public partial class RaceWorld {
         return obj;
     }
     static readonly Dictionary<string,Material> gateStones=new Dictionary<string,Material>();
+    static readonly Dictionary<string,Material[]> nightGatePaint=new Dictionary<string,Material[]>();
 }

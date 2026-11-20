@@ -9,6 +9,7 @@ Shader "Owl/Course model" {
         _LeafCoverage("Foliage alpha to coverage", Float)=0
         _FadeCable("Soften distant lift cable", Float)=0
         _StoneRim("Icy stone gate edge", Float)=0
+        _GateTint("Night slalom reflectors", Color)=(0,0,0,0)
     }
     SubShader {
         Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="Opaque" }
@@ -22,6 +23,7 @@ Shader "Owl/Course model" {
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_local_fragment _ OWL_START_BANNER
+            #pragma multi_compile_local _ OWL_NIGHT_GATE
             #pragma multi_compile_fog
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
             #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
@@ -29,11 +31,16 @@ Shader "Owl/Course model" {
             TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
             CBUFFER_START(UnityPerMaterial)
             float _Lit,_Glow,_LeafCoverage,_FadeCable,_StoneRim;
+            half4 _GateTint;
             CBUFFER_END
             half _OwlNight;
             struct Input {float4 p:POSITION;float3 n:NORMAL;float2 uv:TEXCOORD0;half4 c:COLOR;};
             struct Output {float4 p:SV_POSITION;float3 n:TEXCOORD0;float2 uv:TEXCOORD1;
-                           half4 c:COLOR;float fog:TEXCOORD2;float3 world:TEXCOORD3;};
+                           half4 c:COLOR;float fog:TEXCOORD2;float3 world:TEXCOORD3;
+                           #if defined(OWL_NIGHT_GATE)
+                           float postHeight:TEXCOORD4;
+                           #endif
+                           };
             Output vert(Input v){
                 Output o;o.world=TransformObjectToWorld(v.p.xyz);o.n=TransformObjectToWorldNormal(v.n);
                 if(_LeafCoverage>.5){
@@ -45,6 +52,9 @@ Shader "Owl/Course model" {
                     o.n=facing;
                 }
                 o.p=TransformWorldToHClip(o.world);o.uv=v.uv;o.c=v.c;o.fog=ComputeFogFactor(o.p.z);
+                #if defined(OWL_NIGHT_GATE)
+                o.postHeight=v.p.y;
+                #endif
                 if(_FadeCable>.5)o.c.a*=lerp(1,.18,smoothstep(16.,82.,o.p.w));
                 return o;
             }
@@ -70,7 +80,15 @@ Shader "Owl/Course model" {
                     half edge=1.-saturate(abs(dot(n,GetWorldSpaceNormalizeViewDir(i.world))));
                     base.rgb+=half3(.09,.62,.85)*edge*edge;
                 }
-                base.rgb=MixFog(base.rgb,i.fog);return base;
+                base.rgb=MixFog(base.rgb,i.fog);
+                #if defined(OWL_NIGHT_GATE)
+                // Real sleeves and pennants read as two gate posts above the dark snow.
+                half sleeve=smoothstep(.28,.42,i.postHeight)*(1.-smoothstep(1.53,1.64,i.postHeight));
+                half stripe=smoothstep(.54,.60,i.postHeight)*(1.-smoothstep(.80,.86,i.postHeight));
+                half reach=1.-smoothstep(45.,78.,distance(_WorldSpaceCameraPos,i.world));
+                base.rgb+=reach*(_GateTint.rgb*.80h*sleeve+half3(.30,.32,.33)*stripe);
+                #endif
+                return base;
             }
             ENDHLSL
         }

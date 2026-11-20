@@ -103,12 +103,12 @@ async function main(){
     await page.locator('#reviewRide').selectOption('normal');
     await page.waitForFunction(()=>lastRace.courseMode==='normal');
     for(const [name,metre] of [['tube',29],['cannon',78],['coffee',105],['magnet',653],['forest-arch',2472],['forest-canopy',2510],
-      ['tube-moguls',5150],['ramp',7655],['park',7630],['summit',10104],['black-gate',12507],['night',15050],['groomer',15232],['holiday',17525]]){
+      ['tube-moguls',5150],['ramp',7655],['park',7630],['summit',10104],['black-gate',12507],['night',15050],['night-slalom',15082],['groomer',15232],['holiday',17525]]){
       await page.locator('#seek').evaluate((el,value)=>{el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));},metre);
       await page.waitForFunction(n=>Math.abs(lastRace.metres-n)<2,metre,{timeout:30000});
       await page.locator('#reviewFold').tap();
       await page.waitForTimeout(850);const frame=await page.screenshot({path:path.join(out,name+'.png')});
-      if(['summit','park','night'].includes(name))weatherFrames[name]=frame.toString('base64');
+      if(['summit','park','night','night-slalom'].includes(name))weatherFrames[name]=frame.toString('base64');
       if(name==='summit'){
         await page.waitForTimeout(350);
         weatherFrames.gust=(await page.screenshot({path:path.join(out,'summit-gust.png')})).toString('base64');
@@ -132,11 +132,23 @@ async function main(){
           day+=luma(decoded.park);night+=luma(decoded.night);road++;
         }
       }
-      return {summitMovingPixels:changed,area:count,movingFraction:changed/count,parkLuma:day/road,nightLuma:night/road};
+      // At 15,082 m both blue gate sleeves should be visible over 36 m ahead, above the snow.
+      const gate=decoded['night-slalom'],sleeves=[];
+      for(let x=Math.floor(.2*width);x<.78*width;x++){
+        let lit=0;
+        for(let y=Math.floor(.38*height);y<.50*height;y++){
+          const i=4*(y*width+x),r=gate[i],g=gate[i+1],b=gate[i+2];
+          if(g>75&&b>95&&g>1.7*r&&b>1.8*r)lit++;
+        }
+        if(lit>=4)sleeves.push(x);
+      }
+      const gateSpan=sleeves.length?(sleeves[sleeves.length-1]-sleeves[0])/width:0;
+      return {summitMovingPixels:changed,area:count,movingFraction:changed/count,parkLuma:day/road,nightLuma:night/road,gateSpan};
     },weatherFrames);
     console.log('Stationary chase camera: storm motion and road luminance',weather);
     assert(weather.movingFraction>.003,'No visible blowing snow while the summit camera is held still');
     assert(weather.nightLuma<.9*weather.parkLuma,'The night run is as bright as the daytime piste');
+    assert(weather.gateSpan>.07,'Both night gate posts should be luminous from the chase camera');
     fs.writeFileSync(path.join(out,'weather.json'),JSON.stringify(weather,null,2));
     assert(artifacts.size>=4,'Incomplete Unity Web load');
     await page.goto(root.href,{waitUntil:'commit'});

@@ -9,6 +9,7 @@ public partial class RaceWorld {
     void Coins(float x,float y,int count,float gap){for(int i=0;i<count;i++)Entry("coin",x,y+i*gap,22,0);}
     RaceItem Gate(float x,float y,float gap,int color,bool stone=false){
         var o=Entry("gate",x,y,stone?gap:Mathf.Round(gap*.90f),0,stone?"stoneGate":color%2==0?"gateRed":"gateBlue");
+        if(!stone&&mode=="normal"&&StageAt(o.distance)==6)o.variant+="Night";
         o.stoneGate=stone;return o;
     }
     RaceItem Person(float x,float y,float speed,string model,float amp,float phase){
@@ -23,7 +24,7 @@ public partial class RaceWorld {
         o.offset=-.14f*size;return o;
     }
     RaceItem Cat(float x,float y,float speed,bool small=false){
-        string model=small&&((Mathf.FloorToInt(y/1250)/12+seed)&1)==0?"cat12A":speed>0?"rattForward":"rattOncoming";
+        string model=small?"cat12A":speed>0?"rattForward":"rattOncoming";
         var o=Entry("cat",x,y,small?46:76,2.8f,model);o.pace=speed*.05f;o.small=small;o.length=small?3.7f:6;return o;
     }
     RaceItem Kicker(float x,float y,float w,float length,float height){
@@ -121,9 +122,12 @@ public partial class RaceWorld {
         bool canopy=!sprint&&n%4==0;
         if(canopy){
             float centre=200+side*(12+R(34)*13);
+            bool pines=n%8==0;
             foreach(int edge in sides){
-                var stem=Tree(centre+edge*88,y+370+j+edge*12,1,1.08f);
-                stem.variant="canopyFir";stem.lean=-17;stem.yaw=edge<0?0:180;stem.offset=-.24f;
+                float size=pines?1.01f+.10f*R(52+edge):1.08f;
+                var stem=Tree(centre+edge*(pines?95:99),y+370+j+edge*12,1,size);
+                stem.variant=pines?"canopyPine":"canopyFir";stem.lean=pines?-11:-17;
+                stem.yaw=edge<0?0:180;stem.offset=-.24f;
             }
             line=centre;
         }else{

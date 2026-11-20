@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.IO;
 using System.Reflection;
 using UnityEditor;
@@ -20,7 +21,7 @@ public static class CaptureMountainRace {
         SessionState.SetBool(PendingFilm,true);Run();
     }
     public static void Surfaces(){SessionState.SetBool(PendingSurfaces,true);Run();}
-    static void Film(MountainRace race,string hero){
+    static IEnumerator Film(MountainRace race,string hero){
         race.Menu();race.ChooseHero(hero);race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
         Checkpoint(race,7620,0);var ramp=race.World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
         float start=ramp.distance-20,lip=ramp.distance+ramp.length*.5f,end=lip+ramp.span*(hero=="owl"?1.09f:1);
@@ -38,6 +39,9 @@ public static class CaptureMountainRace {
                 float d=race.Status.metres;
                 if(d>lip&&race.Status.tricks==0||race.Status.tricks==1&&d>lip+.28f*ramp.span)race.AirTrick("tap");
                 race.Advance(1f/30);
+                // Unity refreshes GPU-skinned vertices once per player frame. A second
+                // Camera.Render in that frame can show an old body on the new board.
+                yield return null;
                 if(race.Status.tricks>0&&trick1<0)trick1=frame;
                 if(race.Status.tricks>1&&trick2<0)trick2=frame;
                 if(race.Status.rings>0&&ring<0)ring=frame;
@@ -56,6 +60,21 @@ public static class CaptureMountainRace {
             cam.targetTexture=oldTarget;cam.aspect=originalAspect;RenderTexture.active=previous;
             RenderTexture.ReleaseTemporary(rt);UnityEngine.Object.Destroy(image);
         }
+    }
+    static IEnumerator FilmBoth(MountainRace race){
+        // The coroutine advances the ordinary simulation exactly once per recorded frame.
+        race.enabled=false;
+        foreach(string hero in new[]{"bear","owl"}){
+            var take=Film(race,hero);
+            while(true){
+                bool more;
+                try{more=take.MoveNext();}
+                catch(Exception e){Debug.LogException(e);EditorApplication.Exit(2);yield break;}
+                if(!more)break;
+                yield return take.Current;
+            }
+        }
+        EditorApplication.Exit(0);
     }
     static void Save(MountainRace race,string file){
         var cam=race.View;float aspect=cam.aspect;
@@ -159,7 +178,7 @@ public static class CaptureMountainRace {
                 Debug.Log("MOUNTAIN SURFACES PASS");EditorApplication.Exit(0);return;
             }
             if(SessionState.GetBool(PendingFilm,false)){
-                SessionState.EraseBool(PendingFilm);Film(race,"bear");Film(race,"owl");EditorApplication.Exit(0);return;
+                SessionState.EraseBool(PendingFilm);race.StartCoroutine(FilmBoth(race));return;
             }
             race.Menu();race.ChooseHero("bear");Save(race,"01-menu-bear");
             race.ChooseHero("owl");Save(race,"02-menu-owl");

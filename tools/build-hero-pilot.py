@@ -231,22 +231,52 @@ keys=[(0,.025,0,9,0,0),(.8,.027,0,9,0,0),(1.5,.051,.046,15,-.012,0),
       (3.98,.018,0,6,.005,.10),(4.08,.018,0,7,.012,0),
       (4.24,.105,0,29,.044,0),(4.50,.042,0,13,-.009,0),
       (4.85,.022,0,8,0,0),(5.3,.025,0,9,0,0),(6,.025,0,9,0,0)]
-FPS=30; END=241
+FPS=30; END=423
 def sample(t):
     for a,b in zip(keys,keys[1:]):
         if a[0]<=t<=b[0]:
             k=smooth((t-a[0])/(b[0]-a[0])); return [x+(y-x)*k for x,y in zip(a[1:],b[1:])]
     return list(keys[-1][1:])
+def turn_world(n,axis,angle):
+    basis=rig.matrix_world@rest[bone(n).name]
+    local=basis.to_3x3().inverted()@Vector(axis)
+    bone(n).rotation_quaternion=Quaternion(local,math.radians(angle))@bone(n).rotation_quaternion
+
+# Use the end of each actual feather cluster as its grab contact. This rig's
+# two wings have quite different silhouettes and the wrist itself is inside the wing.
+wing_tips={}
+if OWL:
+    for side in ('Left','Right'):
+        joint=bone(side+'Hand')
+        palm=rig.matrix_world@rest[joint.name]
+        group=body.vertex_groups[joint.name].index
+        feather=[palm.inverted()@w for v,w in zip(body.data.vertices,coords)
+                 if any(g.group==group and g.weight>.65 for g in v.groups)]
+        far=sorted(feather,key=lambda p:p.length_squared,reverse=True)[:10]
+        wing_tips[side]=sum(far,Vector())/len(far)
 audit=[]
 for frame in range(1,END+1):
     bpy.context.scene.frame_set(frame); t=(frame-1)/FPS
     comp,shift,lean,hand,air=sample(t)
     style=0 if t<7 else 1
-    phase=(t%1) if t>=6 else 0
+    phase=(t%1) if 6<=t<8 else 0
     # Pop before the reach, hold a legible silhouette, then release before contact.
     trick=smooth(max(0,min(1,(phase-.07)/.30)))*smooth(max(0,min(1,(.99-phase)/.27)))
-    if OWL:lean+=28*trick;comp+=.075*trick
-    else:lean+=8*trick;comp+=.022*trick
+    cycle=t>=8
+    cycle_frame=max(0,frame-241)
+    beat=math.tau*(cycle_frame%61)/60
+    carve=(0,1,-1)[cycle_frame//61] if cycle else 0
+    if cycle:
+        # Softly unweight into each turn and load the outside leg. A pole swing
+        # lasts two pressure changes; adjacent cycles have identical phase.
+        comp=.047+.018*math.sin(2*beat-.55)+.018*abs(carve)
+        shift=.046*carve+.012*math.sin(beat)
+        lean=14+4*math.sin(2*beat-.85)+4*abs(carve)
+        hand=0
+    if OWL:
+        lean+=4*trick;comp+=.013*trick
+    else:
+        lean+=10*trick;comp+=.028*trick
     if OWL and 2.7<t<3.5:comp=max(.012,min(comp,.068))
     if OWL and 4.08<t<4.60:comp=min(.106,comp+.012*math.sin(math.pi*(t-4.08)/.52)**2)
     if not OWL:
@@ -267,11 +297,22 @@ for frame in range(1,END+1):
     turn('Neck',(1,0,0),-lean*.35); turn('Head',(1,0,0),-lean*.35)
     turn('Spine2',(0,1,0),-shift*(90 if OWL else 55))
     if trick:
-        if OWL:turn('Spine2',(0,1,0),(16 if style==0 else -16)*trick)
-        elif style==0:turn('Spine',(0,0,1),-32*trick)
+        if OWL:
+            rear=1 if style==0 else -1
+            for joint,fraction in [('Spine',.48),('Spine1',.32),('Spine2',.20)]:
+                turn_world(joint,(0,1,0),rear*(55 if style==0 else 72)*fraction*trick)
+                turn_world(joint,(1,0,0),rear*43*fraction*trick)
+                if style==1:turn_world(joint,(0,0,1),-27*fraction*trick)
+            turn_world('Head',(0,1,0),-rear*15*trick)
+        elif style==0:
+            turn('Spine',(0,0,1),-20*trick)
+            turn('Spine1',(0,0,1),-10*trick)
         turn('Head',(0,0,1),(10 if OWL else 12)*trick)
     if OWL:
         turn('Spine2',(0,0,1),10);turn('Neck',(0,0,1),20);turn('Head',(0,0,1),35)
+    elif cycle:
+        turn_world('Spine1',(0,0,1),-carve*9+math.sin(beat-.30)*5)
+        turn_world('Neck',(0,0,1),carve*6-math.sin(beat-.30)*3)
     bpy.context.view_layer.update()
     errors=[]
     boarddelta=Matrix.Translation((0,0,air+.025+.025*flight))@Matrix.Rotation(math.radians(-12*flight),4,'Y')
@@ -279,8 +320,13 @@ for frame in range(1,END+1):
         # In the boarder's sideways stance the long axis of the board is local X.
         edge=math.radians(21)*shift/.046
         boarddelta=Matrix.Translation((0,0,.06*abs(math.sin(edge))))@boarddelta@Matrix.Rotation(edge,4,'X')
-        tuck=.19 if style==0 else .221
-        boarddelta=Matrix.Translation((0,0,tuck*trick))@Matrix.Rotation(math.radians((17 if style==0 else -2)*trick),4,'X')@boarddelta
+        # Roll the selected edge toward the wing, keeping both ankles BELOW the
+        # hip. Tucking through the pelvis inverts the short two-bone leg chain.
+        tuck=.052 if style==0 else .054
+        roll=-12 if style==0 else 14
+        nose=5 if style==0 else -5
+        carry=.033 if style==0 else -.034
+        boarddelta=Matrix.Translation((0,carry*trick,tuck*trick))@Matrix.Rotation(math.radians(roll*trick),4,'X')@Matrix.Rotation(math.radians(nose*trick),4,'Y')@boarddelta
     for side in ['Left','Right']:
         sign=1 if side=='Left' else -1
         hip=rig.matrix_world@bone(side+'UpLeg').head
@@ -301,7 +347,7 @@ for frame in range(1,END+1):
             bank=Matrix.Translation(contact+Vector((0,0,lift)))@Matrix.Rotation(edge,4,'Y')@Matrix.Translation(-contact)
             footmatrix=bank@footmatrix
             if trick:
-                angle=math.radians(trick*(42 if style==0 else -sign*39))
+                angle=math.radians(trick*(48 if style==0 else -sign*46))
                 pivot=Vector((0,0,.10)) if style==0 else hip
                 axis='Z' if style==0 else 'Y'
                 twist=Matrix.Translation(pivot)@Matrix.Rotation(angle,4,axis)@Matrix.Translation(-pivot)
@@ -319,19 +365,33 @@ for frame in range(1,END+1):
         # an absolute, unreachable wrist target straightened one sleeve in a carve.
         wrist=upper+Vector((sign*(.064+.020*flight),-.115+hand*.35+sign*shift*.30,-.069+.021*flight+sign*shift*.22))
         if OWL:wrist=Vector((sign*(.345+.035*flight)+shift*.3,-.075+shift*.7,.505-comp*.6+air+.045*flight))
+        grabbing=False
         if OWL and trick:
-            grabbing=(side=='Right') if style==0 else (side=='Left')
+            # The downhill nose is -X, hence the rear wing (+X) reaches the toe edge
+            # for Indy and the front wing (-X) takes the heel edge for Melon.
+            grabbing=(side=='Left') if style==0 else (side=='Right')
             if grabbing:
-                edge=Vector((sign*.10,-.066+(-.157 if style==0 else .157),.016))
-                wrist=wrist.lerp(boarddelta@edge,trick)
-            else:wrist+=Vector((sign*.10,.045 if style else -.035,.17 if style else .11))*trick
+                contact=boarddelta@Vector((sign*.072,-.066+(-.156 if style==0 else .156),.008))
+                # Account for flex across the shared wrist/forewing weights. In the
+                # loaded position the coloured feather pad, rather than the joint
+                # or an unskinned marker, must land on the top edge of the deck.
+                contact+=boarddelta.to_3x3()@(Vector((-.003,-.017,.015)) if style==0 else Vector((0,.025,-.004)))
+                reach_from=(upper-contact).normalized()
+                wrist=wrist.lerp(contact+reach_from*wing_tips[side].length,trick)
+            else:wrist+=Vector((sign*.085,.085 if style==0 else -.09,.16))*trick
+        stroke=math.sin(beat)*sign if cycle else 0
+        if cycle:
+            if OWL:wrist+=Vector((sign*.012,carve*.017+stroke*.022,stroke*.024))
+            else:wrist+=Vector((sign*(.016*abs(carve)+.012),-.094*stroke-.038*carve*sign,.044*stroke))
+        elif flight and not OWL:
+            wrist+=Vector((sign*.035,.05,.055))*flight
         if not OWL and trick:
             wrist+=Vector((sign*(.20 if style==1 else .035),sign*.13 if style==0 else .035,.21 if style==1 else .045))*trick
         l1=(loc(side+'ForeArm')-loc(side+'Arm')).length; l2=(loc(side+'Hand')-loc(side+'ForeArm')).length
         if not OWL:
             # The imported left and right forearms have different lengths. Matching
             # target distances produced a 16-degree mismatch between the elbows.
-            flex=math.radians(66+sign*shift*190+comp*35-6*flight-(37 if style==1 else 8)*trick)
+            flex=math.radians(66+sign*shift*190+comp*35-13*flight-13*stroke-(37 if style==1 else 8)*trick)
             reach=math.sqrt(l1*l1+l2*l2+2*l1*l2*math.cos(flex))
             wrist=upper+(wrist-upper).normalized()*reach
         if (wrist-upper).length>l1+l2-.002: wrist=upper+(wrist-upper).normalized()*(l1+l2-.002)
@@ -340,10 +400,16 @@ for frame in range(1,END+1):
         aim(side+'ForeArm',elbow,wrist); bpy.context.view_layer.update()
         # Retain a neutral mitten orientation instead of curling each finger chain.
         hm=rig.matrix_world@rest[bone(side+'Hand').name]
+        if grabbing:
+            tip=hm.to_3x3()@wing_tips[side]
+            reach=tip.rotation_difference((contact-wrist).normalized())
+            hm=Quaternion().slerp(reach,trick).to_matrix().to_4x4()@hm
         if not OWL:
             # Align the glove opening to the forearm; keep the pole trailing on the snow.
             f=wrist-elbow;f.z=0;f.normalize()
-            f.z=-math.tan(math.radians(16+12*flight+sign*shift*50+(31 if style==1 else 13)*trick))
+            pitch=23+24*flight+sign*shift*50+(31 if style==1 else 13)*trick
+            if cycle:pitch+=17*(1-stroke)
+            f.z=-math.tan(math.radians(pitch))
             target=grip_tools['wrist_frame'](wrist,f)
             hm=target@palm_basis[side].inverted()@hm
         hm.translation=wrist
@@ -357,6 +423,8 @@ for frame in range(1,END+1):
 rig.animation_data.action.name='Sova_BoardStudy_v01' if OWL else 'Mishanya_SkiStudy_v01'
 scene=bpy.context.scene; scene.frame_start=1;scene.frame_end=END;scene.render.fps=FPS
 for f,n in [(1,'СТОЙКА'),(25,'ПОВОРОТ'),(82,'ПОДГОТОВКА'),(99,'ОТРЫВ'),(112,'ПОЛЁТ'),(123,'КОНТАКТ'),(128,'АМОРТИЗАЦИЯ'),(146,'ВОССТАНОВЛЕНИЕ')]: scene.timeline_markers.new(n,frame=f)
+for f,n in [(181,'INDY' if OWL else 'SHIFTY'),(211,'MELON' if OWL else 'SPREAD EAGLE'),
+            (241,'ПРЯМАЯ'),(302,'ПРАВАЯ ДУГА'),(363,'ЛЕВАЯ ДУГА')]:scene.timeline_markers.new(n,frame=f)
 scene.frame_set(1)
 # Export an independently reviewable sample. Include rigid equipment and its baked tracks.
 bpy.ops.object.select_all(action='DESELECT')
@@ -387,7 +455,13 @@ scene.render.engine='CYCLES';scene.cycles.samples=20;scene.cycles.use_denoising=
 scene.render.resolution_x=640;scene.render.resolution_y=800;scene.render.resolution_percentage=100
 scene.view_settings.view_transform='AgX';scene.render.image_settings.file_format='PNG'
 scene.render.film_transparent=False
-json.dump({'boot_vertices_reweighted':changed,'max_foot_target_error':max(x['foot_target_error'] for x in audit),'frames':audit},open(os.path.join(OUT,'audit.json'),'w'),indent=2)
+report={'boot_vertices_reweighted':changed,'max_foot_target_error':max(x['foot_target_error'] for x in audit),'frames':audit}
+if OWL:
+    from pathlib import Path
+    import runpy
+    inspect=runpy.run_path(str(Path(__file__).with_name('check-board-grabs.py')))
+    report['grabs']=inspect['check']();report['soles']=inspect['soles']()
+json.dump(report,open(os.path.join(OUT,'audit.json'),'w'),indent=2)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT,STEM+'.blend'),compress=True)
 for f in ([] if NO_RENDER else [1,46,92,112,128]):
     scene.frame_set(f);scene.render.filepath=os.path.join(OUT,f'pose-{f:03d}.png');bpy.ops.render.render(write_still=True)

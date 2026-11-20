@@ -61,6 +61,30 @@ public partial class MountainRace {
         Check(hits>=11&&hits<20,"sample must contain both hits and misses: "+hits);
         return "training throws "+hits+"/20 physical hits, "+onTarget+" aimed";
     }
+    string VerifySledSeat(string hero){
+        Menu();ChooseHero(hero);StartRace("{\"mode\":\"sled\",\"seed\":1911}");
+        float maxGrip=0,maxBoot=0;
+        foreach(float steer in new[]{0f,-.80f,.80f}){
+            angle=steer;RenderRace(0,true);
+            var pelvis=actorRoot.InverseTransformPoint(seatBones["Hips"].position);
+            var head=actorRoot.InverseTransformPoint(seatBones["Head"].position);
+            var body=sled.GetComponent<MeshFilter>().sharedMesh.bounds;
+            Check(body.size.z>2*body.size.y,hero+" sled runners are vertical");
+            Check(Mathf.Abs(pelvis.z+.46f)<.025f&&Mathf.Abs(pelvis.y-.92f)<.025f&&head.y>1.44f,
+                hero+" must sit on the rear saddle with head above windshield: "+pelvis+" / "+head);
+            foreach(var limb in seatedLimbs){
+                var palm=actorRoot.InverseTransformPoint(limb.palm.position);
+                var boot=actorRoot.InverseTransformPoint(limb.ankle.position);
+                var toe=actorRoot.InverseTransformPoint(limb.toe.position);
+                maxGrip=Mathf.Max(maxGrip,Vector3.Distance(palm,new Vector3(limb.side*.355f,1.13f,-.06f)));
+                maxBoot=Mathf.Max(maxBoot,Vector3.Distance(boot,new Vector3(limb.side*.335f,.665f,-.42f)));
+                Check(toe.z>boot.z+.10f&&toe.y>.43f&&toe.y<.60f,hero+" foot off board: "+boot+" to "+toe);
+            }
+        }
+        string detail=hero+" seated grip "+maxGrip.ToString("F3")+" m / ankle "+maxBoot.ToString("F3")+" m";
+        Check(maxGrip<.095f&&maxBoot<.065f,detail);
+        return detail;
+    }
     public string VerifyMechanics(){
         Initialize();var report=new List<string>();
         try{
@@ -69,6 +93,7 @@ public partial class MountainRace {
             EndMenuSpin();RenderMenu(1f/60);Check(Quaternion.Angle(MenuActor.localRotation,dragged)>1,"menu rotation inertia");
             ChooseHero("bear");Check(Quaternion.Angle(front,MenuActor.localRotation)<2,"new hero starts facing the camera");
             report.Add("menu drag, inertia and hero reset");
+            report.Add(VerifySledSeat("bear"));report.Add(VerifySledSeat("owl"));
             report.Add(VerifyPrize("bear",2));report.Add(VerifyPrize("owl",2));report.Add(VerifyPrize("bear",1));report.Add(VerifyPrize("owl",0));
             StartRace("{\"mode\":\"normal\",\"seed\":1911}");
             Checkpoint(275,0);var helmet=World.Items.Find(o=>o.kind=="helmet"&&o.distance<315);
@@ -93,7 +118,7 @@ public partial class MountainRace {
                 Check(item!=null,mode+" pickup missing");
                 Checkpoint(item.distance,item.lane);Advance(1f/60);
                 Check(mode=="sled"?Status.snowmen>0:Status.coins>0,mode+" bonus pickup");
-                if(mode=="tubing")Check(mandarinStars&&mandarinStars.particleCount>0,"no mandarin burst at contact");
+                if(mode=="tubing")Check(mandarinPeels&&mandarinPeels.particleCount>0&&mandarinPeels.GetComponent<ParticleSystemRenderer>().renderMode==ParticleSystemRenderMode.Mesh,"no curled mandarin peels at contact");
                 Status.elapsed=74.96f;Advance(.1f);
                 Check(Status.phase=="finish"&&Mathf.Abs(Status.elapsed-75)<.001f,mode+" limit");
                 report.Add(mode+" pickup and 75s finish");

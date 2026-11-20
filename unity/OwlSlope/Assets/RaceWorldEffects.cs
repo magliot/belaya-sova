@@ -2,6 +2,31 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 public partial class RaceWorld {
+    static Mesh gateLenses;
+    static readonly Material[] gateLampPaint=new Material[2];
+
+    static void AddGateLamps(GameObject gate,bool blue){
+        // Both lamp quads share a draw call. UV expands each quad in camera space at the pole cap.
+        if(!gateLenses){
+            var verts=new Vector3[8];var uv=new Vector2[8];
+            for(int i=0;i<8;i++){
+                verts[i]=new Vector3(i<4?-2.64f:2.64f,1.66f,0);
+                uv[i]=new Vector2((i&1)==0?0:1,(i&2)==0?0:1);
+            }
+            gateLenses=new Mesh{name="Gate cap reflectors",vertices=verts,uv=uv,
+                triangles=new[]{0,1,2,2,1,3,4,5,6,6,5,7},bounds=new Bounds(new Vector3(0,1.66f,0),new Vector3(7,2,2))};
+        }
+        int index=blue?1:0;
+        if(!gateLampPaint[index]){
+            var mat=new Material(Resources.Load<Shader>("Race/GateLamp"));
+            mat.SetColor("_Tint",blue?new Color(.20f,.87f,1):new Color(1,.35f,.16f));gateLampPaint[index]=mat;
+        }
+        var child=new GameObject("Огни на стойках");child.transform.SetParent(gate.transform,false);
+        child.AddComponent<MeshFilter>().sharedMesh=gateLenses;
+        var r=child.AddComponent<MeshRenderer>();r.sharedMaterial=gateLampPaint[index];
+        r.shadowCastingMode=ShadowCastingMode.Off;r.receiveShadows=false;
+    }
+
     static Material printInk,gunSnow;
     static readonly int[] footprintTriangles=MakePrintTriangles();
 

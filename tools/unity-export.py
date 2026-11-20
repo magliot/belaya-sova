@@ -4,7 +4,7 @@ import bpy,re,base64,tempfile,struct,json,sys,uuid
 root=Path('unity/OwlSlope/Assets/Resources');root.mkdir(parents=True,exist_ok=True)
 only=set(sys.argv[sys.argv.index('--')+1:]) if '--' in sys.argv else set()
 models=[('Owl',None,'art/owl-animation-pilot/sova-board-study.glb'),('Fir','fir','docs/models/trees.js'),('Rock','rock_tall','docs/models/winter.js'),('Snowman','snowman','docs/models/winter.js'),('Mandarin','mandarin','docs/models/props.js'),
- ('Bear',None,'art/animation-pilot/mishanya-ski-study.glb'),('OwlRide',None,'art/owl-animation-pilot/sova-board-study.glb'),('BearMenu',None,'docs/models/bear-menu.glb'),('OwlMenu',None,'docs/models/owl-menu.glb'),('PlayerSled',None,'docs/models/player-sled.glb')]
+ ('Bear',None,'art/animation-pilot/mishanya-ski-study.glb'),('OwlRide',None,'art/owl-animation-pilot/sova-board-study.glb'),('BearMenu',None,'docs/models/bear-menu.glb'),('OwlMenu',None,'docs/models/owl-menu.glb')]
 
 def meta(path,template):
  target=Path(str(path)+'.meta')
@@ -23,7 +23,7 @@ for name,key,source in models:
   if key:
    b=re.search(r'__GLB(?:\.|\[")'+key+r'(?:"\])?\s*=\s*"([A-Za-z0-9+/=]+)"',f.read_text()).group(1);f=Path(d)/'asset.glb';f.write_bytes(base64.b64decode(b))
   data=f.read_bytes();n=struct.unpack_from('<I',data,12)[0];doc=json.loads(data[20:20+n]);binary=data[28+n:];textures=root/'Art';textures.mkdir(exist_ok=True)
-  if name in ('Bear','Owl','BearMenu','OwlMenu','PlayerSled'):
+  if name in ('Bear','Owl','BearMenu','OwlMenu'):
    material_rows=[]
    for index, mat in enumerate(doc['materials']):
     props=mat.get('pbrMetallicRoughness',{}); tex=props.get('baseColorTexture')
@@ -46,6 +46,12 @@ for name,key,source in models:
    chunk=json.dumps(doc,separators=(',',':')).encode();chunk+=b' '*(-len(chunk)%4)
    f=Path(d)/'menu.glb';f.write_bytes(struct.pack('<4sIIII',b'glTF',2,28+len(chunk)+len(binary),len(chunk),0x4e4f534a)+chunk+struct.pack('<II',len(binary),0x004e4942)+binary)
   bpy.ops.import_scene.gltf(filepath=str(f.resolve()));bpy.ops.object.select_all(action='DESELECT');names={n.get('name') for n in doc['nodes']}
+  if name in ('OwlRide','Bear'):
+   # Match the authored skin and equipment keys, including the complete left-edge cycle.
+   # The default 250-frame Blender export ends partway through the new animations.
+   import math
+   actions=[o.animation_data.action for o in bpy.context.scene.objects if o.animation_data and o.animation_data.action]
+   bpy.context.scene.frame_end=math.ceil(max(a.frame_range[1] for a in actions))
   for obj in bpy.context.scene.objects:
    # The glTF importer creates an Icosphere solely as a custom bone display shape.
    if obj.name in names or obj.type=='ARMATURE':obj.select_set(True)

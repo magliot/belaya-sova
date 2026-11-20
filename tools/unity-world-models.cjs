@@ -11,10 +11,11 @@ const include=process.argv[3]?new RegExp(process.argv[3]):null;
 const specs={skier:['npc',{}],kid:['npc',{kid:true}],instructor:['npc',{instr:true}],sitter:['npc',{sit:true}],
  snowboarder:['npc',{sb:true}],boardKid:['npc',{sb:true,kid:true}],boardInstructor:['npc',{sb:true,instr:true}],
  rockWide:['rock',{rockWide:true}],rockTall:['rock',{rockWide:false}],
- rattForward:['cat',{vy:50}],rattOncoming:['cat',{vy:-50}],cat12A:['cat',{vy:45,variant:'cat12A'}],
+ rattForward:['cat',{vy:50}],rattOncoming:['cat',{vy:-50}],
  gateRed:['gate',{gap:100,col:0}],gateBlue:['gate',{gap:100,col:1}],stoneGate:['gate',{gap:78,stoneGate:true}],
  fence:['fence',{x1:0,x2:100}],finish:['finish',{}],boundaryPole:['boundaryPole',{}],dog:['dog',{vx:120}],yeti:['mogulYeti',{}],
- cannonLeft:['cannon',{x:38}],cannonRight:['cannon',{x:362}],snowmobile:['snowmobile',{}],playerSled:['playerSled',{}]};
+ cannonLeft:['cannon',{x:38}],cannonRight:['cannon',{x:362}]};
+// cat12A, snowmobile and playerSled are now authored in tools/build-unity-vehicles.py.
 Object.assign(specs,{startArch:['startArch',{}],liftTower:['kit',{model:'tower16C'}],liftChair:['liftChair',{}],
  emptyChair:['emptyChair',{}],boardKid1:['npc',{sb:true,kid:true,vi:1}],walker:['npc',{walker:true}],
  fence1:['fence',{x1:0,x2:100,fenceStyle:1}],fence2:['fence',{x1:0,x2:100,fenceStyle:2}]});
@@ -54,7 +55,6 @@ async function exportModel(type,details){
   S3(mk(sharedGeo.box,M(0x2b6cb0),0,-2.25,0,model),1.1,.08,.45);
   S3(mk(sharedGeo.box,M(0x2b6cb0),0,-1.95,.22,model),1.1,.55,.06);
  }
- else if(type==='playerSled'){await loadPlayerSled();model=playerSled.children[0].clone();}
  else model=FACT[type](o);
  if(type==='dog')model.userData.dog.rotation.y=0;
  const bytes=a=>{const b=new Uint8Array(a.buffer,a.byteOffset,a.byteLength);let s='';for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode(...b.subarray(i,i+8192));return btoa(s);};

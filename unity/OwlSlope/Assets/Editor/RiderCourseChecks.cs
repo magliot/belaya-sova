@@ -48,7 +48,26 @@ public static class RiderCourseChecks {
         var movers=race.World.Items.Where(o=>o.kind=="npc"&&o.distance>55&&!o.stand&&!o.sit).ToArray();
         Require(movers.Length>0,"Missing distant moving pupil for seed 1911");
         var board=movers.First();float start=board.distance,x=board.lane;
-        for(int i=1;i<=60;i++)race.World.Refresh(0,i/60f);
+        var riders=race.World.Items.Where(o=>o.kind=="npc"&&!o.stand&&!o.sit&&o.Visual is SkinnedMeshRenderer).Take(4).ToArray();
+        Require(riders.Any(o=>o.kid)&&riders.Any(o=>o.sb),"missing downhill skiers or snowboarder in action check");
+        var min=Enumerable.Repeat(200f,riders.Length).ToArray();var max=Enumerable.Repeat(-200f,riders.Length).ToArray();
+        for(int i=1;i<=156;i++){
+            race.World.Refresh(0,i/60f);
+            for(int j=0;j<riders.Length;j++){
+                var skin=(SkinnedMeshRenderer)riders[j].Visual;var mesh=skin.sharedMesh;
+                float swing=skin.GetBlendShapeWeight(mesh.GetBlendShapeIndex("ReachRight"))-skin.GetBlendShapeWeight(mesh.GetBlendShapeIndex("ReachLeft"));
+                min[j]=Mathf.Min(min[j],swing);max[j]=Mathf.Max(max[j],swing);
+            }
+        }
+        for(int j=0;j<riders.Length;j++){
+            Require(max[j]-min[j]>55,"fixed arm pose on downhill "+riders[j].variant);
+            var mesh=((SkinnedMeshRenderer)riders[j].Visual).sharedMesh;
+            var reach=new Vector3[mesh.vertexCount];mesh.GetBlendShapeFrameVertices(mesh.GetBlendShapeIndex("ReachRight"),0,reach,null,null);
+            var verts=mesh.vertices;
+            Require(reach.Any(v=>v.magnitude>.07f),riders[j].variant+" arm or pole swing too small");
+            for(int k=0;k<verts.Length;k++)if(verts[k].y<.14f&&Mathf.Abs(verts[k].x)<.36f)
+                Require(reach[k].sqrMagnitude<.00001f,"arm action deformed downhill equipment");
+        }
         Require(board.distance>start+1 && Mathf.Abs(board.lane-x)>.03f,"Distant rider waited for the player's camera");
         race.StartRace("{\"mode\":\"normal\",\"seed\":1911}");
         RaceItem tube=null;

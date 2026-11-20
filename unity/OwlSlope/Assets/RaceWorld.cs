@@ -10,6 +10,7 @@ public sealed class RaceItem {
     public int points;
     internal float originD,originX,scale=1,side,phase,age,pace,amp,yaw,lean,velocity,offset,windup,cooldown,stride;
     internal float release,from,to,vStart,vCruise,tau,pathSpan,airStart,airSpan,airLift,airBase;
+    internal float landedAt=-10;
     internal int route;
     internal bool leap,small,decor,bypass;
     internal bool movingPoseReady;
@@ -131,7 +132,7 @@ public partial class RaceWorld : MonoBehaviour {
         if(o.kind=="ramp"||o.kind=="rail")attitude=Quaternion.identity; // Mesh already follows the snow.
         else if(onRunners){
             // Yaw about the snow normal. Turning a downhill-facing mesh around must never reverse its bank or grade.
-            float roll=o.kind=="tube"?o.lean*.15f:o.lean;
+            float roll=o.kind=="tube"?o.lean*.15f:o.kind=="npc"&&!o.stand&&!o.sit?o.lean*.22f:o.lean;
             attitude=SnowFrame(o.distance,o.lane)*Quaternion.Euler(0,o.yaw,roll);
         }else attitude=Quaternion.Euler(0,HeadingAt(o.distance)*Mathf.Rad2Deg+o.yaw,o.lean);
         float y=o.offset;
@@ -144,9 +145,12 @@ public partial class RaceWorld : MonoBehaviour {
         o.obj.transform.localScale=new Vector3(sx,o.scale,o.scale);
         if(o.skin){
             if(o.kind=="tube"){
-                PoseTubeRider(o.skin,o.lean/16,.18f+Mathf.Abs(o.lean)/29);
+                float ripple=.5f+.5f*Mathf.Sin(o.distance*1.12f+o.phase);
+                float turn=o.lean/16;
+                PoseTubeRider(o.skin,turn+.12f*Mathf.Sin(o.age*2.1f+o.phase),.14f+.37f*ripple*ripple+.39f*Mathf.Abs(turn));
                 return;
             }
+            if(o.kind=="npc"&&!o.stand&&!o.sit&&!o.walker){PoseMovingRider(o);return;}
             var m=o.skin.sharedMesh;
             for(int i=0;i<m.blendShapeCount;i++){
                 var k=m.GetBlendShapeName(i);float v=k=="Carve"||k=="1"?o.lean/16:

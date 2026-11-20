@@ -65,10 +65,10 @@ for family, reference, height, lean in [(0, 0, 3.7, .26), (1, 1, 7.2, .24), (2, 
     bend_tree(models / f"tree{family}{reference}.bytes", models / f"tree{family}2.bytes", height, lean)
 
 
-def canopy_fir():
-    """Curve the textured hero-distance fir with every bough and its original UV atlas."""
+def canopy_tree(species, height, width, bend):
+    """Keep the original textured tree, with one continuous curve from root to crown."""
     library = (repo / "docs/models/trees.js").read_text(encoding="utf8")
-    packed = re.search(r'__GLB(?:\.|\[")fir(?:"\])?\s*=\s*"([A-Za-z0-9+/=]+)"', library)
+    packed = re.search(rf'__GLB(?:\.|\["){species}(?:"\])?\s*=\s*"([A-Za-z0-9+/=]+)"', library)
     glb = base64.b64decode(packed.group(1))
     json_length, = struct.unpack_from("<I", glb, 12)
     gltf = json.loads(glb[20:20+json_length])
@@ -91,25 +91,28 @@ def canopy_fir():
     root = [p for p in vertices if p[1] < low + .045*(high-low)]
     cx = (min(p[0] for p in root)+max(p[0] for p in root))*.5
     cz = (min(p[2] for p in root)+max(p[2] for p in root))*.5
-    height = 7.15
     factor = height/(high-low)
-    width = .72
     pos, norm, uv = bytearray(), bytearray(), bytearray()
     for (x,y,z), (nx,ny,nz), (u,v) in zip(vertices, normals, uvs):
         t = (y-low)/(high-low)
-        x = (x-cx)*factor*width + height*(.045*t+.37*t*t)
+        x = (x-cx)*factor*width + height*(.045*t+bend*t*t)
         pos.extend(struct.pack("<3f", x, t*height, -(z-cz)*factor*width))
         nx, nz = nx/width, -nz/width
-        ny -= nx*(.045+.74*t)
+        ny -= nx*(.045+2*bend*t)
         length = math.sqrt(nx*nx+ny*ny+nz*nz) or 1
         norm.extend(struct.pack("<3b", *(round(v*127/length) for v in (nx,ny,nz))))
         uv.extend(struct.pack("<2f", u, 1-v))
     for i in range(0,len(indices),3):
         indices[i+1], indices[i+2] = indices[i+2], indices[i+1]
-    material = b"Art/Fir"
+    material = f"Art/{species.title()}".encode()
     header = struct.pack("<2i", 1,len(material)) + material + struct.pack("<4i", 0,1,0,len(vertices))
     faces = struct.pack("<i",len(indices)) + struct.pack(f"<{len(indices)}i",*indices)
-    (models/"canopyFir.bytes").write_bytes(header+pos+norm+uv+b"\xff\xff\xff\xff"*len(vertices)+faces+struct.pack("<i",0))
+    (models/f"canopy{species.title()}.bytes").write_bytes(header+pos+norm+uv+b"\xff\xff\xff\xff"*len(vertices)+faces+struct.pack("<i",0))
+    if species == "pine":
+        view = gltf["bufferViews"][gltf["images"][0]["bufferView"]]
+        start = view.get("byteOffset", 0)
+        (target.parent.parent/"Art/Pine.jpg").write_bytes(binary[start:start+view["byteLength"]])
 
 
-canopy_fir()
+canopy_tree("fir", 7.15, .72, .37)
+canopy_tree("pine", 8.70, .78, .32)
