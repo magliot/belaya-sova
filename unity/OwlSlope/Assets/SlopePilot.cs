@@ -17,7 +17,13 @@ public class SlopePilot : MonoBehaviour {
         baseActor=Flip(f.actor);owl=Instantiate(Resources.Load<GameObject>("Owl"),transform);Paint(owl,"Owl");owl.transform.localScale=Vector3.one*1.32f;foreach(var c in Resources.LoadAll<AnimationClip>("Owl"))if(!c.name.StartsWith("__preview")){clip=c;break;}if(!clip)throw new Exception("Owl FBX has no animation");
         cam=new GameObject("Game camera").AddComponent<Camera>();cam.transform.SetParent(transform);cam.fieldOfView=f.fov;cam.nearClipPlane=.05f;cam.farClipPlane=400;cam.backgroundColor=new Color(.43f,.69f,.86f);cam.clearFlags=CameraClearFlags.SolidColor;cam.transform.SetPositionAndRotation(Flip(f.eye),Quaternion.LookRotation(Flip(f.direction),Flip(f.up)));
         var sun=new GameObject("Winter sun").AddComponent<Light>();sun.transform.SetParent(transform);sun.type=LightType.Directional;sun.shadows=LightShadows.Soft;sun.intensity=.92f;sun.color=new Color(1,.94f,.84f);sun.transform.rotation=Quaternion.Euler(40,-35,0);RenderSettings.ambientMode=AmbientMode.Flat;RenderSettings.ambientLight=new Color(.65f,.73f,.82f);Pose(0);}
-    void Start(){Setup();if(Array.IndexOf(Environment.GetCommandLineArgs(), "--owl-smoke")>=0) StartCoroutine(CheckBuiltPlayer());}
+    void Start(){
+        Setup();
+#if UNITY_STANDALONE
+        if(Array.IndexOf(Environment.GetCommandLineArgs(), "--owl-smoke")>=0) StartCoroutine(CheckBuiltPlayer());
+#endif
+        Debug.Log("OWL SLOPE READY");
+    }
     System.Collections.IEnumerator CheckBuiltPlayer(){yield return null;ResetRide();Transform hip=null;foreach(var t in owl.GetComponentsInChildren<Transform>())if(t.name.EndsWith("Hips")){hip=t;break;}
         if(!hip){Debug.LogError("OWL PLAYER: missing animated hips");Application.Quit(2);yield break;}var q=hip.localRotation;var p=hip.localPosition;Tick(.15f,1,true);
         bool moved=Quaternion.Angle(q,hip.localRotation)>.1f||(p-hip.localPosition).magnitude>.0001f;bool air=Airborne;for(int i=0;i<75;i++)Tick(1f/60,1,false);bool ok=moved&&air&&!Airborne&&Lane>3;ResetRide();if(ok)Debug.Log("OWL PLAYER PASS: bones, steering, jump, landing, reset");else Debug.LogError("OWL PLAYER FAIL: bones="+moved+", jump="+air);Application.Quit(ok?0:3);}

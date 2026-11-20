@@ -6,6 +6,10 @@
   const hash=new URLSearchParams(location.hash.slice(1));
   const app=window.Telegram&&window.Telegram.WebApp;
   const start=(app&&app.initDataUnsafe&&app.initDataUnsafe.start_param)||query.get('tgWebAppStartParam')||hash.get('tgWebAppStartParam');
+  if(start==='unity'){
+    location.replace('./unity-slope/'+location.search+location.hash);
+    return;
+  }
   if(start!=='motion'&&query.get('preview')!=='motion')return;
   query.set('v','2026-11-20b');
   location.replace('animation-test.html?'+query.toString()+location.hash);
