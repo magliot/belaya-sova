@@ -21,6 +21,8 @@
     #hud strong{display:block;color:#ffcf81}#hud span{font-size:14px}
   </style>
   <script src="../vendor/telegram-web-app.js"></script>
+  <script defer data-pilot src="../motion-entry.js?v=2026-11-20g"></script>
+  <style>#full-unity{pointer-events:auto;padding:11px 14px;border-radius:12px;background:#ffba56;color:#142b42;text-decoration:none;font-weight:750;min-height:24px}</style>
 </head>
 <body><main>
   <canvas id="slope" tabindex="0" aria-label="Сова на тестовом склоне"></canvas>
@@ -40,6 +42,7 @@
   <nav aria-label="Управление заездом">
     <button id="pause" type="button" hidden>Пауза</button>
     <button id="jump" type="button" hidden>Прыжок</button>
+    <a id="full-unity" data-full-unity href="../unity-test/?v=2026-11-20g">Полная игра · Unity</a>
     <a id="menu-link" href="../?preview=play">В меню игры</a>
   </nav>
 </main>
@@ -53,6 +56,7 @@
   window.showSlalom=(next,score,metres,caught,hint)=>{
     if(phase!==next){
       phase=next;
+      el('full-unity').hidden=phase===1;
       for(const id of ['hud','pause','jump'])el(id).hidden=phase!==1;
       el('brief').hidden=phase===1;
       el('controls').hidden=phase===2;
