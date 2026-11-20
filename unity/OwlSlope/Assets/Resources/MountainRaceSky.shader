@@ -57,9 +57,9 @@ Shader "Owl/MountainRaceSky" {
     if(_Tube>.5){
      // These paintings already contain sky, ridge and valley. Wrap them around the
      // view and dissolve the far snowfield into the same haze as the 3D terrain.
-     float2 uv=float2(.50+.485*sin(az),clamp(.59+dir.y*1.25,.012,.988));
+     float2 uv=float2(.50+.485*sin(az),clamp(.44+dir.y*1.42,.012,.988));
      fixed3 location=lerp(tex2D(_Route,uv).rgb,tex2D(_RouteNext,uv).rgb,_RouteBlend);
-     fixed3 distant=lerp(_Horizon.rgb,location,.96*smoothstep(-.55,-.20,dir.y));
+     fixed3 distant=lerp(_Horizon.rgb,location,.96*smoothstep(-.175,.035,dir.y));
      return fixed4(lerp(distant,sky,smoothstep(.29,.67,dir.y)),1);
     }
     if(_Night>.01){
