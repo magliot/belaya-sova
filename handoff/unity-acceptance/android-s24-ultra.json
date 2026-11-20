@@ -1,0 +1,16 @@
+{
+  "platform": "android",
+  "device": "Samsung Galaxy S24 Ultra (SM-S928B)",
+  "browser": "Mozilla/5.0 (Linux; Android 16; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.8103.50 Mobile Safari/537.36 Telegram-Android/13.2.2 (Samsung SM-S928B; Android 16; SDK 36; HIGH)",
+  "viewport": [384, 832],
+  "seed": 1686271775,
+  "menuReadyMs": 4968,
+  "navigationToRideMs": 17065,
+  "startButtonToFrameMs": 78,
+  "measuredFrames": 3165,
+  "meanFPS": 119.8,
+  "frameP95Ms": 10.4,
+  "dragSamples": 1372,
+  "dragToFrameP50Ms": 3.9,
+  "dragToFrameP95Ms": 5.7
+}
