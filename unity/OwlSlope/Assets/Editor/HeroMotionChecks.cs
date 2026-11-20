@@ -44,9 +44,14 @@ public static class HeroMotionChecks {
                 if(ids[side].Count<12)throw new Exception(hero+" actual sole not found on side "+side);
             }
             float lip=ramp.distance+ramp.length*.5f,landing=lip+ramp.span*(hero=="owl"?1.09f:1);
-            while(race.Status.phase=="play"&&race.Status.metres<landing+4){
-                if(race.Status.metres>lip&&(race.Status.tricks==0||race.Status.tricks==1&&race.Status.metres>lip+.28f*ramp.span))race.AirTrick("tap");
+            var turns=new float[2];
+            Quaternion CoursePose()=>Quaternion.Inverse(race.World.SnowFrame(race.Status.metres,ramp.lane))*rider.parent.rotation;
+            for(int frame=0;frame<900&&race.Status.phase=="play"&&race.Status.metres<landing+4;frame++){
+                int trick=race.Status.tricks;
+                var previous=CoursePose();
+                if(race.Status.metres>lip&&(trick==0||trick==1&&race.Status.metres>lip+.28f*ramp.span))race.AirTrick("tap");
                 race.Advance(1f/60);basis=Bake();
+                if(race.Status.metres>lip&&trick<2)turns[trick]+=Quaternion.Angle(previous,CoursePose());
                 for(int side=0;side<2;side++)for(int k=0;k<ids[side].Count;k++){
                     var difference=Relative(side,basis.MultiplyPoint3x4(vertices[ids[side][k]]))-baseline[side][k];
                     heightError=Mathf.Max(heightError,Mathf.Abs(Vector3.Dot(difference,normal[side])));
@@ -54,8 +59,10 @@ public static class HeroMotionChecks {
                 }
             }
             string detail=hero+" "+ids[0].Count+"/"+ids[1].Count+" sole vertices, max deck-space drift "+error.ToString("F3")+
-                " m, perpendicular "+heightError.ToString("F3")+" m @ "+worstAt.ToString("F1")+" m";
-            if(race.Status.tricks!=2||error>.027f||heightError>.016f)throw new Exception("Airborne equipment: "+detail);
+                " m, perpendicular "+heightError.ToString("F3")+" m @ "+worstAt.ToString("F1")+" m; whole-rig turns "+
+                turns[0].ToString("F0")+"/"+turns[1].ToString("F0")+" degrees";
+            if(race.Status.tricks!=2||race.Status.metres<landing+4||Mathf.Min(turns[0],turns[1])<340||error>.027f||heightError>.016f)
+                throw new Exception("Airborne equipment: "+detail);
             Debug.Log("AIRBORNE SOLES PASS "+detail);
         }finally{UnityEngine.Object.Destroy(mesh);}
     }

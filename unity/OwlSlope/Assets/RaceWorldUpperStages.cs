@@ -15,13 +15,14 @@ public partial class RaceWorld {
     static readonly int[] layoutSeeds={19,1911,1927,4903};
     static readonly Dictionary<int,Layout> upperLayouts=new Dictionary<int,Layout>();
     readonly Dictionary<int,Layout> generatedLayouts=new Dictionary<int,Layout>();
-    int generatedSeed;
-    Layout GetLayout(int stage){
-        int choice=Array.IndexOf(layoutSeeds,seed);
+    int generatedSeed,generatedVisit;
+    Layout GetLayout(int stage,int visit){
+        int choice=visit==0?Array.IndexOf(layoutSeeds,seed):-1;
         if(choice<0){
-            if(generatedSeed!=seed){generatedLayouts.Clear();generatedSeed=seed;}
+            if(generatedSeed!=seed||generatedVisit!=visit){generatedLayouts.Clear();generatedSeed=seed;generatedVisit=visit;}
             if(!generatedLayouts.TryGetValue(stage,out var generated)){
-                generated=new UpperBuilder(seed,stage).Generate(stage==4?ReferenceLayout(4,0):null);
+                int layoutSeed=visit==0?seed:unchecked(seed^(visit*164579721));
+                generated=new UpperBuilder(layoutSeed,stage).Generate(stage==4&&visit==0?ReferenceLayout(4,0):null);
                 generatedLayouts.Add(stage,generated);
             }
             return generated;
@@ -40,7 +41,7 @@ public partial class RaceWorld {
     void Mountain(float y,int row){UpperRow(4,y,row);}
     void Holiday(float y,int row){UpperRow(7,y,row);}
     void UpperRow(int stage,float y,int row){
-        var layout=GetLayout(stage);float original=stage*50000+row*1000,delta=y-original;
+        var layout=GetLayout(stage,Mathf.FloorToInt(y/400000));float original=stage*50000+row*1000,delta=y-original;
         foreach(var f in layout.objects){
             if(f.laneAt>0||f.y<original||f.y>=original+1000)continue;
             float at=f.y+delta;
@@ -112,7 +113,7 @@ public partial class RaceWorld {
     }
     float SummitField(float d,float lane){
         float y=(Mathf.Repeat(d,20000))*20,x=200+lane*20;
-        foreach(var p in GetLayout(4).patches){
+        foreach(var p in GetLayout(4,Mathf.FloorToInt(d/20000)).patches){
             if(y<p.y0||y>p.y1)continue;float h=0;
             foreach(var b in p.b){
                 float dx=(x-b.x)/(b.Rx>0?b.Rx:b.R),dy=(y-b.y)/(b.Ry>0?b.Ry:b.R);

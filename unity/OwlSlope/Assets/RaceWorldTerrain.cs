@@ -40,6 +40,7 @@ public partial class RaceWorld {
             cx=seg.x+seg.delta*blend;dx=seg.delta*vel;dd=seg.delta*accel;
             if(tail){dx+=blend*b;dd+=2*vel*b+blend*c;}
         }
+        if(d>=20000&&mode=="normal")EndlessRoad(d,ref cx,ref dx,ref dd);
         curve=dd/Mathf.Pow(1+dx*dx,1.5f);
     }
     public float HeadingAt(float metres){SampleRoad(metres);return Mathf.Atan(dx);}
@@ -76,22 +77,40 @@ public partial class RaceWorld {
                     h+=amp*Mathf.Pow(Mathf.Cos(Mathf.Sqrt(len)*Mathf.PI*.5f),profile==1?1.55f:2);}
             }
         }
-        float valley=-4+1.4f*Mathf.Sin(d/23);return h*(.12f+.88f*Smooth((Mathf.Abs(x-valley)-.9f)/2.4f));
+        return h*1.22f*MogulRoughness(d,x);
     }
     static readonly int[] sides={-1,1};
     static readonly float[] columns={-54,-26,-16,-13,-11,-9.4f,-7.5f,-6,-4.5f,-3,-1.5f,0,1.5f,3,4.5f,6,7.5f,9.4f,11,13,16,26,54};
     Vector3[] snowVertices;
     float firstSnowRow;
-    static float ColumnLane(int column,float width){
-        float x=columns[column];return Mathf.Abs(x)<=11?x*width/22:x;
+    float MeshTrail(float d){
+        if(mode!="normal"||StageAt(d)!=2)return 0;
+        float local=Mathf.Repeat(d,2500);
+        return MogulLine(d)*Smooth(local/16)*Smooth((2457-local)/24);
+    }
+    static float ColumnLane(int column,float width,float trail,float fork){
+        float x=columns[column];
+        if(Mathf.Abs(x)>11)return x;
+        float lane=x*width/22;
+        if(fork>0){
+            // Pin two bands of the snow mesh to the lines of mandarins. The
+            // same vertices form both the marked snow and its collision surface.
+            float a=Mathf.Abs(x),middle=Mathf.Max(.95f,fork),half=.55f+.20f*Smooth(fork/3);
+            float offset=a<=3?Mathf.Lerp(0,middle-half,a/3):a<=4.5f?Mathf.Lerp(middle-half,middle+half,(a-3)/1.5f):
+                Mathf.Lerp(middle+half,width*.5f,(a-4.5f)/6.5f);
+            return Mathf.Lerp(lane,Mathf.Sign(x)*offset,Smooth(fork/.9f));
+        }
+        return lane+trail*(1-Smooth((Mathf.Abs(x)-1.5f)/9.5f));
     }
     // Use the very triangles drawn under the runner, including banks, moguls and narrow forest stretches.
     public Vector3 SnowSurface(float d,float lane){
         float lower=Mathf.Floor(d*.5f)*2,t=(d-lower)*.5f;
-        float width0=WidthAt(lower),width1=WidthAt(lower+2),width=Mathf.Lerp(width0,width1,t);
+        float width0=WidthAt(lower),width1=WidthAt(lower+2);
+        float trail0=MeshTrail(lower),trail1=MeshTrail(lower+2),fork0=ForkTrack(lower),fork1=ForkTrack(lower+2);
+        float LaneAt(int j)=>Mathf.Lerp(ColumnLane(j,width0,trail0,fork0),ColumnLane(j,width1,trail1,fork1),t);
         int lo=0,hi=columns.Length-1;
-        while(hi-lo>1){int mid=(lo+hi)/2;if(lane<ColumnLane(mid,width))hi=mid;else lo=mid;}
-        float u=Mathf.InverseLerp(ColumnLane(lo,width),ColumnLane(hi,width),lane);
+        while(hi-lo>1){int mid=(lo+hi)/2;if(lane<LaneAt(mid))hi=mid;else lo=mid;}
+        float u=Mathf.InverseLerp(LaneAt(lo),LaneAt(hi),lane);
         int row=(int)((lower-firstSnowRow)*.5f);
         Vector3 p00,p10,p01,p11;
         if(snowVertices!=null&&row>=0&&row+1<snowVertices.Length/columns.Length){
@@ -99,8 +118,8 @@ public partial class RaceWorld {
             p00=snowVertices[a];p10=snowVertices[a+1];p01=snowVertices[b];p11=snowVertices[b+1];
         }else{
             // A seeded row can queue a jump beyond the end of the current snow patch.
-            p00=SampleGround(lower,ColumnLane(lo,width0));p10=SampleGround(lower,ColumnLane(hi,width0));
-            p01=SampleGround(lower+2,ColumnLane(lo,width1));p11=SampleGround(lower+2,ColumnLane(hi,width1));
+            p00=SampleGround(lower,ColumnLane(lo,width0,trail0,fork0));p10=SampleGround(lower,ColumnLane(hi,width0,trail0,fork0));
+            p01=SampleGround(lower+2,ColumnLane(lo,width1,trail1,fork1));p11=SampleGround(lower+2,ColumnLane(hi,width1,trail1,fork1));
         }
         return u+t<=1?p00+(p10-p00)*u+(p01-p00)*t:p11+(p01-p11)*(1-u)+(p10-p11)*(1-t);
     }
@@ -111,30 +130,40 @@ public partial class RaceWorld {
     }
     Material SnowPaint(string key,Color color){var m=new Material(Resources.Load<Material>("SlopeLit"));m.color=color;
         m.mainTexture=Resources.Load<Texture2D>("Art/"+key);m.SetFloat("_Smoothness",.06f);return m;}
+    readonly byte[] markings=new byte[150];
     void UpdateTerrain(float centre){
         // Continue the terrain behind the last streamed trees, past the end of the normal fog.
         const int rows=151,cols=23;
         var points=new Vector3[rows*cols];var uv=new Vector2[points.Length];
         if(!terrain){
             var go=new GameObject("Groomed run");go.transform.SetParent(transform,false);
-            terrain=new Mesh{name="Streaming piste"};terrain.MarkDynamic();terrain.subMeshCount=2;go.AddComponent<MeshFilter>().sharedMesh=terrain;
+            terrain=new Mesh{name="Streaming piste"};terrain.MarkDynamic();terrain.subMeshCount=4;go.AddComponent<MeshFilter>().sharedMesh=terrain;
             pisteMat=SnowPaint("Piste",new Color(.91f,.94f,.98f));bankMat=SnowPaint("Powder",new Color(.85f,.90f,.96f));
-            go.AddComponent<MeshRenderer>().sharedMaterials=new[]{pisteMat,bankMat};
+            var packed=SnowPaint("Piste",new Color(.65f,.82f,.91f));
+            var tracks=Resources.Load<Material>("SlopeForkTracks");
+            go.AddComponent<MeshRenderer>().sharedMaterials=new[]{pisteMat,bankMat,packed,tracks};
         }
+        bool reindex=terrain.GetIndexCount(0)==0;
         for(int i=0;i<rows;i++){
-            float d=centre-50+2*i,half=WidthAt(d)*.5f;
+            float d=centre-50+2*i,half=WidthAt(d)*.5f,trail=MeshTrail(d),fork=ForkTrack(d);
+            if(i<rows-1){
+                byte mark=mode=="normal"&&StageAt(d)==2&&Mathf.Repeat(d,2500)<2457?(byte)1:fork>.14f?(byte)2:(byte)0;
+                if(mark!=markings[i]){markings[i]=mark;reindex=true;}
+            }
             for(int j=0;j<cols;j++){
-                float x=ColumnLane(j,half*2);
+                float x=ColumnLane(j,half*2,trail,fork);
                 points[i*cols+j]=SampleGround(d,x);uv[i*cols+j]=new Vector2(x/4.2f,d/10);
             }
         }
         snowVertices=points;firstSnowRow=centre-50;
         terrain.vertices=points;terrain.uv=uv;
-        if(terrain.GetIndexCount(0)==0){
-            var middle=new List<int>();var banks=new List<int>();
-            for(int i=0;i<rows-1;i++)for(int j=0;j<cols-1;j++){int a=i*cols+j;var indices=j>=4&&j<18?middle:banks;
-                indices.AddRange(new[]{a,a+cols,a+1,a+1,a+cols,a+cols+1});}
-            terrain.SetTriangles(middle,0,false);terrain.SetTriangles(banks,1,false);
+        if(reindex){
+            var middle=new List<int>(rows*84);var banks=new List<int>(rows*48);var packed=new List<int>();var tracks=new List<int>();
+            for(int i=0;i<rows-1;i++)for(int j=0;j<cols-1;j++){int a=i*cols+j;
+                var indices=markings[i]==1&&(j==10||j==11)?packed:markings[i]==2&&(j==8||j==13)?tracks:j>=4&&j<18?middle:banks;
+                indices.Add(a);indices.Add(a+cols);indices.Add(a+1);
+                indices.Add(a+1);indices.Add(a+cols);indices.Add(a+cols+1);}
+            terrain.SetTriangles(middle,0,false);terrain.SetTriangles(banks,1,false);terrain.SetTriangles(packed,2,false);terrain.SetTriangles(tracks,3,false);
         }
         terrain.RecalculateNormals();terrain.RecalculateBounds();
     }
@@ -164,6 +193,11 @@ public partial class RaceWorld {
         if(scenery.Count==0)sceneryRow=start-1;
         for(int row=Mathf.Max(start,sceneryRow+1);row<=end;row++)foreach(int side in sides){
             int stage=StageAt(row*12);int count=1+(Roll(seed,row,100+side)>.38f?2:0);
+            if(mode=="tubing"){
+                float woods=TubeWoods(row*12);
+                // Broad gaps open onto the ridge and bay; the same treeline closes in through the forest.
+                count=Roll(seed,row,201+side)<.20f+.72f*woods?1+(int)(woods*2+.25f):0;
+            }
             if(stage==1){
                 int grove=Mathf.FloorToInt((row+(side<0?2:0))/5f);
                 int phase=(row+(side<0?2:0))%5;

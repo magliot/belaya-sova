@@ -53,11 +53,11 @@
     <section id="review" class="sheet" hidden>
       <div class="row"><b>Осмотр · <output id="reviewMetres">0</output> м</b><button id="reviewFold" aria-expanded="true">Свернуть</button><button id="reviewExit">В меню</button></div>
       <div id="reviewBody"><div class="row"><select id="reviewRide" aria-label="Трасса осмотра"><option value="normal">Полный спуск</option><option value="sprint">Короткий спуск</option><option value="tubing">Плюшки</option><option value="sled">Снегоход</option></select><select id="reviewHero" aria-label="Герой осмотра"><option value="owl">Сова</option><option value="bear">Мишаня</option></select></div><label>Перемотка
-      <input id="seek" aria-label="Положение на трассе" type="range" min="0" max="19999" step="1" value="0"></label>
-      <div class="row"><button id="reviewEarlier">−100 м</button><input id="reviewAt" aria-label="Перейти на метр" type="number" min="0" max="19999" step="1" value="0"><button id="reviewLater">+100 м</button></div>
+      <input id="seek" aria-label="Положение на трассе" type="range" min="0" max="79999" step="1" value="0"></label>
+      <div class="row"><button id="reviewEarlier">−100 м</button><input id="reviewAt" aria-label="Перейти на метр" type="number" min="0" max="79999" step="1" value="0"><button id="reviewLater">+100 м</button></div>
       <div class="row"><select id="reviewRate" aria-label="Скорость осмотра">
         <option value="0">Стоп</option><option value=".25">¼×</option><option value="1">1×</option><option value="3">3×</option><option value="6">6×</option></select>
-        <button id="reviewStep">Один кадр</button></div>
+        <button id="reviewStep">Один кадр</button><button id="reviewPlay">Проехать отсюда</button></div>
       <label>Положение поперёк склона<input id="reviewLane" type="range" min="-9" max="9" step=".25" value="0"></label>
       <div class="row"><select id="reviewStage" aria-label="Этап"></select><select id="reviewEffect" aria-label="Событие осмотра"><option value="normal">Обычный спуск</option><option value="coffee">Кофе</option><option value="avalanche">Лавина</option><option value="jump">Прыжок</option></select></div></div>
     </section>

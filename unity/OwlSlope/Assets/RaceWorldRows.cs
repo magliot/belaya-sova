@@ -52,9 +52,10 @@ public partial class RaceWorld {
         if(mode=="tubing"){Tubing(seg);Filter(start);return;}
         if(mode=="sled"){Sled(seg);Filter(start);return;}
         int fullStage=seg/1000,n=seg%1000,stage=fullStage%8;
-        float d=2500*fullStage+n*RowLength(stage,mode),y=d*20;
-        bool full=d+RowLength(stage,mode)<=(fullStage+1)*2500+.01f;
+        float rowLength=RowLength(fullStage,mode),d=2500*fullStage+n*rowLength,y=d*20;
+        bool full=d+rowLength<=(fullStage+1)*2500+.01f;
         if(n==0&&fullStage>0)Entry("arch",200,y,280,5.6f,"arch"+stage);
+        if(fullStage>=8&&(stage==1||stage==6)){EndlessFork(fullStage,n);Filter(start);return;}
         switch(stage){
             case 0:Training(Mathf.FloorToInt(y/1250),y);break;
             case 1:Forest(y,n,false);break;
@@ -108,10 +109,14 @@ public partial class RaceWorld {
             o.phase=R(4);o.release=Mathf.Max(0,y+offset-750-R(15)*320)*.05f;o.vStart=(route==1?28:8)*.05f;
             o.vCruise=(62+R(16)*39)*.05f;o.tau=1.4f+R(17);o.pathSpan=((route==2?250:190)+R(18)*140)*.05f;
             o.from=(route==0?132:route==1?54:141)*.05f;o.to=(route==0?42:route==1?91:-17)*.05f;Coins(open,y+offset-175,4,55);
-        }else if(kind=="cat"){var o=Cat(200+side*96,y+offset,60,true);o.side=side;Coins(open,y+offset-145,4,55);}
+        }else if(kind=="cat"){
+            bool uphill=((seed+n/12)&1)!=0;
+            Cat(200+side*96,y+offset,uphill?-60:60,true);Coins(open,y+offset-145,4,55);
+        }
         else if(kind=="gate"){Gate(open,y+offset,118,n);Coins(open,y+offset-160,3,55);}
         else if(kind=="snowman"){int id=n%12==2?n/12:(int)(R(8)*3);Snowman(200+side*108,y+offset,"snow26"+"ABC"[(int)((uint)(id+seed)%3)]);Coins(open,y+offset-160,3,55);}
         else{Coins(200,y+280,6,55);if(n==4||R(11)<.48f)Entry(n==4||R(12)<.4f?"helmet":"magnet",200,y+685,22,.85f);}
+        if(n%12==3)Entry("mogul",200+side*23,y+520,32,.5f,"mound"+(n/12)%3);
         if(n>4&&n%5==1)Gate(open,y+1050,130,n%2);
         if(n%6==1)Entry("thermos",open,y+950,22,.85f);
     }
@@ -144,15 +149,19 @@ public partial class RaceWorld {
         for(int i=0;i<6;i++)Entry("coin",200+(line-200)*Mathf.Sin((i+1)*Mathf.PI/8),y+78+i*94,22,0);
         if(n%3!=1&&R(38)<.23f)Gate(line,y+558,112,side>0?1:0);
     }
-    static float Valley(float y)=>120+28*Mathf.Sin(y/460);
+    float Valley(float y)=>200+20*MogulLine(y*.05f);
     void Rollers(float y,int n){
         if(n%2==0)TrailActor("mogulYeti",y+1040,n%4==0?1:-1);
-        for(int i=0;i<12;i++){float at=y+150+i*175;if(i%3==0)Entry("coin",Valley(at),at,22,0);Entry("coin",i%2==1?255:285,at,22,0);}
+        for(int i=0;i<9;i++){float at=y+130+i*249;Entry("coin",Valley(at),at,22,0);}
+        float heapAt=y+615,heapLine=Valley(heapAt);
+        int heapSide=heapLine>200?-1:1;
+        Entry("mogul",heapLine+heapSide*77,heapAt,34,.60f,"mound"+n%3);
+        if(n%3==2){float rockAt=y+1370,track=Valley(rockAt);Rock(track+(track>200?-84:84),rockAt,true);}
         if(n%4==1){
             int side=Roll(seed,n,68)<.5f?-1:1;var o=Tube(200+side*100,y+920,side,Tubes[Mathf.Min(3,(int)(Roll(seed,n,69)*4))]);
             o.phase=.5f;o.release=(y+160)*.05f;o.vStart=.9f;o.vCruise=3.8f;o.tau=2;o.pathSpan=12.75f;o.from=5.6f;o.to=1.4f;
         }else if(n%4==3)Person(265,y+890,64,"snowboarder",23,n);
-        float line=Valley(y+1600);if(n%3==1)Box(line,y+1600,44,160,.52f);else Gate(line,y+1600,100,n);
+        float line=Valley(y+1600);if(n%3==1)Box(line+(line>200?-84:84),y+1600,44,160,.52f);else Gate(line,y+1600,105,n);
         if(n%3==2)Person(278,y+470,57,"skier",12,n);
         string reward=new[]{"thermos","magnet",null,"thermos",null,"gift",null,"helmet"}[n%8];
         if(reward!=null)Entry(reward,Valley(y+1990),y+1990,24,.85f);
@@ -162,7 +171,7 @@ public partial class RaceWorld {
         bool trick=shortTier<0&&section%6==0,prize=shortTier<0&&section%9==2;
         if(shortTier<0&&section%9==3)return;
         int line=prize?2:trick?1:tier;float w=new[]{110,99,90}[line],len=new[]{125,160,200}[line],height=new[]{.95f,1.60f,2.35f}[line];
-        float span=prize?1740:trick?760:new[]{395,515,660}[line],lift=new[]{1.65f,2.60f,3.65f}[line];
+        float span=prize?1120:trick?760:new[]{395,515,660}[line],lift=new[]{1.65f,2.60f,3.65f}[line];
         int side=shortTier<0?(Roll(seed,n,88)<.5f?1:-1):(n%2==1?1:-1);
         float x=200+side*new[]{24,46,55}[tier],at=y+310,lip=at+len*.5f;
         var ramp=Kicker(x,at,w,len,height);ramp.park=true;ramp.span=span*.05f;ramp.lift=lift;ramp.trickLine=trick||prize;ramp.prizeLine=prize;
@@ -224,16 +233,55 @@ public partial class RaceWorld {
         else if(n==7){Snowman(269,y+440);Coins(150,y+100,5,115);}
         else for(int j=0;j<3;j++){float x=200+((n+j)%2==1?48:-48);Gate(x,y+300+j*415,138,j);Entry("coin",x,y+300+j*415,22,0);}
     }
+    float BonusLine(float row){
+        float arc=Mathf.Sin(row*.96f+Roll(seed,0,55)*6.28f);
+        float weave=Mathf.Sin(row*.41f+Roll(seed,0,87)*6.28f);
+        return 200+Mathf.Min(row,1)*(arc*58+weave*26);
+    }
+    void BonusKicker(float y,float x,bool motor){
+        float height=motor?1.12f:.92f,lift=motor?2.1f:1.8f;
+        var ramp=Kicker(x,y+148,98,96,height);
+        ramp.park=true;ramp.span=motor?19:20;ramp.lift=lift;
+        Coins(x,y+22,2,54);
+        for(int i=1;i<=4;i++){
+            float t=i*.18f;
+            var fruit=Entry("coin",x,y+196+20*ramp.span*t,22,(1-t)*(height+4*lift*t)+.9f);
+            fruit.air=true;
+        }
+    }
+    void BonusRow(int n,bool motor){
+        float length=motor?620:660,y=n*length,x=BonusLine(n+.45f);
+        bool jump=n%5==(motor?2:1);
+        if(jump)BonusKicker(y,x,motor);
+        else{
+            for(int i=0;i<5;i++){
+                float t=.065f+i*.19f;
+                Entry("coin",BonusLine(n+t),y+t*length,22,0);
+            }
+            if((motor&&n%3!=1)||(!motor&&n%5==3))Snowman(BonusLine(n+.55f),y+length*.55f);
+            if(!motor&&n%3!=1)Gate(BonusLine(n+.58f),y+length*.58f,122,n);
+            if(n%2==0||motor)Entry("gift",BonusLine(n+.93f),y+length*.93f,24,.85f);
+        }
+        if(n%6==0||n%6==3){
+            float side=x>=200?-1:1;
+            // A short optional outside line. It rejoins the main fruit trail before the next obstacle.
+            float spare=BonusLine(n+.65f)+side*43;
+            Entry("coin",spare-side*14,y+length*.43f,22,0);
+            Entry(n%6==0?"thermos":"magnet",spare,y+length*.65f,24,.8f);
+        }
+    }
+    public static float TubeWoods(float metres)=>Mathf.SmoothStep(0,1,Mathf.InverseLerp(410,710,metres))*
+        (1-Mathf.SmoothStep(0,1,Mathf.InverseLerp(1020,1360,metres)));
     void Tubing(int n){
-        float y=n*660;int phase=y<7200?0:y<15200?1:2,sign=(n/(phase==1?2:1))%2==1?1:-1;
-        float x=200+sign*(38+Roll(seed,n,55)*65);Coins(x,y+90,3,78);
-        if(n%3==1)Gate(x,y+365,phase==1?94:122,n);if(n%4==3)Entry("gift",x,y+435,24,.85f);
-        if(phase==1)foreach(int side in sides){float r=Roll(seed,n,60+side);Tree(200+side*(146+r*25),y+90+r*310,r>.59f?2:r<.44f?1:0,1.4f);Tree(200+side*(193+r*12),y+460,1,1.6f);}
+        BonusRow(n,false);
+        float y=n*660,woods=TubeWoods(y/20);
+        foreach(int side in sides){
+            float r=Roll(seed,n,60+side);
+            if(r<woods){
+                Tree(200+side*(147+r*24),y+92+r*300,r>.59f?2:r<.44f?1:0,1.30f);
+                Tree(200+side*(194+r*14),y+454,1,1.50f);
+            }
+        }
     }
-    void Sled(int n){
-        int phase=Mathf.Min(2,n/9);int[] pattern=phase==0?new[]{1,0,1,2}:phase==1?new[]{0,1,2,1}:new[]{2,1,0,2,1,0};
-        int l=pattern[n%pattern.Length];if(Roll(seed,phase,87)>=.5f)l=2-l;float y=n*620,x=135+l*65;
-        Coins(x,y+100,3,75);if(n%3==2)Entry("gift",x,y+370,24,.85f);else Snowman(x,y+370);
-        if(phase==2)Entry("gift",135+((l+1)%3)*65,y+510,24,.85f);
-    }
+    void Sled(int n){BonusRow(n,true);}
 }

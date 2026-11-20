@@ -4,6 +4,8 @@ Shader "Owl/MountainRaceSky" {
   _LeftRidge("Ridge A",2D)="white"{}
   _RightRidge("Ridge C",2D)="white"{}
   _Route("Tubing route",2D)="black"{}
+  _RouteNext("Next tubing landscape",2D)="black"{}
+  _RouteBlend("Route transition",Range(0,1))=0
   _Aurora("Aurora",2D)="black"{}
   _AuroraA("Aurora A",2D)="black"{}
   _AuroraC("Aurora C",2D)="black"{}
@@ -27,7 +29,8 @@ Shader "Owl/MountainRaceSky" {
    #pragma fragment frag
    #pragma target 3.0
    #include "UnityCG.cginc"
-   sampler2D _Ridge,_LeftRidge,_RightRidge,_Aurora,_AuroraA,_AuroraC,_MenuArt,_Route;
+   sampler2D _Ridge,_LeftRidge,_RightRidge,_Aurora,_AuroraA,_AuroraC,_MenuArt,_Route,_RouteNext;
+   float _RouteBlend;
    float4 _Forward,_Horizon,_Zenith,_Tint;float _Night,_Storm,_Clock,_Menu,_Tube;
    struct V {float4 pos:SV_POSITION;float3 ray:TEXCOORD0;float4 screen:TEXCOORD1;};
    V vert(float4 p:POSITION){V o;o.pos=UnityObjectToClipPos(p);o.screen=ComputeScreenPos(o.pos);o.ray=p.xyz;return o;}
@@ -51,6 +54,14 @@ Shader "Owl/MountainRaceSky" {
     float2 right=float2(_Forward.z,-_Forward.x);
     float az=atan2(dot(dir.xz,right),dot(dir.xz,_Forward.xz));
     float3 sky=lerp(_Horizon.rgb,_Zenith.rgb,smoothstep(-.07,.7,dir.y));
+    if(_Tube>.5){
+     // These paintings already contain sky, ridge and valley. Wrap them around the
+     // view and dissolve the far snowfield into the same haze as the 3D terrain.
+     float2 uv=float2(.50+.485*sin(az),clamp(.59+dir.y*1.25,.012,.988));
+     fixed3 location=lerp(tex2D(_Route,uv).rgb,tex2D(_RouteNext,uv).rgb,_RouteBlend);
+     fixed3 distant=lerp(_Horizon.rgb,location,.96*smoothstep(-.55,-.20,dir.y));
+     return fixed4(lerp(distant,sky,smoothstep(.29,.67,dir.y)),1);
+    }
     if(_Night>.01){
      float2 st=float2(az,dir.y)*135;
      float noise=frac(sin(dot(floor(st),float2(12.9898,78.233)))*43758.5);
@@ -85,11 +96,6 @@ Shader "Owl/MountainRaceSky" {
      float ripple=sin(az*5.-_Clock*.65+sin(az*11.+dir.y*18.-_Clock*.31));
      float veil=smoothstep(-.17,.06,dir.y)*(1.-smoothstep(.05,.44,dir.y));
      sky=lerp(sky,_Horizon.rgb,.84+veil*(.105+.045*ripple));
-    }
-    if(_Tube>.5){
-     float2 tuv=float2(.50+az*.70,.45+dir.y*2.6);
-     fixed4 route=tex2D(_Route,clamp(tuv,.002,.998));
-     sky=lerp(sky,route.rgb,route.a*smoothstep(0,.08,min(tuv.x,1-tuv.x))*smoothstep(0,.05,min(tuv.y,1-tuv.y)));
     }
     return fixed4(sky,1);
    }

@@ -14,7 +14,7 @@ public sealed class RaceItem {
     internal int route;
     internal bool leap,small,decor,bypass;
     internal bool movingPoseReady;
-    internal bool threwSnowball;
+    internal bool threwSnowball,honked;
     internal Vector2 throwEnd;
     internal float throwDuration,throwEndHeight,throwStartHeight;
     internal GameObject obj;
@@ -71,18 +71,19 @@ public partial class RaceWorld : MonoBehaviour {
     }
     static float RowLength(int stage,string mode){
         if(mode=="sprint")return 75;if(mode=="tubing")return 33;if(mode=="sled")return 31;
-        switch(stage){case 0:return 62.5f;case 1:return 50;case 2:return 117;case 3:return 75;case 5:case 6:return 90;default:return 50;}
+        if(stage>=8&&stage%8==6)return 50;
+        switch(stage%8){case 0:return 62.5f;case 1:return 50;case 2:return 117;case 3:return 75;case 5:case 6:return 90;default:return 50;}
     }
     int Segment(float d){
         d=Mathf.Max(0,d);
         if(mode=="sprint"||mode=="tubing"||mode=="sled")return Mathf.FloorToInt(d/RowLength(0,mode));
         int stage=Mathf.FloorToInt(d/2500);
-        return stage*1000+Mathf.FloorToInt((d-stage*2500)/RowLength(stage%8,mode));
+        return stage*1000+Mathf.FloorToInt((d-stage*2500)/RowLength(stage,mode));
     }
     int Following(int seg){
         if(mode=="sprint"||mode=="tubing"||mode=="sled")return seg+1;
         int stage=seg/1000,index=seg%1000;
-        return (index+1)*RowLength(stage%8,mode)>=2500?(stage+1)*1000:seg+1;
+        return (index+1)*RowLength(stage,mode)>=2500?(stage+1)*1000:seg+1;
     }
     public void Refresh(float distance,float elapsed)=>Refresh(distance,elapsed,0);
     public void Refresh(float distance,float elapsed,float riderLane){

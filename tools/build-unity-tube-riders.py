@@ -7,6 +7,7 @@ import base64
 import math
 import re
 import struct
+import sys
 import tempfile
 import uuid
 
@@ -163,8 +164,9 @@ def encode(obj):
         color=bytes([to_srgb(x) for x in mat.diffuse_color[:3]]+[255])
         raw.extend(color*len(vertices))
         count(len(index));raw.extend(struct.pack('<%di'%len(index),*index))
-        count(2)
-        for key in ("Carve","Absorb"):
+        keys=("Carve","Absorb") if mesh.shape_keys else ()
+        count(len(keys))
+        for key in keys:
             string(key)
             for v,_,_ in vertices:
                 x,y,z=mesh.shape_keys.key_blocks[key].data[v].co-mesh.vertices[v].co
@@ -175,6 +177,41 @@ bpy.ops.wm.open_mainfile(filepath=str(art/"training-cast.blend"))
 tubes={name:bpy.data.objects[name] for name,_ in variants}
 for obj in list(bpy.context.scene.objects):
     if obj not in tubes.values():bpy.data.objects.remove(obj,do_unlink=True)
+weave=material("Graphite webbing",(.036,.045,.053))
+def handles(playable=False):
+    out=[]
+    for side in (-1,1):
+        y=.06 if side<0 else .15
+        x=.65*side
+        grip=.58*side if playable else x
+        top=.65 if playable else .56
+        out.extend([strap((x,y-.13,.43),(grip,y-.08,top),.073,weave),
+                    strap((grip,y-.08,top),(grip,y+.12,top),.073,weave),
+                    strap((grip,y+.12,top),(x,y+.16,.43),.073,weave)])
+    return out
+
+# Playable rigs sit on the same sewn inflatables as the NPCs, with both handles
+# exported in the original mesh coordinates. Never bake a second sitter into these.
+for key,_ in variants:
+    tube=tubes[key].copy();tube.data=tube.data.copy()
+    bpy.context.collection.objects.link(tube)
+    tube.name="playerT"+key[1:]
+    keep_inflatable(tube)
+    pieces=handles(playable=True)
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in [tube,*pieces]:o.select_set(True)
+    bpy.context.view_layer.objects.active=tube
+    bpy.ops.object.join()
+    bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
+    encode(tube)
+    meta=models/(tube.name+".bytes.meta")
+    source=(models/(key+".bytes.meta")).read_text()
+    guid=uuid.uuid5(uuid.NAMESPACE_URL,"belaya-sova/"+tube.name).hex
+    meta.write_text(re.sub(r"(?m)^guid: .*$","guid: "+guid,source),encoding="utf8")
+    bpy.data.objects.remove(tube,do_unlink=True)
+if "--player-tubes" in sys.argv:
+    sys.exit(0)
+
 data=(root/"docs/models/npc.js").read_text()
 asset=re.search(r'__GLB(?:\.|\[")sitter(?:"\])?\s*=\s*"([A-Za-z0-9+/=]+)"',data).group(1)
 with tempfile.TemporaryDirectory() as folder:
@@ -183,19 +220,12 @@ with tempfile.TemporaryDirectory() as folder:
 original=next(o for o in bpy.context.selected_objects if o.type=="MESH")
 dark=material("Insulated boot",(.030,.041,.059))
 sole=material("Winter tread",(.078,.09,.11))
-weave=material("Graphite webbing",(.036,.045,.053))
 trim=material("Light grey piping",(.46,.55,.63))
 for i,(key,color) in enumerate(variants):
     tube=tubes[key];keep_inflatable(tube)
     body=character(original,key,color)
-    pieces=[body]
+    pieces=[body,*handles()]
     for side in (-1,1):
-        # The asymmetric mittens of the scanned sitter meet their respective straps.
-        hand_y=.06 if side<0 else .15
-        x=.65*side
-        pieces.extend([strap((x,hand_y-.13,.43),(x,hand_y-.08,.56),.073,weave),
-                       strap((x,hand_y-.08,.56),(x,hand_y+.12,.56),.073,weave),
-                       strap((x,hand_y+.12,.56),(x,hand_y+.16,.43),.073,weave)])
         boot_x=side*.293
         pieces.append(padded_block("Ankle", (boot_x,-.57,.60),(.255,.31,.25),dark,.095))
         pieces.append(padded_block("Toe box", (boot_x,-.69,.54),(.27,.395,.185),dark,.080))

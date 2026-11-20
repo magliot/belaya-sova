@@ -152,7 +152,7 @@ async function main(){
     await p.locator('#reviewStep').click();await p.locator('#reviewRate').selectOption('3');await p.locator('#reviewRate').selectOption('0');
     await p.locator('#reviewLane').evaluate(e=>{e.value='3';e.dispatchEvent(new Event('input',{bubbles:true}));});await p.locator('#reviewEffect').selectOption('coffee');
     await p.locator('#reviewHero').selectOption('bear');await p.locator('#reviewRide').selectOption('tubing');
-    await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===1161);assert(await p.locator('#reviewStage').isDisabled());
+    await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===2196);assert(await p.locator('#reviewStage').isDisabled());
     await p.locator('#reviewFold').click();assert(await p.locator('#reviewBody').isHidden());
     await p.locator('#reviewExit').click();await p.locator('#play').waitFor();
     console.log('Driving from ordinary menu.');

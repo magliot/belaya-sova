@@ -82,9 +82,10 @@ public static class RiderCourseChecks {
         Require(tube!=null,"Missing early tube approach");
         race.StartRace("{\"mode\":\"tubing\",\"seed\":1911}");
         race.BeginSteer();race.DragSteer(.21f);for(int i=0;i<28;i++)race.Advance(1f/60);
-        var rider=race.transform.Find("Selected rider").GetComponentsInChildren<SkinnedMeshRenderer>().First(s=>s.sharedMesh.name.StartsWith("tube"));
-        Require(rider.GetBlendShapeWeight(rider.sharedMesh.GetBlendShapeIndex("Carve"))>3,"Steering did not lean the seated rider");
-        Require(rider.sharedMaterials.Any(m=>m.GetTexture("_BaseMap")&&m.GetTexture("_BaseMap").name.Contains("jacket")),"Missing original upholstered rider texture");
+        var root=race.transform.Find("Selected rider");
+        var rider=root.GetComponentsInChildren<MeshRenderer>().First(s=>s.name.StartsWith("playerTube"));
+        Require(race.MenuActor.gameObject.activeInHierarchy&&race.MenuActor.name=="OwlMenu","Missing selected owl on the inflatable");
+        Require(Vector3.Angle(race.MenuActor.up,root.up)>2,"Steering did not lean the selected rider");
         if(capture){
             Shot(race.View,"02-bonus-chase");
             var t=rider.transform;var at=t.TransformPoint(new Vector3(0,.72f,0));

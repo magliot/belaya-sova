@@ -43,17 +43,18 @@ public static class RaceWorldChecks {
         Require(Mathf.Abs(right-left-6)<.035f&&Mathf.Abs(right-centre-3)<.035f,"lane targeting at "+marker);
         Require(Mathf.Abs(Spawn("normal",-3)-left)<.001f,"seed+steering failed replay at "+marker);
     }
-    static float RubberGap(SkinnedMeshRenderer skin,MeshCollider piste){
-        Mesh mesh=new Mesh();
+    static float RubberGap(Renderer rubber,MeshCollider piste){
+        var skin=rubber as SkinnedMeshRenderer;
+        var mesh=skin?new Mesh():rubber.GetComponent<MeshFilter>().sharedMesh;
         float low=float.PositiveInfinity;
         try{
-            skin.BakeMesh(mesh);
+            if(skin)skin.BakeMesh(mesh);
             foreach(var v in mesh.vertices){
                 if(v.y>.12f)continue;
-                var p=skin.transform.TransformPoint(v);
+                var p=rubber.transform.TransformPoint(v);
                 if(piste.Raycast(new Ray(p+Vector3.up*3,Vector3.down),out var hit,6))low=Mathf.Min(low,p.y-hit.point.y);
             }
-        }finally{UnityEngine.Object.Destroy(mesh);}
+        }finally{if(skin)UnityEngine.Object.Destroy(mesh);}
         return low;
     }
     public static void CheckSnowContact(MountainRace race){
@@ -78,8 +79,8 @@ public static class RaceWorldChecks {
             Require(!tube.Visual.sharedMaterials.Any(m=>m.renderQueue>2500),"baked tube shadow intersects the snow");
             race.StartRace("{\"mode\":\"tubing\",\"seed\":1911}");race.BeginSteer();race.DragSteer(.22f);
             for(int i=0;i<36;i++)race.Advance(1f/60);
-            var riderTube=race.transform.Find("Selected rider").GetComponentsInChildren<SkinnedMeshRenderer>()
-                .First(s=>s.sharedMesh.name.StartsWith("tube",StringComparison.Ordinal));
+            var riderTube=race.transform.Find("Selected rider").GetComponentsInChildren<MeshRenderer>()
+                .First(s=>s.name.StartsWith("playerTube",StringComparison.Ordinal));
             surface.sharedMesh=null;surface.sharedMesh=piste.sharedMesh;
             worstRubberGap=Mathf.Max(worstRubberGap,Mathf.Abs(RubberGap(riderTube,surface)));
             Require(worstRubberGap<.08f,"rubber/snow separation at contact "+worstRubberGap+" m");
@@ -199,13 +200,14 @@ public static class RaceWorldChecks {
             }
             world.Configure(1911,"sprint");world.Refresh(1170,100);
             Require(world.Items.Any(o=>o.kind=="finish"&&o.distance==1200),"sprint finish line");
-            world.Configure(1911,"tubing");world.Refresh(430,40);
+            world.Configure(1911,"tubing");world.Refresh(810,38);
             Require(world.Items.Any(o=>o.kind=="tree")&&world.Items.Any(o=>o.kind=="gate"),"tubing forest and slalom");
-            world.Refresh(850,80);Require(world.Items.Any(o=>o.kind=="gift"),"tubing gift finish");
+            world.Refresh(1690,70);Require(world.Items.Any(o=>o.kind=="gift"),"tubing gift finish");
             world.Configure(1911,"sled");
             Require(world.Items.Any(o=>o.kind=="snowman")&&world.Items.Any(o=>o.kind=="gift"),"snowmobile targets and gifts");
             CheckSnowContact(race);
             RiderCourseChecks.Verify(race);
+            RaceRouteChecks.Run(race);
             Debug.Log("RACE WORLD CHECK PASS: 8 stages, two seeds, signs, portrait people, moving riders, sprint and bonuses");
         }finally{race.View.aspect=aspect;race.Menu();}
     }

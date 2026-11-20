@@ -46,8 +46,12 @@ public partial class MountainRace {
             if(o.consumed)continue;
             float dx=lane-o.lane,dy=d-o.distance,abs=Mathf.Abs(dx),ahead=-dy;
             if(o.kind=="cat"||o.kind=="snowmobile"){
-                float vol=1-Mathf.Clamp01(Mathf.Sqrt(dx*dx*2.56f+dy*dy)/35);
+                float vol=1-Mathf.Clamp01(Mathf.Sqrt(dx*dx*2.56f+dy*dy)/(o.kind=="cat"?56:35));
                 if(vol>Status.engineNear){Status.engineNear=vol;Status.enginePan=Mathf.Clamp(-dx/8,-.9f,.9f);}
+                float closingSpeed=speed-o.pace;
+                if(o.kind=="cat"&&!o.honked&&closingSpeed>0&&ahead>0&&ahead<Mathf.Clamp(closingSpeed*1.8f,15,48)){
+                    o.honked=true;Status.horns++;
+                }
             }
             if(ahead>12||ahead< -9) {
                 // Park ramps and very long boxes still have drivable surfaces within this window.
@@ -69,9 +73,11 @@ public partial class MountainRace {
                 if(!o.judged&&cross){
                     o.judged=true;
                     float crossLane=Mathf.Lerp(fromLane,lane,(o.distance-before)/Mathf.Max(.001f,d-before));
+                    // Crossing the opposite fork is a valid choice even when both lines have gates.
+                    if(o.points>0&&crossLane*o.lane<0)break;
                     if(Mathf.Abs(crossLane-o.lane)<o.width*.5f){
                         Status.gates++;Status.combo++;consecutiveGates++;Status.maxCombo=Mathf.Max(Status.maxCombo,Status.combo);
-                        bonusPoints+=25*Mult;Cue("gate");
+                        bonusPoints+=(25+(o.points>0&&consecutiveGates>=3?o.points:0))*Mult;Cue("gate");
                     }else{consecutiveGates=Status.combo=0;Cue("miss");}
                 }
                 if(!airborne&&!o.stoneGate&&wobble<=0&&Mathf.Abs(dy)<.3f&&Mathf.Abs(abs-o.width*.5f)<.3f){
@@ -95,7 +101,7 @@ public partial class MountainRace {
                 o.Consume();
                 switch(o.kind){
                     case "coin":Status.coins++;Burst(o,true);if(BonusMode)BonusReward(15);else bonusPoints+=5;Cue("coin");break;
-                    case "thermos":boost=4.5f+settings.boost*.8f;invincible=Mathf.Max(invincible,boost);Notice("Кофе · ускорение +65%","power");break;
+                    case "thermos":boost=4.5f+settings.boost*.8f;invincible=Mathf.Max(invincible,boost);Notice(BonusMode?"Кофе · ускорение +22%":"Кофе · ускорение +65%","power");break;
                     case "helmet":if(Status.helmets<3)Status.helmets++;else bonusPoints+=50;Notice("Каска EMCO","power");break;
                     case "magnet":magnet=7+settings.mag*2;Notice("Магнит для мандаринов","power");break;
                     case "feather":Status.feather=true;Status.feathers++;bonusPoints+=300*Mult;Notice("Золотое перо! Открыты оба бонуса","feather");break;
@@ -115,7 +121,7 @@ public partial class MountainRace {
               case "aid":
                 if(square<1.69f){o.Consume();bonusPoints+=80*Mult;Rule(9);Notice("Позвал патруль!","polite");}break;
               case "snowman":
-                if(Status.mode=="sled"&&square<2.25f){o.Consume();Status.snowmen++;BonusReward(90);Notice("Снеговик!","smash");}
+                if(BonusMode&&Altitude<1.5f&&square<2.25f){o.Consume();Burst(o,false);Status.snowmen++;BonusReward(90);Notice("Снеговик!","smash");}
                 else if(!airborne&&square<1)Hit(o.kind,o);break;
               case "ball":
                 if(square<1.03f*1.03f&&Mathf.Abs(o.height-(Altitude+1.02f))<.82f){
@@ -126,7 +132,7 @@ public partial class MountainRace {
                     o.Consume();wobble=.6f;slow=.6f;Status.combo=0;Notice("Осторожно, собака!","wobble");}break;
               case "mogul":
                 if(!airborne&&square<Mathf.Pow(.45f+o.width*.5f,2)){
-                    if(Hero=="bear"||boost>0){o.Consume();bonusPoints+=15;Cue("smash");}
+                    if(Hero=="bear"||boost>0){BreakSnowMound(o);o.Consume();bonusPoints+=15;Cue("smash");}
                     else if(!o.judged){o.judged=true;slow=Mathf.Max(slow,.25f);rampHeight=Mathf.Max(rampHeight,.24f);}
                 }break;
               case "npc":

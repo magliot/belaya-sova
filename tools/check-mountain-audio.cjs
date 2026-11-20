@@ -20,7 +20,21 @@ async function main(){
       return route.abort();
     });
     await page.addInitScript(()=>{
-      window.clips=[];window.songs=[];
+      window.clips=[];window.songs=[];window.hornNotes=[];window.motorLevels=[];
+      const oscStart=OscillatorNode.prototype.start;
+      OscillatorNode.prototype.start=function(...args){
+        if(this.type==='square'&&[311,392].includes(this.frequency.value))hornNotes.push(this.frequency.value);
+        return oscStart.apply(this,args);
+      };
+      const pannerGains=new WeakSet(),connect=AudioNode.prototype.connect,target=AudioParam.prototype.setTargetAtTime;
+      AudioNode.prototype.connect=function(node,...args){
+        if(this instanceof GainNode&&node instanceof StereoPannerNode)pannerGains.add(this.gain);
+        return connect.call(this,node,...args);
+      };
+      AudioParam.prototype.setTargetAtTime=function(value,...args){
+        if(pannerGains.has(this))motorLevels.push(value);
+        return target.call(this,value,...args);
+      };
       const tags=new WeakMap(),bytes=Response.prototype.arrayBuffer,decode=BaseAudioContext.prototype.decodeAudioData;
       Response.prototype.arrayBuffer=async function(){
         const data=await bytes.call(this);tags.set(data,this.url.split('/').pop());return data;
@@ -51,6 +65,11 @@ async function main(){
       {eventId:4,cue:'chime',letters:1}, {eventId:5,cue:'feather'}
     ])await send(cue);
     await waitClip('bear_start.mp3');
+    await send({engineNear:.1});await send({engineNear:.55,horns:1});await send({engineNear:.9});await send({});
+    const approach=await page.evaluate(()=>({notes:hornNotes,levels:motorLevels.slice(-4)}));
+    assert.deepEqual(approach.notes,[311,392,311,392],'one approaching groomer should honk once');
+    const [far,middle,near]=approach.levels;
+    assert(far>0&&middle>far&&near>middle&&near>.2,'engine must grow towards the player');
     await page.waitForFunction(()=>songs.length===1&&songs[0].currentTime>0&&!songs[0].paused&&songs[0].src.endsWith('/music_run.mp3'));
     assert(!requested.includes('/audio/bear_feather.mp3'),'A non-feather reward triggered speech');
     // A second contact overwrote "feather" within the same Unity HUD tick.

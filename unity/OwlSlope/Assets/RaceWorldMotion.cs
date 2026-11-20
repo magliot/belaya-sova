@@ -60,15 +60,13 @@ public partial class RaceWorld {
             case "npc":MoveRider(o,player,elapsed,dt);return;
             case "yeti":o.age+=dt;return;
             case "tube":MoveTube(o,player,dt);return;
-            case "cat":
-                if(o.small){
-                    float t=Smooth((player-o.originD+46)/61);
-                    o.distance=o.originD+7.75f*t;o.lane=o.side*(4.8f+.7f*Mathf.Sin(Mathf.PI*t));
-                    o.yaw=Mathf.Atan(o.side*14*Mathf.PI*Mathf.Cos(Mathf.PI*t)/155)*Mathf.Rad2Deg;
-                }else{
-                    o.distance+=o.pace*dt;float t=(o.distance-o.originD)/8,side=o.originX<0?1:-1;
-                    o.lane=o.originX+side*.85f*(1-Mathf.Cos(t));o.yaw=Mathf.Atan(side*17/160*Mathf.Sin(t))*Mathf.Rad2Deg;
-                }return;
+            case "cat":{
+                o.distance+=o.pace*dt;
+                float t=(o.distance-o.originD)/8,side=o.originX<0?1:-1;
+                o.lane=o.originX+side*.85f*(1-Mathf.Cos(t));
+                // The large uphill cab is already reversed in its mesh. The compact cab faces downhill.
+                o.yaw=Mathf.Atan(side*.85f/8*Mathf.Sin(t))*Mathf.Rad2Deg+(o.small&&o.pace<0?180:0);
+                return;}
             case "snowmobile":{
                 float t=Mathf.Clamp01((player-o.originD+40)/52.5f),angle=t*2*Mathf.PI,b=Mathf.Sin(angle);
                 o.lane=o.side*(63+15*t+16*b)*.05f;o.distance=o.originD+(165-210*t)*.05f;

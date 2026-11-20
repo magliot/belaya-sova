@@ -12,9 +12,9 @@ public partial class MountainRace : MonoBehaviour {
     [Serializable] public class State {
         public string phase="menu",hero="bear",mode="normal",courseMode="normal",message="",cue="",nextLetter="";
         public int seed,score,coins,helmets,stage,gates,tricks,rings,combo,maxCombo,polite,gifts,snowmen,
-            feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds;
+            feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds,horns;
         public float metres,elapsed,engineNear,enginePan,avalanche,edge,boostSeconds,magnetSeconds,chaseSeconds,chaseGap;
-        public int letterSide;
+        public int letterSide,bonusLocation;
         public bool air,boost,feather,goldenOwl,tubingUnlocked,sledUnlocked;
         public int[] fis=Array.Empty<int>();
     }
@@ -45,6 +45,10 @@ public partial class MountainRace : MonoBehaviour {
     float challengeClean;
     string CourseMode=>Review?settings.reviewRide:Status.mode;
     bool BonusMode=>CourseMode=="sled"||CourseMode=="tubing";
+    const float BonusSeconds=75, BonusBoost=1.22f;
+    float BonusLaunch=>CourseMode=="sled"?22:20;
+    float BonusGain=>CourseMode=="sled"?10:8;
+    float BonusSpeed(float elapsed)=>BonusLaunch+BonusGain*Mathf.Clamp01(elapsed/BonusSeconds);
     bool Review=>Status.mode=="review";
     int Mult=>Mathf.Min(10,1+Status.combo/5);
     const float FallTime=1.7f;
@@ -97,7 +101,7 @@ public partial class MountainRace : MonoBehaviour {
         random=new System.Random(settings.seed);World.Configure(settings.seed,CourseMode);
         sensitivity=.35f+.11f*Mathf.Clamp(settings.sensitivity,1,10);
         lane=velocity=slip=angle=dragStart=dragTarget=0;edgeReturn=dragging=airborne=false;
-        speed=baseSpeed=12;travelYaw=World.HeadingAt(0);boost=magnet=slow=wobble=invincible=fall=0;
+        speed=baseSpeed=BonusMode?BonusLaunch:12;travelYaw=World.HeadingAt(0);boost=magnet=slow=wobble=invincible=fall=0;
         rampHeight=rampPhase=airTime=flightSpan=crashTimer=cleanStart=reviewRate=reviewLane=noticeUntil=0;
         parkFlight=trickLine=prizeLine=false;trickProgress=-1;lastLanding=-10;lastClose=-10;
         earnedRules.Clear();bonusPoints=flightTricks=rewardChain=consecutiveGates=0;lastReward=-100;
@@ -117,10 +121,18 @@ public partial class MountainRace : MonoBehaviour {
     }
     public void Seek(float metres){
         if(!Review)return;
-        Status.metres=Mathf.Clamp(metres,0,BonusMode?1161:CourseMode=="sprint"?1199:19999);Status.elapsed=Status.metres/14;
-        if(BonusMode)Status.elapsed=(Mathf.Sqrt(270*270+2*(80f/75)*Status.metres*20)-270)/(80f/75);
+        float end=BonusMode?Mathf.Ceil((BonusLaunch+.5f*BonusGain)*BonusSeconds*BonusBoost):CourseMode=="sprint"?1199:79999;
+        Status.metres=Mathf.Clamp(metres,0,end);Status.elapsed=Status.metres/14;
+        if(BonusMode){
+            float accel=BonusGain/BonusSeconds;
+            // The inspector spans the entire boost-reachable course. A practice ride from
+            // the extra distance must still have time left before the 75-second finish.
+            float nominal=Status.metres/BonusBoost;
+            Status.elapsed=Mathf.Min(BonusSeconds,(Mathf.Sqrt(BonusLaunch*BonusLaunch+2*accel*nominal)-BonusLaunch)/accel);
+            speed=BonusSpeed(Status.elapsed)*BonusBoost;
+        }
         lane=reviewLane;angle=0;rampHeight=0;airborne=false;travelYaw=World.HeadingAt(Status.metres);
-        Status.stage=Mathf.FloorToInt(Status.metres/2500)%8;
+        Status.stage=BonusMode?0:Mathf.FloorToInt(Status.metres/2500)%8;
         World.SetThrowTarget(lane,14,0,0);
         World.Refresh(Status.metres,Status.elapsed);ReviewContact();
         boost=reviewEffect=="coffee"?5:0;Status.avalanche=reviewEffect=="avalanche"?.85f:0;
@@ -132,14 +144,24 @@ public partial class MountainRace : MonoBehaviour {
     }
     public void ReviewEffect(string effect){if(Review){reviewEffect=effect;Seek(Status.metres);}}
     public void ReviewRate(float value){if(Review)reviewRate=Mathf.Clamp(value,0,6);}
-    public void ReviewStep(){if(Review)Seek(Status.metres+14f/30);}
+    public void ReviewStep(){if(Review)Seek(Status.metres+(BonusMode?speed:14)/30);}
     public void ReviewLane(float value){if(Review){reviewLane=Mathf.Clamp(value,-10,10);Seek(Status.metres);}}
+    public void RideFromReview(){
+        if(!Review||Status.phase!="review")return;
+        reviewEffect="normal";Seek(Status.metres);
+        Status.mode=settings.reviewRide;Status.phase="play";
+        Status.helmets=BonusMode?0:1;
+        cleanStart=Status.metres;chaseNext=cleanStart+900;
+        bestStage=Status.stage;SelectChallenge(bestStage);
+        travelYaw=World.HeadingAt(cleanStart);nextHud=0;
+        ScheduleLetter(cleanStart,false);PrepareActors();RenderRace(0,true);Publish();
+    }
     public void SetSensitivity(float value){sensitivity=.35f+.11f*Mathf.Clamp(value,1,10);}
     void OnApplicationPause(bool paused){if(paused)PauseRide();}
     void Update(){
         if(!World)return;
         if(IsMenu){NativeMenuPointer();RenderMenu(Time.deltaTime);return;}
-        if(Review){if(reviewRate>0)Seek(Status.metres+Time.deltaTime*14*reviewRate);return;}
+        if(Review){if(reviewRate>0)Seek(Status.metres+Time.deltaTime*(BonusMode?speed:14)*reviewRate);return;}
         if(Input.GetKeyDown(KeyCode.P)||Input.GetKeyDown(KeyCode.Escape)){if(Status.phase=="pause")ResumeRide();else PauseRide();}
         if(Status.phase!="play")return;
 #if !UNITY_WEBGL || UNITY_EDITOR
@@ -170,6 +192,7 @@ public partial class MountainRace : MonoBehaviour {
         Status.score=Mathf.FloorToInt(Status.metres)+bonusPoints;Status.speed=Mathf.RoundToInt(speed*3.6f);
         Status.air=airborne;Status.boost=boost>0;Status.edge=angle;
         Status.courseMode=CourseMode;
+        Status.bonusLocation=Status.metres<580?0:Status.metres<1190?1:2;
         Status.boostSeconds=Mathf.Max(0,boost);Status.magnetSeconds=Mathf.Max(0,magnet);
         Status.chaseSeconds=Mathf.Max(0,chaseLeft);Status.chaseGap=Mathf.Max(0,Status.metres-chaseDistance);
         Status.nextLetter="";Status.letterSide=0;

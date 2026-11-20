@@ -146,8 +146,8 @@ public partial class MountainRace {
         menuModel=Instance(key+"Menu").transform;
         menuModel.localPosition=Vector3.zero;menuModel.localRotation=Quaternion.identity;menuModel.localScale=Vector3.one;
         foreach(var joint in menuModel.GetComponentsInChildren<Transform>(true)){
-            if(joint.name.EndsWith("_Pole"))joint.gameObject.SetActive(CourseMode!="sled");
-            if(CourseMode!="sled")continue;
+            if(joint.name.EndsWith("_Pole"))joint.gameObject.SetActive(!BonusMode);
+            if(!BonusMode)continue;
             string bone=joint.name;
             if(bone.StartsWith("mixamorig",StringComparison.Ordinal))bone=bone.Substring(9).TrimStart(':','_');
             switch(bone){
@@ -160,16 +160,14 @@ public partial class MountainRace {
             }
         }
         if(!menuLifts.ContainsKey(key))menuLifts[key]=MeasureFeet(menuModel);
-        menuModel.gameObject.SetActive(IsMenu||CourseMode=="sled");
+        menuModel.gameObject.SetActive(IsMenu||BonusMode);
         rideModel.gameObject.SetActive(!IsMenu&&!BonusMode);
         if(IsMenu){
             PlaceMenuEquipment();
             foreach(var child in actorRoot.GetComponentsInChildren<Transform>(true))child.gameObject.layer=8;
             return;
         }
-        if(CourseMode=="sled"){
-            if(!sled)sled=World.CreateVisual("playerSled",actorRoot);
-            sled.SetActive(true);activeEquipment="sled";
+        if(BonusMode){
             seatedLimbs=new[]{new SeatSide(seatBones,"Left"),new SeatSide(seatBones,"Right")};
             var left=seatedLimbs[0];var right=seatedLimbs[1];
             var toeDirection=actorRoot.InverseTransformDirection(left.toe.position-left.ankle.position+right.toe.position-right.ankle.position);
@@ -177,10 +175,15 @@ public partial class MountainRace {
             foreach(var limb in seatedLimbs)
                 limb.side=Mathf.Sign((seatFacing*actorRoot.InverseTransformPoint(limb.shoulder.position)).x);
         }
+        if(CourseMode=="sled"){
+            if(!sled)sled=World.CreateVisual("playerSled",actorRoot);
+            sled.SetActive(true);activeEquipment="sled";
+        }
         if(CourseMode=="tubing"){
-            string[] models={"tube60B","tube60C","tube61A","tube61C"};
+            string[] models={"playerTube60B","playerTube60C","playerTube61A","playerTube61C"};
             int index=(Hero=="owl"?2:0)+(RaceWorld.Roll(settings.seed,0,75)>=.5f?1:0);
             tube=World.CreateVisual(models[index],actorRoot);tube.transform.localScale=Vector3.one*.84f;activeEquipment="tube";
+            tube.transform.localRotation=Quaternion.Euler(0,180,0);
         }
     }
     void PlaceMenuEquipment(){
@@ -280,44 +283,42 @@ public partial class MountainRace {
         float rotation=fall>0?(1-fall/FallTime):crashTimer>0?Mathf.Min(.7f,(1.5f-crashTimer)/1.4f):0;
         Vector3 flip=Vector3.zero;
         if(rotation>0){float twirl=Mathf.Clamp01(rotation/.4f);flip.x=-360*(1-Mathf.Pow(1-twirl,3));flip.z=fallSide*75*(rotation<.4f?twirl:rotation<.72f?1:(1-rotation)/.28f);}
-        else if(trickProgress>=0&&poseStyle<0)flip=TrickEuler(trickType,trickProgress);
-        else if(trickProgress>=0&&Hero=="owl"){
-            // Tweak across the fall line after takeoff. Present the toe edge to the
-            // chase camera for Indy and the heel edge for Melon. The loaded rig
-            // and board pivot together, keeping the wing on that edge.
+        else if(trickProgress>=0&&trickType!=5)flip=TrickEuler(trickType,trickProgress);
+        else if(trickProgress>=0){
+            // The toe/heel reach and ski shifty are deliberate downward gestures.
+            // Turn the whole rig a little across the fall line to show the edge.
             float reach=StepBlend(trickProgress/.36f)*StepBlend((1-trickProgress)/.31f);
             float side=poseStyle==0?1:-1;
-            flip=new Vector3(poseStyle==0?-9*reach:12*reach,side*58*reach,-side*17*reach);
+            flip=new Vector3(-3*reach,side*24*reach,-side*7*reach);
         }
         var orientation=Quaternion.LookRotation(forward,slopeUp)*Quaternion.Euler(0,angle*24,-angle*16);
         if(activeEquipment=="tube"){
             ground=World.SnowSurface(d,lane);
-            orientation=World.SnowFrame(d,lane)*Quaternion.Euler(0,angle*24,0);
+            orientation=World.SnowFrame(d,lane)*Quaternion.Euler(0,angle*24-Mathf.Atan2(velocity,speed)*Mathf.Rad2Deg*.86f,-angle*2.2f);
         }
         Vector3 pivot=Vector3.up*.62f;
         actorRoot.SetPositionAndRotation(ground+Vector3.up*alt+orientation*(pivot-Quaternion.Euler(flip)*pivot),orientation*Quaternion.Euler(flip));
-        if(activeEquipment=="tube"){
-            tube.transform.localRotation=Quaternion.Euler(0,180-Mathf.Atan2(velocity,speed)*Mathf.Rad2Deg*.86f,-angle*2.2f);
-            var skin=tube.GetComponent<SkinnedMeshRenderer>();
-            if(skin)RaceWorld.PoseTubeRider(skin,angle, .28f+.24f*Mathf.Abs(angle));
-        }else if(activeEquipment=="sled"){
-            sled.transform.localPosition=Vector3.zero;sled.transform.localRotation=Quaternion.identity;
+        if(BonusMode){
+            bool inflatable=activeEquipment=="tube";
+            float compress=inflatable?Mathf.Max(airborne?.020f*Mathf.Sin(u*Mathf.PI):0,
+                .026f*(1-Mathf.Clamp01((Status.elapsed-lastLanding)/.30f))):0;
             foreach(var bone in seatBones.Values)bone.localRotation=menuRest[bone];
             menuModel.localScale=Vector3.one*1.82f;
-            menuModel.localRotation=Quaternion.Euler(19+Mathf.Abs(angle)*3,0,-angle*7)*seatFacing;
+            menuModel.localRotation=Quaternion.Euler(inflatable?-6+Mathf.Abs(angle)*4+compress*80:19+Mathf.Abs(angle)*3,0,-angle*(inflatable?12:7))*seatFacing;
             var hips=seatBones["Hips"];
-            menuModel.position+=actorRoot.TransformPoint(new Vector3(0,.92f,-.46f))-hips.position;
+            var seat=inflatable?new Vector3(-angle*.028f,.355f-compress,-.042f):new Vector3(0,.92f,-.46f);
+            menuModel.position+=actorRoot.TransformPoint(seat)-hips.position;
             foreach(var limb in seatedLimbs){
                 float s=limb.side;
-                var grip=actorRoot.TransformPoint(new Vector3(s*.355f,1.13f,-.060f));
+                var grip=actorRoot.TransformPoint(inflatable?TubeGrip(s):new Vector3(s*.355f,1.13f,-.060f));
                 float palmLength=Vector3.Distance(limb.wrist.position,limb.palm.position);
                 // The owl's right wing is weighted almost entirely to the wrist; its index root lies only 2 mm away.
                 var wrist=grip+actorRoot.TransformDirection(new Vector3(0,.31f,-.951f))*palmLength;
                 AimLimb(limb.shoulder,limb.elbow,limb.wrist,wrist,actorRoot.TransformDirection(new Vector3(s*.42f,-.55f,-.75f)));
                 if(palmLength>.01f)AimChild(limb.wrist,limb.palm,grip);
-                var ankle=actorRoot.TransformPoint(new Vector3(s*.335f,.665f,-.42f));
+                var ankle=actorRoot.TransformPoint(inflatable?new Vector3(s*.22f,.47f,.19f):new Vector3(s*.335f,.665f,-.42f));
                 AimLimb(limb.hip,limb.knee,limb.ankle,ankle,actorRoot.TransformDirection(new Vector3(s*.22f,.16f,1)));
-                var bootTip=actorRoot.TransformPoint(new Vector3(s*.384f,.514f,-.19f));
+                var bootTip=actorRoot.TransformPoint(inflatable?new Vector3(s*.24f,.42f,.46f):new Vector3(s*.384f,.514f,-.19f));
                 AimChild(limb.ankle,limb.toe,bootTip);
             }
         }else{
@@ -338,6 +339,8 @@ public partial class MountainRace {
         View.transform.SetPositionAndRotation(eye,Quaternion.LookRotation(aim-eye,Vector3.up));
         UpdateWeather();UpdateTracks();
     }
+    // The original tube faces -Z; flip its asymmetric webbing positions with the rubber.
+    static Vector3 TubeGrip(float s)=>new Vector3(s*.58f,.65f,s>0?-.08f:-.17f)*.84f;
     static void AimChild(Transform joint,Transform child,Vector3 target){
         joint.rotation=Quaternion.FromToRotation(child.position-joint.position,target-joint.position)*joint.rotation;
     }
@@ -379,8 +382,8 @@ public partial class MountainRace {
     }
     static Vector3 TrickEuler(int type,float t){
         // Build and shed angular velocity progressively as the rider tucks and opens.
-        float full=360*(t-.55f*Mathf.Sin(2*Mathf.PI*t)/(2*Mathf.PI)),arc=Mathf.Sin(t*Mathf.PI);
-        switch(type){case 0:return new Vector3(0,full,0);case 1:return new Vector3(-full,0,0);
+        float full=360*(t-.78f*Mathf.Sin(2*Mathf.PI*t)/(2*Mathf.PI)),arc=Mathf.Sin(t*Mathf.PI);
+        switch(type){case 0:return new Vector3(-7*arc,full,10*arc);case 1:return new Vector3(-full,0,0);
             case 2:return new Vector3(full,0,0);case 3:return new Vector3(0,0,full);
             case 4:return new Vector3(arc*54,full*2,0);case 6:return new Vector3(0,full*2,0);
             case 7:return new Vector3(-full,full,arc*23);default:return Vector3.zero;}

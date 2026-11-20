@@ -66,7 +66,7 @@
     else if(s.boostSeconds>0)status='☕ Ускорение · '+s.boostSeconds.toFixed(1)+' с';
     else if(s.magnetSeconds>0)status='🧲 Магнит · '+s.magnetSeconds.toFixed(1)+' с';
     else if(s.nextLetter)status='Буква «'+s.nextLetter+'» '+(s.letterSide<0?'←':'→');
-    else if(mode==='tubing')status=(metres<335?'Открытый склон':metres<736?'Еловый лес':'Закат над бухтой')+' · ворота '+(s.gates||0);
+    else if(mode==='tubing')status=['Открытый склон','Еловый лес','Закат над бухтой'][s.bonusLocation||0]+' · ворота '+(s.gates||0);
     setText('rideStatus',status);$('rideStatus').hidden=!status;$('rideStatus').classList.toggle('warning',warning);
     $('avalancheMeter').hidden=!warning;
     if(warning)$('avalancheMeter').firstElementChild.style.transform='scaleX('+Math.max(0,Math.min(1,s.avalanche||0))+')';
@@ -96,7 +96,7 @@
     if(s.phase==='pause'){
       if(prev?.phase!=='pause')$('pauseVolumes').replaceChildren(...volumeSliders());
       setText('pausedDist',modes[s.mode]+' · '+Math.floor(s.metres)+' м · трасса № '+s.seed);
-      setText('exitPaused',s.metres>=30?'Завершить заезд':'В меню');$('pauseSense').value=profile.data.sens;setText('pauseSenseValue',profile.data.sens);
+      setText('exitPaused',run?.practice?'К осмотру':s.metres>=30?'Завершить заезд':'В меню');$('pauseSense').value=profile.data.sens;setText('pauseSenseValue',profile.data.sens);
     }
     if(s.phase==='play'&&s.message&&s.message!==prev?.message){
       clearTimeout(noticeTimer);
@@ -118,8 +118,11 @@
     window.MountainMetrics?.update(s);window.MountainAudio?.update(s);
     if(ready)draw(s,prev);
     if(s.phase==='play'&&(requestPause||document.hidden||app?.isActive===false)){requestPause=false;command('PauseRide');return;}
-    if(run&&s.mode!=='review'&&['play','finish','over'].includes(s.phase))profile.unlock(s);
-    if(run&&s.mode!=='review'&&(s.phase==='finish'||s.phase==='over')){
+    if(run?.practice&&(s.phase==='finish'||s.phase==='over')){
+      queueMicrotask(()=>{if(run?.practice)returnToInspection();});return;
+    }
+    if(run&&run.mode!=='review'&&['play','finish','over'].includes(s.phase))profile.unlock(s);
+    if(run&&run.mode!=='review'&&(s.phase==='finish'||s.phase==='over')){
       const bank=profile.data.coins,oldBest=profile.data.best,missions=profile.data.missions.slice();
       if(profile.finish(run.id,s)){
         setText('resultTitle',s.message||(s.phase==='finish'?'Финиш':'Заезд завершён'));setText('resultScore',s.score+' очков');
@@ -176,7 +179,7 @@
     if(snapshot?.phase==='play')command('PauseRide');
     else if(snapshot?.phase==='review'){$('reviewRate').value='0';command('ReviewRate',0);}
   }
-  function suspended(){if(run&&snapshot?.phase!=='pause')requestPause=true;pause();if(run)ranking.checkpoint(snapshot);}
+  function suspended(){if(run&&snapshot?.phase!=='pause')requestPause=true;pause();if(run&&run.mode!=='review')ranking.checkpoint(snapshot);}
   function restoreViewport(){
     const height=app?.viewportHeight||window.visualViewport?.height||window.innerHeight;
     if(height>0)document.documentElement.style.setProperty('--mountain-height',Math.round(height)+'px');
@@ -394,16 +397,33 @@
   $('mute').onclick=()=>profile.change(['muted'],p=>p.muted=!p.muted);
   $('pause').onclick=pause;$('resume').onclick=()=>{requestPause=false;command('ResumeRide');canvas.focus();};
   $('pauseSense').oninput=e=>{const v=Number(e.target.value);setText('pauseSenseValue',v);profile.change(['sens'],p=>p.sens=v);command('SetSensitivity',v);};
-  $('again').onclick=$('restartPaused').onclick=()=>{if(run)start(run.mode,true);};
-  $('exitResult').onclick=$('reviewExit').onclick=leave;$('exitPaused').onclick=()=>snapshot.metres>=30?command('EndRide'):leave();
+  function rideFromInspection(){
+    if(snapshot?.phase!=='review'||!run)return;
+    run.practice={metres:snapshot.metres,lane:+$('reviewLane').value,course:snapshot.courseMode};
+    command('RideFromReview');canvas.focus();
+  }
+  function returnToInspection(restart=false){
+    const from=run.practice;delete run.practice;
+    const d=profile.data;requestPause=false;finger=null;
+    command('StartRace',JSON.stringify({mode:'review',reviewRide:from.course,seed:run.seed,sensitivity:d.sens,boost:d.boost,mag:d.mag,collectedLetters:d.coll.length}));
+    $('reviewEffect').value='normal';$('reviewRate').value='0';
+    command('ReviewLane',from.lane);command('Seek',from.metres);
+    if(restart){run.practice=from;command('RideFromReview');canvas.focus();}
+  }
+  $('reviewPlay').onclick=rideFromInspection;
+  $('again').onclick=$('restartPaused').onclick=()=>{
+    if(run?.practice)returnToInspection(true);else if(run)start(run.mode,true);
+  };
+  $('exitResult').onclick=$('reviewExit').onclick=leave;
+  $('exitPaused').onclick=()=>run?.practice?returnToInspection():snapshot.metres>=30?command('EndRide'):leave();
   $('share').onclick=showShare;$('closeShare').onclick=back;$('sendShare').onclick=share;
   $('copyShare').onclick=async()=>{try{await navigator.clipboard.writeText(shareText+' '+shareUrl);setText('shareHint','Результат скопирован.');}catch{setText('shareHint',shareText+' '+shareUrl);}};
   $('seek').oninput=e=>command('Seek',+e.target.value);
   for(const [i,title] of stages.entries())$('reviewStage').add(new Option(title,String(i)));
-  $('reviewStage').onchange=e=>command('Seek',+e.target.value*2500);
+  $('reviewStage').onchange=e=>command('Seek',Math.floor(snapshot.metres/20000)*20000 + Number(e.target.value)*2500);
   $('reviewRate').onchange=e=>command('ReviewRate',+e.target.value);
   function setReviewBounds(){
-    const ride=$('reviewRide').value,end=ride==='normal'?19999:ride==='sprint'?1199:1161;
+    const ride=$('reviewRide').value,end=ride==='normal'?79999:ride==='sprint'?1199:ride==='sled'?2471:2196;
     $('seek').max=$('reviewAt').max=end;$('reviewStage').disabled=ride!=='normal';return end;
   }
   $('reviewHero').onchange=e=>command('ChooseHero',e.target.value);

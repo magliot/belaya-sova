@@ -5,7 +5,8 @@ public partial class MountainRace {
     Light sun,headlight;Material raceSky,flakePaint;
     readonly Light[] nightLamps=new Light[4];
     ParticleSystem flakes,fireworks;
-    int weatherZone=-1;string backdrop="";
+    int weatherZone=-1,tubePanoramaPair=-1;
+    Texture2D[] tubePanoramas;
 
     void SetupWeather(){
         raceSky=new Material(Resources.Load<Shader>("MountainRaceSky"));
@@ -51,14 +52,22 @@ public partial class MountainRace {
     void UpdateWeather(){
         int stage=Status.stage;
         bool tubeMode=CourseMode=="tubing",sledMode=CourseMode=="sled";
-        int zone=sledMode?5:tubeMode?(Status.metres>=742?1:0):stage==3?1:stage==4?2:stage==6?3:stage==7?4:0;
+        int zone=sledMode?5:tubeMode?6:stage==3?1:stage==4?2:stage==6?3:stage==7?4:0;
         raceSky.SetFloat("_Menu",IsMenu?1:0);raceSky.SetFloat("_Tube",tubeMode?1:0);
         if(tubeMode){
-            string landscape="Race-tubing-62"+(Status.metres<335?"a":Status.metres<736?"b":"c");
-            if(landscape!=backdrop){backdrop=landscape;raceSky.SetTexture("_Route",Resources.Load<Texture2D>("Art/"+landscape));}
+            if(tubePanoramas==null)tubePanoramas=new[]{Resources.Load<Texture2D>("Art/Race-tubing-62a"),
+                Resources.Load<Texture2D>("Art/Race-tubing-62b"),Resources.Load<Texture2D>("Art/Race-tubing-62c")};
+            bool coast=Status.metres>=860;
+            int pair=coast?1:0;
+            if(pair!=tubePanoramaPair){
+                raceSky.SetTexture("_Route",tubePanoramas[pair]);raceSky.SetTexture("_RouteNext",tubePanoramas[pair+1]);
+                tubePanoramaPair=pair;
+            }
+            float progress=coast?Mathf.InverseLerp(1020,1360,Status.metres):Mathf.InverseLerp(420,740,Status.metres);
+            raceSky.SetFloat("_RouteBlend",Mathf.SmoothStep(0,1,progress));
         }
         float yaw=World.HeadingAt(Status.metres)*Mathf.Rad2Deg;
-        raceSky.SetVector("_Forward",Quaternion.Euler(0,yaw*.75f,0)*Vector3.forward);raceSky.SetFloat("_Clock",Status.elapsed);
+        raceSky.SetVector("_Forward",tubeMode?Vector3.forward:Quaternion.Euler(0,yaw*.75f,0)*Vector3.forward);raceSky.SetFloat("_Clock",Status.elapsed);
         bool changed=zone!=weatherZone;
         if(changed){
             weatherZone=zone;
@@ -75,6 +84,15 @@ public partial class MountainRace {
             raceSky.SetColor("_Horizon",horizon);raceSky.SetColor("_Zenith",zenith);raceSky.SetColor("_Tint",tint);raceSky.SetFloat("_Night",zone==3?1:0);
             raceSky.SetFloat("_Storm",zone==2?1:0);Shader.SetGlobalFloat("_OwlNight",zone==3?1:0);
             fireworks.Clear();festivalClock=Status.elapsed;
+        }
+        if(tubeMode){
+            float dusk=Mathf.SmoothStep(0,1,Mathf.InverseLerp(900,1470,Status.metres));
+            var horizon=Color.Lerp(new Color(.82f,.90f,.97f),new Color(.99f,.77f,.66f),dusk);
+            RenderSettings.fogColor=horizon;raceSky.SetColor("_Horizon",horizon);
+            raceSky.SetColor("_Zenith",Color.Lerp(new Color(.38f,.67f,.91f),new Color(.39f,.60f,.83f),dusk));
+            raceSky.SetColor("_Tint",Color.Lerp(Color.white,new Color(.98f,.86f,.87f),dusk));
+            sun.color=Color.Lerp(new Color(1,.96f,.90f),new Color(1,.82f,.69f),dusk);
+            RenderSettings.ambientLight=new Color(.75f,.84f,.96f)*Mathf.Lerp(.79f,.73f,dusk);
         }
         var forward=Vector3.ProjectOnPlane(View.transform.forward,Vector3.up).normalized;
         var orientation=Quaternion.LookRotation(forward);

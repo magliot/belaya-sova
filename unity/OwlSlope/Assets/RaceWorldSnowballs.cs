@@ -25,11 +25,11 @@ public partial class RaceWorld {
     void LaunchSnowball(RaceItem sender,float player){
         int id=Mathf.RoundToInt(sender.originD*20)+Mathf.RoundToInt(sender.originX*100);
         float duration=Mathf.Clamp((sender.distance-player)/Mathf.Max(8,targetSpeed+8),.48f,1.12f);
-        bool aimed=Roll(seed,id,401)<.8f;
         float along=player+targetSpeed*duration;
         float across=Mathf.Clamp(targetLane+targetSideSpeed*duration,-12,12);
         float scatter=Roll(seed,id,402)*2-1;
-        across+=aimed?scatter*.20f:(scatter<0?-1:1)*(2.3f+Mathf.Abs(scatter));
+        // Lead a steady traverse. After release the throw is ballistic so a late change of edge can dodge it.
+        across+=scatter*.27f;
         float hand=Mathf.Sign(across-sender.lane)*(sender.variant=="snowman"?.77f:.50f);
         float height=sender.variant=="snowman"?1.5f:1.04f;
         var ball=Add("ball",sender.distance,sender.lane+hand,.42f,height);

@@ -21,10 +21,10 @@ function initAudio(){
   for(let i=0;i<len;i++){const w=Math.random()*2-1;b0=.99886*b0+w*.0555179;b1=.99332*b1+w*.0750759;b2=.969*b2+w*.153852;b3=.8665*b3+w*.3104856;b4=.55*b4+w*.5329522;b5=-.7616*b5-w*.016898;d[i]=(b0+b1+b2+b3+b4+b5+b6+w*.5362)*.11;b6=w*.115926;}
   const n1=AC.createBufferSource();n1.buffer=noiseBuf;n1.loop=true;windF=AC.createBiquadFilter();windF.type='bandpass';windF.frequency.value=420;windF.Q.value=0.5;windG=AC.createGain();windG.gain.value=0;n1.connect(windF).connect(windG).connect(sfxBus);n1.start();
   // мотор ратрака: два «дизельных» пилообразных тона + тарахтение, громкость и панорама — по расстоянию до ближайшего ратрака
-  {const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=380;const chug=AC.createGain();chug.gain.value=0.6;
+  {const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=660;const chug=AC.createGain();chug.gain.value=0.6;
     const lfo=AC.createOscillator();lfo.frequency.value=11;const lg=AC.createGain();lg.gain.value=0.4;lfo.connect(lg).connect(chug.gain);lfo.start();
     engG=AC.createGain();engG.gain.value=0;engP=AC.createStereoPanner?AC.createStereoPanner():null;
-    for(const [f,v] of[[46,0.5],[69,0.35]]){const o=AC.createOscillator();o.type='sawtooth';o.frequency.value=f;const g=AC.createGain();g.gain.value=v;o.connect(g).connect(lp);o.start();engO.push(o);}
+    for(const [f,v] of[[46,0.5],[69,0.35],[184,.12]]){const o=AC.createOscillator();o.type='sawtooth';o.frequency.value=f;const g=AC.createGain();g.gain.value=v;o.connect(g).connect(lp);o.start();engO.push(o);}
     const n3=AC.createBufferSource();n3.buffer=noiseBuf;n3.loop=true;const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=160;bp.Q.value=1.2;const ng=AC.createGain();ng.gain.value=1.4;n3.connect(bp).connect(ng).connect(lp);n3.start();
     lp.connect(chug).connect(engG);if(engP)engG.connect(engP).connect(sfxBus);else engG.connect(sfxBus);}
   // гул лавины
@@ -130,10 +130,12 @@ const SFX={
     windG.gain.setTargetAtTime(riding?.015+.025*Math.min(1,(next.speed||0)/80)+.09*storm:0,t,.15);
     carveG.gain.setTargetAtTime(riding&&!next.air?.05*Math.abs(next.edge||0):0,t,.08);
     const proximity=next.mode==='sled'?.65:(next.engineNear||0);
-    engG.gain.setTargetAtTime(riding?.2*proximity*proximity:0,t,.10);
+    const motor=next.mode==='sled'?.2*proximity*proximity:.30*proximity*(.55+.45*proximity);
+    engG.gain.setTargetAtTime(riding?motor:0,t,.12);
     engP?.pan.setTargetAtTime(next.enginePan||0,t,.1);
     rumG.gain.setTargetAtTime(riding?.16*(next.avalanche||0):0,t,.12);
     if(!riding){lastEvent=next.eventId;return;}
+    if(next.horns>(previous.horns||0))SFX.horn();
     // Several contacts can share one HUD snapshot. The pickup counter survives a later cue in that frame.
     if(next.feather&&next.feathers>(previous.feathers||0)){
       lastEvent=next.eventId;SFX.feather();speak('feather',true);return;

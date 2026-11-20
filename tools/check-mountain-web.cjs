@@ -103,9 +103,12 @@ async function main(){
     await page.locator('#reviewRide').selectOption('normal');
     await page.waitForFunction(()=>lastRace.courseMode==='normal');
     for(const [name,metre] of [['tube',29],['cannon',78],['coffee',105],['magnet',653],['forest-arch',2472],['forest-canopy',2510],
-      ['tube-moguls',5150],['ramp',7655],['park',7630],['summit',10104],['black-gate',12507],['night',15050],['night-slalom',15082],['groomer',15232],['holiday',17525]]){
+      ['training-mound',205],['uphill-groomer',443],['tube-moguls',5150],['ramp',7655],['park',7630],['summit',10104],
+      ['black-gate',12507],['night',15050],['night-slalom',15082],['groomer',15232],['holiday',17525],
+      ['forest-fork',22620],['night-fork',35120]]){
       await page.locator('#seek').evaluate((el,value)=>{el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));},metre);
       await page.waitForFunction(n=>Math.abs(lastRace.metres-n)<2,metre,{timeout:30000});
+      if(metre>=20000)assert.equal(await page.evaluate(()=>lastRace.stage),Math.floor(metre/2500)%8);
       await page.locator('#reviewFold').tap();
       await page.waitForTimeout(850);const frame=await page.screenshot({path:path.join(out,name+'.png')});
       if(['summit','park','night','night-slalom'].includes(name))weatherFrames[name]=frame.toString('base64');
@@ -115,6 +118,17 @@ async function main(){
       }
       await page.locator('#reviewFold').tap();
     }
+    // Use the phone controls to ride, restart and return to the selected point on lap two.
+    const profileBefore=await page.evaluate(()=>JSON.stringify({...localStorage}));
+    await page.locator('#reviewPlay').tap();
+    await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.stage===6&&lastRace.metres>35124);
+    await page.locator('#pause').tap();await waitState('pause','owl');
+    await page.locator('#restartPaused').tap();
+    await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.metres>=35120&&lastRace.metres<35160);
+    await page.locator('#pause').tap();await waitState('pause','owl');
+    await page.locator('#exitPaused').tap();await waitState('review','owl');
+    assert.equal(await page.evaluate(()=>lastRace.metres),35120);
+    assert.equal(await page.evaluate(()=>JSON.stringify({...localStorage})),profileBefore,'inspection practice modified the saved profile');
     const weather=await page.evaluate(async images=>{
       const decoded={};let width,height;
       for(const [name,source] of Object.entries(images)){

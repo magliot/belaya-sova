@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 public partial class MountainRace {
-    ParticleSystem mandarinPeels,snowPuffs;
+    ParticleSystem mandarinPeels,snowPuffs,moundChips;
 
     static Mesh CurlPeel(){
         // A tapered ribbon cut from a mandarin. The cross curve gives the pith a concave face.
@@ -73,12 +73,42 @@ public partial class MountainRace {
             ps.Emit(p,1);
         }
     }
+    void BreakSnowMound(RaceItem mound){
+        if(!moundChips){
+            moundChips=MakeBurst("Кусочки разбитого наста","Race/WorldObject");
+            var renderer=moundChips.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode=ParticleSystemRenderMode.Mesh;
+            var shard=new Mesh{name="Осколок наста"};
+            var a=new Vector3(-.56f,-.22f,-.35f);var b=new Vector3(.48f,-.27f,-.24f);
+            var c=new Vector3(.12f,-.31f,.62f);var tip=new Vector3(-.16f,.64f,.04f);
+            shard.vertices=new[]{a,b,c,a,tip,b,b,tip,c,c,tip,a};
+            shard.triangles=new[]{0,1,2,3,4,5,6,7,8,9,10,11};
+            shard.RecalculateNormals();shard.RecalculateBounds();renderer.mesh=shard;
+            var main=moundChips.main;main.startRotation3D=true;main.gravityModifier=1.65f;
+            var rotation=moundChips.rotationOverLifetime;rotation.enabled=true;rotation.separateAxes=true;
+            rotation.x=4.2f;rotation.y=-2.8f;rotation.z=3.6f;
+        }
+        var frame=World.SnowFrame(mound.distance,mound.lane);
+        var origin=World.SnowSurface(mound.distance,mound.lane)+Vector3.up*.23f;
+        for(int i=0;i<18;i++){
+            float side=i%2==0?-1:1;
+            var outward=new Vector3(side*(1.7f+.8f*(i%4)),2.6f+.86f*(i%5),speed*(.33f+.05f*(i%7)));
+            moundChips.Emit(new ParticleSystem.EmitParams{
+                position=origin+frame*new Vector3(side*.19f,.03f*(i%4),.12f*(i%3)),
+                velocity=frame*outward,startSize=.15f+.055f*(i%5),startLifetime=.52f+.05f*(i%6),
+                rotation3D=new Vector3(i*19,i*71,i*37),
+                startColor=i%3==0?new Color32(147,200,227,255):new Color32(238,250,255,255)
+            },1);
+        }
+    }
     void StepBursts(float dt){
         if(mandarinPeels&&mandarinPeels.particleCount>0)mandarinPeels.Simulate(dt,false,false,false);
         if(snowPuffs&&snowPuffs.particleCount>0)snowPuffs.Simulate(dt,false,false,false);
+        if(moundChips&&moundChips.particleCount>0)moundChips.Simulate(dt,false,false,false);
     }
     void ClearBursts(){
         if(mandarinPeels)mandarinPeels.Clear();
         if(snowPuffs)snowPuffs.Clear();
+        if(moundChips)moundChips.Clear();
     }
 }
