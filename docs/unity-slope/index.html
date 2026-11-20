@@ -11,32 +11,76 @@
     canvas{display:block;width:100%;height:100%;touch-action:none;outline:none}
     section{position:absolute;inset:0;display:grid;align-content:center;justify-items:center;padding:24px;text-align:center;background:#18334b}
     [hidden]{display:none}h1{font-size:25px;margin:0}p{max-width:27em}progress,button{width:min(245px,100%)}button{padding:12px;border:0;border-radius:8px;font:inherit}
+    nav{position:absolute;bottom:max(10px,env(safe-area-inset-bottom));left:8px;right:8px;display:flex;justify-content:space-between;align-items:center;gap:4px;pointer-events:none}
+    #menu-link,#pause,#jump{pointer-events:auto;touch-action:manipulation;padding:10px 11px;border-radius:12px;background:#18334b;color:white;font-weight:650;text-decoration:none;width:auto}
+    #pause[hidden]~#menu-link{margin-left:auto}#jump{background:#ffb74f;color:#142b42}
+    #brief{position:absolute;left:50%;top:43%;transform:translate(-50%,-50%);width:min(335px,calc(100% - 32px));max-height:75%;overflow:auto;padding:18px 20px;background:#122e45f2;border-radius:16px;box-shadow:0 6px 30px #08233455}
+    #brief h1{font-size:22px}#brief p{margin:8px 0}#controls{font-size:14px;color:#d7e8f3}#go{margin-top:6px;width:100%;font-weight:750;background:#ffb74f;color:#142b42}
+    @media(min-height:540px){#brief{top:max(25px,env(safe-area-inset-top));transform:translateX(-50%)}}
+    #hud{position:absolute;top:max(12px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:max-content;max-width:96%;padding:7px 15px;border-radius:12px;text-align:center;background:#122e45ee;pointer-events:none}
+    #hud strong{display:block;color:#ffcf81}#hud span{font-size:14px}
   </style>
   <script src="../vendor/telegram-web-app.js"></script>
 </head>
 <body><main>
   <canvas id="slope" tabindex="0" aria-label="Сова на тестовом склоне"></canvas>
+  <div id="hud" hidden><strong id="distance"></strong><span id="target"></span></div>
+  <article id="brief" hidden>
+    <h1 id="heading">Учебный слалом</h1>
+    <p id="objective">Пройди трое ворот и поймай мандарин в прыжке у жёлтой линии.</p>
+    <p id="controls">Для поворота держи палец слева или справа на склоне. Для прыжка нажми «Прыжок».</p>
+    <button id="go" type="button">Поехали</button>
+  </article>
   <section id="loading" role="status">
-    <h1>Тестовый склон Unity</h1>
-    <p id="status">Коснись экрана слева или справа, чтобы рулить. Для прыжка коснись верхней трети.</p>
+    <h1>Учебный слалом</h1>
+    <p id="status">Загружаем склон и Сову…</p>
     <progress id="progress" max="1" value="0" aria-label="Загрузка склона"></progress>
     <button id="retry" hidden onclick="location.reload()">Попробовать снова</button>
   </section>
+  <nav aria-label="Управление заездом">
+    <button id="pause" type="button" hidden>Пауза</button>
+    <button id="jump" type="button" hidden>Прыжок</button>
+    <a id="menu-link" href="../?preview=play">В меню игры</a>
+  </nav>
 </main>
 <script>
   const app=window.Telegram?.WebApp;
-  if(app?.initData){app.ready();app.expand();if(app.isVersionAtLeast('7.7'))app.disableVerticalSwipes();}
+  if(app?.initData){app.ready();app.expand();if(app.isVersionAtLeast('7.7'))app.disableVerticalSwipes();
+    if(app.isVersionAtLeast('6.1')){app.BackButton.show();app.BackButton.onClick(()=>document.getElementById('menu-link').click());}}
   const canvas=document.getElementById('slope'),bar=document.getElementById('progress');
+  const el=id=>document.getElementById(id);
+  let player,phase=-1;
+  window.showSlalom=(next,score,metres,caught,hint)=>{
+    if(phase!==next){
+      phase=next;
+      for(const id of ['hud','pause','jump'])el(id).hidden=phase!==1;
+      el('brief').hidden=phase===1;
+      el('controls').hidden=phase===2;
+      el('heading').textContent=phase===2?'Финиш':phase===3?'Пауза':'Учебный слалом';
+      el('objective').textContent=phase===2?'Ворота: '+score+' из 3. Мандарин '+(caught?'пойман!':'пропущен.'):'Пройди трое ворот и поймай мандарин в прыжке у жёлтой линии.';
+      el('go').textContent=phase===2?'Ещё заезд':phase===3?'Продолжить':'Поехали';
+    }
+    if(phase===1){
+      el('distance').textContent='Ворота '+score+'/3 · '+metres+' м до финиша';
+      el('target').textContent=hint;
+    }
+  };
+  function command(name){if(player){player.SendMessage('Playable slope',name);canvas.focus();}}
+  el('go').onclick=()=>command(phase===3?'PauseRide':'BeginRide');
+  el('pause').onclick=()=>command('PauseRide');
+  el('jump').onpointerdown=e=>{e.preventDefault();command('JumpFromButton');};
+  el('jump').onclick=e=>{if(e.detail===0)command('JumpFromButton');};
   function failed(error){
     console.error(error);bar.hidden=true;document.getElementById('retry').hidden=false;
-    document.getElementById('status').textContent='Не удалось запустить склон. Проверь соединение и попробуй ещё раз.';
+    document.getElementById('status').textContent='Не удалось загрузить 3D-склон. Можно повторить загрузку или вернуться в меню игры.';
   }
-  const loader=document.createElement('script');loader.src='Build/Web.loader.js';
+  const revision='?v=2026-11-20d';
+  const loader=document.createElement('script');loader.src='Build/Web.loader.js'+revision;
   loader.onerror=()=>failed('Unity loader failed');
   loader.onload=()=>createUnityInstance(canvas,{
-    dataUrl:'Build/Web.data.unityweb',frameworkUrl:'Build/Web.framework.js.unityweb',codeUrl:'Build/Web.wasm.unityweb',
-    streamingAssetsUrl:'StreamingAssets',companyName:'Белая Сова',productName:'OwlSlope',productVersion:'1.0',
+    dataUrl:'Build/Web.data.unityweb'+revision,frameworkUrl:'Build/Web.framework.js.unityweb'+revision,codeUrl:'Build/Web.wasm.unityweb'+revision,
+    streamingAssetsUrl:'StreamingAssets',companyName:'Белая Сова',productName:'OwlSlope',productVersion:'1.1',
     devicePixelRatio:Math.min(window.devicePixelRatio||1,1.5)
-  },value=>bar.value=value).then(()=>{document.getElementById('loading').hidden=true;canvas.focus();}).catch(failed);
+  },value=>bar.value=value).then(instance=>{player=instance;el('loading').hidden=true;canvas.focus();}).catch(failed);
   document.body.appendChild(loader);
 </script></body></html>

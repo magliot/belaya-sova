@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache">
 <script>
 // Telegram держит старую копию игры: сверяем версию с сервером и при расхождении перезагружаемся (один раз)
-(function(){var VER='2026-11-20c',h=location.hash;
+(function(){var VER='2026-11-20d',h=location.hash;
   fetch('version.txt?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(v){v=v&&v.trim();
     if(!v||v===VER)return;var k='bsova_reload_'+v;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');}catch(e){}
     var q=new URLSearchParams(location.search);q.set('v',v);location.replace(location.pathname+'?'+q.toString()+h);}).catch(function(){});})();
@@ -15,7 +15,7 @@
 <link rel="modulepreload" href="vendor/three/build/three.module.min.js">
 <link rel="preload" as="image" href="ui/valley-menu.webp" fetchpriority="high">
 <script defer src="vendor/telegram-web-app.js"></script>
-<script defer src="motion-entry.js?v=2026-11-20c"></script>
+<script defer src="motion-entry.js?v=2026-11-20d"></script>
 <style>
 /* шрифт Rubik лежит рядом с игрой — без Google Fonts и VPN */
 @font-face{font-family:'Rubik';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/rubik-cyrillic-500-normal.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
@@ -200,6 +200,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
 #menu .sheet.compact{background:linear-gradient(155deg,#f6fcff 0%,#e1f2fa 68%,#d3e7f3);border:2px solid #8cb4c8;border-radius:21px;box-shadow:inset 0 2px white,0 5px 15px #2749644a;padding:10px 12px 15px;gap:7px}
 #menu .sheet:before,#menu .sheet:after{display:none}
 #menu .bonuschoices{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#menu .short-runs{display:flex;gap:8px}#menu .short-runs>*{flex:1;align-content:center;text-align:center;text-decoration:none;min-height:38px}
 .bonuschoices .toppill{min-height:42px;border:1px solid #5593a9;background:#175575;color:#fff;box-shadow:inset 0 1px #ffffff33}
 .bonuschoices .toppill:disabled{background:#dbe9f1;border-color:#aac4d3;color:#395369}
 .bonuschoices small{display:block;font-weight:500;font-size:10px;margin-top:1px}
@@ -226,7 +227,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
     <div class="row stats"><span>⭐ Рекорд: <b id="mBest">0</b></span><button class="toppill" id="bTop">🏆 Рейтинг</button><span>🍊 <b id="mCoins">0</b></span></div>
     <div class="playwrap"><span class="rays"><b></b><b></b><b></b></span><button class="big" id="bPlay"><svg viewBox="0 0 24 24"><path d="M6 3.5v17a1 1 0 0 0 1.5.86l14-8.5a1 1 0 0 0 0-1.72l-14-8.5A1 1 0 0 0 6 3.5z" fill="#fff"/></svg>ПОЕХАЛИ!</button><span class="rays r"><b></b><b></b><b></b></span></div>
     <div class="bonuschoices"><button class="toppill" id="bTube" disabled>Плюшки<small>За золотое перо</small></button><button class="toppill" id="bSled" disabled>Снегоход<small>За золотое перо</small></button></div>
-    <button class="toppill" id="bSprint">Короткий спуск · 1,2 км</button>
+    <div class="short-runs"><button class="toppill" id="bSprint">Короткий спуск · 1,2 км</button><a class="toppill" href="./unity-slope/?v=2026-11-20d">Склон Unity</a></div>
     <div class="btnrow"><button class="mini snowcap" id="bColl"><span class="ic">🏅</span>Коллекция</button><button class="mini snowcap" id="bTasks"><span class="ic">🎯</span>Задания</button><button class="mini snowcap" id="bShop"><span class="ic">🛒</span>Улучшения</button><button class="mini snowcap" id="bSet"><span class="ic">⚙️</span>Настройки</button></div>
   </div>
   <button class="fislink" id="bFis">📜 Правила FIS: <b>0/10</b></button>
@@ -317,6 +318,16 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
 (function(){
   const menu=document.getElementById('menu'),status=document.getElementById('loading');
   let selection=null,destination=null;
+  function bootError(event){
+    if(event.target?.type!=='module'&&!event.message)return;
+    const panel=document.getElementById('assetWait'),retry=document.getElementById('assetRetry');
+    const message=String(event.message||'');
+    document.getElementById('assetMessage').textContent=/webgl|graphics context/i.test(message)
+      ?'Не удалось включить 3D. Закрой другие открытые игры и попробуй ещё раз.'
+      :'Не удалось открыть игру. Проверь соединение и повтори загрузку.';
+    panel.hidden=false;retry.hidden=false;retry.onclick=()=>location.reload();
+  }
+  window.addEventListener('error',bootError,true);
   function earlyInput(e){
     const b=e.target.closest('button');if(!b)return;
     if(b.dataset.h){
@@ -328,6 +339,7 @@ button.mid:active{transform:translateY(3px);box-shadow:0 1px 0 #0f2f6a}
   }
   menu.addEventListener('click',earlyInput);performance.mark('menu-input-ready');
   window.finishMenuBoot=function(){
+    window.removeEventListener('error',bootError,true);
     menu.removeEventListener('click',earlyInput);menu.classList.remove('booting');status.remove();
     if(selection)menu.querySelector('[data-h="'+selection+'"]').click();
     if(destination)document.getElementById(destination).click();
@@ -354,7 +366,7 @@ const TG=(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initDa
 const PREVIEW=new URLSearchParams(location.search).get('preview');
 const requestedRide=new URLSearchParams(location.search).get('ride');
 const reviewRide=PREVIEW==='course'&&['tubing','sled','sprint'].includes(requestedRide)?requestedRide:null;
-const COURSE_REVIEW=PREVIEW==='course'||(!PREVIEW&&TG?.initDataUnsafe?.start_param==='course');
+const COURSE_REVIEW=PREVIEW==='course'||(!PREVIEW&&window.courseLaunch===true);
 // ссылка на игру в Telegram (https://t.me/<бот>/<приложение>) — вписать после создания бота в @BotFather
 const TG_LINK='https://t.me/belaya_sovabot/play';
 // игрок Telegram: у каждого аккаунта своё сохранение (на одном телефоне может быть несколько аккаунтов)

@@ -1,13 +1,15 @@
-// Telegram startapp=motion opens an isolated animation review in the same Mini App.
+// The SDK restores initData from session storage, even on a new plain launch.
+// Only parameters carried by this navigation may select another scene.
 (function(){
   if(window.Telegram?.WebApp?.initData)window.Telegram.WebApp.ready();
   const query=new URLSearchParams(location.search);
-  if(['course','play'].includes(query.get('preview')))return;
   const hash=new URLSearchParams(location.hash.slice(1));
-  const app=window.Telegram&&window.Telegram.WebApp;
-  const start=(app&&app.initDataUnsafe&&app.initDataUnsafe.start_param)||query.get('tgWebAppStartParam')||hash.get('tgWebAppStartParam');
+  const start=query.get('tgWebAppStartParam')||hash.get('tgWebAppStartParam')||new URLSearchParams(hash.get('tgWebAppData')||'').get('start_param');
+  window.courseLaunch=start==='course';
+  if(['course','play'].includes(query.get('preview')))return;
   if(start==='unity'){
-    location.replace('./unity-slope/'+location.search+location.hash);
+    query.set('v','2026-11-20d');
+    location.replace('./unity-slope/?'+query+location.hash);
     return;
   }
   if(start!=='motion'&&query.get('preview')!=='motion')return;
