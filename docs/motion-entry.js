@@ -7,6 +7,10 @@
   const start=query.get('tgWebAppStartParam')||hash.get('tgWebAppStartParam')||new URLSearchParams(hash.get('tgWebAppData')||'').get('start_param');
   window.courseLaunch=start==='course';
   if(['course','play'].includes(query.get('preview')))return;
+  if(start==='unitytest'){
+    location.replace('./unity-test/'+location.search+location.hash);
+    return;
+  }
   if(start==='unity'){
     query.set('v','2026-11-20e');
     location.replace('./unity-slope/?'+query+location.hash);

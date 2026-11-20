@@ -1,0 +1,204 @@
+/* Save schema shared with the Three.js release. Legacy local and cloud records are read-only. */
+(function(root) {
+  'use strict';
+  const defaults={best:0,coins:0,hero:'bear',muted:false,mag:0,boost:0,helmets:0,sens:4,coll:[],fis:[],
+    meet:{yeti:0,feathers:0,bestStage:0},mdone:0,missions:null,vol:{music:6,sfx:8,vox:8}};
+  const words=['EMCO','СОВА','ШАХТЕРСК'];
+  const missions=[
+    ['gates','Ворота','gates',[12,25,40,60]],['combo','Ворота подряд','maxCombo',[6,12,20,30]],
+    ['coins','Мандарины','coins',[25,50,90,140]],['dist','Метры','metres',[400,900,1600,2500]],
+    ['tricks','Трюки','tricks',[2,5,9,14]],['polite','Вежливые обгоны','polite',[2,5,8,12]],
+    ['score','Очки','score',[1500,4000,8000,15000]],['stage','Этап','stage',[2,3,4,6]],
+    ['feather','Золотые перья','feathers',[1,1,2,2]]];
+  const upgrades=[150,400,900,2000,4000];
+  const clone=v=>JSON.parse(JSON.stringify(v));
+  const count=v=>Number.isFinite(v)?Math.max(0,Math.floor(v)):0;
+  function weekStart(ms){
+    const shift=3*3600000,d=new Date(ms+shift);
+    return Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()-(d.getUTCDay()+6)%7)-shift;
+  }
+  const obj=v=>v&&typeof v==='object'&&!Array.isArray(v);
+  function parse(raw){try{return JSON.parse(raw);}catch{return null;}}
+  function clean(raw={}){
+    const d=clone(defaults);
+    if(!obj(raw))return d;
+    for(const k of ['best','coins','mag','boost','helmets','mdone'])d[k]=count(raw[k]);
+    d.hero=raw.hero==='owl'?'owl':'bear';d.muted=raw.muted===true;
+    d.sens=Number.isFinite(raw.sens)?Math.min(10,Math.max(1,Math.round(raw.sens))):4;
+    d.mag=Math.min(5,d.mag);d.boost=Math.min(5,d.boost);
+    if(obj(raw.vol))for(const k of Object.keys(d.vol))if(Number.isFinite(raw.vol[k]))d.vol[k]=Math.min(10,count(raw.vol[k]));
+    if(obj(raw.meet))d.meet={...d.meet,...raw.meet};
+    if(Array.isArray(raw.fis))d.fis=[...new Set(raw.fis.filter(n=>Number.isInteger(n)&&n>=1&&n<=10))];
+    if(Array.isArray(raw.coll))d.coll=raw.coll.filter(v=>obj(v)&&Number.isInteger(v.w)&&words[v.w]&&Number.isInteger(v.i)&&words[v.w][v.i]);
+    if(Array.isArray(raw.missions))d.missions=raw.missions.filter(m=>obj(m)&&missions.some(([id])=>id===m.id)&&m.n>0&&Number.isFinite(m.reward)).slice(0,3);
+    return d;
+  }
+  // Legacy precedence matches cloud restore in docs/index.html, including an older record's unlocks.
+  function legacyMerge(local,cloud,uid){
+    if(!uid||!cloud||cloud.uid!==uid)return clean(local);
+    const preferred=count(cloud.best)>=count(local.best)?{...local,...cloud}:local;
+    const out=clean(preferred);
+    for(const k of ['goldenOwl','prizeFeather'])if(local.meet?.[k]||cloud.meet?.[k])out.meet[k]=true;
+    return out;
+  }
+  function completeMissions(d){
+    d.missions=d.missions||[];
+    while(d.missions.length<3){
+      const available=missions.filter(([id])=>!d.missions.some(m=>m.id===id));
+      const chosen=available[Math.floor(Math.random()*available.length)],level=Math.min(3,Math.floor(d.mdone/4));
+      d.missions.push({id:chosen[0],n:chosen[3][level],reward:40+30*level+10*Math.floor(Math.random()*3)});
+    }
+  }
+  function owner(app){const id=app?.initDataUnsafe?.user?.id;return app?.initData&&Number.isSafeInteger(id)&&id>0?id:0;}
+  function create({storage,app,channel='test',now=Date.now,onChange=()=>{},cloudWait=3000}){
+    const uid=owner(app),scope=uid?'tg'+uid+'_':'',legacy='bsova_'+scope;
+    const cloudKey='unity_'+(channel==='production'?'release':'test')+'_v1';
+    const key='bsova_'+scope+cloudKey, cloud=uid&&app?.isVersionAtLeast?.('6.9')?app.CloudStorage:null;
+    const get=k=>{try{return parse(storage?.getItem(k));}catch{return null;}};
+    const put=(k,v)=>{try{storage?.setItem(k,JSON.stringify(v));}catch{}};
+    const legacyLocal={};
+    for(const k of Object.keys(defaults)){const v=get(legacy+k);if(v!==null)legacyLocal[k]=v;}
+    const valid=v=>obj(v)&&v.schema===1&&v.uid===uid&&obj(v.data);
+    const cached=get(key);
+    let record=valid(cached)?{...cached,data:clean(cached.data)}:
+      {schema:1,uid,updated:0,lastRun:'',rows:[],data:clean(legacyLocal)};
+    const initial=clone(record.data);
+    if(!Array.isArray(record.rows))record.rows=[];
+    let writing=false,queued=false,readyForWrite=!cloud,changed=false,loaded,lastCloudError='';
+    const edited=new Set();
+    function sendCloud(){
+      if(!cloud||writing||!readyForWrite||!queued)return;
+      const envelope={...record,rows:undefined};
+      const encoded=JSON.stringify(envelope);
+      if(new TextEncoder().encode(encoded).length>4096){lastCloudError='Большой профиль сохранён на устройстве.';return;}
+      writing=true;queued=false;
+      try{cloud.setItem(cloudKey,encoded,err=>{
+        writing=false;lastCloudError=err?'Облачное сохранение недоступно.':'';
+        if(queued)sendCloud();
+      });}catch{writing=false;lastCloudError='Облачное сохранение недоступно.';}
+    }
+    function notify(){onChange(record.data);}
+    function commit(keys){
+      changed=true;for(const k of keys)edited.add(k);
+      record.updated=Math.max(now(),record.updated+1);put(key,record);queued=true;sendCloud();notify();
+    }
+    function mergeCloud(values){
+      const old=parse(values?.save),remote=parse(values?.[cloudKey]),localSnapshot=valid(cached)?cached:null;
+      let previous=localSnapshot||null;
+      if(valid(remote)&&(!previous||remote.updated>previous.updated))previous=remote;
+      const migrated=legacyMerge(legacyLocal,old,uid), merged=previous?clean(previous.data):migrated;
+      merged.best=Math.max(merged.best,migrated.best);
+      for(const flag of ['prizeFeather','goldenOwl'])if(migrated.meet[flag])merged.meet[flag]=true;
+      if(changed){
+        // A slow Telegram callback must preserve edits already made during this session.
+        for(const k of edited)if(k in defaults){
+          if(k==='best')merged.best=Math.max(record.data.best,merged.best);
+          else if(k==='meet'){
+            for(const name of ['prizeFeather','goldenOwl'])if(record.data.meet[name])merged.meet[name]=true;
+            merged.meet.bestStage=Math.max(count(merged.meet.bestStage),count(record.data.meet.bestStage));
+            for(const name of ['gifts','feathers','yeti'])merged.meet[name]=Math.max(0,count(merged.meet[name])+count(record.data.meet[name])-count(initial.meet[name]));
+          }else if(k==='fis')merged.fis=[...new Set([...merged.fis,...record.data.fis])];
+          else if(k==='coll'){
+            for(const c of record.data.coll)if(!merged.coll.some(entry=>entry.w===c.w&&entry.i===c.i))merged.coll.push(c);
+          }else if(['coins','helmets','mdone','boost','mag'].includes(k)){
+            merged[k]=Math.max(0,merged[k]+record.data[k]-initial[k]);
+            if(k==='boost'||k==='mag')merged[k]=Math.min(5,merged[k]);
+          }
+          else merged[k]=record.data[k];
+        }
+      }else if(previous){record.updated=previous.updated||0;record.lastRun=previous.lastRun||'';}
+      record.data=merged;completeMissions(merged);readyForWrite=true;
+      if(previous||changed)put(key,record);
+      if(queued)sendCloud();notify();
+    }
+    return {
+      get data(){return record.data;},get rows(){return record.rows;},get cloudError(){return lastCloudError;},key,uid,
+      load(){
+        if(loaded)return loaded;
+        completeMissions(record.data);
+        if(!cloud){loaded=Promise.resolve(record.data);return loaded;}
+        loaded=new Promise(resolve=>{
+          // Late responses can still import the old phone without replacing menu choices made meanwhile.
+          const timer=setTimeout(()=>{lastCloudError='Облако пока недоступно. Используется профиль устройства.';resolve(record.data);},cloudWait);
+          try{cloud.getItems(['save',cloudKey],(err,values)=>{
+            clearTimeout(timer);
+            if(!err){lastCloudError='';mergeCloud(values);}
+            else lastCloudError='Облако пока недоступно. Используется профиль устройства.';
+            resolve(record.data);
+          });}catch{clearTimeout(timer);lastCloudError='Облако пока недоступно.';resolve(record.data);}
+        });return loaded;
+      },
+      change(keys,edit){edit(record.data);commit(keys);},
+      buy(kind){
+        const s=record.data;if(!['mag','boost','helmets'].includes(kind))return false;
+        const cost=kind==='helmets'?250:upgrades[s[kind]];
+        if(cost==null||s.coins<cost)return false;s.coins-=cost;s[kind]++;commit(['coins',kind]);return true;
+      },
+      unlock(state){
+        const d=record.data,keys=[];
+        if(state.feather&&!d.meet.prizeFeather){d.meet.prizeFeather=true;keys.push('meet');}
+        if(state.goldenOwl&&!d.meet.goldenOwl){d.meet.goldenOwl=true;keys.push('meet');}
+        if(Array.isArray(state.fis)){
+          const added=state.fis.filter(n=>Number.isInteger(n)&&n>=1&&n<=10&&!d.fis.includes(n));
+          if(added.length){d.fis.push(...added);keys.push('fis');}
+        }
+        let needed=count(state.lettersTotal);
+        while(needed>d.coll.length){
+          let w=0;while(w<words.length&&d.coll.filter(c=>c.w===w).length>=words[w].length)w++;
+          if(w===words.length)break;
+          const i=d.coll.filter(c=>c.w===w).length;d.coll.push({w,i,ch:words[w][i],date:new Date(now()).toLocaleDateString('ru-RU'),dist:count(state.metres)});
+          keys.push('coll');
+        }
+        if(keys.length)commit(keys);
+      },
+      finish(id,state){
+        if(!id||record.lastRun===id||state.mode==='review')return false;
+        const d=record.data,stats={...state,stage:count(state.stage)+1};
+        completeMissions(d);
+        let reward=0;
+        d.missions=d.missions.filter(m=>{
+          const spec=missions.find(t=>t[0]===m.id);
+          if(count(stats[spec[2]])<m.n)return true;
+          reward+=m.reward;d.mdone++;return false;
+        });
+        completeMissions(d);d.coins+=count(state.coins)+reward;d.best=Math.max(d.best,count(state.score));
+        d.meet.bestStage=Math.max(count(d.meet.bestStage),stats.stage);d.meet.gifts=count(d.meet.gifts)+count(state.gifts);
+        d.meet.feathers=count(d.meet.feathers)+count(state.feathers);d.meet.yeti=count(d.meet.yeti)+count(state.encounters);
+        record.lastRun=id;
+        record.rows.push({score:count(state.score),dist:count(state.metres),hero:state.hero,date:now()});
+        record.rows.sort((a,b)=>b.score-a.score||a.date-b.date);
+        const week=record.rows.filter(r=>r.date>=weekStart(now())).slice(0,25);
+        record.rows=[...new Set([...record.rows.slice(0,25),...week])].sort((a,b)=>b.score-a.score||a.date-b.date);
+        commit(['missions','mdone','coins','best','meet']);return true;
+      }
+    };
+  }
+  function leaderboard({channel,leaderboardEndpoint},app,profile){
+    // Test builds have no network path to the production Apps Script, even in an authenticated Mini App.
+    const active=channel==='production'&&!!leaderboardEndpoint&&!!app?.initData;
+    let lastBeacon=0;
+    const runData=s=>({score:count(s.score),dist:count(s.metres),dur:+Number(s.elapsed).toFixed(1),hero:s.hero,stage:count(s.stage)+1});
+    async function call(action,payload){
+      const response=await fetch(leaderboardEndpoint,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify({action,initData:app.initData,...payload})});
+      const result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'Рейтинг недоступен');return result;
+    }
+    return {
+      async top(period){
+        if(active)return call('leaderboard',{period});
+        const age=period==='week'?weekStart(Date.now()):0;
+        return {rows:profile.rows.filter(r=>r.date>=age).slice(0,25).map(r=>({...r,name:'Мой заезд'})),local:true};
+      },
+      checkpoint(s){
+        if(!active||!s||!['play','pause'].includes(s.phase)||s.mode==='review'||s.metres<30||Date.now()-lastBeacon<5000||!globalThis.navigator?.sendBeacon)return false;
+        const body=new Blob([JSON.stringify({action:'submit',initData:app.initData,...runData(s)})],{type:'text/plain;charset=utf-8'});
+        try{if(!navigator.sendBeacon(leaderboardEndpoint,body))return false;}catch{return false;}
+        lastBeacon=Date.now();return true;
+      },
+      async submit(s){if(!active||s.mode==='review')return null;
+        const wait=lastBeacon+5000-Date.now();if(wait>0)await new Promise(r=>setTimeout(r,wait));
+        return call('submit',runData(s));}
+    };
+  }
+  root.MountainSaves={create,leaderboard,legacyMerge,words,missions,upgrades};
+})(typeof window==='undefined'?globalThis:window);
