@@ -1,0 +1,170 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+public partial class RaceWorld {
+    struct Turn {public float start,length,x,delta;}
+    readonly List<Turn> turns=new List<Turn>();
+    float lastTurnD,lastTurnX;
+    float cacheD=float.NaN,cx,dx,curve;
+    Mesh terrain;
+    Material pisteMat,bankMat;
+    static float Smooth(float t){t=Mathf.Clamp01(t);return t*t*(3-2*t);}
+    void BuildTurns(){
+        turns.Clear();cacheD=float.NaN;float d=0,x=0;int i=0;
+        void AddTurn(float length,float end){turns.Add(new Turn{start=d,length=length,x=x,delta=end-x});d+=length;x=end;}
+        float side=Roll(seed,0,0)>.5f?1:-1;
+        AddTurn(22,0);
+        while(d<1920){
+            side=Mathf.Abs(x)>46?-Mathf.Sign(x):Roll(seed,i,2)<.55f?-side:side;
+            AddTurn(100+Roll(seed,i,3)*37,x+side*(17+Roll(seed,i,4)*10));
+            if(Roll(seed,i,5)<.56f)AddTurn(112+Roll(seed,i,6)*32,x-side*(18+Roll(seed,i,7)*10));
+            AddTurn(12+Roll(seed,i,8)*42,x);i++;
+        }
+        lastTurnD=d;lastTurnX=x;
+    }
+    void SampleRoad(float d){
+        if(d==cacheD)return;cacheD=d;
+        float a=36*(1-Mathf.Cos(d/52))+16*(Mathf.Cos(d/97)-1);
+        float b=36f/52*Mathf.Sin(d/52)-16f/97*Mathf.Sin(d/97);
+        float c=36f/(52*52)*Mathf.Cos(d/52)-16f/(97*97)*Mathf.Cos(d/97);
+        cx=a;dx=b;float dd=c;
+        if(d<2500&&mode!="sprint"){
+            if(d<=0){cx=dx=curve=0;return;}
+            int lo=0,hi=turns.Count;
+            while(lo<hi){int mid=(lo+hi)/2;var t=turns[mid];if(d>=t.start+t.length)lo=mid+1;else hi=mid;}
+            bool tail=lo==turns.Count;
+            var seg=tail?new Turn{start=lastTurnD,length=2500-lastTurnD,x=lastTurnX,delta=a-lastTurnX}:turns[lo];
+            float u=(d-seg.start)/seg.length,blend=u*u*u*(10+u*(-15+6*u));
+            float vel=30*u*u*(u-1)*(u-1)/seg.length,accel=60*u*(u-1)*(2*u-1)/(seg.length*seg.length);
+            cx=seg.x+seg.delta*blend;dx=seg.delta*vel;dd=seg.delta*accel;
+            if(tail){dx+=blend*b;dd+=2*vel*b+blend*c;}
+        }
+        curve=dd/Mathf.Pow(1+dx*dx,1.5f);
+    }
+    public float HeadingAt(float metres){SampleRoad(metres);return Mathf.Atan(dx);}
+    public float WidthAt(float metres){
+        if(mode=="tubing")return 16.2f;
+        float blend=Smooth(Mathf.Repeat(metres,2500)/35)*Smooth((2500-Mathf.Repeat(metres,2500))/35);
+        return StageAt(metres)==1?21-7.5f*blend:21;
+    }
+    public static float Grade(float d)=>.29f+.22f*Mathf.Sin(d/42)+.09f*Mathf.Sin(d/17+1);
+    public Vector3 SampleGround(float metres,float lane){
+        SampleRoad(metres);float d=metres,mag=Mathf.Abs(lane),h=Mathf.Atan(dx);
+        float bank=.12f*(float)Math.Tanh(-curve*10/.12f);
+        float height=-.29f*d+9.24f*(Mathf.Cos(d/42)-1)+1.53f*(Mathf.Cos(d/17+1)-Mathf.Cos(1));
+        float shoulder=Smooth((mag-9.4f)/5.8f)*(3.4f+.65f*Mathf.Sin(d/23+(lane<0?1.4f:0))+.25f*Mathf.Cos(d/9));
+        int stage=StageAt(d);float within=Mathf.Repeat(d,2500),blend=Smooth(within/35)*Smooth((2500-within)/35);
+        if(stage==1)shoulder=Mathf.Lerp(shoulder,2.8f*Smooth((mag-6.6f)/5.8f),blend);
+        if(stage==3)shoulder=Mathf.Lerp(shoulder,4.2f*Smooth((mag-6)/6),blend);
+        if(mode=="tubing")shoulder+=.67f*Smooth((mag-7.3f)/.95f)*(1-Smooth((mag-8.3f)/1.6f));
+        if(mode!="sled"&&mode!="tubing"&&stage==2&&within<2457)height+=MogulHeight(d,lane);
+        if(stage==4)height+=SummitField(d,lane);
+        return new Vector3(cx+lane*Mathf.Cos(h),height+bank*Mathf.Clamp(lane,-14,14)+shoulder,d-lane*Mathf.Sin(h));
+    }
+    float MogulHeight(float d,float x){
+        float local=Mathf.Repeat(d,2500);int section=Mathf.FloorToInt(local/117),field=section%3;float rowD=local-section*117-7.5f;
+        float h=0;
+        for(int i=Mathf.Max(0,Mathf.FloorToInt(rowD/8.75f)-1);i<=Mathf.Min(11,Mathf.CeilToInt(rowD/8.75f)+1);i++){
+            float shift=(i%2==1?1:-1)*(field==0?1.4f:field==1?2.45f:1.75f);
+            foreach(int sign in sides){
+                bool paired=field==1&&i%3==1;
+                float ex=(x-sign*4.5f-shift)/(field==2?4.7f:paired?4.95f:5.75f);
+                float ey=(rowD-i*8.75f-(paired&&sign>0?2.25f:0))/(field==2?8.1f:paired?6.75f:7.25f);
+                int profile=(i+(sign>0?1:0))%3;if(profile==2)ex-=.28f*ey;float len=ex*ex+ey*ey;
+                if(len<1){float amp=1.08f+Roll(seed,i+Mathf.RoundToInt((d-local+section*117)*20),sign>0?290:110)*(.22f+field*.09f);
+                    h+=amp*Mathf.Pow(Mathf.Cos(Mathf.Sqrt(len)*Mathf.PI*.5f),profile==1?1.55f:2);}
+            }
+        }
+        float valley=-4+1.4f*Mathf.Sin(d/23);return h*(.12f+.88f*Smooth((Mathf.Abs(x-valley)-.9f)/2.4f));
+    }
+    static readonly int[] sides={-1,1};
+    static readonly float[] columns={-54,-26,-16,-13,-11,-9.4f,-7.5f,-6,-4.5f,-3,-1.5f,0,1.5f,3,4.5f,6,7.5f,9.4f,11,13,16,26,54};
+    Material SnowPaint(string key,Color color){var m=new Material(Resources.Load<Material>("SlopeLit"));m.color=color;
+        m.mainTexture=Resources.Load<Texture2D>("Art/"+key);m.SetFloat("_Smoothness",.06f);return m;}
+    void UpdateTerrain(float centre){
+        const int rows=105,cols=23;
+        var points=new Vector3[rows*cols];var uv=new Vector2[points.Length];
+        if(!terrain){
+            var go=new GameObject("Groomed run");go.transform.SetParent(transform,false);
+            terrain=new Mesh{name="Streaming piste"};terrain.MarkDynamic();terrain.subMeshCount=2;go.AddComponent<MeshFilter>().sharedMesh=terrain;
+            pisteMat=SnowPaint("Piste",new Color(.91f,.94f,.98f));bankMat=SnowPaint("Powder",new Color(.85f,.90f,.96f));
+            go.AddComponent<MeshRenderer>().sharedMaterials=new[]{pisteMat,bankMat};
+        }
+        for(int i=0;i<rows;i++){
+            float d=centre-50+2*i,half=WidthAt(d)*.5f;
+            for(int j=0;j<cols;j++){
+                float x=columns[j];if(Mathf.Abs(x)<=11)x*=half/11;
+                points[i*cols+j]=SampleGround(d,x);uv[i*cols+j]=new Vector2(x/4.2f,d/10);
+            }
+        }
+        terrain.vertices=points;terrain.uv=uv;
+        if(terrain.GetIndexCount(0)==0){
+            var middle=new List<int>();var banks=new List<int>();
+            for(int i=0;i<rows-1;i++)for(int j=0;j<cols-1;j++){int a=i*cols+j;var indices=j>=4&&j<18?middle:banks;
+                indices.AddRange(new[]{a,a+cols,a+1,a+1,a+cols,a+cols+1});}
+            terrain.SetTriangles(middle,0,false);terrain.SetTriangles(banks,1,false);
+        }
+        terrain.RecalculateNormals();terrain.RecalculateBounds();
+    }
+    static readonly Dictionary<string,Mesh> cards=new Dictionary<string,Mesh>();
+    static readonly Dictionary<string,Material> trees=new Dictionary<string,Material>();
+    GameObject ForestCard(string key){
+        if(!cards.TryGetValue(key,out var mesh)){
+            var tex=Resources.Load<Texture2D>("Race/Forest/"+key);
+            int family=key[key.Length-2]-'0';float h=family==0?3.7f:family==1?7.2f:2.45f,w=h*tex.width/tex.height*.5f;
+            mesh=new Mesh{name=key};
+            mesh.vertices=new[]{new Vector3(-w,0,0),new Vector3(-w,h,0),new Vector3(w,h,0),new Vector3(w,0,0),
+                new Vector3(0,0,-w),new Vector3(0,h,-w),new Vector3(0,h,w),new Vector3(0,0,w)};
+            mesh.uv=new[]{Vector2.zero,Vector2.up,Vector2.one,Vector2.right,Vector2.zero,Vector2.up,Vector2.one,Vector2.right};
+            mesh.colors=new[]{Color.white,Color.white,Color.white,Color.white,Color.white,Color.white,Color.white,Color.white};
+            mesh.triangles=new[]{0,1,2,0,2,3,4,5,6,4,6,7};mesh.RecalculateNormals();mesh.RecalculateBounds();cards[key]=mesh;
+            var material=new Material(Resources.Load<Shader>("Race/WorldObject"));material.SetTexture("_BaseMap",tex);material.SetFloat("_Lit",.2f);trees[key]=material;
+        }
+        var obj=new GameObject(key);obj.transform.SetParent(transform,false);obj.AddComponent<MeshFilter>().sharedMesh=mesh;
+        var mr=obj.AddComponent<MeshRenderer>();mr.sharedMaterial=trees[key];mr.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;return obj;
+    }
+    int sceneryRow=int.MinValue;
+    void UpdateScenery(float d){
+        int start=Mathf.FloorToInt((d-25)/12),end=Mathf.CeilToInt((d+146)/12);
+        for(int i=scenery.Count-1;i>=0;i--)if(scenery[i].distance<start*12||scenery[i].distance>(end+1)*12){Release(scenery[i]);scenery.RemoveAt(i);}
+        if(scenery.Count==0)sceneryRow=start-1;
+        for(int row=Mathf.Max(start,sceneryRow+1);row<=end;row++)foreach(int side in sides){
+            int stage=StageAt(row*12);int count=1+(Roll(seed,row,100+side)>.38f?2:0);
+            for(int i=0;i<count;i++){
+                float t=row*12+i*1.88f+Roll(seed,row,120+i+side)*2;
+                float offset=(stage==1?9.5f:stage==3?18:14.5f)+i*3.4f+Roll(seed,row,108+i+side)*5;
+                int family=Mathf.Min(2,(int)(Roll(seed,row,130+i+side)*3));
+                int v=Mathf.Min(2,(int)(Roll(seed,row,140+i+side)*3));
+                var obj=new RaceItem{kind="woods",variant="forestCard"+family+v,lane=side*offset,distance=t,
+                    scale=.82f+Roll(seed,row,150+i+side)*.82f,yaw=Roll(seed,row,160+i)*180,decor=true};
+                scenery.Add(obj);Place(obj);
+            }
+            if(row%3==0&&mode!="tubing"){
+                var lamp=new RaceItem{kind="lamp",variant="stageLamp"+stage,
+                    distance=row*12,lane=side*11.6f,decor=true,yaw=90};scenery.Add(lamp);Place(lamp);
+            }
+        }
+        sceneryRow=end;
+    }
+    GameObject Ramp(RaceItem item){
+        bool rail=item.kind=="rail";const int rows=13;
+        float half=item.width*.5f,len=item.length;
+        var positions=new List<Vector3>();var triangles=new List<int>();var colors=new List<Color32>();var uv=new List<Vector2>();
+        for(int r=0;r<=rows;r++){
+            float t=(float)r/rows,y=rail?item.height*Mathf.Clamp01(Mathf.Min(t,1-t)*len/2):
+                item.height*t*(item.park?.65f+.35f*t:1);
+            float z=(t-.5f)*len;
+            foreach(float x in new[]{-half,-half,-half*.90f,half*.90f,half,half}){
+                int c=positions.Count%6;positions.Add(new Vector3(x,c==0||c==5?0:y+.02f,z));uv.Add(new Vector2(x/4.2f,z/10));
+                colors.Add(c==0||c==5?new Color32(44,71,96,255):c==1||c==4||r==rows?new Color32(255,173,43,255):new Color32(225,241,255,255));
+            }
+        }
+        for(int i=0;i<rows;i++)for(int j=0;j<5;j++){int a=i*6+j;triangles.AddRange(new[]{a,a+6,a+1,a+1,a+6,a+7});}
+        int tip=rows*6;triangles.AddRange(new[]{tip,tip+1,tip+4,tip,tip+4,tip+5});
+        var mesh=new Mesh{name=item.kind};mesh.SetVertices(positions);mesh.SetColors(colors);mesh.SetUVs(0,uv);
+        mesh.SetTriangles(triangles,0);mesh.RecalculateNormals();mesh.RecalculateBounds();
+        var obj=new GameObject(item.kind);obj.transform.SetParent(transform,false);obj.AddComponent<MeshFilter>().sharedMesh=mesh;
+        obj.AddComponent<MeshRenderer>().sharedMaterial=Paint("",0,true,0);return obj;
+    }
+}

@@ -1,0 +1,128 @@
+// Exercise save import with a save actually earned by the archived Three.js game.
+// With a URL argument, run the second half against that real Unity Web player.
+const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict');
+const {chromium}=require(process.env.DANCE_BROWSER_MODULE||'playwright');
+const docs=path.resolve('docs'),template=path.resolve('unity/OwlSlope/Assets/WebGLTemplates/MountainRace');
+const mimes={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css','.woff2':'font/woff2','.wasm':'application/wasm','.mp3':'audio/mpeg','.webp':'image/webp','.jpg':'image/jpeg'};
+const goldenSource=fs.readFileSync('tools/check-golden-run.cjs','utf8').match(/const probe=`([\s\S]*?)`;\r?\nasync function run/)[1];
+const mockLoader=`window.createUnityInstance=async(canvas,config,progress)=>{
+  progress(1);let s={phase:'menu',mode:'normal',hero:'bear',metres:0,stage:0,score:0,coins:0,helmets:0,seed:0};
+  const emit=()=>window.onMountainState({...s});emit();
+  return {SendMessage(_,name,arg){
+    if(name==='ChooseHero')s.hero=arg;
+    else if(name==='StartRace'){const c=JSON.parse(arg);Object.assign(s,c,{phase:c.mode==='review'?'review':'play',score:0,metres:0,stage:0});}
+    else if(name==='Seek'&&s.phase==='review'){s.metres=arg;s.stage=Math.floor(s.metres/2500);}
+    else if(name==='ReviewStep'&&s.phase==='review')s.metres+=.25;
+    else if(name==='BeginSteer'&&s.phase==='play')s.metres=35;
+    else if(name==='EndRide'&&s.phase==='pause'){s.phase='over';s.score=400;s.gates=1;s.tricks=0;}
+    else if(name==='PauseRide')s.phase='pause';
+    else if(name==='ResumeRide')s.phase='play';
+    else if(name==='Menu')s.phase='menu';
+    else return;emit();
+  }};
+};`;
+function server(){
+  return http.createServer((req,res)=>{
+    const url=new URL(req.url,'http://localhost'),legacy=url.pathname.startsWith('/legacy/');
+    const root=legacy?docs:template,name=decodeURIComponent(url.pathname.slice(legacy?8:1))||'index.html';
+    if(name==='native-stub.js'){res.writeHead(200,{'Content-Type':mimes['.js']});return res.end(mockLoader);}
+    const filename=path.resolve(root,name);if(!filename.startsWith(root+path.sep)){res.writeHead(404);return res.end();}
+    fs.readFile(filename,(e,data)=>{
+      if(e){res.writeHead(404);return res.end();}
+      if(legacy&&name==='index.html'){
+        const html=data.toString().replace('function frame(now){','function frame(now){if(window.stopFrames)return;');
+        const n=html.lastIndexOf('</script>');data=html.slice(0,n)+goldenSource+html.slice(n);
+      }
+      if(!legacy&&name==='index.html')data=data.toString().replace('Build/{{{ LOADER_FILENAME }}}','native-stub.js');
+      res.writeHead(200,{'Content-Type':mimes[path.extname(filename)]||'application/octet-stream'});res.end(data);
+    });
+  });
+}
+async function main(){
+  const s=server();await new Promise(resolve=>s.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+s.address().port+'/';
+  const browser=await chromium.launch({args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
+  try{
+    const p=await browser.newPage({viewport:{width:375,height:667},hasTouch:true});
+    const posts=[];let phase='legacy';
+    await p.route('https://script.google.com/**',route=>{
+      posts.push(phase);return route.fulfill({json:{ok:true,rank:1,weekRank:1,rows:[]}});
+    });
+    await p.addInitScript(()=>{
+      window.hostEvents=[];
+      window.TelegramWebviewProxy={postEvent(name,raw){
+        const payload=JSON.parse(raw||'{}');window.hostEvents.push(name);
+        if(name!=='web_app_invoke_custom_method')return;
+        let result=true;
+        if(payload.method==='saveStorageValue')localStorage.setItem('fixture-cloud-'+payload.params.key,payload.params.value);
+        if(payload.method==='getStorageValues')result=Object.fromEntries(payload.params.keys.map(k=>[k,localStorage.getItem('fixture-cloud-'+k)||'']));
+        setTimeout(()=>window.Telegram.WebView.receiveEvent('custom_method_invoked',{req_id:payload.req_id,result}),1);
+      }};
+    });
+    const hash='#'+new URLSearchParams({tgWebAppData:new URLSearchParams({user:JSON.stringify({id:127,first_name:'QA'}),auth_date:'1770000000',hash:'fixture'}).toString(),tgWebAppPlatform:'android',tgWebAppVersion:'8.0'}).toString();
+    await p.goto(base+'legacy/'+hash,{waitUntil:'domcontentloaded'});
+    await p.waitForFunction(()=>window.goldenCheck?.heroReady());
+    await p.locator('[data-h="owl"]').first().click();
+    await p.locator('#bPlay').click();await p.waitForFunction(()=>goldenCheck.ready(),{},{timeout:90000});
+    const caught=await p.evaluate(async()=>{window.stopFrames=true;const caught=await goldenCheck.meet(2,60,0,false,'owl');goldenCheck.end();return caught;});
+    assert(caught.caught&&caught.unlock);await p.waitForFunction(()=>localStorage.getItem('fixture-cloud-save')&&JSON.parse(localStorage.getItem('fixture-cloud-save')).meet.prizeFeather);
+    const legacy=await p.evaluate(()=>Object.fromEntries(Object.entries(localStorage).filter(([k])=>k.startsWith('bsova_tg127_')||k==='fixture-cloud-save')));
+    assert.equal(JSON.parse(legacy.bsova_tg127_hero),'owl');assert(JSON.parse(legacy.bsova_tg127_best)>100);
+    // Preserve the real host's CloudStorage records across HTTP origins, like the Telegram backend.
+    if(process.argv[2])await p.addInitScript(snapshot=>{for(const [k,v] of Object.entries(snapshot))if(k.startsWith('fixture-cloud-'))localStorage.setItem(k,v);},legacy);
+    phase='unity';await p.goto((process.argv[2]||base).replace(/#.*/,'')+hash,{waitUntil:'domcontentloaded'});
+    await p.locator('#play').waitFor({timeout:150000});
+    assert.equal(await p.locator('[data-hero="owl"]').getAttribute('aria-pressed'),'true');
+    assert.equal(await p.locator('#best').innerText(),String(JSON.parse(legacy.bsova_tg127_best)));
+    for(const mode of ['tubing','sled'])assert(await p.locator('#menu [data-mode="'+mode+'"]').isEnabled());
+    await p.evaluate(()=>Telegram.WebView.receiveEvent('viewport_changed',{height:565,is_state_stable:true,is_expanded:true}));
+    assert.equal(Math.round((await p.locator('#app').boundingBox()).height),565);
+    for(const v of ['#play','[data-hero="bear"]','#menu [data-mode="sled"]'])assert(await p.locator(v).evaluate(el=>{const b=el.getBoundingClientRect();return el.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2));}));
+    const host=(name,data={})=>p.evaluate(([n,d])=>Telegram.WebView.receiveEvent(n,d),[name,data]);
+    const nav=name=>p.locator('#panelBody').getByRole('button',{name,exact:true}).click();
+    const back=()=>host('back_button_pressed');
+    await p.locator('[data-panel="more"]').click();await nav('Рейтинг');
+    assert.match(await p.locator('#panelBody').innerText(),/Личные заезды/);await back();
+    await nav('Задания');assert.equal(await p.locator('#panelBody .stat').count(),4);await back();
+    await nav('Улучшения');assert.match(await p.locator('#panelBody').innerText(),/Магнит/);
+    assert.match(await p.locator('#panelBody').innerText(),/Каска на старт/);await back();
+    await nav('Коллекция');assert.equal(await p.locator('.letter-row').count(),3);await back();
+    await nav('Правила FIS');await p.locator('summary').nth(8).click();
+    assert.match(await p.locator('details[open]').innerText(),/аптечка/);await back();
+    await nav('Танцы');assert(await p.locator('#panelBody').getByRole('button',{name:'Ёлочка'}).isEnabled());await back();
+    await nav('Настройки');await nav('Замеры');await p.locator('dialog[open]').waitFor();await back();await p.locator('dialog').waitFor({state:'detached'});
+    await nav('Лист моделей');await p.locator('.catalog-grid').waitFor();
+    assert.equal(await p.locator('.catalog-grid button').count(),65);
+    await nav('Из кода');const subset=await p.locator('.catalog-grid button').count();assert(subset>0&&subset<65);
+    await p.locator('.catalog-grid button').first().click();assert((await p.locator('#panelBody>img').count())===1);await back();await back();
+    await nav('Осмотр трассы');await p.locator('#review').waitFor();
+    await p.locator('#reviewAt').fill('2507');await p.locator('#reviewAt').press('Enter');
+    await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===2507);
+    await p.locator('#reviewLater').click();await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===2607);
+    await p.locator('#reviewEarlier').click();
+    await p.locator('#reviewStep').click();await p.locator('#reviewRate').selectOption('3');await p.locator('#reviewRate').selectOption('0');
+    await p.locator('#reviewLane').evaluate(e=>{e.value='3';e.dispatchEvent(new Event('input',{bubbles:true}));});await p.locator('#reviewEffect').selectOption('coffee');
+    await p.locator('#reviewHero').selectOption('bear');await p.locator('#reviewRide').selectOption('tubing');
+    await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===1161);assert(await p.locator('#reviewStage').isDisabled());
+    await p.locator('#reviewFold').click();assert(await p.locator('#reviewBody').isHidden());
+    await p.locator('#reviewExit').click();await p.locator('#play').waitFor();
+    await p.locator('#play').click();await p.locator('#pause').waitFor();
+    await host('back_button_pressed');await p.locator('#resume').waitFor();await p.locator('#resume').click();
+    await host('visibility_changed',{is_visible:false});await p.locator('#resume').waitFor();
+    await host('visibility_changed',{is_visible:true});assert(await p.locator('#resume').isVisible());
+    await p.locator('#resume').click();await p.locator('#pause').click();await p.locator('#restartPaused').click();await p.locator('#pause').waitFor();
+    await p.locator('#pause').click();await host('back_button_pressed');await p.locator('#play').waitFor();
+    await p.locator('[data-hero="bear"]').click();
+    await p.locator('#play').click();await p.locator('#pause').waitFor();await p.locator('#slope').tap({position:{x:174,y:310}});
+    await p.waitForFunction(()=>parseInt(document.getElementById('metres').innerText,10)>=30);
+    await p.locator('#pause').click();await p.locator('#exitPaused').click();await p.locator('#share').click();
+    await p.waitForFunction(()=>document.getElementById('shareImage').naturalWidth===1080);
+    assert.equal(await p.locator('#shareImage').evaluate(e=>e.naturalHeight),1350);
+    assert(!(await p.evaluate(()=>hostEvents)).includes('web_app_open_tg_link'));await back();await p.locator('#exitResult').click();
+    await p.locator('#play').waitFor();
+    const old=await p.evaluate(()=>Object.fromEntries(Object.entries(localStorage).filter(([k])=>(k.startsWith('bsova_tg127_')&&!k.includes('unity_'))||k==='fixture-cloud-save')));
+    if(!process.argv[2])assert.deepEqual(old,legacy);
+    assert(!posts.includes('unity'));assert((await p.evaluate(()=>hostEvents)).includes('web_app_ready'));
+    console.log('PASS earned legacy owl + feather, best and both bonuses survive; missions/shop/FIS/letters/dances/model catalog/review and 1080x1350 share preview; Telegram SDK Back, resize 565 px, minimize, return, explicit resume, restart, isolated writes; '+(process.argv[2]?'Unity Web':'native callbacks simulated'));
+  }finally{await browser.close();await new Promise(r=>s.close(r));}
+}
+main().catch(e=>{console.error(e);process.exitCode=1;});

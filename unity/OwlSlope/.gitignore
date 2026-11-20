@@ -7,3 +7,5 @@ Build*/
 *.sln
 *.csproj
 /Builds/
+/Assets/Resources/PerformanceTestRunInfo.json*
+/Assets/Resources/PerformanceTestRunSettings.json*

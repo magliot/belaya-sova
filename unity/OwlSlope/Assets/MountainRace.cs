@@ -1,0 +1,189 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+// Distances and lanes are metres. The archived simulation uses 20 units per metre.
+[DisallowMultipleComponent]
+public partial class MountainRace : MonoBehaviour {
+    [Serializable] public class Settings {
+        public string mode="normal",reviewRide="normal";
+        public int seed=1911, sensitivity=4, helmets, boost, mag, collectedLetters;
+    }
+    [Serializable] public class State {
+        public string phase="menu",hero="bear",mode="normal",message="",cue="";
+        public int seed,score,coins,helmets,stage,gates,tricks,rings,combo,maxCombo,polite,gifts,snowmen,
+            feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds;
+        public float metres,elapsed,engineNear,enginePan,avalanche,edge;
+        public bool air,boost,feather,goldenOwl,tubingUnlocked,sledUnlocked;
+        public int[] fis=Array.Empty<int>();
+    }
+    public State Status {get;private set;}=new State();
+    public bool IsMenu=>Status.phase=="menu";
+    public string Hero=>Status.hero;
+    public Transform MenuActor=>menuModel;
+    public float Lane=>lane;
+    public float Altitude=>airborne?FlightHeight(Status.metres):rampHeight;
+    public RaceWorld World {get;private set;}
+    public Camera View {get;private set;}
+    Settings settings=new Settings();
+    System.Random random;
+    readonly List<int> earnedRules=new List<int>(10);
+    int bonusPoints, serial;
+    bool airborne,dragging,edgeReturn;
+    float lane,velocity,slip,travelYaw,dragStart,dragTarget,angle,sensitivity;
+    float speed,baseSpeed,boost,magnet,slow,wobble,invincible,fall,fallSide,edgeOrigin;
+    float airTime,airMax,lipHeight,flightStart,flightSpan,flightLift,trickAt,trickProgress,trickLength;
+    bool parkFlight,trickLine,prizeLine;
+    int flightTricks,trickType,poseStyle;
+    float rampHeight,rampPhase,lastLanding,crashTimer,cleanStart,lastClose;
+    float chaseNext,chaseDistance,chaseLeft,noticeUntil,lastReward;
+    float reviewRate, reviewLane,nextHud;
+    string reviewEffect="normal";
+    int rewardChain,challenge,challengeNeed,challengeBaseline,consecutiveGates,bestStage;
+    bool challengeDone;
+    float challengeClean;
+    string CourseMode=>Review?settings.reviewRide:Status.mode;
+    bool BonusMode=>CourseMode=="sled"||CourseMode=="tubing";
+    bool Review=>Status.mode=="review";
+    int Mult=>Mathf.Min(10,1+Status.combo/5);
+    const float FallTime=1.7f;
+    const int SprintLength=1200;
+    static readonly string[] Words={"EMCO","СОВА","ШАХТЕРСК"};
+#if UNITY_WEBGL && !UNITY_EDITOR
+    [System.Runtime.InteropServices.DllImport("__Internal")]
+    static extern void MountainState(string json);
+#endif
+
+    void Start(){Initialize();}
+    public void Initialize(){
+        if(World)return;
+        World=GetComponent<RaceWorld>();
+        if(!World)World=gameObject.AddComponent<RaceWorld>();
+        SetupCamera();Menu();
+        Debug.Log("MOUNTAIN RACE READY");
+    }
+    public void ChooseHero(string selected){
+        if((selected!="owl"&&selected!="bear")||(!IsMenu&&!Review))return;
+        Status.hero=selected;
+        if(!World)return;
+        PrepareActors();RenderRace(0,true);Publish();
+    }
+    public void Menu(){
+        dragging=false;reviewRate=0;airborne=false;
+        Status=new State{hero=Hero,phase="menu"};
+        if(!World)return;
+        lane=angle=fall=0;World.Configure(1911,"normal");World.Refresh(0,0);
+        PrepareActors();RenderRace(0,true);Publish();
+    }
+    public void StartRace(string json){
+        if(!World)Initialize();
+        var selected=String.IsNullOrEmpty(json)?new Settings():JsonUtility.FromJson<Settings>(json);
+        if(selected==null)return;
+        switch(selected.mode){case "normal":case "sprint":case "tubing":case "sled":case "review":break;default:selected.mode="normal";break;}
+        switch(selected.reviewRide){case "sprint":case "tubing":case "sled":break;default:selected.reviewRide="normal";break;}
+        settings=selected;ResetRun();
+    }
+    public void RestartRide(){ResetRun();}
+    void ResetRun(){
+        string hero=Hero;
+        Status=new State{hero=hero,mode=settings.mode,seed=settings.seed,
+            phase=settings.mode=="review"?"review":"play",lettersTotal=Mathf.Clamp(settings.collectedLetters,0,16)};
+        Status.helmets=!BonusMode&&!Review&&settings.helmets>0?1:0;
+        random=new System.Random(settings.seed);World.Configure(settings.seed,CourseMode);
+        sensitivity=.35f+.11f*Mathf.Clamp(settings.sensitivity,1,10);
+        lane=velocity=slip=angle=dragStart=dragTarget=0;edgeReturn=dragging=airborne=false;
+        speed=baseSpeed=12;travelYaw=World.HeadingAt(0);boost=magnet=slow=wobble=invincible=fall=0;
+        rampHeight=rampPhase=airTime=flightSpan=crashTimer=cleanStart=reviewRate=reviewLane=noticeUntil=0;
+        parkFlight=trickLine=prizeLine=false;trickProgress=-1;lastLanding=-10;lastClose=-10;
+        earnedRules.Clear();bonusPoints=flightTricks=rewardChain=consecutiveGates=0;lastReward=-100;
+        chaseLeft=0;chaseNext=900;bestStage=0;nextHud=0;reviewEffect="normal";SelectChallenge(0);
+        PrepareActors();ScheduleLetter(0,false);World.Refresh(0,0);RenderRace(0,true);
+        Cue("start");Publish();
+    }
+    public void BeginSteer(){if(Status.phase=="play"){dragging=true;dragTarget=dragStart=lane;}}
+    public void DragSteer(float delta){if(dragging)dragTarget=Mathf.Clamp(dragStart+delta*27*sensitivity,-LaneLimit(Status.metres),LaneLimit(Status.metres));}
+    public void ReleaseSteer(){dragging=false;}
+    public void PauseRide(){if(Status.phase=="play"){Status.phase="pause";ReleaseSteer();flakes.Pause();fireworks.Pause();Publish();}else if(Review)ReviewRate(0);}
+    public void ResumeRide(){if(Status.phase=="pause"){Status.phase="play";flakes.Play();fireworks.Play();Publish();}}
+    public void EndRide(){
+        if(Status.phase!="play"&&Status.phase!="pause")return;
+        if(Status.metres<30){Menu();return;}
+        Finish(false,"Заезд завершён");
+    }
+    public void Seek(float metres){
+        if(!Review)return;
+        Status.metres=Mathf.Clamp(metres,0,BonusMode?1161:CourseMode=="sprint"?1199:19999);Status.elapsed=Status.metres/14;
+        if(BonusMode)Status.elapsed=(Mathf.Sqrt(270*270+2*(80f/75)*Status.metres*20)-270)/(80f/75);
+        lane=reviewLane;angle=0;rampHeight=0;airborne=false;travelYaw=World.HeadingAt(Status.metres);
+        Status.stage=Mathf.FloorToInt(Status.metres/2500)%8;
+        World.Refresh(Status.metres,Status.elapsed);ReviewContact();
+        boost=reviewEffect=="coffee"?5:0;Status.avalanche=reviewEffect=="avalanche"?.85f:0;
+        if(reviewEffect=="jump"){
+            airborne=true;parkFlight=false;lipHeight=.9f;flightLift=2.15f;
+            airMax=1.35f;airTime=airMax*(.1f+.8f*Mathf.PingPong(Status.elapsed*.8f,1));
+        }
+        RenderRace(0,true);Publish();
+    }
+    public void ReviewEffect(string effect){if(Review){reviewEffect=effect;Seek(Status.metres);}}
+    public void ReviewRate(float value){if(Review)reviewRate=Mathf.Clamp(value,0,6);}
+    public void ReviewStep(){if(Review)Seek(Status.metres+14f/30);}
+    public void ReviewLane(float value){if(Review){reviewLane=Mathf.Clamp(value,-10,10);Seek(Status.metres);}}
+    public void SetSensitivity(float value){sensitivity=.35f+.11f*Mathf.Clamp(value,1,10);}
+    void OnApplicationPause(bool paused){if(paused)PauseRide();}
+    void Update(){
+        if(!World)return;
+        if(IsMenu){RenderMenu(Time.deltaTime);return;}
+        if(Review){if(reviewRate>0)Seek(Status.metres+Time.deltaTime*14*reviewRate);return;}
+        if(Input.GetKeyDown(KeyCode.P)||Input.GetKeyDown(KeyCode.Escape)){if(Status.phase=="pause")ResumeRide();else PauseRide();}
+        if(Status.phase!="play")return;
+#if !UNITY_WEBGL || UNITY_EDITOR
+        NativePointer();
+#endif
+        if(Input.GetKeyDown(KeyCode.Space)||Input.GetKeyDown(KeyCode.UpArrow))AirTrick("tap");
+        float key=(Input.GetKey(KeyCode.RightArrow)||Input.GetKey(KeyCode.D)?1:0)-(Input.GetKey(KeyCode.LeftArrow)||Input.GetKey(KeyCode.A)?1:0);
+        Advance(Mathf.Min(.20f,Time.deltaTime),key);
+    }
+    // Public for editor simulation: the same fixed substeps run in the phone player.
+    public void Advance(float elapsed,float keyboard=0){
+        if(Status.phase!="play"||elapsed<=0)return;
+        World.Refresh(Status.metres,Status.elapsed);
+        float left=elapsed;
+        while(left>.00001f&&Status.phase=="play"){
+            float dt=Mathf.Min(left,1f/60);Step(dt,keyboard);left-=dt;
+        }
+        RenderRace(elapsed,false);
+        if(Status.phase=="play"&&Status.elapsed>=nextHud){Publish();nextHud=Status.elapsed+.10f;}
+    }
+    void Cue(string cue){Status.cue=cue;Status.eventId=++serial;}
+    void Notice(string text,string cue=""){
+        Status.message=text;noticeUntil=Status.elapsed+1.8f;
+        if(cue.Length>0)Cue(cue);nextHud=0;
+    }
+    void Publish(){
+        Status.score=Mathf.FloorToInt(Status.metres)+bonusPoints;Status.speed=Mathf.RoundToInt(speed*3.6f);
+        Status.air=airborne;Status.boost=boost>0;Status.edge=angle;
+        Status.multiplier=BonusMode?Mathf.Min(4,1+(Status.elapsed-lastReward<=3?rewardChain:0)/5):Mult;
+        Status.tubingUnlocked=Status.feather;Status.sledUnlocked=Status.feather||Status.goldenOwl;
+#if UNITY_WEBGL && !UNITY_EDITOR
+        MountainState(JsonUtility.ToJson(Status));
+#endif
+    }
+    void Finish(bool completed,string description){
+        dragging=false;Status.phase=completed?"finish":"over";Status.message=description;Cue(completed?"finish":"crash");Publish();
+    }
+    void Rule(int n){if(!earnedRules.Contains(n)){earnedRules.Add(n);Status.fis=earnedRules.ToArray();}}
+#if !UNITY_WEBGL || UNITY_EDITOR
+    Vector2 mouseOrigin;float mouseTime;
+    void NativePointer(){
+        Vector2 position=Input.mousePosition;
+        if(Input.GetMouseButtonDown(0)){mouseOrigin=position;mouseTime=Time.unscaledTime;BeginSteer();}
+        if(Input.GetMouseButton(0))DragSteer((position.x-mouseOrigin.x)/Screen.width);
+        if(!Input.GetMouseButtonUp(0))return;
+        Vector2 delta=position-mouseOrigin;ReleaseSteer();
+        if(delta.magnitude>42){
+            string dir=Mathf.Abs(delta.x)>Mathf.Abs(delta.y)?(delta.x<0?"left":"right"):(delta.y<0?"down":"up");
+            AirTrick((delta.magnitude>110?"big-":"")+dir);
+        }else if(Time.unscaledTime-mouseTime<.3f&&delta.magnitude<20)AirTrick("tap");
+    }
+#endif
+}
