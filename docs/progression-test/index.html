@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#183c56">
   <title>Белая Сова · Спуск</title>
   <link rel="icon" type="image/jpeg" href="art/av_owl.jpg">
-  <link rel="stylesheet" href="race.css?v=2e6f03b12d47">
-  <script src="vendor/telegram-web-app.js?v=baa788a6f686"></script>
-  <script src="release.js?v=90c23e9bac89"></script><script src="save.js?v=adb128cc5347"></script><script src="equipment.js?v=fc8bea92c0fc"></script>
-  <script defer src="mountain-audio.js?v=453a015affc3"></script><script defer src="mountain-metrics.js?v=c26b0f1a7ee6"></script>
+  <link rel="stylesheet" href="race.css?v=70274187ae22">
+  <script src="vendor/telegram-web-app.js?v=e999954b603b"></script>
+  <script src="release.js?v=3296100ede46"></script><script src="save.js?v=856b082986e6"></script><script src="equipment.js?v=c446f7325708"></script>
+  <script defer src="mountain-audio.js?v=453a015affc3"></script><script defer src="mountain-metrics.js?v=2c1afe0401dc"></script>
 </head>
 <body><main id="app">
   <canvas id="slope" aria-label="Горнолыжная трасса" tabindex="0"></canvas>
@@ -28,7 +28,7 @@
         <button data-hero="owl" aria-pressed="false"><img src="art/av_owl.jpg" alt=""><span>Сова<small>Сноуборд · долго парит</small></span></button>
       </div>
       <div class="balances"><span>⭐ Рекорд <b id="best">0</b></span><button data-panel="top">🏆 Рейтинг<small id="menuRank"></small></button><span>🍊 <b id="bank">0</b></span></div>
-      <div class="start-row"><button id="play" class="primary" data-mode="normal">Поехали!</button></div>
+      <div class="row start-row"><button id="play" class="primary" data-mode="normal">Поехали!</button><button class="freeride-start" data-mode="freeride">Free Ride<small>Горная проба · 1,2 км</small></button></div>
       <div class="row bonuses"><button data-mode="tubing">Плюшки<small></small></button><button data-mode="sled">Снегоход<small></small></button></div>
       <div class="row"><button class="sprint" data-mode="free">Свободное катание</button><button class="sprint" data-mode="sprint">Короткий · 1,2 км</button></div>
       <nav class="utilities" aria-label="Разделы игры">
@@ -51,7 +51,7 @@
     </div>
     <section id="review" class="sheet" hidden>
       <div class="row"><b>Осмотр · <output id="reviewMetres">0</output> м</b><button id="reviewFold" aria-expanded="true">Свернуть</button><button id="reviewExit">В меню</button></div>
-      <div id="reviewBody"><div class="row"><select id="reviewRide" aria-label="Трасса осмотра"><option value="normal">Полный спуск</option><option value="sprint">Короткий спуск</option><option value="tubing">Плюшки</option><option value="sled">Снегоход</option></select><select id="reviewHero" aria-label="Герой осмотра"><option value="owl">Сова</option><option value="bear">Мишаня</option></select></div><label>Перемотка
+      <div id="reviewBody"><div class="row"><select id="reviewRide" aria-label="Трасса осмотра"><option value="normal">Полный спуск</option><option value="sprint">Короткий спуск</option><option value="freeride">Free Ride</option><option value="tubing">Плюшки</option><option value="sled">Снегоход</option></select><select id="reviewHero" aria-label="Герой осмотра"><option value="owl">Сова</option><option value="bear">Мишаня</option></select></div><label>Перемотка
       <input id="seek" aria-label="Положение на трассе" type="range" min="0" max="79999" step="1" value="0"></label>
       <div class="row"><button id="reviewEarlier">−100 м</button><input id="reviewAt" aria-label="Перейти на метр" type="number" min="0" max="79999" step="1" value="0"><button id="reviewLater">+100 м</button></div>
       <div class="row"><select id="reviewRate" aria-label="Скорость осмотра">
@@ -84,10 +84,10 @@
       <div id="panelBody"></div>
     </section>
   </div>
-</main><script src="race.js?v=b2e5b76457d1"></script>
+</main><script src="race.js?v=12006324cd6b"></script>
 <script>
   MountainShell.boot({
-    loader:'Build/169d96c31bb9e9f81e9b8b3bb8509fcf.loader.js', data:'Build/fda38850a4c4808abc0a51d4e4e1d19c.data.unityweb',
-    framework:'Build/d1fc50b914c2cf645a5f42a976d6f6ca.framework.js.unityweb', code:'Build/0143c469c62460f0397d02aa6789010e.wasm.unityweb'
+    loader:'Build/45dd62061d6507abfb1368d4b525170a.loader.js', data:'Build/945327e07873ab2ed0d730e7d83f09ad.data.unityweb',
+    framework:'Build/c85f01dcf50f90ab0ec54c6343034ad5.framework.js.unityweb', code:'Build/e382c89e0279dd19eb7ae8281b0b4fb6.wasm.unityweb'
   });
 </script></body></html>

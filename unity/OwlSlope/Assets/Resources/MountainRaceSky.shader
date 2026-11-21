@@ -12,6 +12,7 @@ Shader "Owl/MountainRaceSky" {
   _MenuArt("Menu landscape",2D)="white"{}
   _Menu("Menu",Float)=0
   _Tube("Tubing",Float)=0
+  _Powder("High alpine bowl",Range(0,1))=0
   _Forward("Direction",Vector)=(0,0,1,0)
   _Horizon("Horizon",Color)=(.82,.90,.97,1)
   _Zenith("Zenith",Color)=(.38,.67,.91,1)
@@ -30,7 +31,7 @@ Shader "Owl/MountainRaceSky" {
    #pragma target 3.0
    #include "UnityCG.cginc"
    sampler2D _Ridge,_LeftRidge,_RightRidge,_Aurora,_AuroraA,_AuroraC,_MenuArt,_Route,_RouteNext;
-   float _RouteBlend;
+   float _RouteBlend,_Powder;
    float4 _Forward,_Horizon,_Zenith,_Tint;float _Night,_Storm,_Clock,_Menu,_Tube;
    struct V {float4 pos:SV_POSITION;float3 ray:TEXCOORD0;float4 screen:TEXCOORD1;};
    V vert(float4 p:POSITION){V o;o.pos=UnityObjectToClipPos(p);o.screen=ComputeScreenPos(o.pos);o.ray=p.xyz;return o;}
@@ -80,7 +81,7 @@ Shader "Owl/MountainRaceSky" {
     // Nine overlapping mountain views complete one revolution. Keep the valley floor
     // below the skyline all the way down to the descending foreground geometry.
     float sector=bearing*(9./6.2831853);
-    float panel=floor(sector),t=frac(sector),v=.67+dir.y*1.65;
+    float panel=floor(sector),t=frac(sector),v=.67+(dir.y+.16*_Powder)*1.65;
     // UV jumps between panels, but a pixel's footprint stays continuous through each seam
     // (including atan2's wrap). Otherwise the coarsest mip draws a vertical line in clear sky.
     float inv=1.1172677/max(dot(dir.xz,dir.xz),.001); // .78 * 9 / (2*pi)

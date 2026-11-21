@@ -30,6 +30,7 @@ public partial class MountainRace {
     }
     void ReviewContact(){
         rampHeight=0;airborne=false;
+        if(CourseMode=="freeride"){PreviewFreeRideJump();return;}
         foreach(var o in World.Items){
             if((o.kind!="ramp"&&o.kind!="rail")||Mathf.Abs(lane-o.lane)>o.width*.5f)continue;
             float lip=o.distance+o.length*.5f;
@@ -92,7 +93,8 @@ public partial class MountainRace {
     }
     void CheckItems(float before,float fromLane){
         float d=Status.metres;int letterChange=0;
-        UpdateRidingSurface(before,d);
+        if(CourseMode=="freeride")FreeRideContact(before,fromLane);
+        else UpdateRidingSurface(before,d);
         Status.engineNear=0;Status.enginePan=0;
         foreach(var o in World.Items){
             if(o.consumed)continue;

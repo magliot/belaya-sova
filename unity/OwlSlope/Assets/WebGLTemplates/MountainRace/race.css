@@ -28,6 +28,9 @@ button small{display:block;font-size:10px;font-weight:500;margin-top:2px}
 .balances{padding:0 4px;color:#274e68;font-size:12px;line-height:1}.balances span{max-width:42%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .balances button,.home .rules-link{min-height:23px;border:0;background:transparent;color:#245476;font-size:12px;text-decoration:underline;text-underline-offset:3px}
 .start-row .primary{width:100%;color:#532e0b;background:linear-gradient(#ffd07b,#ffad3a 54%,#fa9324);border-color:#b8651a}
+.home .start-row>*{flex:1 1 0;min-width:0}
+.home .freeride-start{background:#16506b;border-color:#48849a;color:#fff}
+.freeride-start small{display:block;font-size:10px;color:#d6f4ff}
 .home .bonuses button{min-height:38px;color:#59411f;border-color:#c3a674;background:linear-gradient(#fff9e9,#ffe6ad)}
 .home .bonuses button:disabled{color:#52626a;border-color:#a7c1cd;background:#e6eff2}.bonuses small{font-size:10px}
 .home .sprint{min-height:29px;background:#e8f6fd;border-color:#a1c5d8;font-size:12px}

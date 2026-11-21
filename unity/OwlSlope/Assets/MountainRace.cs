@@ -99,8 +99,8 @@ public partial class MountainRace : MonoBehaviour {
         if(!World)Initialize();
         var selected=String.IsNullOrEmpty(json)?new Settings():JsonUtility.FromJson<Settings>(json);
         if(selected==null)return;
-        switch(selected.mode){case "normal":case "free":case "sprint":case "tubing":case "sled":case "review":break;default:selected.mode="normal";break;}
-        switch(selected.reviewRide){case "sprint":case "tubing":case "sled":break;default:selected.reviewRide="normal";break;}
+        switch(selected.mode){case "normal":case "free":case "freeride":case "sprint":case "tubing":case "sled":case "review":break;default:selected.mode="normal";break;}
+        switch(selected.reviewRide){case "freeride":case "sprint":case "tubing":case "sled":break;default:selected.reviewRide="normal";break;}
         settings=selected;ResetRun();
     }
     public void RestartRide(){ResetRun();}
@@ -108,7 +108,7 @@ public partial class MountainRace : MonoBehaviour {
         string hero=Hero;
         Status=new State{hero=hero,mode=settings.mode,seed=settings.seed,
             phase=settings.mode=="review"?"review":"play",lettersTotal=Mathf.Clamp(settings.collectedLetters,0,16)};
-        Status.helmets=(Status.mode=="free"||Status.mode=="sprint")&&settings.helmets>0?1:0;
+        Status.helmets=Status.mode=="freeride"||((Status.mode=="free"||Status.mode=="sprint")&&settings.helmets>0)?1:0;
         helmetsIssued=Status.helmets;
         random=new System.Random(settings.seed);World.Configure(settings.seed,CourseMode);
         sensitivity=.35f+.11f*Mathf.Clamp(settings.sensitivity,1,10);
@@ -134,7 +134,7 @@ public partial class MountainRace : MonoBehaviour {
     }
     public void Seek(float metres){
         if(!Review)return;
-        float end=BonusMode?Mathf.Ceil((BonusLaunch+.5f*BonusGain)*BonusSeconds*BonusBoost):CourseMode=="sprint"?1199:79999;
+        float end=BonusMode?Mathf.Ceil((BonusLaunch+.5f*BonusGain)*BonusSeconds*BonusBoost):CourseMode=="freeride"?RaceWorld.FreeRideLength-1:CourseMode=="sprint"?1199:79999;
         Status.metres=Mathf.Clamp(metres,0,end);Status.elapsed=Status.metres/14;
         if(BonusMode){
             float accel=BonusGain/BonusSeconds;

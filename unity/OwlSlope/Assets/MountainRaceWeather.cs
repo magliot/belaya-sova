@@ -21,13 +21,15 @@ public partial class MountainRace {
         new SkyPalette(new Color(.99f,.77f,.66f),new Color(.39f,.60f,.83f),new Color(1,.82f,.69f),new Color(.98f,.86f,.87f),.83f,.73f),
         new SkyPalette(new Color(.76f,.81f,.85f),new Color(.59f,.67f,.74f),new Color(.85f,.91f,1),new Color(.74f,.82f,.88f),.57f,.74f),
         new SkyPalette(new Color(.027f,.052f,.103f),new Color(.007f,.014f,.042f),new Color(.43f,.58f,.81f),new Color(.105f,.17f,.29f),.17f,.18f),
-        new SkyPalette(new Color(.96f,.67f,.68f),new Color(.33f,.36f,.57f),new Color(1,.78f,.69f),new Color(.86f,.72f,.81f),.76f,.70f)
+        new SkyPalette(new Color(.96f,.67f,.68f),new Color(.33f,.36f,.57f),new Color(1,.78f,.69f),new Color(.86f,.72f,.81f),.76f,.70f),
+        new SkyPalette(new Color(.73f,.84f,.94f),new Color(.18f,.45f,.72f),new Color(1,.91f,.78f),new Color(.93f,.97f,1),.88f,.72f)
     };
-    const int ClearSky=0,ParkSky=1,StormSky=2,NightSky=3,HolidaySky=4;
+    const int ClearSky=0,ParkSky=1,StormSky=2,NightSky=3,HolidaySky=4,PowderSky=5;
     static readonly int[] stageSky={ClearSky,ClearSky,ClearSky,ParkSky,StormSky,ClearSky,NightSky,HolidaySky};
 
     void WeatherFront(out int from,out int to,out float mix){
         from=to=ClearSky;mix=1;
+        if(CourseMode=="freeride"){from=to=PowderSky;return;}
         if(CourseMode=="tubing"){
             to=ParkSky;mix=StepBlend(Mathf.InverseLerp(900,1470,Status.metres));return;
         }
@@ -106,7 +108,10 @@ public partial class MountainRace {
         festivalVisibility=holiday;
         bool skyChanged=from!=previousSkyFrom||to!=previousSkyTo||mix!=previousSkyMix;
         if(skyChanged){
+            if((previousSkyTo==PowderSky)!=(to==PowderSky))
+                sun.transform.rotation=to==PowderSky?Quaternion.Euler(42,-109,0):Quaternion.Euler(38,-38,0);
             previousSkyFrom=from;previousSkyTo=to;previousSkyMix=mix;
+            raceSky.SetFloat("_Powder",to==PowderSky?1:0);
             var a=skies[from];var b=skies[to];
             Color horizon=Color.Lerp(a.horizon,b.horizon,mix);
             sun.color=Color.Lerp(a.sun,b.sun,mix);sun.intensity=Mathf.Lerp(a.sunlight,b.sunlight,mix);
@@ -125,7 +130,7 @@ public partial class MountainRace {
             wind.x=Mathf.Lerp(-.9f,gust*11,storm);wind.y=Mathf.Lerp(-2.8f,-3.5f-strength,storm);
             wind.z=Mathf.Lerp(-2,-Mathf.Clamp(speed*.67f,6,17),storm);
             RenderSettings.fogStartDistance=Mathf.Lerp(Mathf.Lerp(52,12,night),16-5*strength,storm);
-            RenderSettings.fogEndDistance=Mathf.Lerp(Mathf.Lerp(185,59,night),58-13*strength,storm);
+            RenderSettings.fogEndDistance=to==PowderSky?239:Mathf.Lerp(Mathf.Lerp(185,59,night),58-13*strength,storm);
         }
         flakes.transform.SetPositionAndRotation(View.transform.position+forward*9+Vector3.up-
             orientation*Vector3.right*(storm*gust*3),orientation);

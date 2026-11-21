@@ -343,7 +343,9 @@ public partial class MountainRace {
             aim=Vector3.Lerp(aim,World.SampleGround(d-10,lane*.5f)+Vector3.up,glance);
             eye+=World.SnowFrame(d,lane)*Vector3.right*(glance*1.25f);
         }
-        View.transform.SetPositionAndRotation(eye,Quaternion.LookRotation(aim-eye,Vector3.up));
+        // Dolly along the existing sightline so steering, pitch and the boost FOV keep their 21b response.
+        Quaternion viewRotation=Quaternion.LookRotation(aim-eye,Vector3.up);
+        View.transform.SetPositionAndRotation(eye+viewRotation*(Vector3.back*.70f),viewRotation);
         UpdateWeather();UpdateTracks();
     }
     // The original tube faces -Z; flip its asymmetric webbing positions with the rubber.

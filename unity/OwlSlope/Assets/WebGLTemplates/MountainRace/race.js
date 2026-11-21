@@ -4,7 +4,7 @@
   const app=window.Telegram?.WebApp?.initData?window.Telegram.WebApp:null;
   const names={owl:'Сова',bear:'Мишаня'};
   const stages=['Учебный склон','Лесная тропа','Бугры','Сноупарк','Вершина','Чёрная трасса','Ночная трасса','Новогодний городок'];
-  const modes={normal:'Спуск',free:'Свободное катание',sprint:'Короткий спуск',sled:'Снегоход',tubing:'Плюшки',review:'Осмотр трассы'};
+  const modes={normal:'Спуск',free:'Свободное катание',freeride:'Free Ride',sprint:'Короткий спуск',sled:'Снегоход',tubing:'Плюшки',review:'Осмотр трассы'};
   const fis=['Уважай других','Контролируй скорость','Выбирай траекторию','Обгоняй с запасом','Смотри по сторонам','Не стой где попало','Пешком — по краю','Соблюдай знаки','Помоги пострадавшему','Назови себя'];
   const ruleText=['Катайся так, чтобы никому не навредить и никого не напугать.','Подбирай скорость по своим силам, рельефу, снегу, погоде и людям вокруг.','Если ты сверху, выбирай линию безопасно для тех, кто ниже.','Обгоняй с любой стороны и оставляй место на манёвр.','Перед стартом и выездом на трассу оглянись вверх и вниз.','Избегай остановок в узких, плохо видимых местах. Упал — освободи трассу.','Поднимаешься или спускаешься пешком — иди у края трассы.','Следи за указателями и разметкой, держись в пределах сеток.','Заметил пострадавшего — остановись и позови патруль.','Участник или свидетель происшествия сообщает свои данные.'];
   const ruleHow=['оставь запас при проезде мимо ученика','сбавь ход перед группой или на участке с плохой видимостью','выбери сторону заранее и сохрани просвет до человека','обгони движущегося лыжника или сноубордиста с запасом','после остановки осмотрись и дождись свободного выезда','остановись у края рядом с пострадавшим','пройди вдоль безопасной обочины','объедь ограждение со стороны стрелки','остановись рядом с пострадавшим и вызови патруль','назовись свидетелем прибывающему патрулю'];
@@ -66,6 +66,7 @@
     $('fisAct').hidden=!action;if(action)setText('fisAct',action);
     $('fisLeave').hidden=!s.fisCanLeave;
     const stage=bonus?modes[mode]+' · '+Math.max(0,Math.ceil(75-s.elapsed))+' с':
+      mode==='freeride'?'Free Ride · до долины '+Math.max(0,1200-metres)+' м':
       mode==='sprint'?'Финиш · '+Math.max(0,1200-metres)+' м':(metres>=20000?'Круг '+(1+Math.floor(metres/20000))+' · ':'')+(1+s.stage%8)+' · '+stages[s.stage%8];
     setText('stage',stage);
     let status='';
@@ -152,10 +153,21 @@
     if(run?.practice&&(s.phase==='finish'||s.phase==='over')){
       queueMicrotask(()=>{if(run?.practice)returnToInspection();});return;
     }
+    if(run?.mode==='freeride'){
+      if(s.phase==='finish'||s.phase==='over'){
+        setText('resultTitle',s.phase==='finish'?'Долина · финиш Free Ride':'Free Ride · заезд завершён');
+        setText('resultScore',Math.floor(s.metres)+' / 1 200 м');
+        setText('resultStats','Мандарины · '+s.coins+'\nТрасса № '+s.seed);
+        setText('rankStatus','Пробный спуск · вне рейтинга');
+        for(const id of ['breakdown','resultTasks','resultRule','resultBonuses','resultExtra','share'])$(id).hidden=true;
+      }
+      return;
+    }
     if(run&&run.mode!=='review'&&['play','finish','over'].includes(s.phase))profile.unlock(s);
     if(run&&run.mode!=='review'&&(s.phase==='finish'||s.phase==='over')){
       const oldBest=profile.data.best,missions=profile.data.missions.slice();
       if(profile.finish(run.id,s)){
+        $('resultTasks').hidden=false;$('share').hidden=false;
         setText('resultTitle',s.message||(s.phase==='finish'?'Финиш':'Заезд завершён'));setText('resultScore',s.score+' очков');
         $('breakdown').hidden=s.mode!=='normal';
         if(s.mode==='normal')$('breakdown').replaceChildren(...[
@@ -190,7 +202,8 @@
     const d=profile.data;
     if(mode==='tubing'&&!d.meet.prizeFeather||mode==='sled'&&!d.meet.prizeFeather&&!d.meet.goldenOwl)return;
     try{
-      const seed=retry&&run?run.seed:seedOverride??(crypto.getRandomValues(new Uint32Array(1))[0]&0x7fffffff);
+      const trialSeed=mode==='freeride'&&new URLSearchParams(location.search).get('freerideSeed')==='1911'?1911:null;
+      const seed=retry&&run?run.seed:trialSeed??seedOverride??(crypto.getRandomValues(new Uint32Array(1))[0]&0x7fffffff);
       const config={mode,seed,sensitivity:d.sens,helmets:d.helmets,boost:d.boost,mag:d.mag,collectedLetters:d.coll.length,...MountainEquipment.config(d)};
       if(mode==='review'){
         $('reviewRate').value='0';$('reviewLane').value='0';$('reviewEffect').value='normal';
@@ -219,7 +232,7 @@
     else if(snapshot?.phase==='review'){$('reviewRate').value='0';command('ReviewRate',0);}
   }
   function bankInterruptedRide(){
-    if(run&&run.mode!=='review'&&!run.practice&&snapshot?.phase==='pause'){
+    if(run&&run.mode!=='review'&&run.mode!=='freeride'&&!run.practice&&snapshot?.phase==='pause'){
       profile.finish(run.id,{...snapshot,phase:'over',rankedResult:false});
     }
   }
@@ -460,7 +473,7 @@
   $('reviewStage').onchange=e=>command('Seek',Math.floor(snapshot.metres/20000)*20000 + Number(e.target.value)*2500);
   $('reviewRate').onchange=e=>command('ReviewRate',+e.target.value);
   function setReviewBounds(){
-    const ride=$('reviewRide').value,end=ride==='normal'?79999:ride==='sprint'?1199:ride==='sled'?2471:2196;
+    const ride=$('reviewRide').value,end=ride==='normal'?79999:(ride==='sprint'||ride==='freeride')?1199:ride==='sled'?2471:2196;
     $('seek').max=$('reviewAt').max=end;$('reviewStage').disabled=ride!=='normal';return end;
   }
   $('reviewHero').onchange=e=>command('ChooseHero',e.target.value);

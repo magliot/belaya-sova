@@ -16,11 +16,13 @@
   const signedStart = params => new URLSearchParams(params.get('tgWebAppData') || '').get('start_param');
   const start = signedStart(fragment) || signedStart(query) || query.get('tgWebAppStartParam') ||
     fragment.get('tgWebAppStartParam') || query.get('startapp');
-  const test = start === 'unity' || /^unitytest(?:_[a-z0-9]+)?$/.test(start || '') || pilot;
+  const powderTrial = start === 'freeride_1911';
+  const test = powderTrial || start === 'unity' || /^unitytest(?:_[a-z0-9]+)?$/.test(start || '') || pilot;
   const destination = start === 'unitytest_progress21' ? 'progression-test/' : test ? 'unity-test/' : 'unity/';
   const target = new URL((pilot ? '../' : './') + destination, location.href);
   query.delete('tgWebAppData');
-  query.set('v', '2026-11-21e');
+  if (powderTrial) query.set('freerideSeed','1911');
+  query.set('v', '2026-11-21f');
   target.search = query.toString();
   target.hash = context.toString();
   location.replace(target.href);

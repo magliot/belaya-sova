@@ -46,6 +46,7 @@ public partial class RaceWorld {
         var o=Entry("tube",x,y,44,1.15f,model);o.side=side;return o;
     }
     void BuildRow(int seg,bool geometryOnly=false){
+        if(mode=="freeride"){BuildFreeRideSection(seg);return;}
         int start=Items.Count;
         if(seg==0&&mode!="sled"&&mode!="tubing")Add("startArch",12,0,12,5);
         if(mode=="sprint"){Sprint(seg);Filter(start);return;}

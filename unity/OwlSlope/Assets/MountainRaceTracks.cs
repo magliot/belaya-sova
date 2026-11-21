@@ -57,6 +57,7 @@ public partial class MountainRace {
             trackMesh.vertices=trackVertices;trackMesh.bounds=new Bounds(World.SampleGround(d,lane),new Vector3(120,120,120));
         }else if(patrol!=PatrolPhase.Walking&&!airborne&&fall<=0&&rampHeight<.12f&&d-previousStamp>=.28f){
             float len=Mathf.Clamp(d-previousStamp+.12f,.56f,1.65f);
+            if(CourseMode=="freeride")SprayPlayerPowder(d);
             if(Hero=="bear"&&!BonusMode){Stamp(lane-.2f,d,.11f,len);Stamp(lane+.2f,d,.11f,len);}
             else Stamp(lane,d,BonusMode?.63f:.34f,len);
             previousStamp=d;trackMesh.vertices=trackVertices;
@@ -69,6 +70,20 @@ public partial class MountainRace {
             splash.gameObject.SetActive(true);splash.rotation=View.transform.rotation;
             splash.localScale=new Vector3(1.6f+age*3,.72f+age*2,1);splashPaint.color=new Color(1,1,1,.68f*(1-age/.32f));
         }else if(splash.gameObject.activeSelf)splash.gameObject.SetActive(false);
+    }
+    void SprayPlayerPowder(float distance){
+        if(!carvingSnow)carvingSnow=MakeBurst("Пудра из-под канта","MountainRaceFlake");
+        float pressure=Mathf.Clamp01(Mathf.Abs(velocity)/6);
+        var origin=World.SampleGround(distance-.30f,lane);
+        var forward=(World.SampleGround(distance+.2f,lane)-World.SampleGround(distance-.2f,lane)).normalized;
+        var right=Vector3.Cross(Vector3.up,forward).normalized;
+        for(int side=-1;side<=1;side+=2){
+            float kick=side*velocity<0?pressure:.12f;
+            var snow=new ParticleSystem.EmitParams{position=origin+side*.24f*right+Vector3.up*.13f,
+                velocity=side*right*(.68f+2*kick)+Vector3.up*(.8f+1.65f*kick)-forward*.75f,
+                startLifetime=.34f+.21f*kick,startSize=.20f+.23f*kick,startColor=new Color(.84f,.93f,1,.62f)};
+            carvingSnow.Emit(snow,1);
+        }
     }
     void SprayFromCarvingRiders(float player){
         foreach(var o in World.Items){

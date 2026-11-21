@@ -78,18 +78,19 @@ public partial class RaceWorld : MonoBehaviour {
         item.obj.SetActive(false);stack.Push(item.obj);
     }
     static float RowLength(int stage,string mode){
+        if(mode=="freeride")return FreeRideSectionLength;
         if(mode=="sprint")return 75;if(mode=="tubing")return 33;if(mode=="sled")return 31;
         if(stage>=8&&stage%8==6)return 50;
         switch(stage%8){case 0:return 62.5f;case 1:return 50;case 2:return 117;case 3:return 75;case 5:case 6:return 90;default:return 50;}
     }
     int Segment(float d){
         d=Mathf.Max(0,d);
-        if(mode=="sprint"||mode=="tubing"||mode=="sled")return Mathf.FloorToInt(d/RowLength(0,mode));
+        if(mode=="sprint"||mode=="tubing"||mode=="sled"||mode=="freeride")return Mathf.FloorToInt(d/RowLength(0,mode));
         int stage=Mathf.FloorToInt(d/2500);
         return stage*1000+Mathf.FloorToInt((d-stage*2500)/RowLength(stage,mode));
     }
     int Following(int seg){
-        if(mode=="sprint"||mode=="tubing"||mode=="sled")return seg+1;
+        if(mode=="sprint"||mode=="tubing"||mode=="sled"||mode=="freeride")return seg+1;
         int stage=seg/1000,index=seg%1000;
         return (index+1)*RowLength(stage,mode)>=2500?(stage+1)*1000:seg+1;
     }

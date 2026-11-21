@@ -3,7 +3,9 @@ const fs=require('node:fs');
 const path=require('node:path');
 const assert=require('node:assert/strict');
 const {createHash}=require('node:crypto');
+const {gunzipSync}=require('node:zlib');
 const base=new URL(process.argv[2]||'http://127.0.0.1:8784/unity-test/');
+const exact=process.argv.includes('--exact-sha');
 const preview=base.pathname.endsWith('/progression-test/');
 const site=path.resolve('docs',preview?'progression-test':'unity-test');
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -15,10 +17,17 @@ async function main(){
   const names=Array.from(html.matchAll(/['"](Build\/[a-f0-9]{32}\.[^'"]+)['"]/g),m=>m[1]);
   assert.equal(new Set(names).size,4,'Expected the hashed loader, data, WebAssembly and JavaScript framework');
   let bytes=0;
+  const changed=[];
   for(const name of names){
     const response=await fetch(new URL(name,assetBase));
     assert.equal(response.status,200,name);
     const served=Buffer.from(await response.arrayBuffer()),expected=fs.readFileSync(path.join(site,name));
+    if(exact){
+      const actual=hash(served),local=hash(expected);
+      const payload=buffer=>buffer[0]===0x1f&&buffer[1]===0x8b?gunzipSync(buffer):buffer;
+      console.log('SHA256',name,'served',actual,'local',local,'decoded',hash(payload(served)),'local-decoded',hash(payload(expected)));
+      if(actual!==local)changed.push(name);
+    }
     if(name.endsWith('.js')){
       assert.equal(served.toString().replace(/\r\n/g,'\n'),expected.toString().replace(/\r\n/g,'\n'),name);
     }else{
@@ -48,6 +57,7 @@ async function main(){
   assert(config.includes(live?"channel: 'production'":preview?"channel: 'progression'":"channel: 'test'"),'Unexpected profile');
   if(preview)assert(config.includes("previewBoard: 'https://"),'Missing separate test board');
   assert(config.includes(live?"leaderboardEndpoint: 'https://script.google.com/":"leaderboardEndpoint: ''"),'Unexpected leaderboard');
+  assert.equal(changed.length,0,'Raw files differ: '+changed.join(', '));
   console.log('PASS',base.href,bytes,'bytes of verified player files');
 }
 main().catch(error=>{console.error(error.message);process.exitCode=1;});

@@ -41,6 +41,7 @@ public static class CheckMountainGame {
                 Debug.Log("SNOWMEN PASS "+race.VerifySnowmen());EditorApplication.Exit(0);return;
             }
             ChaseCameraChecks.Run(race);
+            FreeRideChecks.Run(race);
             ShopBalanceChecks.Run(race);
             foreach(string hero in new[]{"bear","owl"}){
                 race.Menu();race.ChooseHero(hero);
