@@ -33,12 +33,12 @@ public static class CheckSlopeEffects {
             float xRight=camera.WorldToViewportPoint(race.World.SnowSurface(318,6)).x;
             Need(xLeft>0&&xRight<1,"12 m lateral corridor missing on 390x780: "+xLeft+".."+xRight);
             race.RideFromReview();race.BeginSteer();race.DragSteer(.27f);
-            var rider=race.transform.Find("Selected rider");
             for(int i=0;i<21;i++){
                 race.Advance(1f/60);
-                var torso=camera.WorldToViewportPoint(rider.position+Vector3.up*.85f);
                 var crossing=camera.WorldToViewportPoint(race.World.SnowSurface(race.Status.metres+10,race.Lane+3));
-                Need(torso.x>.10f&&torso.x<.90f&&crossing.x>0&&crossing.x<1,"Fast side-step leaves useful portrait frame");
+                // The 21b camera lets the rider approach the edge during a hard traverse.
+                // Its framing is checked against the original recordings in ChaseCameraChecks.
+                Need(crossing.z>0&&crossing.x>0&&crossing.x<1,"Upcoming crossing left the portrait frame during a fast side-step");
             }
             race.StartRace("{\"mode\":\"review\",\"seed\":1911}");race.Seek(15455);
             int air=0,ground=0,rings=0;

@@ -70,14 +70,12 @@ public partial class MountainRace {
             float cap=21.5f*Mathf.Sqrt(sensitivity);
             float want=Mathf.Clamp((target-lane)*(3+5*sensitivity),-cap,cap)*response;
             velocity=Mathf.Lerp(velocity,want,dt*(Status.mode=="tubing"?3.4f:5+6*sensitivity));
+            travelYaw=heading+Mathf.Atan2(velocity,speed);
             float curve=Mathf.DeltaAngle(World.HeadingAt(d-1)*Mathf.Rad2Deg,World.HeadingAt(d+1)*Mathf.Rad2Deg)*Mathf.Deg2Rad/
                 Mathf.Max(1,(World.SampleGround(d+1,0)-World.SampleGround(d-1,0)).magnitude);
             float bank=(World.SampleGround(d,lane+.1f).y-World.SampleGround(d,lane-.1f).y)/.2f;
             slip=airborne?0:Mathf.Lerp(slip,Mathf.Clamp(( -curve*speed*speed-9.81f*bank)*.24f,-1.8f,1.8f),4*dt);
             if(CarveSkis&&!airborne)slip*=Mathf.Exp(-(7+FreeTuning*2)*dt);
-            // Tubes carry steering momentum in velocity even after release. Only their
-            // separate drift belongs in the preserved heading used by the free glide.
-            travelYaw=heading+Mathf.Atan2(Status.mode=="tubing"?slip:velocity,speed);
         }else{
             velocity=Status.mode=="tubing"?velocity*Mathf.Exp(-2.4f*dt):0;
             float delta=Mathf.DeltaAngle(heading*Mathf.Rad2Deg,travelYaw*Mathf.Rad2Deg)*Mathf.Deg2Rad;

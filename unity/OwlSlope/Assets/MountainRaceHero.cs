@@ -53,7 +53,7 @@ public partial class MountainRace {
         }
     }
     GameObject tube,sled;
-    float cameraPace,cameraLift;
+    float camLane,camY;
     float menuYaw,menuVelocity,menuMouseX;
     bool spinHeld;
     string activeEquipment;
@@ -330,22 +330,14 @@ public partial class MountainRace {
             // Bring its leading boot and gaze onto the course's downhill +Z axis together.
             rideModel.localRotation=Quaternion.Euler(0,Hero=="bear"?0:90,0);
         }
-        float portrait=1-Mathf.InverseLerp(.56f,1.0f,View.aspect);
-        cameraPace=Mathf.Lerp(cameraPace,Mathf.InverseLerp(13,29,speed),snap?1:1-Mathf.Exp(-3*dt));
-        float setback=7.25f+portrait*1.15f+cameraPace*.85f;
-        float lookAhead=10+portrait+cameraPace*3.5f;
-        Vector3 behind=World.SampleGround(d-setback,0),ahead=World.SampleGround(d+lookAhead,0);
-        // Use one sightline through this frame's rider position. The curve ahead turns the
-        // camera; changing edges translates the rig without steering its yaw or overshooting.
-        Vector3 anchor=Vector3.Lerp(World.SampleGround(d,0),ground,.94f);
-        Vector3 course=(ahead-behind)/(setback+lookAhead);
-        Vector3 eye=anchor-course*setback,aim=anchor+course*lookAhead;
-        // Follow the continuous descent directly. Only the local relief and jump need damping.
-        float lift=ground.y-RaceWorld.BaseHeight(d)+alt*.48f;
-        cameraLift=Mathf.Lerp(cameraLift,lift,snap?1:1-Mathf.Exp(-7*dt));
-        eye.y=RaceWorld.BaseHeight(d-setback)+cameraLift+3.1f+portrait*.45f+cameraPace*.35f;
-        aim.y=RaceWorld.BaseHeight(d+lookAhead)+cameraLift+.85f;
-        View.fieldOfView=72+portrait*2+4*cameraPace;
+        float follow=snap?1:Mathf.Min(1,dt*5);camLane=Mathf.Lerp(camLane,lane,follow);
+        // At the shoulder the wide camera can pan towards the piste. A portrait camera must keep the rider in frame.
+        float shoulderFollow=(1-Mathf.InverseLerp(.55f,.95f,View.aspect))*StepBlend((Mathf.Abs(camLane)-4)/4);
+        Vector3 eye=World.SampleGround(d-6.4f,camLane*Mathf.Lerp(.63f,.95f,shoulderFollow));
+        float targetY=eye.y+2.65f+alt*.48f;
+        camY=Mathf.Lerp(camY,targetY,snap?1:Mathf.Min(1,dt*7));eye.y=camY;
+        Vector3 aim=World.SampleGround(d+7.7f,camLane*Mathf.Lerp(.72f,.87f,shoulderFollow))+Vector3.up*(1.12f+alt*.48f);
+        View.fieldOfView=Mathf.Lerp(View.fieldOfView,boost>0?78:72,snap?1:Mathf.Min(1,dt*3));
         if(patrol==PatrolPhase.Looking){
             float glance=Mathf.Sin(Mathf.PI*Mathf.Clamp01((Status.elapsed-lookSince)/1.05f));
             aim=Vector3.Lerp(aim,World.SampleGround(d-10,lane*.5f)+Vector3.up,glance);

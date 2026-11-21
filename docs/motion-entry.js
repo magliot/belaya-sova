@@ -20,7 +20,7 @@
   const destination = start === 'unitytest_progress21' ? 'progression-test/' : test ? 'unity-test/' : 'unity/';
   const target = new URL((pilot ? '../' : './') + destination, location.href);
   query.delete('tgWebAppData');
-  query.set('v', '2026-11-21d');
+  query.set('v', '2026-11-21e');
   target.search = query.toString();
   target.hash = context.toString();
   location.replace(target.href);
