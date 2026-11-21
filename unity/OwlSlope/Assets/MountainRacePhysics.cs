@@ -25,6 +25,7 @@ public partial class MountainRace {
         var s=Status;
         previousAltitude=Altitude;
         s.elapsed+=dt;
+        if(freeRideFalling){StepCrevasseFall(dt,drawWorld);return;}
         if(crashTimer>0){
             crashTimer-=dt;speed*=Mathf.Pow(.15f,dt);
             World.Refresh(s.metres,s.elapsed,lane,drawWorld);
@@ -140,7 +141,19 @@ public partial class MountainRace {
         return RaceWorld.KickerArc(t,lipHeight,flightLift);
     }
     public void AirTrick(string gesture){
+        if(!airborne&&CourseMode=="freeride"){
+            if((gesture=="tap"||gesture=="up"||gesture=="big-up"||gesture=="down"||gesture=="big-down")&&FreeRideJumpWindow(out float lip,1.35f)){
+                freeRideQueuedLip=lip;freeRideQueuedTrick=gesture;nextHud=0;
+            }
+            return;
+        }
         if(!airborne||Status.phase!="play"||trickProgress>=0||Status.mode=="tubing"||Status.mode=="sled")return;
+        if(Status.freeRideSkier){
+            if(flightTricks>0)return;
+            trickType=1;poseStyle=-1;trickProgress=0;
+            trickLength=Mathf.Max(.10f,airMax-airTime-.05f);
+            Notice(TrickNames[trickType],"trick");return;
+        }
         int type;
         switch(gesture){
           case "up":type=1;break;case "big-up":type=7;break;case "down":type=5;break;case "big-down":type=2;break;
@@ -171,7 +184,7 @@ public partial class MountainRace {
         if(parkFlight&&CourseMode=="freeride"){
             if(airTime<.06f||FreeRideClearance(Status.metres,lane)>0)return;
             if(World.TryFreeRideGap(Status.metres,out var gap)&&gap.OverOpening(Status.metres,lane)){
-                FallIntoFreeRideGap();return;
+                FallIntoFreeRideGap(gap);return;
             }
         }else if(airTime+.00001f<airMax)return;
         if(trickProgress>=.7f)AwardTrick(true);

@@ -115,7 +115,7 @@ const SFX={
   }
   async function speak(key,priority=false,phase='play'){
     const now=performance.now();
-    if(!active||save.muted||!save.vol.vox||document.hidden)return;
+    if(!active||save.muted||!save.vol.vox||document.hidden||state.freeRideSkier)return;
     const cooldown={polite:40000,miss:40000,warn:16000,jump:14000}[key]||0;
     if(!priority&&(voice||now-lastVoice<3000||now-(rare.get(key)??-Infinity)<cooldown))return;
     stopVoice();const ticket=voiceTicket;
@@ -171,7 +171,7 @@ const SFX={
     if(key==='feather')return;
     if(key==='gate')SFX.gate(Math.max(1,next.combo||1),false);
     else if(Object.prototype.hasOwnProperty.call(SFX,key))SFX[key]();
-    if(key==='crash'&&save.vol.vox>0)loadSample(next.hero+'_crash');
+    if(key==='crash'&&save.vol.vox>0&&!next.freeRideSkier)loadSample(next.hero+'_crash');
     if(['start','jump','helmet','fis','record','polite','warn','miss','stage'].includes(key))speak(key,key==='start');
   }
   function activate(){

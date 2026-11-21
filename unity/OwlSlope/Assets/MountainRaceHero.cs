@@ -32,11 +32,11 @@ public partial class MountainRace {
         readonly Transform[] joints;
         readonly Vector3[] positions;
         readonly Quaternion[] rotations;
-        public PoseBuffer(Transform root){
+        public PoseBuffer(Transform root,bool includeRig=false){
             var moving=new List<Transform>();
             foreach(var part in root.GetComponentsInChildren<Transform>(true)){
                 string name=part.name;
-                if(name.StartsWith("mixamorig",StringComparison.OrdinalIgnoreCase)||name=="Snowboard"||
+                if(includeRig&&part!=root||name.StartsWith("mixamorig",StringComparison.OrdinalIgnoreCase)||name=="Snowboard"||
                    name.EndsWith("_Ski",StringComparison.Ordinal)||name.EndsWith("_Binding",StringComparison.Ordinal))moving.Add(part);
             }
             joints=moving.ToArray();positions=new Vector3[joints.Length];rotations=new Quaternion[joints.Length];
@@ -136,6 +136,13 @@ public partial class MountainRace {
         if(tube){tube.SetActive(false);Discard(tube);tube=null;}
         if(stowed){stowed.gameObject.SetActive(false);Discard(stowed.gameObject);stowed=null;}
         activeEquipment=null;
+        if(Status.freeRideSkier){
+            rideModel=Instance("FreeRideSkier").transform;
+            if(!poseBuffers.TryGetValue(rideModel,out ridePose))poseBuffers.Add(rideModel,ridePose=new PoseBuffer(rideModel,true));
+            rideClip=Array.Find(Resources.LoadAll<AnimationClip>("FreeRideSkier"),c=>c.legacy&&!c.name.StartsWith("__preview"));
+            if(!rideClip)throw new InvalidOperationException("Не загружено сальто лыжника Free Ride");
+            return;
+        }
         string rigKey=Hero=="owl"?"OwlRide":key;
         rideModel=Instance(rigKey).transform;
         if(!poseBuffers.TryGetValue(rideModel,out ridePose))poseBuffers.Add(rideModel,ridePose=new PoseBuffer(rideModel));
@@ -281,8 +288,8 @@ public partial class MountainRace {
         float rotation=fall>0?(1-fall/FallTime):crashTimer>0?Mathf.Min(.7f,(1.5f-crashTimer)/1.4f):0;
         Vector3 flip=Vector3.zero;
         if(rotation>0){float twirl=Mathf.Clamp01(rotation/.4f);flip.x=-360*(1-Mathf.Pow(1-twirl,3));flip.z=fallSide*75*(rotation<.4f?twirl:rotation<.72f?1:(1-rotation)/.28f);}
-        else if(trickProgress>=0&&trickType!=5)flip=TrickEuler(trickType,trickProgress);
-        else if(trickProgress>=0){
+        else if(!Status.freeRideSkier&&trickProgress>=0&&trickType!=5)flip=TrickEuler(trickType,trickProgress);
+        else if(!Status.freeRideSkier&&trickProgress>=0){
             // The toe/heel reach and ski shifty are deliberate downward gestures.
             // Turn the whole rig a little across the fall line to show the edge.
             float reach=StepBlend(trickProgress/.36f)*StepBlend((1-trickProgress)/.31f);
@@ -290,6 +297,12 @@ public partial class MountainRace {
             flip=new Vector3(-3*reach,side*24*reach,-side*7*reach);
         }
         var orientation=Quaternion.LookRotation(forward,slopeUp)*Quaternion.Euler(0,angle*24,-angle*16);
+        if(Status.freeRideSkier&&!airborne&&!freeRideFalling&&fall<=0){
+            // Fit the thin ski bases to the rendered snow triangles. The smoother
+            // profile used by flight physics can run a few centimetres underneath.
+            orientation=World.SnowFrame(d,lane)*Quaternion.Euler(0,angle*24,-angle*16);
+            ground=World.SnowSurface(d,lane)+orientation*Vector3.up*.008f;
+        }
         if(activeEquipment=="tube"){
             ground=World.SnowSurface(d,lane);
             orientation=World.SnowFrame(d,lane)*Quaternion.Euler(0,angle*24-Mathf.Atan2(velocity,speed)*Mathf.Rad2Deg*.86f,-angle*2.2f);
@@ -319,6 +332,8 @@ public partial class MountainRace {
                 var bootTip=actorRoot.TransformPoint(inflatable?new Vector3(s*.24f,.42f,.46f):new Vector3(s*.384f,.514f,-.19f));
                 AimChild(limb.ankle,limb.toe,bootTip);
             }
+        }else if(Status.freeRideSkier){
+            PoseFreeRideSkier(u);
         }else if(patrol==PatrolPhase.Walking){
             PoseFisWalker();
         }else{
@@ -334,9 +349,10 @@ public partial class MountainRace {
         // At the shoulder the wide camera can pan towards the piste. A portrait camera must keep the rider in frame.
         float shoulderFollow=(1-Mathf.InverseLerp(.55f,.95f,View.aspect))*StepBlend((Mathf.Abs(camLane)-4)/4);
         Vector3 eye=World.SampleGround(d-6.4f,camLane*Mathf.Lerp(.63f,.95f,shoulderFollow));
-        float targetY=eye.y+2.65f+alt*.48f;
+        float cameraLift=Mathf.Max(0,alt)*.48f;
+        float targetY=eye.y+2.65f+cameraLift;
         camY=Mathf.Lerp(camY,targetY,snap?1:Mathf.Min(1,dt*7));eye.y=camY;
-        Vector3 aim=World.SampleGround(d+7.7f,camLane*Mathf.Lerp(.72f,.87f,shoulderFollow))+Vector3.up*(1.12f+alt*.48f);
+        Vector3 aim=World.SampleGround(d+7.7f,camLane*Mathf.Lerp(.72f,.87f,shoulderFollow))+Vector3.up*(1.12f+cameraLift);
         View.fieldOfView=Mathf.Lerp(View.fieldOfView,boost>0?78:72,snap?1:Mathf.Min(1,dt*3));
         if(patrol==PatrolPhase.Looking){
             float glance=Mathf.Sin(Mathf.PI*Mathf.Clamp01((Status.elapsed-lookSince)/1.05f));
@@ -347,6 +363,27 @@ public partial class MountainRace {
         Quaternion viewRotation=Quaternion.LookRotation(aim-eye,Vector3.up);
         View.transform.SetPositionAndRotation(eye+viewRotation*(Vector3.back*.70f),viewRotation);
         UpdateWeather();UpdateTracks();
+    }
+    void PoseFreeRideSkier(float flight){
+        // Original 30 fps Blender markers: approach 1, crouch 17, lip 23,
+        // inverted 48, snow contact 73, release 83. The imported clip starts at 0.
+        float glide=5+4*Mathf.Sin(Status.elapsed*1.8f)+3*Mathf.Abs(angle);
+        float frame=glide,release=0;
+        if(airborne)frame=Mathf.Lerp(22,72,flight);
+        else if(!float.IsNaN(freeRideQueuedLip)){
+            float distance=freeRideQueuedLip-Status.metres;
+            float anticipation=StepBlend(1-Mathf.Clamp01(distance/Mathf.Max(1,speed*.52f)));
+            frame=Mathf.Lerp(glide,22,anticipation);
+        }else{
+            float after=Status.elapsed-lastLanding;
+            if(after>=0&&after<.94f){
+                frame=Mathf.Min(95,72+after*30);
+                release=StepBlend((after-.72f)/.22f);
+            }
+        }
+        ridePose.Sample(rideClip,rideModel.gameObject,frame/30,glide/30,release);
+        // The FBX skier faces -X. Put the tips, gloves and gaze down the course.
+        rideModel.localRotation=Quaternion.Euler(0,90,0);
     }
     // The original tube faces -Z; flip its asymmetric webbing positions with the rubber.
     static Vector3 TubeGrip(float s)=>new Vector3(s*.58f,.65f,s>0?-.08f:-.17f)*.84f;

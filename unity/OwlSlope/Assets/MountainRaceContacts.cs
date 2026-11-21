@@ -93,7 +93,10 @@ public partial class MountainRace {
     }
     void CheckItems(float before,float fromLane){
         float d=Status.metres;int letterChange=0;
-        if(CourseMode=="freeride")FreeRideContact(before,fromLane);
+        if(CourseMode=="freeride"){
+            FreeRideContact(before,fromLane);
+            if(freeRideFalling)return;
+        }
         else UpdateRidingSurface(before,d);
         Status.engineNear=0;Status.enginePan=0;
         foreach(var o in World.Items){

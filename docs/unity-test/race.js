@@ -8,7 +8,7 @@
   const fis=['Уважай других','Контролируй скорость','Выбирай траекторию','Обгоняй с запасом','Смотри по сторонам','Не стой где попало','Пешком — по краю','Соблюдай знаки','Помоги пострадавшему','Назови себя'];
   const ruleText=['Катайся так, чтобы никому не навредить и никого не напугать.','Подбирай скорость по своим силам, рельефу, снегу, погоде и людям вокруг.','Если ты сверху, выбирай линию безопасно для тех, кто ниже.','Обгоняй с любой стороны и оставляй место на манёвр.','Перед стартом и выездом на трассу оглянись вверх и вниз.','Избегай остановок в узких, плохо видимых местах. Упал — освободи трассу.','Поднимаешься или спускаешься пешком — иди у края трассы.','Следи за указателями и разметкой, держись в пределах сеток.','Заметил пострадавшего — остановись и позови патруль.','Участник или свидетель происшествия сообщает свои данные.'];
   const ruleHow=['оставь запас при проезде мимо ученика','сбавь ход перед группой или на участке с плохой видимостью','выбери сторону заранее и сохрани просвет до человека','обгони движущегося лыжника или сноубордиста с запасом','после остановки осмотрись и дождись свободного выезда','остановись у края рядом с пострадавшим','пройди вдоль безопасной обочины','объедь ограждение со стороны стрелки','остановись рядом с пострадавшим и вызови патруль','назовись свидетелем прибывающему патрулю'];
-  const panels={settings:'Настройки',missions:'Задания',shop:'Прокат и магазин',collection:'Коллекция',rules:'Правила FIS',top:'Рейтинг',catalog:'Лист моделей'};
+  const panels={settings:'Настройки',missions:'Задания',shop:'Прокат и магазин',collection:'Коллекция',rules:'Правила FIS',top:'Рейтинг',catalog:'Лист моделей',freeride:'Free Ride'};
   let deviceStorage;try{deviceStorage=window.localStorage;}catch{}
   const profile=MountainSaves.create({storage:deviceStorage,app,channel:release.channel,onChange:changed});
   const ranking=MountainSaves.leaderboard(release,app,profile);
@@ -57,6 +57,12 @@
   function drawHud(s){
     const mode=s.courseMode||(s.mode==='review'?$('reviewRide').value:s.mode);
     const metres=Math.floor(s.metres),bonus=mode==='tubing'||mode==='sled';
+    const jump=$('freeRideJump');
+    jump.hidden=mode!=='freeride'||s.phase!=='play'||s.air||s.freeRideInCrevasse;
+    if(!jump.hidden){
+      jump.classList.toggle('ready',!!s.freeRideJumpReady);
+      setText('freeRideJump',s.freeRideJumpQueued?'✓ Готово':'↑ Прыжок');
+    }
     const warning=s.chaseSeconds>0||s.avalanche>0;
     setText('metres',metres+' м');setText('pace',Math.round(s.speed||0)+' км/ч');
     $('pace').classList.toggle('boosting',!!s.boost);
@@ -197,7 +203,7 @@
     }
   }
   window.onMountainState=onState;
-  function start(mode,retry=false){
+  function start(mode,retry=false,freeRideSkier=false){
     if(!ready||pendingStart)return;
     const d=profile.data;
     if(mode==='tubing'&&!d.meet.prizeFeather||mode==='sled'&&!d.meet.prizeFeather&&!d.meet.goldenOwl)return;
@@ -205,12 +211,14 @@
       const trialSeed=mode==='freeride'&&new URLSearchParams(location.search).get('freerideSeed')==='1911'?1911:null;
       const seed=retry&&run?run.seed:trialSeed??seedOverride??(crypto.getRandomValues(new Uint32Array(1))[0]&0x7fffffff);
       const config={mode,seed,sensitivity:d.sens,helmets:d.helmets,boost:d.boost,mag:d.mag,collectedLetters:d.coll.length,...MountainEquipment.config(d)};
+      config.freeRideSkier=mode==='freeride'&&(retry?!!run?.freeRideSkier:freeRideSkier);
+      if(config.freeRideSkier){config.equipment='standard';config.ownedEquipment=false;config.tuning=0;}
       if(mode==='review'){
         $('reviewRate').value='0';$('reviewLane').value='0';$('reviewEffect').value='normal';
         $('reviewHero').value=d.hero;$('reviewRide').value='normal';setReviewBounds();
       }
       config.showFisHints=mode==='normal'&&!d.fisIntroSeen;
-      run={id:crypto.randomUUID?.()||String(Date.now())+Math.random(),seed,mode};requestPause=false;panel='';
+      run={id:crypto.randomUUID?.()||String(Date.now())+Math.random(),seed,mode,freeRideSkier:config.freeRideSkier};requestPause=false;panel='';
       if(snapshot.hero!==d.hero)command('ChooseHero',d.hero);
       performance.mark('mountain-start-input');
       pendingStart={mode,seed,useHelmet:(mode==='free'||mode==='sprint')&&config.helmets>0,
@@ -265,7 +273,7 @@
       menuFinger={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};canvas.setPointerCapture(e.pointerId);return;
     }
     if(snapshot?.phase!=='play'||finger||e.button!==0)return;
-    const at=performance.now();finger={id:e.pointerId,x:e.clientX,y:e.clientY,rx:e.clientX,ry:e.clientY,at,since:at,pending:null,tricked:false};
+    const at=performance.now();finger={id:e.pointerId,x:e.clientX,y:e.clientY,rx:e.clientX,ry:e.clientY,jumpX:e.clientX,jumpY:e.clientY,at,since:at,pending:null,tricked:false};
     canvas.setPointerCapture(e.pointerId);command('BeginSteer');canvas.focus();
   });
   canvas.addEventListener('pointermove',e=>{
@@ -278,7 +286,15 @@
     }
     if(!finger||finger.id!==e.pointerId)return;const f=finger,t=performance.now();
     command('DragSteer',(e.clientX-f.x)/canvas.clientWidth);
-    if(!snapshot?.air){f.rx=e.clientX;f.ry=e.clientY;f.since=t;f.pending=null;return;}
+    if(!snapshot?.air){
+      if(snapshot?.courseMode==='freeride'){
+        const rise=f.jumpY-e.clientY,side=Math.abs(e.clientX-f.jumpX);
+        if(rise>=36&&rise>side*1.25){
+          command('AirTrick','up');f.jumpY=e.clientY;f.jumpX=e.clientX;f.tricked=true;
+        }else if(rise<0||side>Math.max(30,rise*1.25)){f.jumpY=e.clientY;f.jumpX=e.clientX;}
+      }
+      f.rx=e.clientX;f.ry=e.clientY;f.since=t;f.pending=null;return;
+    }
     if(t-f.since>260&&!f.pending){f.rx=e.clientX;f.ry=e.clientY;f.since=t;return;}
     const dx=e.clientX-f.rx,dy=e.clientY-f.ry,len=Math.hypot(dx,dy);
     const dir=Math.abs(dx)>Math.abs(dy)?dx<0?'left':'right':dy<0?'up':'down';
@@ -358,6 +374,16 @@
     if(!next)return;
     setText('panelTitle',panels[next]);const d=profile.data;
     if(next==='top'){showTop(body);}
+    else if(next==='freeride'){
+      const hint=document.createElement('p');
+      hint.textContent='Перед разломом проведи вверх или нажми «Прыжок». Можно объехать по снегу.';
+      const skier=btn('Лыжник · сальто назад',()=>start('freeride',false,true));
+      skier.className='trial-skier';
+      const portrait=new Image(52,52);portrait.alt='';portrait.src='art/freeride-skier.webp';
+      skier.prepend(portrait);
+      body.append(hint,skier,
+        btn('Ехать за '+(d.hero==='owl'?'Сову':'Мишаню'),()=>start('freeride')));
+    }
     else if(next==='shop')MountainEquipment.render(body,profile,btn,stat,()=>switchPanel('shop'));
     else if(next==='settings'){
       body.append(slider('Чувствительность',d.sens,1,10,v=>profile.change(['sens'],p=>p.sens=v)));
@@ -440,7 +466,10 @@
   for(const b of document.querySelectorAll('[data-hero]'))b.onclick=()=>{
     profile.change(['hero'],p=>p.hero=b.dataset.hero);
   };
-  for(const b of document.querySelectorAll('[data-mode]'))b.onclick=()=>start(b.dataset.mode);
+  for(const b of document.querySelectorAll('[data-mode]'))b.onclick=()=>b.dataset.mode==='freeride'?switchPanel('freeride'):start(b.dataset.mode);
+  const jumpButton=$('freeRideJump');
+  jumpButton.onpointerdown=e=>{if(e.button===0){e.preventDefault();command('AirTrick','tap');}};
+  jumpButton.onclick=e=>{if(e.detail===0)command('AirTrick','tap');};
   $('closePanel').onclick=back;
   for(const b of document.querySelectorAll('[data-panel]'))b.onclick=()=>switchPanel(b.dataset.panel);
   $('pause').onclick=pause;$('resume').onclick=()=>{requestPause=false;command('ResumeRide');canvas.focus();};

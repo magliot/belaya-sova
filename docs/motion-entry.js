@@ -22,7 +22,7 @@
   const target = new URL((pilot ? '../' : './') + destination, location.href);
   query.delete('tgWebAppData');
   if (powderTrial) query.set('freerideSeed','1911');
-  query.set('v', '2026-11-21f');
+  query.set('v', '2026-11-21g');
   target.search = query.toString();
   target.hash = context.toString();
   location.replace(target.href);
