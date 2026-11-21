@@ -7,9 +7,9 @@
   <meta name="theme-color" content="#183c56">
   <title>Белая Сова · Спуск</title>
   <link rel="icon" type="image/jpeg" href="art/av_owl.jpg">
-  <link rel="stylesheet" href="race.css?v=1a558df34612">
+  <link rel="stylesheet" href="race.css?v=b0d50d2e94aa">
   <script src="vendor/telegram-web-app.js?v=baa788a6f686"></script>
-  <script src="../unity/release.js?v=5136babcd319"></script><script src="save.js?v=0b49c0924ee4"></script>
+  <script src="../unity/release.js?v=5136babcd319"></script><script src="save.js?v=adb128cc5347"></script><script src="equipment.js?v=fc8bea92c0fc"></script>
   <script defer src="mountain-audio.js?v=385b9dc133b6"></script><script defer src="mountain-metrics.js?v=c26b0f1a7ee6"></script>
 </head>
 <body><main id="app">
@@ -31,18 +31,19 @@
         <button data-hero="bear" aria-pressed="false"><img src="art/av_bear.jpg" alt=""><span>Мишаня<small>Лыжи · сносит сугробы</small></span></button>
         <button data-hero="owl" aria-pressed="false"><img src="art/av_owl.jpg" alt=""><span>Сова<small>Сноуборд · долго парит</small></span></button>
       </div>
-      <div class="balances"><span>⭐ Рекорд <b id="best">0</b></span><button data-panel="top">🏆 Рейтинг</button><span>🍊 <b id="bank">0</b></span></div>
+      <div class="balances"><span>⭐ Рекорд <b id="best">0</b></span><button data-panel="top">🏆 Рейтинг<small id="menuRank"></small></button><span>🍊 <b id="bank">0</b></span></div>
       <div class="start-row"><button id="play" class="primary" data-mode="normal">Поехали!</button></div>
       <div class="row bonuses"><button data-mode="tubing">Плюшки<small></small></button><button data-mode="sled">Снегоход<small></small></button></div>
-      <button class="sprint" data-mode="sprint">Короткий спуск · 1,2 км</button>
+      <div class="row"><button class="sprint" data-mode="free">Свободное катание</button><button class="sprint" data-mode="sprint">Короткий · 1,2 км</button></div>
       <nav class="utilities" aria-label="Разделы игры">
         <button data-panel="collection"><span aria-hidden="true">🏅</span>Коллекция</button><button data-panel="missions"><span aria-hidden="true">🎯</span>Задания</button>
-        <button data-panel="shop"><span aria-hidden="true">🛒</span>Улучшения</button><button data-panel="settings"><span aria-hidden="true">⚙️</span>Настройки</button>
+        <button data-panel="shop"><span aria-hidden="true">🎿</span>Прокат и магазин</button><button data-panel="settings"><span aria-hidden="true">⚙️</span>Настройки</button>
       </nav>
       <button class="rules-link" data-panel="rules">Правила FIS · <b id="ruleCount">0/10</b></button>
     </section>
     <div id="hud" hidden>
       <div id="course"><b id="metres"></b><b id="pace"></b><b id="multiplier" hidden></b></div>
+      <div id="fisControls" hidden><button id="fisAct" hidden></button><button id="fisLeave" hidden>Продолжить спуск</button></div>
       <div id="rideInfo"><span id="stage"></span><span id="rideStatus" hidden></span><aside id="notice" hidden></aside></div>
       <div id="avalancheMeter" hidden><i></i></div>
       <div class="scoreboard" aria-label="Счёт, каски и мандарины">
@@ -70,6 +71,7 @@
     </section>
     <section id="result" class="sheet" hidden><h2 id="resultTitle">Финиш</h2><strong id="resultScore"></strong>
       <p id="resultStats"></p><p id="resultExtra" hidden></p><p id="rankStatus" role="status"></p>
+      <div id="breakdown" hidden aria-label="Состав очков заезда"></div>
       <p id="resultRule" hidden></p><details id="resultTasks"><summary>Задания заезда</summary><div></div></details>
       <button id="again" class="primary">Ещё заезд</button>
       <div class="row" id="resultBonuses" hidden><button data-mode="tubing">Плюшки</button><button data-mode="sled">Снегоход</button></div>
@@ -85,10 +87,10 @@
       <div id="panelBody"></div>
     </section>
   </div>
-</main><script src="race.js?v=24ca0f11d005"></script>
+</main><script src="race.js?v=53d34f626ec8"></script>
 <script>
   MountainShell.boot({
-    loader:'Build/9f77420dd916b6b143b9d80b49dd679b.loader.js', data:'Build/d15e9eb2cf9ca3cc0593f13e18687c72.data.unityweb',
-    framework:'Build/55ce6453a133b612dc0b1e3001ea845b.framework.js.unityweb', code:'Build/c66053425cfc8ccdf11b67f5259c3556.wasm.unityweb'
+    loader:'Build/bd35bde0d6500438a0c713ef0c9944d9.loader.js', data:'Build/d871c22b41090439bfbc356ea65c9ddc.data.unityweb',
+    framework:'Build/40a5a86e2b087b300d233b3793e6751d.framework.js.unityweb', code:'Build/b50f25fc4f463230af563c38e7410992.wasm.unityweb'
   });
 </script></body></html>

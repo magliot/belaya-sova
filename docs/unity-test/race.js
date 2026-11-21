@@ -4,19 +4,20 @@
   const app=window.Telegram?.WebApp?.initData?window.Telegram.WebApp:null;
   const names={owl:'Сова',bear:'Мишаня'};
   const stages=['Учебный склон','Лесная тропа','Бугры','Сноупарк','Вершина','Чёрная трасса','Ночная трасса','Новогодний городок'];
-  const modes={normal:'Спуск',sprint:'Короткий спуск',sled:'Снегоход',tubing:'Плюшки',review:'Осмотр трассы'};
+  const modes={normal:'Спуск',free:'Свободное катание',sprint:'Короткий спуск',sled:'Снегоход',tubing:'Плюшки',review:'Осмотр трассы'};
   const fis=['Уважай других','Контролируй скорость','Выбирай траекторию','Обгоняй с запасом','Смотри по сторонам','Не стой где попало','Пешком — по краю','Соблюдай знаки','Помоги пострадавшему','Назови себя'];
   const ruleText=['Катайся так, чтобы никому не навредить и никого не напугать.','Подбирай скорость по своим силам, рельефу, снегу, погоде и людям вокруг.','Если ты сверху, выбирай линию безопасно для тех, кто ниже.','Обгоняй с любой стороны и оставляй место на манёвр.','Перед стартом и выездом на трассу оглянись вверх и вниз.','Избегай остановок в узких, плохо видимых местах. Упал — освободи трассу.','Поднимаешься или спускаешься пешком — иди у края трассы.','Следи за указателями и разметкой, держись в пределах сеток.','Заметил пострадавшего — остановись и позови патруль.','Участник или свидетель происшествия сообщает свои данные.'];
-  const ruleHow=['1500 м без столкновений','объезд группы детей с запасом','пять вежливых обгонов','вежливый обгон лыжника','разъезд с ратраком','объезд сидящего','объезд пешехода у края','проезд сужения без касания','аптечка у пострадавшего','поделиться результатом'];
+  const ruleHow=['оставь запас при проезде мимо ученика','сбавь ход перед группой или на участке с плохой видимостью','выбери сторону заранее и сохрани просвет до человека','обгони движущегося лыжника или сноубордиста с запасом','после остановки осмотрись и дождись свободного выезда','остановись у края рядом с пострадавшим','пройди вдоль безопасной обочины','объедь ограждение со стороны стрелки','остановись рядом с пострадавшим и вызови патруль','назовись свидетелем прибывающему патрулю'];
   const dances=[['sway','Ёлочка',()=>true,''],['floss','Снежный флосс',d=>d.meet.feathers>=3,'3 пера'],
     ['hop','Весёлые прыжки',d=>d.meet.gifts>=20,'20 подарков'],['dab','Победный дэб',d=>d.best>=5000,'5000 очков'],['champ','Танец чемпиона',d=>d.fis.length>=10,'10 правил FIS']];
-  const panels={settings:'Настройки',missions:'Задания',shop:'Улучшения',collection:'Коллекция',rules:'Правила FIS',top:'Рейтинг',dances:'Танцы',catalog:'Лист моделей'};
+  const panels={settings:'Настройки',missions:'Задания',shop:'Прокат и магазин',collection:'Коллекция',rules:'Правила FIS',top:'Рейтинг',dances:'Танцы',catalog:'Лист моделей'};
   let deviceStorage;try{deviceStorage=window.localStorage;}catch{}
   const profile=MountainSaves.create({storage:deviceStorage,app,channel:release.channel,onChange:changed});
   const ranking=MountainSaves.leaderboard(release,app,profile);
   const fixedSeed=new URLSearchParams(location.search).get('seed');
   let seedOverride=fixedSeed!==null&&/^\d{1,10}$/.test(fixedSeed)&&+fixedSeed<=2147483647?+fixedSeed:null;
-  let player,ready=false,snapshot=null,panel='',run=null,finger=null,noticeTimer,rankPeriod='week',topRequest=0,requestPause=false;
+  let player,ready=false,snapshot=null,panel='',run=null,finger=null,noticeTimer,rankPeriod='all',topRequest=0,requestPause=false;
+  const actions={brake:'Сбавить ход',stop:'Остановиться у края',patrol:'Вызвать патруль',witness:'Назваться свидетелем',walk:'Пешком по краю',look:'Осмотреть склон',join:'Выехать на трассу'};
   let catalogData,modelIndex=-1,group='all',menuFinger=null;
   let pendingStart=null,soundFailed=false;
   function sound(method,value){
@@ -36,6 +37,7 @@
     if(!ready)return;
     updateMenu();
     if(snapshot?.phase==='menu'&&snapshot.hero!==profile.data.hero)command('ChooseHero',profile.data.hero);
+    if(snapshot?.phase==='menu')command('PreviewGear',JSON.stringify(MountainEquipment.config(profile.data)));
   }
   function updateMenu(){
     const d=profile.data;setText('best',d.best);setText('bank',d.coins);
@@ -45,7 +47,10 @@
     $('mute').setAttribute('aria-pressed',String(d.muted));
     $('mute').setAttribute('aria-label',d.muted?'Включить звук':'Выключить звук');
     $('mute').firstElementChild.textContent=d.muted?'🔇':'🔊';
-    for(const button of document.querySelectorAll('[data-hero]'))button.setAttribute('aria-pressed',button.dataset.hero===d.hero);
+    for(const button of document.querySelectorAll('[data-hero]')){
+      button.setAttribute('aria-pressed',button.dataset.hero===d.hero);
+      button.querySelector('small').textContent=MountainEquipment.label(d,button.dataset.hero);
+    }
     for(const button of $('menu').querySelectorAll('[data-mode]')){
       const mode=button.dataset.mode;if(mode!=='tubing'&&mode!=='sled')continue;
       button.disabled=mode==='tubing'?!d.meet.prizeFeather:!(d.meet.prizeFeather||d.meet.goldenOwl);
@@ -62,9 +67,13 @@
     const warning=s.chaseSeconds>0||s.avalanche>0;
     setText('metres',metres+' м');setText('pace',Math.round(s.speed||0)+' км/ч');
     $('pace').classList.toggle('boosting',!!s.boost);
-    $('multiplier').hidden=!(s.multiplier>1);if(s.multiplier>1)setText('multiplier','×'+s.multiplier);
+    $('multiplier').hidden=!bonus||!(s.multiplier>1);if(bonus&&s.multiplier>1)setText('multiplier','×'+s.multiplier);
+    const action=actions[s.fisAction]||'';
+    $('fisControls').hidden=s.phase!=='play'||(!action&&!s.fisCanLeave);
+    $('fisAct').hidden=!action;if(action)setText('fisAct',action);
+    $('fisLeave').hidden=!s.fisCanLeave;
     const stage=bonus?modes[mode]+' · '+Math.max(0,Math.ceil(75-s.elapsed))+' с':
-      mode==='sprint'?'Финиш · '+Math.max(0,1200-metres)+' м':(1+Math.floor(metres/2500))+' · '+stages[s.stage%8];
+      mode==='sprint'?'Финиш · '+Math.max(0,1200-metres)+' м':(metres>=20000?'Круг '+(1+Math.floor(metres/20000))+' · ':'')+(1+s.stage%8)+' · '+stages[s.stage%8];
     setText('stage',stage);
     let status='';
     if(mode==='sled')status='Снеговики '+(s.snowmen||0)+' · подарки '+(s.gifts||0);
@@ -90,7 +99,7 @@
     const finished=s.phase==='over'||s.phase==='finish';
     if(!finished)$('shareSheet').hidden=true;
     $('result').hidden=!finished||!$('shareSheet').hidden;
-    if(home)updateMenu();
+    if(home){updateMenu();if(prev?.phase!=='menu')refreshMenuRank();}
     if(!$('hud').hidden){
       drawHud(s);
       if(review){
@@ -123,6 +132,7 @@
     const prev=snapshot;snapshot=s;
     if(pendingStart&&s.mode===pendingStart.mode&&s.seed===pendingStart.seed&&s.phase===(s.mode==='review'?'review':'play')){
       const {useHelmet,timeout}=pendingStart;pendingStart=null;clearTimeout(timeout);$('loading').hidden=true;
+      if(run?.mode==='normal'&&!profile.data.fisIntroSeen)profile.change(['fisIntroSeen'],d=>{d.fisIntroSeen=true;});
       if(useHelmet)profile.change(['helmets'],d=>{d.helmets=Math.max(0,d.helmets-1);});
     }
     if(ready)draw(s,prev);
@@ -133,32 +143,37 @@
     }
     if(run&&run.mode!=='review'&&['play','finish','over'].includes(s.phase))profile.unlock(s);
     if(run&&run.mode!=='review'&&(s.phase==='finish'||s.phase==='over')){
-      const bank=profile.data.coins,oldBest=profile.data.best,missions=profile.data.missions.slice();
+      const oldBest=profile.data.best,missions=profile.data.missions.slice();
       if(profile.finish(run.id,s)){
         setText('resultTitle',s.message||(s.phase==='finish'?'Финиш':'Заезд завершён'));setText('resultScore',s.score+' очков');
+        $('breakdown').hidden=s.mode!=='normal';
+        if(s.mode==='normal')$('breakdown').replaceChildren(...[
+          ['Дистанция',s.scoreDistance],['Мандарины · '+s.coins,s.scoreFruit],['Ворота · '+s.gates,s.scoreGates],
+          ['Кольца · '+s.rings,s.scoreRings],['Правила FIS · '+(s.fis?.length||0),s.scoreFis]
+        ].map(([label,value])=>stat(label,'+'+(value||0))));
         const detail=s.mode==='sled'?'Снеговики '+(s.snowmen||0)+' · подарки '+(s.gifts||0)+' · бонус за сбор +'+Math.max(0,s.score-Math.floor(s.metres)):
           s.mode==='tubing'?'Ворота '+s.gates+' · подарки '+(s.gifts||0):
           'Ворота '+s.gates+' · серия '+(s.maxCombo||0)+' · трюки '+s.tricks+' · кольца '+(s.rings||0);
         const route=s.mode==='normal'?'Этап '+(s.stage+1)+' · '+stages[s.stage%8]:modes[s.mode];
         setText('resultStats',route+' · '+Math.floor(s.metres)+' м\n'+detail+'\n🍊 +'+s.coins+(s.feathers?' · перья '+s.feathers:'')+' · рекорд '+profile.data.best);
-        const rule=s.fis?.length?s.fis[s.fis.length-1]-1:((s.seed||0)%fis.length);
-        $('resultRule').hidden=!(s.phase==='over'&&(s.mode==='normal'||s.mode==='sprint'));
-        setText('resultRule','Правило FIS №'+(rule+1)+' · '+ruleText[rule]);
+        const rule=s.fis?.at(-1);
+        $('resultRule').hidden=!rule;
+        if(rule)setText('resultRule','Правило FIS №'+rule+' · '+ruleText[rule-1]);
         $('resultTasks').open=false;
         $('resultTasks').lastElementChild.replaceChildren(...missions.map(m=>{
           const done=!profile.data.missions.includes(m);
-          return stat((done?'✓ ':'')+MountainSaves.missions.find(t=>t[0]===m.id)[1]+' · '+m.n,done?'+'+m.reward+' 🍊':'—');
+          return stat(MountainSaves.missions.find(t=>t[0]===m.id)[1]+' · '+m.n,done?'Выполнено':'—');
         }));
         const seen=profile.data.meet.danceSeen||['sway'],fresh=dances.filter(([id,,open])=>open(profile.data)&&!seen.includes(id));
-        const extra=[],reward=profile.data.coins-bank-s.coins;
-        if(s.score>oldBest)extra.push('Новый рекорд!');if(reward>0)extra.push('За задания +'+reward+' 🍊');
+        const extra=[];
+        if(s.rankedResult&&s.score>oldBest)extra.push('Новый рекорд!');
         for(const [,title] of fresh)extra.push('Открыт танец «'+title+'»');
         if(fresh.length)profile.change(['meet'],d=>d.meet.danceSeen=[...seen,...fresh.map(([id])=>id)]);
         setText('resultExtra',extra.join(' · '));$('resultExtra').hidden=!extra.length;
         $('resultBonuses').hidden=!s.feather;
-        setText('rankStatus',release.channel==='test'?'Результат в личном тестовом рейтинге.':app?'Отправляем результат…':'Рекорд сохранён на устройстве.');
-        const current=run.id;ranking.submit(s).then(r=>{
-          if(r&&current===run?.id)setText('rankStatus','Место за неделю #'+r.weekRank+' · за всё время #'+r.rank);
+        setText('rankStatus',!s.rankedResult?'Вне зачёта · мандарины в кошельке':release.previewBoard||app&&release.channel==='production'?'Отправляем результат…':'Результат сохранён на устройстве');
+        const current=run.id;ranking.submit(s,current).then(r=>{
+          if(r&&current===run?.id)setText('rankStatus',(release.previewBoard?'Тестовый рейтинг · ':'')+'Место #'+r.rank+' · за неделю #'+r.weekRank);
         }).catch(()=>{if(current===run?.id)setText('rankStatus','Сервер рейтинга недоступен. Рекорд сохранён на устройстве.');});
       }
     }
@@ -170,15 +185,16 @@
     if(mode==='tubing'&&!d.meet.prizeFeather||mode==='sled'&&!d.meet.prizeFeather&&!d.meet.goldenOwl)return;
     try{
       const seed=retry&&run?run.seed:seedOverride??(crypto.getRandomValues(new Uint32Array(1))[0]&0x7fffffff);
-      const config={mode,seed,sensitivity:d.sens,helmets:d.helmets,boost:d.boost,mag:d.mag,collectedLetters:d.coll.length};
+      const config={mode,seed,sensitivity:d.sens,helmets:d.helmets,boost:d.boost,mag:d.mag,collectedLetters:d.coll.length,...MountainEquipment.config(d)};
       if(mode==='review'){
         $('reviewRate').value='0';$('reviewLane').value='0';$('reviewEffect').value='normal';
         $('reviewHero').value=d.hero;$('reviewRide').value='normal';setReviewBounds();
       }
+      config.showFisHints=mode==='normal'&&!d.fisIntroSeen;
       run={id:crypto.randomUUID?.()||String(Date.now())+Math.random(),seed,mode};requestPause=false;panel='';
       if(snapshot.hero!==d.hero)command('ChooseHero',d.hero);
       performance.mark('mountain-start-input');
-      pendingStart={mode,seed,useHelmet:(mode==='normal'||mode==='sprint')&&config.helmets>0,
+      pendingStart={mode,seed,useHelmet:(mode==='free'||mode==='sprint')&&config.helmets>0,
         timeout:setTimeout(()=>failed(Error('No start acknowledgement'),'Игра не ответила на запуск заезда. Попробуй перезагрузить игру.'),20000)};
       $('menu').hidden=true;$('mast').hidden=true;$('paused').hidden=true;$('result').hidden=true;
       $('loadBar').hidden=true;$('loading').hidden=false;setText('loadText','Выходим на склон…');
@@ -186,6 +202,7 @@
     }catch(error){failed(error,'Не удалось начать заезд. Попробуй перезагрузить игру.');}
   }
   function leave(){
+    bankInterruptedRide();
     const restoreHero=snapshot?.hero!==profile.data.hero;
     finger=null;requestPause=false;run=null;panel='';command('ReleaseSteer');command('Menu');
     if(restoreHero)command('ChooseHero',profile.data.hero);
@@ -195,7 +212,12 @@
     if(snapshot?.phase==='play')command('PauseRide');
     else if(snapshot?.phase==='review'){$('reviewRate').value='0';command('ReviewRate',0);}
   }
-  function suspended(){if(run&&snapshot?.phase!=='pause')requestPause=true;pause();if(run&&run.mode!=='review')ranking.checkpoint(snapshot);}
+  function bankInterruptedRide(){
+    if(run&&run.mode!=='review'&&!run.practice&&snapshot?.phase==='pause'){
+      profile.finish(run.id,{...snapshot,phase:'over',rankedResult:false});
+    }
+  }
+  function suspended(){if(run&&snapshot?.phase!=='pause')requestPause=true;pause();}
   function restoreViewport(){
     const height=app?.viewportHeight||window.visualViewport?.height||window.innerHeight;
     if(height>0)document.documentElement.style.setProperty('--mountain-height',Math.round(height)+'px');
@@ -264,6 +286,13 @@
     return [['music','Музыка'],['sfx','Эффекты'],['vox','Голоса']].map(([key,title])=>
       slider(title,profile.data.vol[key],0,10,value=>profile.change(['vol'],d=>d.vol[key]=value)));
   }
+  async function refreshMenuRank(){
+    try{
+      await ranking.flush();
+      const list=await ranking.top('all'),leader=list.rows[0];
+      setText('menuRank',list.me?'#'+list.me.rank+' · '+list.me.score+' очк.':leader?'#1 · '+leader.score+' очк.':'Пока нет заездов');
+    }catch{setText('menuRank','Нет связи');}
+  }
   async function showTop(body){
     const request=++topRequest;const buttons=document.createElement('div');buttons.className='row';
     for(const [period,title] of [['week','Неделя'],['all','Всё время']])buttons.append(btn(title,()=>{rankPeriod=period;switchPanel('top');},period===rankPeriod));
@@ -271,8 +300,9 @@
     hint.textContent='Загрузка…';
     try{
       const result=await ranking.top(rankPeriod);if(request!==topRequest||panel!=='top')return;
-      hint.textContent=result.local?'Личные заезды на этом устройстве.':result.me?.rank?'Твоё место #'+result.me.rank:'';
-      result.rows.forEach((r,i)=>body.append(stat((i+1)+'. '+r.name+' · '+(names[r.hero]||'')+' · '+r.dist+' м',r.score)));
+      hint.textContent=(result.local?'На этом устройстве':release.previewBoard?'Тестовый общий зачёт':'Общий зачёт')+(result.me?' · твоё место #'+result.me.rank:'');
+      let place=0,last=-1;
+      result.rows.forEach((r,i)=>{if(r.score!==last)place=i+1;last=r.score;body.append(stat((r.rank||place)+'. '+r.name+' · '+(names[r.hero]||'')+' · '+r.dist+' м',r.score+' очк.'));});
       if(!result.rows.length)body.append('Заездов пока нет.');
     }catch{hint.textContent='Рейтинг сейчас недоступен.';}
   }
@@ -310,14 +340,8 @@
     if(!next)return;
     setText('panelTitle',panels[next]);const d=profile.data;
     if(next==='top'){showTop(body);}
-    else if(next==='shop'){
-      body.append(stat('Мандарины',d.coins));
-      for(const [k,name] of [['boost','Кофе'],['mag','Магнит'],['helmets','Каска на старт']]){
-        const price=k==='helmets'?250:MountainSaves.upgrades[d[k]];
-        const label=price===undefined?name+' · максимум':name+' · '+(k==='helmets'?'в запасе '+d[k]:'уровень '+(d[k]+1))+' · '+price+' 🍊';
-        body.append(btn(label,()=>{profile.buy(k);switchPanel('shop');},price===undefined||d.coins<price));
-      }
-    }else if(next==='settings'){
+    else if(next==='shop')MountainEquipment.render(body,profile,btn,stat,()=>switchPanel('shop'));
+    else if(next==='settings'){
       body.append(slider('Чувствительность',d.sens,1,10,v=>profile.change(['sens'],p=>p.sens=v)));
       body.append(btn(d.muted?'Включить звук':'Выключить звук',()=>{profile.change(['muted'],p=>p.muted=!p.muted);switchPanel('settings');}));
       body.append(...volumeSliders());
@@ -328,17 +352,19 @@
       const guide=document.createElement('details'),heading=document.createElement('summary'),controls=document.createElement('p'),scoring=document.createElement('p');
       heading.textContent='Как играть и получать очки';
       controls.textContent='Веди пальцем влево и вправо, чтобы рулить. Герой разгоняется сам. Кофе прибавляет 65% скорости. Трамплин подбрасывает героя. В воздухе коснись экрана или проведи пальцем, чтобы сделать трюк до приземления.';
-      scoring.textContent='Каждый метр даёт 1 очко, ворота — 25, вежливый обгон — 30. Каждые пять ворот подряд увеличивают множитель. Сделай два трюка на высокой линии сноупарка и поймай золотое перо, чтобы открыть оба бонуса. Золотая сова открывает снегоход.';
+      scoring.textContent='В общий рейтинг идёт лучший спуск со старта до падения. Метр даёт 1 очко, мандарин — 3, чистый проезд ворот — 8, кольцо — 14. Оставляй людям место для манёвра. Первое применение каждого правила FIS за спуск приносит 25 очков. Два трюка и золотое перо открывают оба бонуса.';
       guide.append(heading,controls,scoring);body.append(guide);
       if(profile.cloudError)body.append(profile.cloudError);
     }else if(next==='catalog'){showCatalog(body);}
     else if(next==='missions'){
-      for(const m of d.missions||[]){const spec=MountainSaves.missions.find(t=>t[0]===m.id);body.append(stat(spec[1]+' · '+m.n,'+'+m.reward+' 🍊'));}
+      for(const m of d.missions||[]){const spec=MountainSaves.missions.find(t=>t[0]===m.id);body.append(stat(spec[1],m.n));}
       body.append(stat('Выполнено',d.mdone));
     }else if(next==='rules'){
       fis.forEach((title,i)=>{
         const details=document.createElement('details'),summary=document.createElement('summary'),text=document.createElement('p');
-        summary.textContent=(d.fis.includes(i+1)?'✓ ':'')+(i+1)+'. '+title;
+        const known=d.fis.includes(i+1),mastered=d.fisContexts.filter(v=>Math.floor(v/1000)===i+1).length>=2;
+        summary.textContent=(i+1)+'. '+title+' · '+(mastered?'Освоено':known?'Открыто':'Ещё не открыто');
+        if(!known){body.append(stat((i+1)+'. '+title,'Ещё не открыто'));return;}
         text.textContent=ruleText[i]+' В игре — '+ruleHow[i]+'.';details.append(summary,text);body.append(details);
       });
     }else if(next==='collection'){
@@ -393,7 +419,7 @@
     line('EMCO · БЕЗОПАСНЫЙ ОТДЫХ',1285,38,'#234c61');
     shareText=names[s.hero]+' в игре «Белая Сова» · '+s.score+' очков, '+Math.floor(s.metres)+' м · '+stages[s.stage%8]+(finds.length?' · '+finds.join(', '):'');
     const id=++cardId;shareBlob=null;$('shareImage').src=c.toDataURL('image/png');c.toBlob(blob=>{if(id===cardId)shareBlob=blob;},'image/png');
-    setText('shareHint','Удержи картинку, чтобы сохранить её.');$('result').hidden=true;$('shareSheet').hidden=false;profile.unlock({fis:[10]});
+    setText('shareHint','Удержи картинку, чтобы сохранить её.');$('result').hidden=true;$('shareSheet').hidden=false;
   }
   async function share(){
     try{
@@ -412,6 +438,8 @@
   for(const b of document.querySelectorAll('[data-panel]'))b.onclick=()=>switchPanel(b.dataset.panel);
   $('mute').onclick=()=>profile.change(['muted'],p=>p.muted=!p.muted);
   $('pause').onclick=pause;$('resume').onclick=()=>{requestPause=false;command('ResumeRide');canvas.focus();};
+  $('fisAct').onclick=()=>{if(snapshot?.fisAction)command('FisAction',snapshot.fisAction);};
+  $('fisLeave').onclick=()=>command('FisAction','leave');
   $('pauseSense').oninput=e=>{const v=Number(e.target.value);setText('pauseSenseValue',v);profile.change(['sens'],p=>p.sens=v);command('SetSensitivity',v);};
   function rideFromInspection(){
     if(snapshot?.phase!=='review'||!run)return;
@@ -428,7 +456,7 @@
   }
   $('reviewPlay').onclick=rideFromInspection;
   $('again').onclick=$('restartPaused').onclick=()=>{
-    if(run?.practice)returnToInspection(true);else if(run)start(run.mode,true);
+    if(run?.practice)returnToInspection(true);else if(run){bankInterruptedRide();start(run.mode,true);}
   };
   $('exitResult').onclick=$('reviewExit').onclick=leave;
   $('exitPaused').onclick=()=>run?.practice?returnToInspection():snapshot.metres>=30?command('EndRide'):leave();
