@@ -8,9 +8,7 @@
   const fis=['Уважай других','Контролируй скорость','Выбирай траекторию','Обгоняй с запасом','Смотри по сторонам','Не стой где попало','Пешком — по краю','Соблюдай знаки','Помоги пострадавшему','Назови себя'];
   const ruleText=['Катайся так, чтобы никому не навредить и никого не напугать.','Подбирай скорость по своим силам, рельефу, снегу, погоде и людям вокруг.','Если ты сверху, выбирай линию безопасно для тех, кто ниже.','Обгоняй с любой стороны и оставляй место на манёвр.','Перед стартом и выездом на трассу оглянись вверх и вниз.','Избегай остановок в узких, плохо видимых местах. Упал — освободи трассу.','Поднимаешься или спускаешься пешком — иди у края трассы.','Следи за указателями и разметкой, держись в пределах сеток.','Заметил пострадавшего — остановись и позови патруль.','Участник или свидетель происшествия сообщает свои данные.'];
   const ruleHow=['оставь запас при проезде мимо ученика','сбавь ход перед группой или на участке с плохой видимостью','выбери сторону заранее и сохрани просвет до человека','обгони движущегося лыжника или сноубордиста с запасом','после остановки осмотрись и дождись свободного выезда','остановись у края рядом с пострадавшим','пройди вдоль безопасной обочины','объедь ограждение со стороны стрелки','остановись рядом с пострадавшим и вызови патруль','назовись свидетелем прибывающему патрулю'];
-  const dances=[['sway','Ёлочка',()=>true,''],['floss','Снежный флосс',d=>d.meet.feathers>=3,'3 пера'],
-    ['hop','Весёлые прыжки',d=>d.meet.gifts>=20,'20 подарков'],['dab','Победный дэб',d=>d.best>=5000,'5000 очков'],['champ','Танец чемпиона',d=>d.fis.length>=10,'10 правил FIS']];
-  const panels={settings:'Настройки',missions:'Задания',shop:'Прокат и магазин',collection:'Коллекция',rules:'Правила FIS',top:'Рейтинг',dances:'Танцы',catalog:'Лист моделей'};
+  const panels={settings:'Настройки',missions:'Задания',shop:'Прокат и магазин',collection:'Коллекция',rules:'Правила FIS',top:'Рейтинг',catalog:'Лист моделей'};
   let deviceStorage;try{deviceStorage=window.localStorage;}catch{}
   const profile=MountainSaves.create({storage:deviceStorage,app,channel:release.channel,onChange:changed});
   const ranking=MountainSaves.leaderboard(release,app,profile);
@@ -42,11 +40,6 @@
   function updateMenu(){
     const d=profile.data;setText('best',d.best);setText('bank',d.coins);
     setText('ruleCount',d.fis.length+'/10');
-    const playerName=app?.initDataUnsafe?.user?.first_name;
-    $('profileName').hidden=!playerName;if(playerName)setText('profileName',playerName);
-    $('mute').setAttribute('aria-pressed',String(d.muted));
-    $('mute').setAttribute('aria-label',d.muted?'Включить звук':'Выключить звук');
-    $('mute').firstElementChild.textContent=d.muted?'🔇':'🔊';
     for(const button of document.querySelectorAll('[data-hero]')){
       button.setAttribute('aria-pressed',button.dataset.hero===d.hero);
       button.querySelector('small').textContent=MountainEquipment.label(d,button.dataset.hero);
@@ -90,7 +83,25 @@
     $('helmets').setAttribute('aria-label','Каски '+s.helmets);
     for(const [i,img] of [...$('helmets').children].entries())img.style.opacity=i<s.helmets?1:.23;
   }
+  function rewardFeedback(s,prev){
+    const layer=$('rewardFloats');
+    if(s.phase!=='play'||prev?.phase!=='play'||s.elapsed<prev.elapsed||s.seed!==prev.seed){
+      if(layer.childElementCount)layer.replaceChildren();
+      return;
+    }
+    // Subtract distance so only actual rewards fly up. Several pickups in one HUD tick share a number.
+    const points=(s.score-s.scoreDistance)-(prev.score-prev.scoreDistance);
+    if(!(points>0))return;
+    const label=document.createElement('b');
+    label.textContent='+'+points;
+    label.style.left=Math.max(12,Math.min(88,s.riderScreenX*100+(s.riderScreenX>.78?-8:8)))+'%';
+    label.style.top=Math.max(30,Math.min(79,s.riderScreenY*100-3))+'%';
+    if(layer.childElementCount>=3)layer.firstElementChild.remove();
+    layer.append(label);
+    label.addEventListener('animationend',()=>label.remove(),{once:true});
+  }
   function draw(s,prev){
+    rewardFeedback(s,prev);
     const home=s.phase==='menu',review=s.mode==='review'&&s.phase==='review';
     if(!home)panel='';
     $('mast').hidden=!home||!!panel;$('menu').hidden=!home||!!panel;
@@ -164,12 +175,7 @@
           const done=!profile.data.missions.includes(m);
           return stat(MountainSaves.missions.find(t=>t[0]===m.id)[1]+' · '+m.n,done?'Выполнено':'—');
         }));
-        const seen=profile.data.meet.danceSeen||['sway'],fresh=dances.filter(([id,,open])=>open(profile.data)&&!seen.includes(id));
-        const extra=[];
-        if(s.rankedResult&&s.score>oldBest)extra.push('Новый рекорд!');
-        for(const [,title] of fresh)extra.push('Открыт танец «'+title+'»');
-        if(fresh.length)profile.change(['meet'],d=>d.meet.danceSeen=[...seen,...fresh.map(([id])=>id)]);
-        setText('resultExtra',extra.join(' · '));$('resultExtra').hidden=!extra.length;
+        setText('resultExtra','Новый рекорд!');$('resultExtra').hidden=!(s.rankedResult&&s.score>oldBest);
         $('resultBonuses').hidden=!s.feather;
         setText('rankStatus',!s.rankedResult?'Вне зачёта · мандарины в кошельке':release.previewBoard||app&&release.channel==='production'?'Отправляем результат…':'Результат сохранён на устройстве');
         const current=run.id;ranking.submit(s,current).then(r=>{
@@ -335,7 +341,6 @@
     }catch{if(panel==='catalog')body.replaceChildren('Не удалось загрузить лист моделей.',btn('Повторить',()=>switchPanel('catalog')));}
   }
   function switchPanel(next){
-    if(panel==='dances'&&next!=='dances')command('StopDance');
     panel=next;const body=$('panelBody');body.replaceChildren();if(snapshot)draw(snapshot,snapshot);backUI();
     if(!next)return;
     setText('panelTitle',panels[next]);const d=profile.data;
@@ -377,17 +382,6 @@
         if(got.length){const last=got[got.length-1];body.append('Последняя буква '+last.ch+' · '+last.date+' · '+last.dist+' м');}
       }
       for(const [t,v] of [['Золотое перо · сноупарк',d.meet.prizeFeather?'Поймано':'Два трюка на высокой линии'],['Встречи с йети',d.meet.yeti],['Перья',d.meet.feathers],['Золотая сова',d.meet.goldenOwl?'✓':'—'],['Лучший этап',d.meet.bestStage?d.meet.bestStage+' · '+stages[(d.meet.bestStage-1)%8]:'—'],['Рекорд очков',d.best]])body.append(stat(t,v||0));
-    }else if(next==='dances'){
-      for(const [id,name,open,lock] of dances){
-        const row=document.createElement('div');row.className='row';row.append(btn(open(d)?name:name+' · '+lock,()=>{switchPanel('');command('Dance',id);},!open(d)));
-        if(open(d))row.append(btn('Поделиться',async()=>{
-          const text=names[d.hero]+' танцует «'+name+'» в игре «Белая Сова».';
-          try{if(app)app.openTelegramLink('https://t.me/share/url?url='+encodeURIComponent(shareUrl)+'&text='+encodeURIComponent(text));
-            else if(navigator.share)await navigator.share({text,url:shareUrl});
-            else await navigator.clipboard.writeText(text+' '+shareUrl);
-          }catch(e){if(e.name!=='AbortError')body.append(text+' '+shareUrl);}
-        }));body.append(row);
-      }
     }
   }
   let shareText='',shareBlob=null,cardId=0;
@@ -436,7 +430,6 @@
   for(const b of document.querySelectorAll('[data-mode]'))b.onclick=()=>start(b.dataset.mode);
   $('closePanel').onclick=back;
   for(const b of document.querySelectorAll('[data-panel]'))b.onclick=()=>switchPanel(b.dataset.panel);
-  $('mute').onclick=()=>profile.change(['muted'],p=>p.muted=!p.muted);
   $('pause').onclick=pause;$('resume').onclick=()=>{requestPause=false;command('ResumeRide');canvas.focus();};
   $('fisAct').onclick=()=>{if(snapshot?.fisAction)command('FisAction',snapshot.fisAction);};
   $('fisLeave').onclick=()=>command('FisAction','leave');

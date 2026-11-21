@@ -113,7 +113,7 @@ const SFX={
     if(songKey!==key){songKey=key;song.src='audio/music_'+key+'.mp3';}
     if(song.paused)song.play()?.catch(()=>{});
   }
-  async function speak(key,priority=false){
+  async function speak(key,priority=false,phase='play'){
     const now=performance.now();
     if(!active||save.muted||!save.vol.vox||document.hidden)return;
     const cooldown={polite:40000,miss:40000,warn:16000,jump:14000}[key]||0;
@@ -121,7 +121,7 @@ const SFX={
     stopVoice();const ticket=voiceTicket;
     lastVoice=now;rare.set(key,now);
     const buffer=await loadSample(state.hero+'_'+key);
-    if(!buffer||ticket!==voiceTicket||state.phase!=='play'||document.hidden)return;
+    if(!buffer||ticket!==voiceTicket||state.phase!==phase||document.hidden)return;
     const source=AC.createBufferSource();source.buffer=buffer;source.connect(voxBus);voice=source;
     musicDuck?.gain.setTargetAtTime(.38,AC.currentTime,.045);
     source.onended=()=>{
@@ -156,7 +156,10 @@ const SFX={
     engG.gain.setTargetAtTime(riding?motor:0,t,.12);
     engP?.pan.setTargetAtTime(next.enginePan||0,t,.1);
     rumG.gain.setTargetAtTime(riding?.16*(next.avalanche||0):0,t,.12);
-    if(!riding){lastEvent=next.eventId;return;}
+    if(!riding){
+      if(next.phase==='over'&&previous.phase!=='over'&&next.cue==='fallEnd')speak('crash',true,'over');
+      lastEvent=next.eventId;return;
+    }
     if(next.horns>(previous.horns||0))SFX.horn();
     // Several contacts can share one HUD snapshot. The pickup counter survives a later cue in that frame.
     if(next.feather&&next.feathers>(previous.feathers||0)){
@@ -168,7 +171,8 @@ const SFX={
     if(key==='feather')return;
     if(key==='gate')SFX.gate(Math.max(1,next.combo||1),false);
     else if(Object.prototype.hasOwnProperty.call(SFX,key))SFX[key]();
-    if(['start','jump','crash','helmet','fis','record','polite','warn','miss','stage'].includes(key))speak(key,key==='start');
+    if(key==='crash'&&save.vol.vox>0)loadSample(next.hero+'_crash');
+    if(['start','jump','helmet','fis','record','polite','warn','miss','stage'].includes(key))speak(key,key==='start');
   }
   function activate(){
     active=true;initAudio();syncMusic();

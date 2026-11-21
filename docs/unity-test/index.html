@@ -6,19 +6,16 @@
   <meta name="theme-color" content="#183c56">
   <title>Белая Сова · Спуск</title>
   <link rel="icon" type="image/jpeg" href="art/av_owl.jpg">
-  <link rel="stylesheet" href="race.css?v=b0d50d2e94aa">
+  <link rel="stylesheet" href="race.css?v=2e6f03b12d47">
   <script src="vendor/telegram-web-app.js?v=baa788a6f686"></script>
   <script src="release.js?v=870f4b14e571"></script><script src="save.js?v=adb128cc5347"></script><script src="equipment.js?v=fc8bea92c0fc"></script>
-  <script defer src="mountain-audio.js?v=385b9dc133b6"></script><script defer src="mountain-metrics.js?v=c26b0f1a7ee6"></script>
+  <script defer src="mountain-audio.js?v=453a015affc3"></script><script defer src="mountain-metrics.js?v=c26b0f1a7ee6"></script>
 </head>
 <body><main id="app">
   <canvas id="slope" aria-label="Горнолыжная трасса" tabindex="0"></canvas>
   <div id="safe">
     <header id="mast" hidden>
-      <h1>Белая Сова</h1><p class="sign">Горнолыжный спуск • Шахтёрск</p>
-      <span id="profileName" hidden></span>
-      <button id="mute" aria-label="Выключить звук" aria-pressed="false"><span aria-hidden="true">🔊</span></button>
-      <button id="dances" data-panel="dances">Танцы</button>
+      <h1>Белая Сова</h1>
     </header>
     <section id="loading" class="sheet" aria-live="polite">
       <h2>Готовим склон</h2><p id="loadText">Загружаем игру…</p>
@@ -45,6 +42,7 @@
       <div id="fisControls" hidden><button id="fisAct" hidden></button><button id="fisLeave" hidden>Продолжить спуск</button></div>
       <div id="rideInfo"><span id="stage"></span><span id="rideStatus" hidden></span><aside id="notice" hidden></aside></div>
       <div id="avalancheMeter" hidden><i></i></div>
+      <div id="rewardFloats" aria-hidden="true"></div>
       <div class="scoreboard" aria-label="Счёт, каски и мандарины">
         <b id="score">0</b><div id="helmets"><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""></div>
         <b id="coins">0</b>
@@ -86,10 +84,10 @@
       <div id="panelBody"></div>
     </section>
   </div>
-</main><script src="race.js?v=53d34f626ec8"></script>
+</main><script src="race.js?v=b2e5b76457d1"></script>
 <script>
   MountainShell.boot({
-    loader:'Build/bd35bde0d6500438a0c713ef0c9944d9.loader.js', data:'Build/d871c22b41090439bfbc356ea65c9ddc.data.unityweb',
-    framework:'Build/40a5a86e2b087b300d233b3793e6751d.framework.js.unityweb', code:'Build/b50f25fc4f463230af563c38e7410992.wasm.unityweb'
+    loader:'Build/41e140cdded9530ac8fd65b0ed0ab14d.loader.js', data:'Build/7370ed43de89c9ba68297cc17534d0df.data.unityweb',
+    framework:'Build/d1fc50b914c2cf645a5f42a976d6f6ca.framework.js.unityweb', code:'Build/d554a19487f0ae9ced4295209caa927b.wasm.unityweb'
   });
 </script></body></html>
