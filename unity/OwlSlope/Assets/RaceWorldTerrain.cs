@@ -50,10 +50,11 @@ public partial class RaceWorld {
         return StageAt(metres)==1?21-7.5f*blend:21;
     }
     public static float Grade(float d)=>.29f+.22f*Mathf.Sin(d/42)+.09f*Mathf.Sin(d/17+1);
+    public static float BaseHeight(float d)=>-.29f*d+9.24f*(Mathf.Cos(d/42)-1)+1.53f*(Mathf.Cos(d/17+1)-Mathf.Cos(1));
     public Vector3 SampleGround(float metres,float lane){
         SampleRoad(metres);float d=metres,mag=Mathf.Abs(lane),h=Mathf.Atan(dx);
         float bank=.12f*(float)Math.Tanh(-curve*10/.12f);
-        float height=-.29f*d+9.24f*(Mathf.Cos(d/42)-1)+1.53f*(Mathf.Cos(d/17+1)-Mathf.Cos(1));
+        float height=BaseHeight(d);
         float shoulder=Smooth((mag-9.4f)/5.8f)*(3.4f+.65f*Mathf.Sin(d/23+(lane<0?1.4f:0))+.25f*Mathf.Cos(d/9));
         int stage=StageAt(d);float within=Mathf.Repeat(d,2500),blend=Smooth(within/35)*Smooth((2500-within)/35);
         if(stage==1)shoulder=Mathf.Lerp(shoulder,2.8f*Smooth((mag-6.6f)/5.8f),blend);

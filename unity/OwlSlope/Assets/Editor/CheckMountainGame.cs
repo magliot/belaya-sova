@@ -18,6 +18,9 @@ public static class CheckMountainGame {
     public static void Snowmen(){
         SessionState.SetBool("Owl.CheckSnowmen",true);Run();
     }
+    public static void Camera(){
+        SessionState.SetBool("Owl.CheckCamera",true);Run();
+    }
     static void CheckWhenReady(){
         if(EditorApplication.isPlaying&&!EditorApplication.isCompiling&&SessionState.GetBool(pending,false)
             &&UnityEngine.Object.FindFirstObjectByType<MountainRace>()?.View!=null)
@@ -29,10 +32,15 @@ public static class CheckMountainGame {
         try{
             var race=UnityEngine.Object.FindFirstObjectByType<MountainRace>();
             race.Initialize();
+            if(SessionState.GetBool("Owl.CheckCamera",false)){
+                SessionState.EraseBool("Owl.CheckCamera");
+                ChaseCameraChecks.Run(race);EditorApplication.Exit(0);return;
+            }
             if(SessionState.GetBool("Owl.CheckSnowmen",false)){
                 SessionState.EraseBool("Owl.CheckSnowmen");
                 Debug.Log("SNOWMEN PASS "+race.VerifySnowmen());EditorApplication.Exit(0);return;
             }
+            ChaseCameraChecks.Run(race);
             ShopBalanceChecks.Run(race);
             foreach(string hero in new[]{"bear","owl"}){
                 race.Menu();race.ChooseHero(hero);
