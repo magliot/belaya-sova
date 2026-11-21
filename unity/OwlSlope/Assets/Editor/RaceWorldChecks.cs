@@ -35,12 +35,11 @@ public static class RaceWorldChecks {
             var stone=world.Items.First(o=>o.kind=="rock"&&Mathf.Abs(o.distance-marker)<.02f);
             float position=stone.lane;world.Refresh(marker-59,40.05f,-approach);
             Require(position==stone.lane,"stone followed rider after spawn at "+marker);
-            var coins=world.Items.Where(o=>o.kind=="coin"&&o.distance>=marker-1.26f&&o.distance<=marker+1.56f).ToArray();
-            Require(coins.Length==3&&coins.All(o=>Mathf.Abs(o.lane-position)>1.9f),"stone bypass closed at "+marker);
+            Require(Mathf.Abs(world.SummitLine(marker)-position)>2.5f,"stone blocks its safe passage at "+marker);
             return position;
         }
         float left=Spawn("normal",-3),right=Spawn("normal",3),centre=Spawn("review",3);
-        Require(Mathf.Abs(right-left-6)<.035f&&Mathf.Abs(right-centre-3)<.035f,"lane targeting at "+marker);
+        Require(Mathf.Abs(right-left)<.001f&&Mathf.Abs(right-centre)<.001f,"stone placement changed with steering at "+marker);
         Require(Mathf.Abs(Spawn("normal",-3)-left)<.001f,"seed+steering failed replay at "+marker);
     }
     static float RubberGap(Renderer rubber,MeshCollider piste){
@@ -134,24 +133,16 @@ public static class RaceWorldChecks {
             race.RestartRide();Require(Layout(world)==first,"seed 1911 restart differs");
             race.StartRace("{\"mode\":\"normal\",\"seed\":4903}");
             Require(Layout(world)!=first,"second seed repeats all training objects");
-            foreach(int openingSeed in new[]{783,967,1911,158}){
-                race.StartRace("{\"mode\":\"normal\",\"seed\":"+openingSeed+"}");
-                var fruit=world.Items.Where(o=>o.kind=="coin").OrderBy(o=>o.distance).Take(8).ToArray();
-                Require(fruit.Length==8&&Mathf.Abs(fruit[0].lane)<.01f,"opening fruit trail missing");
-                for(int i=1;i<fruit.Length;i++){
-                    float gap=fruit[i].distance-fruit[i-1].distance;
-                    Require(gap>=2.74f&&Mathf.Abs(fruit[i].lane-fruit[i-1].lane)<gap*.64f,
-                        "opening tube splits mandatory fruit at "+fruit[i].distance+" seed "+openingSeed);
-                }
-            }
             foreach(var jump in new[]{("normal",15459.5f,"thermos"),("sprint",750f,"thermos"),("sprint",1050f,"helmet")}){
                 world.Configure(1911,jump.Item1);world.Refresh(jump.Item2,40);
-                float fork=jump.Item2+4.5f;
-                var inner=world.Items.Single(o=>o.kind=="coin"&&Mathf.Abs(o.distance-fork)<.02f);
-                var outer=world.Items.Single(o=>o.kind==jump.Item3&&Mathf.Abs(o.distance-fork)<.02f);
-                Require(!outer.air&&Mathf.Abs(outer.lane-inner.lane)>3.5f,"short kicker forces "+jump.Item3);
-                Require(world.Items.Count(o=>o.kind=="coin"&&o.air&&o.distance>fork&&o.distance<fork+60)==4,
-                    "missing air fruit after side boost at "+fork);
+                float at=jump.Item2+4.5f;
+                var outer=world.Items.Single(o=>o.kind==jump.Item3&&Mathf.Abs(o.distance-at)<.02f);
+                var ramp=world.Items.First(o=>o.kind=="ramp"&&o.distance>at&&o.distance<at+30);
+                Require(!outer.air&&Mathf.Abs(outer.lane-ramp.lane)>3.5f,"short kicker forces "+jump.Item3);
+                if(jump.Item1=="sprint")Require(world.Items.Any(o=>o.kind=="coin"&&Mathf.Abs(o.distance-at)<.02f),
+                    "short sprint kicker lost its approach fruit");
+                Require(world.Items.Count(o=>o.kind=="coin"&&o.air&&o.distance>at&&o.distance<at+60)==4,
+                    "missing aerial fruit at "+at);
             }
             race.StartRace("{\"mode\":\"review\",\"seed\":1911}");
             StartBanner(race,0);StartBanner(race,3);StartBanner(race,15);
@@ -179,6 +170,7 @@ public static class RaceWorldChecks {
             Require(caps&&caps.GetComponent<MeshFilter>().sharedMesh.vertexCount==8&&caps.GetComponent<MeshRenderer>().sharedMaterial.shader.isSupported,
                 "night slalom needs a distant light on both pole caps");
             LaneStones(world,1911,10675);LaneStones(world,8573,10675);
+            FruitScatterChecks.Run(race);
             FestivalCourseChecks.Run(race);
             SummitRewardChecks.Run(race);
             foreach(int seed in new[]{1911,4903}){

@@ -2,10 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum CourseLine { Ordinary, Wide, Precision }
-
 public sealed class RaceItem {
-    public CourseLine line;
     public string kind,variant,character;
     public float distance,lane,width,height,length,lift,span;
     public bool consumed,judged,ridden,park,needsTrick,prizeLine,trickLine,air,stoneGate;
@@ -15,8 +12,9 @@ public sealed class RaceItem {
     internal float release,from,to,vStart,vCruise,tau,pathSpan,airStart,airSpan,airLift,airBase;
     internal float landedAt=-10;
     internal float turnRate,glidePace,sprayDistance=float.NaN;
+    internal float mergeGateMetre,mergeGateLane;
     internal int route;
-    internal bool leap,small,decor,bypass;
+    internal bool leap,small,decor;
     internal bool movingPoseReady;
     internal bool threwSnowball,honked;
     internal bool positioned,touchingPlayer,patrolPatient;
@@ -41,7 +39,7 @@ public partial class RaceWorld : MonoBehaviour {
     readonly Dictionary<string,Stack<GameObject>> pool=new Dictionary<string,Stack<GameObject>>();
     const float Ahead=115,Behind=30;
     int seed,chunk=int.MinValue,firstSegment=int.MaxValue,lastSegment=int.MinValue;
-    float lastDistance,lastTime,spawnLane,letterDistance=float.PositiveInfinity;
+    float lastDistance,lastTime,letterDistance=float.PositiveInfinity;
     string mode,letter;
     bool letterAdded;
     public string Mode=>mode;
@@ -54,7 +52,6 @@ public partial class RaceWorld : MonoBehaviour {
         }
     }
     public void Configure(int seed,string mode){
-        summitChoiceRows.Clear();
         ClearObjects();this.seed=seed;this.mode=mode??"normal";lastDistance=lastTime=0;snowVertices=null;
         firstSegment=int.MaxValue;lastSegment=int.MinValue;chunk=int.MinValue;
         letter=null;letterAdded=false;letterDistance=float.PositiveInfinity;
@@ -97,7 +94,6 @@ public partial class RaceWorld : MonoBehaviour {
     }
     public void Refresh(float distance,float elapsed)=>Refresh(distance,elapsed,0);
     public void Refresh(float distance,float elapsed,float riderLane,bool draw=true){
-        spawnLane=mode=="normal"?riderLane:0;
         distance=Mathf.Max(0,distance);float dt=Mathf.Clamp(elapsed-lastTime,0,.15f);
         bool seek=distance<lastDistance-.001f||distance>lastDistance+Ahead;
         if(seek){ClearObjects();firstSegment=int.MaxValue;lastSegment=int.MinValue;letterAdded=false;lastDistance=distance;chunk=int.MinValue;dt=0;}

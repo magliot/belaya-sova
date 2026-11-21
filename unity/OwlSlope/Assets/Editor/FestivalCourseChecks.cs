@@ -20,8 +20,8 @@ public static class FestivalCourseChecks {
             }
             Need(race.Status.phase=="play"&&race.Status.metres>=start+149&&race.Status.helmets==1,"obstructed route "+start);
             Need(items.All(o=>o.kind!="gate"),"a pole gate is still on the festive piste");
-            var prizes=items.Where(o=>o.kind=="coin"||o.kind=="gift"||o.kind=="aid").ToArray();
-            Need(prizes.Length==18&&prizes.All(o=>o.consumed),"missed required pickups near "+start+": "+
+            var prizes=items.Where(o=>o.kind=="gift"||o.kind=="aid").ToArray();
+            Need(prizes.Length==3&&prizes.All(o=>o.consumed),"missed gifts or first-aid kit near "+start+": "+
                 string.Join(",",prizes.Where(o=>!o.consumed).Select(o=>o.kind+"@"+o.distance)));
             Need(items.Any(o=>o.kind=="thermos"&&!o.consumed),"coffee should be a separate choice");
             var pots=items.Where(o=>o.kind=="festivalFountain").OrderBy(o=>o.distance).ToArray();
@@ -29,6 +29,6 @@ public static class FestivalCourseChecks {
             Need(items.Any(o=>o.variant=="holidayFir"),"no decorated trees");
         }
         race.Menu();
-        Debug.Log("HOLIDAY SLALOM PASS: first and second visit, 18/18 fruit, gifts and aid, optional coffee, three fountains, intact helmet.");
+        Debug.Log("HOLIDAY SLALOM PASS: first and second visit, gifts and aid, optional coffee, three fountains, intact helmet.");
     }
 }

@@ -352,7 +352,7 @@
       const guide=document.createElement('details'),heading=document.createElement('summary'),controls=document.createElement('p'),scoring=document.createElement('p');
       heading.textContent='Как играть и получать очки';
       controls.textContent='Веди пальцем влево и вправо, чтобы рулить. Герой разгоняется сам. Кофе прибавляет 65% скорости. Трамплин подбрасывает героя. В воздухе коснись экрана или проведи пальцем, чтобы сделать трюк до приземления.';
-      scoring.textContent='В общий рейтинг идёт лучший спуск со старта до падения. Метр — 1 очко, мандарин — 3, чистые ворота — 8 или 18, кольцо — 14 или 28. Первое применение каждого правила FIS за спуск приносит 25 очков. Два трюка и перо на высокой линии открывают оба бонуса.';
+      scoring.textContent='В общий рейтинг идёт лучший спуск со старта до падения. Метр даёт 1 очко, мандарин — 3, чистый проезд ворот — 8, кольцо — 14. Оставляй людям место для манёвра. Первое применение каждого правила FIS за спуск приносит 25 очков. Два трюка и золотое перо открывают оба бонуса.';
       guide.append(heading,controls,scoring);body.append(guide);
       if(profile.cloudError)body.append(profile.cloudError);
     }else if(next==='catalog'){showCatalog(body);}

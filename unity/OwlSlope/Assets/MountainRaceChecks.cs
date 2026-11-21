@@ -56,21 +56,20 @@ public partial class MountainRace {
         Check(Status.rings==(taps==0?0:1),result+" upper ring");
         return result;
     }
-    string VerifyParkRewardLine(int lap){
+    string VerifyParkJumps(int lap){
         Menu();ChooseHero("bear");StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
         float start=7500+lap*20000,end=start+2500;
         Checkpoint(start,0);chaseNext=end+900;
-        var rewards=new HashSet<RaceItem>();var powers=new HashSet<RaceItem>();
+        var features=new HashSet<RaceItem>();
         for(int frame=0;frame<3300&&Status.phase=="play"&&Status.metres<end;frame++){
             foreach(var item in World.Items){
                 if(item.distance<start||item.distance>=end)continue;
-                if(item.line!=CourseLine.Wide&&(item.kind=="coin"||item.kind=="gift"||item.kind=="aid"))rewards.Add(item);
-                if(item.kind=="thermos"||item.kind=="helmet")powers.Add(item);
+                if(item.kind=="ramp"||item.kind=="gift"||item.kind=="aid"||item.air&&item.kind=="coin")features.Add(item);
             }
-            // Look a fraction of a second ahead and steer along the visible pickup line.
+            // Follow the jump faces and their airborne targets, leaving scattered ground fruit optional.
             float look=Status.metres+speed*.16f;
             RaceItem previous=null,next=null;
-            foreach(var item in rewards){
+            foreach(var item in features){
                 if(item.distance<=look&&(previous==null||item.distance>previous.distance))previous=item;
                 else if(item.distance>look&&(next==null||item.distance<next.distance))next=item;
             }
@@ -80,14 +79,15 @@ public partial class MountainRace {
             }
             Advance(1f/30);
         }
-        Check(Status.metres>=end&&Status.phase=="play","failed to ride park reward line at "+Status.metres+" "+Status.message);
-        bool hasKit=false;
-        foreach(var item in rewards)if(item.kind=="aid"&&item.consumed)hasKit=true;
-        Check(rewards.Count>250&&Status.gifts>0&&hasKit,"park fruit, gift or first-aid kit missing");
-        foreach(var item in rewards)Check(item.consumed,"missed park "+item.kind+" at "+item.distance+" / lane "+item.lane);
-        foreach(var item in powers)Check(!item.consumed,"detour power-up intersected main line at "+item.distance);
-        Check(powers.Count>0,"no alternative power-ups on park entry");
-        return "park lap "+(lap+1)+": all "+rewards.Count+" fruit/gift/rescue pickups on a single steered line";
+        Check(Status.metres>=end&&Status.phase=="play","failed to ride park jumps at "+Status.metres+" "+Status.message);
+        int targets=0,collected=0;bool hasKit=false;
+        foreach(var item in features){
+            if(item.air&&item.kind=="coin"){targets++;if(item.consumed)collected++;}
+            if(item.kind=="aid"&&item.consumed)hasKit=true;
+        }
+        Check(targets>=50&&collected>=targets*.85f&&Status.gifts>0&&hasKit,
+            "park jump targets "+collected+"/"+targets+", gifts "+Status.gifts+", aid "+hasKit);
+        return "park lap "+(lap+1)+": "+collected+"/"+targets+" airborne fruit, rescue and gifts";
     }
     string VerifySnowballThrows(){
         int onTarget=0,hits=0;
@@ -244,7 +244,7 @@ public partial class MountainRace {
                 report.Add(VerifyBonusJump(vehicle,rider));
             report.Add(VerifyPrize("bear",2));report.Add(VerifyPrize("owl",2));report.Add(VerifyPrize("bear",1));report.Add(VerifyPrize("owl",0));
             report.Add(VerifyPrize("bear",2,1));report.Add(VerifyPrize("owl",2,1,true));
-            report.Add(VerifyParkRewardLine(0));report.Add(VerifyParkRewardLine(1));
+            report.Add(VerifyParkJumps(0));report.Add(VerifyParkJumps(1));
             StartRace("{\"mode\":\"normal\",\"seed\":1911}");
             Checkpoint(275,0);var helmet=World.Items.Find(o=>o.kind=="helmet"&&o.distance<315);
             Check(helmet!=null,"training helmet missing");

@@ -10,6 +10,7 @@ public partial class MountainRace {
     float stopMetre,stopDeceleration,walkStart,lookSince,brakeUntil,brakeFrom,rejoinUntil,lastFisMessage;
     bool keptToEdge;
     bool FisCourse=>Status.mode=="normal"||Status.mode=="free";
+    const float SafePassGap=3f;
 
     void ResetFis(){
         ShowFisWalker(false);
@@ -29,14 +30,16 @@ public partial class MountainRace {
     void ObserveRider(RaceItem rider,float ahead,float dx){
         float clearance=Mathf.Abs(dx);
         if(ahead>=13&&ahead<=24&&!airborne&&fall<=0){
-            if(rider.fisApproachSide==0&&clearance>=2.7f){
+            if(rider.fisApproachSide==0&&clearance>=SafePassGap){
                 rider.fisApproachSide=dx>0?1:-1;
             }
         }
         if(Mathf.Abs(ahead)<=1.75f)rider.fisClearance=Mathf.Min(rider.fisClearance,clearance);
     }
     void SafePass(RaceItem rider){
-        if(!FisCourse||rider.fisClearance<2.5f||float.IsInfinity(rider.fisClearance))return;
+        if(rider.fisClearance<SafePassGap||float.IsInfinity(rider.fisClearance))return;
+        Status.polite++;
+        if(!FisCourse)return;
         bool schoolGroup=Status.metres<120;
         int type=rider.kid?1:rider.sb?2:rider.instr?3:rider.walker?4:rider.sit?5:6;
         if(rider.kid||rider.instr||rider.stand||rider.sit||rider.walker){
@@ -44,7 +47,7 @@ public partial class MountainRace {
         }else if(!schoolGroup&&rider.pace>0){
             FisRule(4,type,"Обгон с запасом");
         }
-        if(!schoolGroup&&!rider.stand&&!rider.sit&&!rider.walker&&rider.fisApproachSide*(lane-rider.lane)>=2.7f)
+        if(!schoolGroup&&!rider.stand&&!rider.sit&&!rider.walker&&rider.fisApproachSide*(lane-rider.lane)>=SafePassGap)
             FisRule(3,type,"Линия выбрана заранее");
     }
     void FisHints(float before,float now){

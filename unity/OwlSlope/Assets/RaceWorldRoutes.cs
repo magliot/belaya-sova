@@ -23,12 +23,6 @@ public partial class RaceWorld {
     public float MogulRoughness(float d,float lane){
         float local=Mathf.Repeat(d,2500);
         float rough=Smooth((Mathf.Abs(lane-MogulLine(d))-1.52f)/2.25f);
-        int row=Mathf.FloorToInt(local/117);
-        if(ChoiceRow(2,row)&&(row+1)*117<=2500){
-            float spread=ChoiceSpread((local-row*117)/117);
-            float split=Smooth((Mathf.Abs(Mathf.Abs(lane)-spread)-1.4f)/2.25f);
-            rough=Mathf.Lerp(rough,split,Smooth(spread/1.2f));
-        }
         return rough*Smooth(local/16)*Smooth((2457-local)/24);
     }
     void EndlessRoad(float d,ref float x,ref float slope,ref float second){
@@ -46,85 +40,73 @@ public partial class RaceWorld {
         float ddf=60*u*(u-1)*(2*u-1)/(transition*transition);
         second+=f*dds+2*df*ds+ddf*side;slope+=f*ds+df*side;x+=f*side;
     }
-    static float ForkLane(float at,float side){
-        float fork=Smooth((at-42)/90)*Smooth((425-at)/90);
-        return side*fork*(3.75f+.52f*Mathf.Sin(at/63));
-    }
-    float ForkTrack(float d){
-        if(mode!="normal"||d<0)return 0;
-        int index=Mathf.FloorToInt(d/2500),stage=index%8;
-        if(index>=8&&(stage==1||stage==6))return ForkLane(Mathf.Repeat(d,500),1);
-        if(stage==3)return 0;
-        float length=RowLength(index,mode),local=d-index*2500;
-        int row=Mathf.FloorToInt(local/length);
-        return ChoiceRow(index,row)&&(row+1)*length<=2500?ChoiceSpread((local-row*length)/length):0;
-    }
-    void EndlessFork(int fullStage,int n){
+    void EndlessScene(int fullStage,int n){
         int stage=fullStage%8,section=n/10,row=n%10;
         int scenario=RouteScenario(seed,stage,fullStage/8,section);
-        float side=Roll(seed,fullStage*5+section,644)<.5f?-1:1;
-        float start=(fullStage*2500+section*500)*20,local=row*50;
-        float At(float offset)=>start+(local+offset)*20;
-        float X(float offset,float edge)=>200+20*ForkLane(local+offset,edge);
-        // The split is visible well before either commitment. Both choices have
-        // a free line, a distinct reward, and 75 m to rejoin before the next scene.
-        for(int i=0;i<3;i++){
-            float offset=8+i*15;
-            var fruit=Entry("coin",X(offset,side),At(offset),22,0);
-            if(row>=2&&row<=6)fruit.line=CourseLine.Precision;
-            if(row>=2&&row<=6&&i==2)Entry("coin",X(offset,-side),At(offset),22,0).line=CourseLine.Wide;
-            if(row==2&&i==1)Entry(section%2==0?"thermos":"helmet",X(offset,-side),At(offset),24,.85f);
-        }
-        if(row==8)return;
-        if(row>=7)return;
-        if(row<2){
-            if(row==1){
-                if(stage==1){
-                    foreach(int flank in sides){var oak=Tree(200+flank*126,At(25),1,1.1f);oak.variant="canopyPine";oak.lean=-9;oak.yaw=flank<0?0:180;}
-                }else Gate(200,At(12),160,scenario);
-            }
+        int key=fullStage*50+n;
+        float direction=Roll(seed,fullStage*5+section,644)<.5f?-1:1;
+        float start=fullStage*2500+n*50;
+        float At(float offset)=>(start+offset)*20;
+        float centre=200+direction*Mathf.Lerp(-50,54,Roll(seed,key,651));
+        float outside=200-direction*Mathf.Lerp(65,98,Roll(seed,key,652));
+        if(row==8||row==9)return; // Clear approach to the next scene.
+        if(row==0)return;
+        if(row==1){
+            if(stage==1){
+                foreach(int flank in sides){
+                    var oak=Tree(200+flank*126,At(25),1,1.1f);
+                    oak.variant="canopyPine";oak.lean=-9;oak.yaw=flank<0?0:180;
+                }
+            }else Gate(centre,At(12),150,scenario);
             return;
         }
-        float fast=X(24,side),quiet=X(24,-side),y=At(24);
-        void ForkGate(float x,float at,float gap,int color){
-            var gate=Gate(x,at,gap,color);bool precise=(x-200)*side>0;
-            gate.line=precise?CourseLine.Precision:CourseLine.Wide;gate.points=precise?45:18;
-        }
-        if(row==4||row==6)Entry(row==4?"gift":"magnet",X(15,row==4?side:-side),At(15),24,.85f);
-        if(row==2||row==5)ForkGate(X(7,side),At(7),91,row);
-        if(row==2||row==5)ForkGate(X(7,-side),At(7),119,row+1);
+        if(row==2)Entry(section%2==0?"thermos":"helmet",outside,At(23),24,.85f);
+        if(row==4||row==6)Entry(row==4?"gift":"magnet",outside,At(13),24,.85f);
+        if(row==2||row==5)Gate(centre,At(7),122,row);
+        if(row==7)return;
+        float at=At(29);
         if(stage==1){
-            // Timber chicane / ski school / canopy slalom / sled clearing / jump trail.
             switch(scenario){
                 case 0:
-                    Tree(200+side*(row%2==0?10:-12),y,row%3,1.08f);
-                    if(row%2==0)ForkGate(fast,At(38),89,row);break;
+                    Tree(outside,at,row%3,1.08f);
+                    if(row%2==0)Tree(outside+direction*21,At(34),1,.9f);
+                    break;
                 case 1:
-                    if(row%2==0){Person(fast,y,44,"kid",10,row);Person(fast+side*28,At(29),45,"instructor",10,row);}
-                    else Tree(200,y,1,1.16f);break;
+                    if(row%2==0){
+                        Person(centre,at,44,"kid",10,row);
+                        Person(centre+direction*28,At(35),45,"instructor",10,row);
+                    }else Tree(outside,at,1,1.16f);
+                    break;
                 case 2:
-                    if(row%2==1){foreach(int flank in sides){var tree=Tree(fast+flank*71,y+flank*15,1,1.01f);tree.variant="canopyFir";tree.lean=-12;tree.yaw=flank<0?0:180;}}
-                    else ForkGate(quiet,y,92,row);break;
+                    if(row%2==1)foreach(int flank in sides){
+                        var tree=Tree(centre+flank*71,at+flank*15,1,1.01f);
+                        tree.variant="canopyFir";tree.lean=-12;tree.yaw=flank<0?0:180;
+                    }else Tree(outside,at,1,1.05f);
+                    break;
                 case 3:
-                    if(row==3||row==6)TrailActor("snowmobile",y,(int)side);
-                    else{Tree(200,y,2,.94f);Tree(200+side*125,At(30),0,1.05f);}break;
+                    if(row==3||row==6)TrailActor("snowmobile",at,(int)direction);
+                    else{Tree(outside,at,2,.94f);Tree(200+direction*125,At(33),0,1.05f);}
+                    break;
                 default:
-                    if(row==3||row==6)Kicker(fast,y,53,76,.82f);
-                    else if(row%2==0)Tree(200,y,1,1.05f);
-                    else Person(200+side*110,y,47,"snowboarder",12,row);break;
+                    if(row==3||row==6)Kicker(centre,at,53,76,.82f);
+                    else if(row%2==0)Tree(outside,at,1,1.05f);
+                    else Person(200+direction*110,at,47,"snowboarder",12,row);
+                    break;
             }
         }else{
-            // Lamp slalom / working snowcat / Yeti crossing / kicker line / night club.
             switch(scenario){
-                case 0:ForkGate(fast+(row%2==0?15:-15),y,89,row);
-                    if(row%2==1)ForkGate(quiet,At(37),122,row+1);break;
-                case 1:if(row==3||row==6)Cat(fast,y,row==3?-48:62);else ForkGate(quiet,y,110,row);break;
-                case 2:if(row==3||row==6)TrailActor("mogulYeti",y,(int)side);else ForkGate(quiet,y,107,row);break;
+                case 0:if(row!=2&&row!=5)Gate(centre,at,102,row);break;
+                case 1:if(row==3||row==6)Cat(centre,at,row==3?-48:62);break;
+                case 2:if(row==3||row==6)TrailActor("mogulYeti",at,(int)direction);break;
                 case 3:
-                    if(row==3||row==6){var jump=Kicker(fast,y,68,98,.88f);jump.park=true;jump.span=18;jump.lift=1.65f;
-                        var ring=Entry("airRing",fast,y+49+180,62,.5f*jump.height+jump.lift+.9f,"ring0");ring.air=true;ring.points=45;}
-                    else ForkGate(quiet,y,116,row);break;
-                default:if(row%2==0)Person(fast,y,58,row==4?"skier":"snowboarder",14,row);else ForkGate(fast,y,100,row);break;
+                    if(row==3||row==6){
+                        var jump=Kicker(centre,at,68,98,.88f);
+                        jump.park=true;jump.span=18;jump.lift=1.65f;
+                        var ring=Entry("airRing",centre,at+49+180,62,.5f*jump.height+jump.lift+.9f,"ring0");
+                        ring.air=true;ring.points=45;
+                    }
+                    break;
+                default:if(row%2==0)Person(centre,at,58,row==4?"skier":"snowboarder",14,row);break;
             }
         }
     }

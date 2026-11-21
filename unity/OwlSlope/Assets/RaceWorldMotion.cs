@@ -140,6 +140,14 @@ public partial class RaceWorld {
         float width=Mathf.Clamp(o.amp*(o.sb?1.45f:1.22f)+.15f,.30f,2.45f);
         float edge=Mathf.Sin(rhythm);
         float target=o.originX+width*edge;
+        if(o.mergeGateMetre>0){
+            // A real downhill traverse: progress is the skier's own travelled distance.
+            // A player who slows down can watch the skier clear the opening.
+            float approach=Smooth((o.distance-o.mergeGateMetre+26)/22);
+            float exit=Smooth((o.distance-o.mergeGateMetre-3)/22);
+            target=Mathf.Lerp(o.originX,o.mergeGateLane+o.side*.88f,approach)
+                +o.side*exit*2.2f+width*edge*Mathf.Lerp(.18f,1,exit);
+        }
         float shoulder=Mathf.Min(8.5f,WidthAt(o.distance)*.5f-.55f);
         if(starting){
             o.lane=Mathf.Clamp(target,-shoulder,shoulder);

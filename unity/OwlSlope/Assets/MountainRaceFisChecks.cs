@@ -38,14 +38,21 @@ public partial class MountainRace {
         Check(earnedRules.Count==2&&earnedRules.Contains(1)&&earnedRules.Contains(2),"school passage failed at "+Status.metres);
         float schoolEdge=CheckFisPatrol(289);
         foreach(int n in new[]{5,6,7,9,10})Check(earnedRules.Contains(n),"missing stop rule "+n);
-        // Choose a continuous four-metre clearance on an actual moving boarder in the next class.
+        // Moving away after passing close cannot turn the encounter into a safe overtake.
+        var closeSkier=new RaceItem{kind="npc",pace=3.4f};
+        int passes=Status.polite,ruleCount=earnedRules.Count;
+        ObserveRider(closeSkier,19,4.2f);ObserveRider(closeSkier,.4f,2.2f);ObserveRider(closeSkier,-1.5f,3.7f);
+        SafePass(closeSkier);
+        Check(Status.polite==passes&&earnedRules.Count==ruleCount,"close pass granted a reward");
+        // Give the downhill school group room and rejoin at the next gate.
         Checkpoint(360,0);
         var boarder=World.Items.Find(o=>o.sb&&o.pace>0&&o.originD>=375&&o.originD<400);
         Check(boarder!=null,"moving boarder missing from the school");
-        float side=Mathf.Sign(boarder.lane);
-        Checkpoint(boarder.distance-22,boarder.lane-side*4.5f);
+        var nextGate=World.Items.Find(o=>o.kind=="gate"&&Mathf.Abs(o.originD-400)<.02f);
+        Check(nextGate!=null,"missing gate beyond school group");
+        Checkpoint(boarder.distance-22,nextGate.lane);
         for(int i=0;i<320&&!boarder.judged&&Status.phase=="play";i++){
-            DragSteer((boarder.lane-side*4.5f-dragStart)/(27*sensitivity));Advance(1f/60);
+            DragSteer((nextGate.lane-dragStart)/(27*sensitivity));Advance(1f/60);
         }
         Check(earnedRules.Contains(3)&&earnedRules.Contains(4),"safe line and overtake at "+Status.metres+" "+Status.phase);
         int first=Array.Find(Status.fisContexts,c=>c/1000==9);

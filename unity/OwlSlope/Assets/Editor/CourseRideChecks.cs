@@ -40,7 +40,7 @@ public static class CourseRideChecks {
                     if(s.metres<20100||stageSeen!=255||!s.rankedResult)
                         throw new InvalidOperationException("Continuous run ended early at "+s.metres+" m, stage "+s.stage+" lane "+race.Lane+" · "+s.message);
                     Debug.Log("CONTINUOUS LAP PASS seed 1911, ordinary start: "+s.metres+" m, eight stages, lap "+lap+
-                        ", "+s.coins+" mandarins, "+s.gates+" gates ("+s.preciseGates+" precision), "+s.rings+" rings ("+s.preciseRings+" precision), "+
+                        ", "+s.coins+" mandarins, "+s.gates+" gates, "+s.rings+" rings, "+
                         s.score+" points = "+s.scoreDistance+" distance + "+s.scoreFruit+" fruit + "+s.scoreGates+" gates + "+
                         s.scoreRings+" rings + "+s.scoreFis+" FIS, finish: "+s.message);
                     race=null;EditorApplication.Exit(0);return;

@@ -22,7 +22,6 @@ public partial class RaceWorld {
                 Add("aid",at,x,1.2f,.85f);
                 Person(200+20*(x+outer*2.45f),20*(at+1),0,"sitter",0,0);
             }else if(row%2==0&&i==3)Add("gift",at,x,1.2f,.85f);
-            else Add("coin",at,x,1.1f,0);
         }
         if(row%5==1){
             float at=start+37;

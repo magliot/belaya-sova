@@ -57,13 +57,14 @@ public partial class RaceWorld {
         return weight>0?Mathf.Lerp(lane,target/weight,Mathf.Min(weight,1)):lane;
     }
 
-    void PlanSummitTurns(Layout layout,float start,float delta){
-        // Lock the bypass before emitting any rewards in its approach. It stays fixed while in view.
+    void PlanSummitTurns(Layout layout,float delta){
+        // Plan the entire visit in the same order for a continuous descent and a direct seek.
+        if(summitTurns.Count!=0)return;
         foreach(var marker in layout.objects){
             if(marker.laneAt<=0||marker.y!=marker.laneAt||marker.type!="rock")continue;
             float at=(marker.y+delta)*.05f;
-            if(at<start-46||at>start+96||summitTurns.ContainsKey(at))continue;
-            float stone=(Mathf.Clamp(marker.laneBase+spawnLane*20,marker.laneMargin,400-marker.laneMargin)-200)*.05f;
+            float shift=Mathf.Lerp(-94,94,Roll(seed,Mathf.RoundToInt(at*20),716));
+            float stone=(Mathf.Clamp(marker.laneBase+shift,marker.laneMargin,400-marker.laneMargin)-200)*.05f;
             float natural=SummitBase(at),side=natural<stone?-1:1;
             if(Mathf.Abs(stone+side*2.95f)>6.3f)side=-side;
             float lane=Mathf.Abs(natural-stone)>=2.95f?natural:stone+side*2.95f;
@@ -87,9 +88,9 @@ public partial class RaceWorld {
 
     void Mountain(float y,int row){
         var layout=GetLayout(4,Mathf.FloorToInt(y/400000));
-        float original=200000+row*1000,delta=y-original,start=y*.05f;
+        float original=200000+row*1000,delta=y-original;
         if(row==0)summitTurns.Clear();
-        PlanSummitTurns(layout,start,delta);
+        PlanSummitTurns(layout,delta);
         foreach(var f in layout.objects){
             if(f.laneAt>0||f.y<original||f.y>=original+1000)continue;
             float at=f.y+delta,d=at*.05f,lane=SummitLine(d),x=(f.x-200)*.05f;
@@ -116,28 +117,17 @@ public partial class RaceWorld {
                 case "cat":Cat(Clear(5.7f),at,f.vy);break;
                 case "dog":Entry("dog",Clear(4.7f),at,24,.8f);break;
                 case "yeti":Entry("yeti",Clear(3.65f),at,38,2);break;
-                case "coin":Add("coin",d,lane,1.1f,0);break;
                 case "aid":case "gift":Add(f.type,d,lane,1.2f,.85f);break;
                 case "thermos":case "helmet":case "magnet":Entry(f.type,Clear(3.65f),at,24,.85f);break;
             }
         }
-        // Add the stone, its three mandarins and any downstream boulder as one group.
+        // Use the planned passage for each stone and its downstream boulders.
         foreach(var f in layout.objects){
-            if(f.laneAt<=0||f.laneAt<original||f.laneAt>=original+1000)continue;
+            if(f.type!="rock"||f.laneAt<=0||f.laneAt<original||f.laneAt>=original+1000)continue;
             float d=(f.y+delta)*.05f;
             var turn=summitTurns[(f.laneAt+delta)*.05f];
-            if(f.type=="coin")Add("coin",d,turn.lane,1.1f,0).bypass=true;
-            else if(f.type=="rock"){
-                float x=f.y==f.laneAt?turn.stone:BesideSummitLine((f.x-200)*.05f,SummitLine(d),2.75f);
-                Rock(200+20*x,f.y+delta,f.rockWide,f.r);
-            }
-        }
-        // Some of the archived sequences have no fruit between events. Leave a lead-in there.
-        for(int i=0;i<3;i++){
-            float d=start+8+16*i;
-            bool occupied=Array.Exists(layout.objects,o=>Mathf.Abs((o.y+delta)*.05f-d)<8&&
-                (o.type=="coin"||o.type=="aid"||o.type=="gift"));
-            if(!occupied)Add("coin",d,SummitLine(d),1.1f,0);
+            float x=f.y==f.laneAt?turn.stone:BesideSummitLine((f.x-200)*.05f,SummitLine(d),2.75f);
+            Rock(200+20*x,f.y+delta,f.rockWide,f.r);
         }
     }
     float SummitField(float d,float lane){

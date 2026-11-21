@@ -29,9 +29,48 @@ async function inventoryLimits(){
   assert.deepEqual(restored.data.tuning,{fireboard:2,carveSkis:2});
   assert.equal(restored.data.helmets,3);assert.equal(restored.data.coins,account.data.coins);
 }
+// Use the actual six finished rides exported by ShopBalanceChecks, including their earned fruit.
+async function checkEarnedKits(rides){
+  assert.equal(rides.length,6);
+  for(const [hero,kit] of [['owl','fireboard'],['bear','carveSkis']]){
+    const records=new Map(),storage={getItem:k=>records.get(k),setItem:(k,v)=>records.set(k,v)};
+    const open=()=>MountainSaves.create({channel:'progression',storage});
+    const profile=open();await profile.load();
+    profile.change(['hero'],d=>{d.hero=hero;});
+    const price=MountainSaves.price(profile.data,kit);assert.equal(price,215);
+    let collected=0,purchaseRide=0;
+    for(const [index,ride] of rides.entries()){
+      const id='earned-'+ride.seed;
+      const state={...ride,mode:'normal',phase:'over',rankedResult:true};
+      assert(profile.finish(id,state));
+      assert.equal(profile.finish(id,state),false);
+      collected+=ride.coins;
+      if(!purchaseRide){
+        assert.equal(profile.data.coins,collected);
+        const bought=profile.buy(kit);
+        assert.equal(bought,collected>=price);
+        if(bought){
+          purchaseRide=index+1;
+          assert.equal(profile.buy(kit),false);
+        }
+      }
+      assert.equal(profile.data.coins,collected-(purchaseRide?price:0));
+    }
+    assert(purchaseRide>=4&&purchaseRide<=6,'First purchase on ride '+purchaseRide);
+    const restored=open();await restored.load();
+    assert.equal(restored.data.gear[hero],kit);
+    assert.deepEqual(restored.data.ownedGear,[kit]);
+    assert.equal(restored.data.coins,collected-price);
+    console.log('EARNED KIT',kit,'ride',purchaseRide,'earned',collected,'price',price,'balance',restored.data.coins);
+  }
+}
 async function main(){
   await inventoryLimits();
   if(process.argv.includes('--inventory')){console.log('PASS inventory prices, caps, repeat purchase and reload');return;}
+  if(process.argv[2]==='--receipts'){
+    const file=process.argv[3]||path.join(os.tmpdir(),'OwlSaleRides.json');
+    await checkEarnedKits(JSON.parse(fs.readFileSync(file,'utf8')).rides);return;
+  }
   const {chromium}=require(process.env.DANCE_BROWSER_MODULE||'playwright');
   const root=new URL(process.argv[2]||'http://127.0.0.1:8784/progression-test/');
   assert(root.pathname.endsWith('/progression-test/'),'Use the isolated progression build');

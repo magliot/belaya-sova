@@ -93,7 +93,7 @@ public partial class MountainRace {
         foreach(var o in World.Items){
             if(o.consumed)continue;
             float dx=lane-o.lane,dy=d-o.distance,abs=Mathf.Abs(dx),ahead=-dy;
-            if(o.kind=="npc"&&!o.judged&&FisCourse)ObserveRider(o,ahead,dx);
+            if(o.kind=="npc"&&!o.judged)ObserveRider(o,ahead,dx);
             if(o.kind=="cat"||o.kind=="snowmobile"){
                 float vol=1-Mathf.Clamp01(Mathf.Sqrt(dx*dx*2.56f+dy*dy)/(o.kind=="cat"?56:35));
                 if(vol>Status.engineNear){Status.engineNear=vol;Status.enginePan=Mathf.Clamp(-dx/8,-.9f,.9f);}
@@ -114,9 +114,8 @@ public partial class MountainRace {
                 if(!o.judged&&cross){
                     o.judged=true;
                     float passage=(Mathf.Lerp(fromLane,lane,(o.distance-before)/Mathf.Max(.001f,d-before))-o.lane)*o.side;
-                    float reach=o.line==CourseLine.Precision?2.9f:o.line==CourseLine.Wide?5.5f:4.6f;
-                    if(fall<=0&&passage>1.0f&&passage<reach){
-                        Status.gates++;if(o.line==CourseLine.Precision)Status.preciseGates++;
+                    if(fall<=0&&passage>1.0f&&passage<4.6f){
+                        Status.gates++;
                         bonusPoints+=25*Mult;Cue("chime");
                     }
                 }break;
@@ -126,18 +125,18 @@ public partial class MountainRace {
                     o.judged=true;
                     float crossLane=Mathf.Lerp(fromLane,lane,(o.distance-before)/Mathf.Max(.001f,d-before));
                     if(fall>0)break;
-                    // Crossing the opposite fork is a valid choice even when both lines have gates.
-                    if(o.points>0&&crossLane*o.lane<0)break;
                     if(Mathf.Abs(crossLane-o.lane)<o.width*.5f){
                         Status.gates++;Status.combo++;consecutiveGates++;Status.maxCombo=Mathf.Max(Status.maxCombo,Status.combo);
-                        if(o.line==CourseLine.Precision)Status.preciseGates++;
-                        bonusPoints+=(25+(o.points>0&&consecutiveGates>=3?o.points:0))*Mult;Cue("gate");
-                    }else if(o.line==CourseLine.Ordinary){consecutiveGates=Status.combo=0;Cue("miss");}
+                        bonusPoints+=25*Mult;Cue("gate");
+                    }else {
+                        consecutiveGates=Status.combo=0;
+                        if(CourseMode!="normal")Cue("miss");
+                    }
                 }
                 break;
               case "airRing":
                 if(!o.judged&&(!o.needsTrick||(trickLine&&flightTricks>0))&&TouchAir(o,before,fromLane,Mathf.Max(.6f,o.width*.5f-.1f))){
-                    o.judged=true;Status.rings++;if(o.line==CourseLine.Precision)Status.preciseRings++;
+                    o.judged=true;Status.rings++;
                     bonusPoints+=Mathf.Max(1,o.points)*Mult;Notice("Воздушное кольцо!","gate");
                 }break;
               case "coin":case "thermos":case "helmet":case "magnet":case "feather":
@@ -195,8 +194,8 @@ public partial class MountainRace {
                 if(!o.judged&&dy>1.65f){
                     o.judged=true;
                     if(airborne)break;
-                    if(abs<2){if(Status.elapsed-lastClose>2.5f){lastClose=Status.elapsed;Status.combo=0;challengeClean=d;Notice("Объезжай с запасом","warn");}}
-                    else if(abs<7&&o.fisClearance>=2){Status.polite++;bonusPoints+=30*Mult;SafePass(o);}
+                    if(Mathf.Min(o.fisClearance,abs)<2){if(Status.elapsed-lastClose>2.5f){lastClose=Status.elapsed;Status.combo=0;challengeClean=d;Notice("Объезжай с запасом","warn");}}
+                    else SafePass(o);
                 }break;
               case "mogulYeti":case "snowmobile":
                 bool yeti=o.kind=="mogulYeti";

@@ -88,26 +88,18 @@ public partial class RaceWorld {
         float local=Mathf.Repeat(d,2500);
         return MogulLine(d)*Smooth(local/16)*Smooth((2457-local)/24);
     }
-    static float ColumnLane(int column,float width,float trail,float fork){
+    static float ColumnLane(int column,float width,float trail){
         float x=columns[column];
         if(Mathf.Abs(x)>11)return x;
         float lane=x*width/22;
-        if(fork>0){
-            // Pin two bands of the snow mesh to the lines of mandarins. The
-            // same vertices form both the marked snow and its collision surface.
-            float a=Mathf.Abs(x),middle=Mathf.Max(.95f,fork),half=.55f+.20f*Smooth(fork/3);
-            float offset=a<=3?Mathf.Lerp(0,middle-half,a/3):a<=4.5f?Mathf.Lerp(middle-half,middle+half,(a-3)/1.5f):
-                Mathf.Lerp(middle+half,width*.5f,(a-4.5f)/6.5f);
-            return Mathf.Lerp(lane,Mathf.Sign(x)*offset,Smooth(fork/.9f));
-        }
         return lane+trail*(1-Smooth((Mathf.Abs(x)-1.5f)/9.5f));
     }
     // Use the very triangles drawn under the runner, including banks, moguls and narrow forest stretches.
     public Vector3 SnowSurface(float d,float lane){
         float lower=Mathf.Floor(d*.5f)*2,t=(d-lower)*.5f;
         float width0=WidthAt(lower),width1=WidthAt(lower+2);
-        float trail0=MeshTrail(lower),trail1=MeshTrail(lower+2),fork0=ForkTrack(lower),fork1=ForkTrack(lower+2);
-        float LaneAt(int j)=>Mathf.Lerp(ColumnLane(j,width0,trail0,fork0),ColumnLane(j,width1,trail1,fork1),t);
+        float trail0=MeshTrail(lower),trail1=MeshTrail(lower+2);
+        float LaneAt(int j)=>Mathf.Lerp(ColumnLane(j,width0,trail0),ColumnLane(j,width1,trail1),t);
         int lo=0,hi=columns.Length-1;
         while(hi-lo>1){int mid=(lo+hi)/2;if(lane<LaneAt(mid))hi=mid;else lo=mid;}
         float u=Mathf.InverseLerp(LaneAt(lo),LaneAt(hi),lane);
@@ -118,8 +110,8 @@ public partial class RaceWorld {
             p00=snowVertices[a];p10=snowVertices[a+1];p01=snowVertices[b];p11=snowVertices[b+1];
         }else{
             // A seeded row can queue a jump beyond the end of the current snow patch.
-            p00=SampleGround(lower,ColumnLane(lo,width0,trail0,fork0));p10=SampleGround(lower,ColumnLane(hi,width0,trail0,fork0));
-            p01=SampleGround(lower+2,ColumnLane(lo,width1,trail1,fork1));p11=SampleGround(lower+2,ColumnLane(hi,width1,trail1,fork1));
+            p00=SampleGround(lower,ColumnLane(lo,width0,trail0));p10=SampleGround(lower,ColumnLane(hi,width0,trail0));
+            p01=SampleGround(lower+2,ColumnLane(lo,width1,trail1));p11=SampleGround(lower+2,ColumnLane(hi,width1,trail1));
         }
         return u+t<=1?p00+(p10-p00)*u+(p01-p00)*t:p11+(p01-p11)*(1-u)+(p10-p11)*(1-t);
     }
@@ -137,33 +129,32 @@ public partial class RaceWorld {
         var points=new Vector3[rows*cols];var uv=new Vector2[points.Length];
         if(!terrain){
             var go=new GameObject("Groomed run");go.transform.SetParent(transform,false);
-            terrain=new Mesh{name="Streaming piste"};terrain.MarkDynamic();terrain.subMeshCount=4;go.AddComponent<MeshFilter>().sharedMesh=terrain;
+            terrain=new Mesh{name="Streaming piste"};terrain.MarkDynamic();terrain.subMeshCount=3;go.AddComponent<MeshFilter>().sharedMesh=terrain;
             pisteMat=SnowPaint("Piste",new Color(.91f,.94f,.98f));bankMat=SnowPaint("Powder",new Color(.85f,.90f,.96f));
             var packed=SnowPaint("Piste",new Color(.65f,.82f,.91f));
-            var tracks=Resources.Load<Material>("SlopeForkTracks");
-            go.AddComponent<MeshRenderer>().sharedMaterials=new[]{pisteMat,bankMat,packed,tracks};
+            go.AddComponent<MeshRenderer>().sharedMaterials=new[]{pisteMat,bankMat,packed};
         }
         bool reindex=terrain.GetIndexCount(0)==0;
         for(int i=0;i<rows;i++){
-            float d=centre-50+2*i,half=WidthAt(d)*.5f,trail=MeshTrail(d),fork=ForkTrack(d);
+            float d=centre-50+2*i,half=WidthAt(d)*.5f,trail=MeshTrail(d);
             if(i<rows-1){
-                byte mark=fork>.14f?(byte)2:mode=="normal"&&StageAt(d)==2&&Mathf.Repeat(d,2500)<2457?(byte)1:(byte)0;
+                byte mark=mode=="normal"&&StageAt(d)==2&&Mathf.Repeat(d,2500)<2457?(byte)1:(byte)0;
                 if(mark!=markings[i]){markings[i]=mark;reindex=true;}
             }
             for(int j=0;j<cols;j++){
-                float x=ColumnLane(j,half*2,trail,fork);
+                float x=ColumnLane(j,half*2,trail);
                 points[i*cols+j]=SampleGround(d,x);uv[i*cols+j]=new Vector2(x/4.2f,d/10);
             }
         }
         snowVertices=points;firstSnowRow=centre-50;
         terrain.vertices=points;terrain.uv=uv;
         if(reindex){
-            var middle=new List<int>(rows*84);var banks=new List<int>(rows*48);var packed=new List<int>();var tracks=new List<int>();
+            var middle=new List<int>(rows*84);var banks=new List<int>(rows*48);var packed=new List<int>();
             for(int i=0;i<rows-1;i++)for(int j=0;j<cols-1;j++){int a=i*cols+j;
-                var indices=markings[i]==1&&(j==10||j==11)?packed:markings[i]==2&&(j==8||j==13)?tracks:j>=4&&j<18?middle:banks;
+                var indices=markings[i]==1&&(j==10||j==11)?packed:j>=4&&j<18?middle:banks;
                 indices.Add(a);indices.Add(a+cols);indices.Add(a+1);
                 indices.Add(a+1);indices.Add(a+cols);indices.Add(a+cols+1);}
-            terrain.SetTriangles(middle,0,false);terrain.SetTriangles(banks,1,false);terrain.SetTriangles(packed,2,false);terrain.SetTriangles(tracks,3,false);
+            terrain.SetTriangles(middle,0,false);terrain.SetTriangles(banks,1,false);terrain.SetTriangles(packed,2,false);
         }
         terrain.RecalculateNormals();terrain.RecalculateBounds();
     }

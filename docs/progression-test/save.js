@@ -21,7 +21,7 @@
     ['score','Очки','score',[1500,4000,8000,15000]],['stage','Этап','stage',[2,3,4,6]],
     ['feather','Золотые перья','feathers',[1,1,2,2]]];
   const upgrades=[280,385,510,660,850];
-  const gearPrice=340,helmetPrice=50;
+  const gearPrice=215,helmetPrice=50;
   defaults.gear={owl:'standard',bear:'standard'};
   defaults.ownedGear=[];defaults.tuning={fireboard:0,carveSkis:0};
   const clone=v=>JSON.parse(JSON.stringify(v));
@@ -262,8 +262,9 @@
         const queue=profile.pendingScores;
         if(!queue.some(row=>row.runId===id))profile.savePending([...queue,{runId:id,scoring:2,score:count(s.score),
           dist:count(s.metres),dur:+Number(s.elapsed).toFixed(1),hero:s.hero,stage:count(s.stage)+1,
-          coins:count(s.coins),gates:count(s.gates),rings:count(s.rings),preciseGates:count(s.preciseGates),
-          preciseRings:count(s.preciseRings),rules:s.fis?.length||0}]);
+          // Keep the receipt compatible with already queued results from the fork-based course.
+          coins:count(s.coins),gates:count(s.gates),rings:count(s.rings),preciseGates:0,
+          preciseRings:0,rules:s.fis?.length||0}]);
         return (await flush()).get(id)||null;
       }
     };
