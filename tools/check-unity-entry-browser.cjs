@@ -47,7 +47,8 @@ async function freshTelegramStart(browser,platform){
     await page.goto(url.href,{waitUntil:'commit'});
     await page.waitForURL(u=>u.pathname===root.pathname+'unity/',{timeout:60000});
     await page.locator('#play').waitFor({timeout:180000});
-    assert.equal(await page.locator('#profileName').innerText(),user.first_name);
+    assert.equal(await page.evaluate(()=>Telegram.WebApp.initDataUnsafe.user.id),user.id);
+    assert.equal((await page.locator('#mast').textContent()).trim(),'Белая Сова');
     assert.equal(await page.locator('#best').innerText(),'0');
     const localHelmets=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('bsova_tg9082_unity_release_v1')).data.helmets);
     if(platform==='ios'){

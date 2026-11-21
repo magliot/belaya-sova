@@ -48,7 +48,7 @@ public partial class MountainRace {
         enter=Mathf.Max(enter,Mathf.Min(a,b));exit=Mathf.Min(exit,Mathf.Max(a,b));
         return enter<=exit;
     }
-    bool HandleSolid(RaceItem o,float before,float fromLane,float halfWidth,float halfLength,float height,float post=0,bool round=false){
+    bool TouchesBody(RaceItem o,float before,float fromLane,float halfWidth,float halfLength,float height,float post,bool round){
         // Both bodies move during a physics tick. Clip first to the height interval,
         // then test the corresponding part of the sweep against the footprint.
         float enter=0,exit=1;
@@ -68,6 +68,10 @@ public partial class MountainRace {
                 hit=(p+t*delta).sqrMagnitude<=1;
             }else hit=ClipContact(p.x,q.x,-1,1,ref enter,ref exit)&&ClipContact(p.y,q.y,-1,1,ref enter,ref exit);
         }
+        return hit;
+    }
+    bool HandleSolid(RaceItem o,float before,float fromLane,float halfWidth,float halfLength,float height,float post=0,bool round=false){
+        bool hit=TouchesBody(o,before,fromLane,halfWidth,halfLength,height,post,round);
         if(hit&&!o.touchingPlayer){o.judged=true;Hit(o.kind);}
         o.touchingPlayer=hit;
         return hit;
@@ -120,7 +124,15 @@ public partial class MountainRace {
                     }
                 }break;
               case "gate":
-                if(!o.stoneGate&&HandleSolid(o,before,fromLane,.105f,.12f,1.65f,Mathf.Sign(dx)*o.width*.5f))break;
+                if(!o.judged&&!o.stoneGate){
+                    int side=dx<0?-1:1;
+                    bool cone=o.variant=="trainingCones";
+                    if(TouchesBody(o,before,fromLane,cone?.395f:.105f,cone?.395f:.12f,cone?1.145f:1.65f,side*o.width*.5f,false)){
+                        o.judged=true;consecutiveGates=Status.combo=0;
+                        if(cone){o.knockedConeSide=side;o.coneHitAt=Status.elapsed;}
+                        break;
+                    }
+                }
                 if(!o.judged&&cross){
                     o.judged=true;
                     float crossLane=Mathf.Lerp(fromLane,lane,(o.distance-before)/Mathf.Max(.001f,d-before));
@@ -175,12 +187,12 @@ public partial class MountainRace {
               case "aid":
                 if(square<1.69f){o.Consume();bonusPoints+=80*Mult;Notice("Аптечка подобрана","power");}break;
               case "snowman":
-                if(BonusMode&&Altitude<1.5f&&square<2.25f){o.Consume();Burst(o,false);Status.snowmen++;BonusReward(90);Notice("Снеговик!","smash");}
+                if(BonusMode&&Altitude<1.5f&&square<2.25f){ScatterSnowman(o);o.Consume();Status.snowmen++;BonusReward(90);Notice("Снеговик!","smash");}
                 else if(o.variant=="snowman")HandleSolid(o,before,fromLane,.89f,.72f,2.50f,0,true);
                 else HandleSolid(o,before,fromLane,.62f,.52f,1.67f,0,true);break;
               case "ball":
-                if(square<1.03f*1.03f&&Mathf.Abs(o.height-(Altitude+1.02f))<.82f){
-                    o.Consume();Burst(o,false);Cue("snowball");
+                if(SnowballContact(o,before,fromLane)){
+                    o.judged=true;o.Consume();Burst(o,false);Cue("snowball");
                 }break;
               case "dog":
                 HandleSolid(o,before,fromLane,.20f,.40f,.8f,0,true);break;

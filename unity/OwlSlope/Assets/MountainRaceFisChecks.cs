@@ -6,7 +6,8 @@ public partial class MountainRace {
     float CheckFisPatrol(float station){
         Checkpoint(station-22,0);chaseNext=station+900;chaseLeft=0;
         var sitter=World.Items.Find(o=>o.sit&&Mathf.Abs(o.distance-station)<2);
-        Check(sitter!=null&&sitter.patrolPatient&&sitter.rescueBay,"patient or shoulder marker missing at "+station);
+        Check(sitter!=null&&sitter.patrolPatient&&World.Items.Exists(o=>o.kind=="aid"&&Mathf.Abs(o.distance-station)<2),
+            "patient or first-aid kit missing at "+station);
         float edge=Shoulder(sitter);
         Checkpoint(station-18,0);FisAction("stop");FisAction("patrol");FisAction("witness");
         Check(patrol==PatrolPhase.Riding,"patrol called from the centre");

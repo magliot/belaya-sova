@@ -24,23 +24,35 @@ public partial class RaceWorld {
     }
     void LaunchSnowball(RaceItem sender,float player){
         int id=Mathf.RoundToInt(sender.originD*20)+Mathf.RoundToInt(sender.originX*100);
-        float duration=Mathf.Clamp((sender.distance-player)/Mathf.Max(8,targetSpeed+8),.48f,1.12f);
+        float duration=Mathf.Clamp((sender.distance-player)/Mathf.Max(8,targetSpeed+9),.46f,.86f);
         float along=player+targetSpeed*duration;
-        float across=Mathf.Clamp(targetLane+targetSideSpeed*duration,-12,12);
         float scatter=Roll(seed,id,402)*2-1;
-        // Lead a steady traverse. After release the throw is ballistic so a late change of edge can dodge it.
-        across+=scatter*.27f;
+        bool wide=Roll(seed,id,404)<.05f;
+        float offset=wide?(scatter<0?-3.4f:3.4f):scatter*.18f;
+        float across=LeadThrow(duration)+offset;
         float hand=Mathf.Sign(across-sender.lane)*(sender.variant=="snowman"?.77f:.50f);
         float height=sender.variant=="snowman"?1.5f:1.04f;
         var ball=Add("ball",sender.distance,sender.lane+hand,.42f,height);
         ball.throwStartHeight=height;ball.throwEndHeight=targetAltitude+1.02f;
-        ball.throwEnd=new Vector2(across,along);ball.throwDuration=duration;ball.scale=1.35f;
+        ball.throwEnd=new Vector2(across,along);ball.throwDuration=duration;ball.throwAimOffset=offset;ball.scale=1.35f;
         Place(ball);
     }
-    void MoveSnowball(RaceItem ball,float dt){
+    float LeadThrow(float remaining){
+        return Mathf.Clamp(targetLane+Mathf.Clamp(targetSideSpeed*remaining,-3.4f,3.4f),-12,12);
+    }
+    void MoveSnowball(RaceItem ball,float player,float dt){
+        ball.previousBallHeight=ball.height;
         ball.age+=dt;
         float t=ball.age/ball.throwDuration;
-        // Continue the same ballistic arc past a missed rider until it reaches the snow.
+        // Carry the current carve into the first part of the arc. The final approach
+        // is committed, so the snowball crosses the rider visibly instead of snapping to them.
+        float remaining=ball.throwDuration-ball.age;
+        if(remaining>.17f){
+            float blend=1-Mathf.Exp(-dt*18);
+            var aim=new Vector2(LeadThrow(remaining)+ball.throwAimOffset,player+targetSpeed*remaining);
+            ball.throwEnd=Vector2.Lerp(ball.throwEnd,aim,blend);
+            ball.throwEndHeight=Mathf.Lerp(ball.throwEndHeight,targetAltitude+1.02f,blend);
+        }
         ball.lane=Mathf.LerpUnclamped(ball.originX,ball.throwEnd.x,t);
         ball.distance=Mathf.LerpUnclamped(ball.originD,ball.throwEnd.y,t);
         ball.height=Mathf.LerpUnclamped(ball.throwStartHeight,ball.throwEndHeight,t)

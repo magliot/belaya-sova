@@ -118,7 +118,10 @@ public partial class RaceWorld {
     void Training(int n,float y){
         float R(int k)=>Roll(seed,n,k);
         int side=R(13)<.5f?-1:1;
-        if(n%8==1)Entry("cannon",n%16==1?38:362,y+420,28,2,n%16==1?"cannonLeft":"cannonRight");
+        if(n%4==1||n%8==3){
+            bool left=n%8==1;
+            Entry("cannon",left?38:362,y+420,28,2,left?"cannonLeft":"cannonRight");
+        }
         if(n%12==4)Rescue(94,y+780);
         float offset=560+Mathf.Floor(R(9)*260),open=200-side*(52+R(6)*34);
         string kind=n==0?"tube":n==1?"gate":n%12==2?"snowman":n%12==7?"cat":n%6==4?"rest":n%3==0?"tube":R(2)<.48f?"gate":R(3)<.52f?"tube":"snowman";

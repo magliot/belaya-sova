@@ -22,15 +22,14 @@ public static class RiderCourseChecks {
         try{Verify(race,true);EditorApplication.Exit(0);}
         catch(Exception error){Debug.LogException(error);EditorApplication.Exit(2);}
     }
-    static void Shot(Camera camera,string name){
-        int w=540,h=800;
+    internal static void Shot(Camera camera,string name,string directory=null,int w=540,int h=800){
         var old=camera.targetTexture;var prev=RenderTexture.active;float aspect=camera.aspect;
         var rt=RenderTexture.GetTemporary(w,h,24,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Default,4);
         var image=new Texture2D(w,h,TextureFormat.RGB24,false);
         try{
             camera.aspect=(float)w/h;camera.targetTexture=rt;camera.Render();RenderTexture.active=rt;
             image.ReadPixels(new Rect(0,0,w,h),0,0);image.Apply();
-            var dir=Path.GetFullPath(Path.Combine(Application.dataPath,"../../../course-checks/mountain-race/riders-20i"));
+            var dir=directory??Path.GetFullPath(Path.Combine(Application.dataPath,"../../../course-checks/mountain-race/riders-20i"));
             Directory.CreateDirectory(dir);File.WriteAllBytes(Path.Combine(dir,name+".png"),image.EncodeToPNG());
         }finally{
             camera.targetTexture=old;camera.aspect=aspect;RenderTexture.active=prev;

@@ -129,7 +129,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1287382822}
   - component: {fileID: 1287382821}
-  - component: {fileID: 1287382823}
   - component: {fileID: 1287382824}
   m_Layer: 0
   m_Name: Mountain race
@@ -150,18 +149,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8d383c183d055b0d92bae6fb1138214c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MountainRace
---- !u!114 &1287382823
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1287382820}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2213639afd185494a47c9d7caed52ead, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MountainDances
 --- !u!114 &1287382824
 MonoBehaviour:
   m_ObjectHideFlags: 0

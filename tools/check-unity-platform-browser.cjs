@@ -91,6 +91,13 @@ async function main(){
     if(!process.argv[2]){
       const sample={phase:'play',hero:'owl',mode:'normal',metres:2520,stage:1,elapsed:10.3,speed:57,score:123456,helmets:1,coins:12,multiplier:3,gates:4};
       const hud=fields=>p.evaluate(s=>onMountainState(s),{...sample,...fields});
+      await hud({score:42,scoreDistance:42,riderScreenX:.47,riderScreenY:.61});
+      await hud({score:43,scoreDistance:43,riderScreenX:.47,riderScreenY:.61});
+      assert.equal(await p.locator('#rewardFloats b').count(),0);
+      await hud({score:46,scoreDistance:43,riderScreenX:.47,riderScreenY:.61});
+      assert.equal(await p.locator('#rewardFloats b').last().innerText(),'+3');
+      await hud({score:56,scoreDistance:45,riderScreenX:.52,riderScreenY:.61});
+      assert.equal(await p.locator('#rewardFloats b').last().innerText(),'+8');
       await hud({boost:true,boostSeconds:3.4});
       assert.equal(await p.locator('#stage').innerText(),'2 · Лесная тропа');
       assert.equal(await p.locator('#metres').innerText(),'2520 м');assert.equal(await p.locator('#pace').innerText(),'57 км/ч');
@@ -153,7 +160,10 @@ async function main(){
       await p.locator('#panelBody summary').nth(8).click();assert.match(await p.locator('details[open]').innerText(),/аптечка/);
     }
     await back();
-    await menu('dances');assert(await p.locator('#panelBody').getByRole('button',{name:'Ёлочка'}).isEnabled());await back();
+    assert.equal(await p.locator('#dances,#mast button,#mast .sign').count(),0);
+    assert.equal(await p.locator('#mast h1').textContent(),'Белая Сова');
+    await menu('settings');await p.getByRole('button',{name:'Выключить звук',exact:true}).click();
+    await p.getByRole('button',{name:'Включить звук',exact:true}).click();await back();
     await menu('settings');await nav('Замеры');await p.locator('dialog[open]').waitFor();await back();await p.locator('dialog').waitFor({state:'detached'});
     await nav('Лист моделей');await p.locator('.catalog-grid').waitFor();
     assert.equal(await p.locator('.catalog-grid button').count(),65);
@@ -196,7 +206,7 @@ async function main(){
     if(!process.argv[2])assert.deepEqual(old,legacy);
     assert(!posts.includes('unity'));assert((await p.evaluate(()=>hostEvents)).includes('web_app_ready'));
     assert.deepEqual(errors,[]);
-    console.log('PASS earned legacy owl + feather, best and both bonuses survive; missions/shop/FIS/letters/dances/model catalog/review and 1080x1350 share preview; Telegram SDK Back, resize 565 px, minimize, return, explicit resume, restart, isolated writes; '+(process.argv[2]?'Unity Web':'native callbacks simulated'));
+    console.log('PASS earned legacy owl + feather, best and both bonuses survive; missions/shop/FIS/letters/settings/model catalog/review and 1080x1350 share preview; Telegram SDK Back, resize 565 px, minimize, return, explicit resume, restart, isolated writes; '+(process.argv[2]?'Unity Web':'native callbacks simulated'));
   }catch(error){
     const state=await p.evaluate(()=>({page:location.pathname,visible:[...document.querySelectorAll('section')].filter(el=>!el.hidden).map(el=>el.id),
       label:document.getElementById('loadText')?.innerText,metres:document.getElementById('metres')?.innerText})).catch(()=>null);

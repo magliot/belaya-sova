@@ -27,7 +27,7 @@ public partial class MountainRace {
         if(crashTimer>0){
             crashTimer-=dt;speed*=Mathf.Pow(.15f,dt);
             World.Refresh(s.metres,s.elapsed,lane,drawWorld);
-            if(crashTimer<=0){s.rankedResult=settings.mode=="normal"&&s.mode=="normal";Finish(false,s.message);}return;
+            if(crashTimer<=0){s.rankedResult=settings.mode=="normal"&&s.mode=="normal";Finish(false,s.message,fell:true);}return;
         }
         if(BonusMode)s.elapsed=Mathf.Min(BonusSeconds,s.elapsed);
         if(s.elapsed>noticeUntil)s.message="";

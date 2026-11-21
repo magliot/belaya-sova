@@ -53,10 +53,9 @@ public partial class MountainRace {
         }
     }
     GameObject tube,sled;
-    float camLane,camY;
+    float camLane,camY,camLead;
     float menuYaw,menuVelocity,menuMouseX;
     bool spinHeld;
-    MountainDances dances;
     string activeEquipment;
     static void Discard(UnityEngine.Object generated){
         if(Application.isPlaying)Destroy(generated);else DestroyImmediate(generated);
@@ -68,7 +67,6 @@ public partial class MountainRace {
         // The chase and portrait cameras both stand metres from the rider. Give the
         // depth buffer more precision where skis, treads and snow meet down the slope.
         View.nearClipPlane=.35f;View.farClipPlane=250f;
-        dances=GetComponent<MountainDances>();
         actorRoot=new GameObject("Selected rider").transform;actorRoot.SetParent(transform,false);
         SetupWeather();SetupTracks();
         var contact=new GameObject("Ground contact");menuShadow=contact.transform;menuShadow.SetParent(actorRoot,false);
@@ -240,9 +238,7 @@ public partial class MountainRace {
     }
     void RenderMenu(float dt){
         if(!menuModel)return;
-        if(dances&&dances.IsDancing){
-            spinHeld=false;menuVelocity=0;menuYaw=Mathf.LerpAngle(menuYaw,0,Mathf.Clamp01(dt*6));
-        }else if(!spinHeld&&Mathf.Abs(menuVelocity)>.001f){
+        if(!spinHeld&&Mathf.Abs(menuVelocity)>.001f){
             // Match the old .94 damping per 60Hz frame, including at mobile frame rates.
             float damping=Mathf.Pow(.94f,dt*60);
             menuYaw+=menuVelocity*(1-damping)/.06f;menuVelocity*=damping;
@@ -259,7 +255,7 @@ public partial class MountainRace {
         UpdateWeather();
     }
     public void MenuSpin(float dx){
-        if(!IsMenu||(dances&&dances.IsDancing))return;
+        if(!IsMenu)return;
         spinHeld=true;menuVelocity=-dx*.012f*Mathf.Rad2Deg;menuYaw+=menuVelocity;
         RenderMenu(0);
     }
@@ -334,14 +330,23 @@ public partial class MountainRace {
             // Bring its leading boot and gaze onto the course's downhill +Z axis together.
             rideModel.localRotation=Quaternion.Euler(0,Hero=="bear"?0:90,0);
         }
-        float follow=snap?1:Mathf.Min(1,dt*5);camLane=Mathf.Lerp(camLane,lane,follow);
-        // At the shoulder the wide camera can pan towards the piste. A portrait camera must keep the rider in frame.
-        float shoulderFollow=(1-Mathf.InverseLerp(.55f,.95f,View.aspect))*StepBlend((Mathf.Abs(camLane)-4)/4);
-        Vector3 eye=World.SampleGround(d-6.4f,camLane*Mathf.Lerp(.63f,.95f,shoulderFollow));
-        float targetY=eye.y+2.65f+alt*.48f;
-        camY=Mathf.Lerp(camY,targetY,snap?1:Mathf.Min(1,dt*7));eye.y=camY;
-        Vector3 aim=World.SampleGround(d+7.7f,camLane*Mathf.Lerp(.72f,.87f,shoulderFollow))+Vector3.up*(1.12f+alt*.48f);
-        View.fieldOfView=Mathf.Lerp(View.fieldOfView,boost>0?78:72,snap?1:Mathf.Min(1,dt*3));
+        float follow=snap?1:1-Mathf.Exp(-8*dt);
+        camLane=Mathf.Lerp(camLane,lane,follow);
+        float portrait=1-Mathf.InverseLerp(.56f,1.0f,View.aspect);
+        float pace=Mathf.InverseLerp(13,29,speed);
+        float shoulderFollow=portrait*StepBlend((Mathf.Abs(camLane)-4)/4);
+        float setback=7.25f+portrait*1.15f+pace*.85f;
+        Vector3 eye=World.SampleGround(d-setback,camLane*Mathf.Lerp(.70f,.97f,shoulderFollow));
+        float targetY=eye.y+3.1f+portrait*.45f+pace*.35f+alt*.48f;
+        camY=Mathf.Lerp(camY,targetY,snap?1:1-Mathf.Exp(-9*dt));eye.y=camY;
+        // Show the landing lane while the rider is changing edges. At the outer shoulder the
+        // sightline stops at the usable piste, so the rider and the way back remain visible.
+        float leadTarget=patrol==PatrolPhase.Riding&&!Review?Mathf.Clamp((velocity+slip)*.24f,-2.8f,2.8f):0;
+        camLead=Mathf.Lerp(camLead,leadTarget,snap?1:1-Mathf.Exp(-6*dt));
+        float lookAhead=10+portrait+pace*3.5f;
+        float aimLane=Mathf.Clamp(camLane*Mathf.Lerp(.80f,.91f,shoulderFollow)+camLead,-LaneLimit(d)-.2f,LaneLimit(d)+.2f);
+        Vector3 aim=World.SampleGround(d+lookAhead,aimLane)+Vector3.up*(.85f+alt*.48f);
+        View.fieldOfView=Mathf.Lerp(View.fieldOfView,72+portrait*2+4*pace,snap?1:1-Mathf.Exp(-3*dt));
         if(patrol==PatrolPhase.Looking){
             float glance=Mathf.Sin(Mathf.PI*Mathf.Clamp01((Status.elapsed-lookSince)/1.05f));
             aim=Vector3.Lerp(aim,World.SampleGround(d-10,lane*.5f)+Vector3.up,glance);

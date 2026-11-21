@@ -13,6 +13,8 @@ public sealed class RaceItem {
     internal float landedAt=-10;
     internal float turnRate,glidePace,sprayDistance=float.NaN;
     internal float mergeGateMetre,mergeGateLane;
+    internal int knockedConeSide;
+    internal float coneHitAt;
     internal int route;
     internal bool leap,small,decor;
     internal bool movingPoseReady;
@@ -22,12 +24,12 @@ public sealed class RaceItem {
     internal float fisClearance=float.PositiveInfinity;
     internal float previousLane,previousDistance,previousOffset;
     internal Vector2 throwEnd;
-    internal float throwDuration,throwEndHeight,throwStartHeight;
+    internal float throwDuration,throwEndHeight,throwStartHeight,throwAimOffset,previousBallHeight;
     internal GameObject obj;
-    internal GameObject prints,rescueBay;
+    internal GameObject prints;
     internal Mesh printMesh;
     internal int printCount=-1;
-    public Renderer Visual=>obj?obj.GetComponent<Renderer>():null;
+    public Renderer Visual=>obj?(variant=="trainingCones"?obj.GetComponentInChildren<Renderer>():obj.GetComponent<Renderer>()):null;
     internal SkinnedMeshRenderer skin;
     internal ParticleSystem spray;
     public void Consume(){consumed=true;if(obj)obj.SetActive(false);}
@@ -67,7 +69,6 @@ public partial class RaceWorld : MonoBehaviour {
         if(Application.isPlaying)Destroy(value);else DestroyImmediate(value);
     }
     void Release(RaceItem item){
-        if(item.rescueBay)DisposeOwned(item.rescueBay);
         if(item.prints){DisposeOwned(item.printMesh);DisposeOwned(item.prints);}
         if(!item.obj)return;
         if(item.kind=="ramp"||item.kind=="rail"){
@@ -118,15 +119,18 @@ public partial class RaceWorld : MonoBehaviour {
                 o.previousLane=o.lane;o.previousDistance=o.distance;o.previousOffset=o.offset;o.positioned=true;
             }
             if(draw||!o.obj)Place(o);
+            if(draw&&o.knockedConeSide!=0)PoseKnockedCone(o,elapsed);
         }
         lastDistance=distance;lastTime=elapsed;
     }
     internal RaceItem Add(string kind,float d,float x,float width,float height,string visual=null){
+        if(kind=="gate"&&mode=="normal"&&StageAt(d)==0&&visual!="stoneGate")visual="trainingCones";
         var o=new RaceItem{kind=kind,variant=visual??kind,distance=d,originD=d,lane=x,originX=x,width=width,height=height};Items.Add(o);return o;
     }
     GameObject GetVisual(RaceItem o){
         if(o.kind=="ramp"||o.kind=="rail")return Ramp(o);
         if(pool.TryGetValue(o.variant,out var stack)&&stack.Count>0){var reuse=stack.Pop();reuse.SetActive(true);return reuse;}
+        if(o.variant=="trainingCones")return CreateConePair();
         return o.variant.StartsWith("forestCard")?ForestCard(o.variant):CreateVisual(o.variant,transform);
     }
     void Place(RaceItem o){
@@ -134,9 +138,10 @@ public partial class RaceWorld : MonoBehaviour {
         if(o.obj&&!Moves(o.kind))return;
         if(!o.obj){
             o.obj=GetVisual(o);o.skin=o.obj.GetComponent<SkinnedMeshRenderer>();o.obj.name=o.kind+" · "+o.variant;
+            if(o.variant=="trainingCones"){StandCones(o);return;}
             if(o.kind=="festivalFountain")StartFountain(o);
             if(o.kind=="fence")SetDetourArrow(o);
-            if(o.patrolPatient)MarkRescueBay(o);
+            if(o.kind=="coin"||o.kind=="airRing")SetNightGlow(o);
             if(o.kind=="cannon"){
                 o.spray=o.obj.GetComponentInChildren<ParticleSystem>();
                 if(!o.spray)AddCannonSpray(o);

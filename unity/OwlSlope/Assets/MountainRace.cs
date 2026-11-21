@@ -19,7 +19,7 @@ public partial class MountainRace : MonoBehaviour {
             feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds,horns;
         public float metres,elapsed,engineNear,enginePan,avalanche,blizzard,edge,boostSeconds,magnetSeconds,chaseSeconds,chaseGap;
         public int letterSide,bonusLocation;
-        public float riderLane;
+        public float riderLane,riderScreenX=.5f,riderScreenY=.65f;
         public int scoreDistance,scoreFruit,scoreGates,scoreRings,scoreFis;
         public bool rankedResult;
         public bool air,boost,feather,goldenOwl,tubingUnlocked,sledUnlocked;
@@ -211,6 +211,10 @@ public partial class MountainRace : MonoBehaviour {
         Status.score=CourseMode=="normal"?Status.scoreDistance+Status.scoreFruit+Status.scoreGates+Status.scoreRings+Status.scoreFis:Status.scoreDistance+bonusPoints;
         Status.speed=Mathf.RoundToInt(speed*3.6f);
         Status.air=airborne;Status.boost=boost>0;Status.edge=angle;Status.riderLane=lane;
+        if(Status.phase=="play"&&View&&actorRoot){
+            var rider=View.WorldToViewportPoint(actorRoot.position+Vector3.up*.8f);
+            Status.riderScreenX=rider.x;Status.riderScreenY=1-rider.y;
+        }
         Status.courseMode=CourseMode;
         Status.bonusLocation=Status.metres<580?0:Status.metres<1190?1:2;
         Status.boostSeconds=Mathf.Max(0,boost);Status.magnetSeconds=Mathf.Max(0,magnet);
@@ -228,8 +232,8 @@ public partial class MountainRace : MonoBehaviour {
         MountainState(JsonUtility.ToJson(Status));
 #endif
     }
-    void Finish(bool completed,string description){
-        dragging=false;Status.phase=completed?"finish":"over";Status.message=description;Cue(completed?"finish":"crash");Publish();
+    void Finish(bool completed,string description,bool fell=false){
+        dragging=false;Status.phase=completed?"finish":"over";Status.message=description;Cue(fell?"fallEnd":completed?"finish":"exit");Publish();
     }
 #if !UNITY_WEBGL || UNITY_EDITOR
     Vector2 mouseOrigin;float mouseTime;

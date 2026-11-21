@@ -84,8 +84,9 @@ async function main(){
     await waitClip('bear_feather.mp3');await waitClip('bear_start.mp3','stop');
     await send({phase:'pause'});await waitClip('bear_feather.mp3','stop');
     assert(await page.evaluate(()=>songs[0].paused),'Music continued under pause');
-    await send({phase:'play'});await send({phase:'over',eventId:8,cue:'crash'});
-    assert(!requested.includes('/audio/bear_crash.mp3'),'Result screen replayed crash');
+    await send({phase:'play'});await send({phase:'over',eventId:8,cue:'fallEnd'});await send({});
+    await waitClip('bear_crash.mp3');
+    assert.equal(await page.evaluate(()=>clips.filter(c=>c[0]==='play'&&c[1]==='bear_crash.mp3').length),1);
     assert.equal(await page.evaluate(()=>clips.filter(c=>c[0]==='play'&&c[1]==='bear_feather.mp3').length),1);
     await send({phase:'menu',hero:'owl',feather:false,feathers:0,cue:''});
     await send({phase:'play',eventId:9,cue:'start'});await waitClip('owl_start.mp3');
@@ -107,6 +108,13 @@ async function main(){
     await send({});
     await page.waitForFunction(()=>!songs[0].paused);
     assert.equal(await page.evaluate(()=>clips.filter(c=>c[0]==='play'&&c[1]==='owl_start.mp3').length),1);
+    await send({eventId:14,cue:'crash'});
+    await send({phase:'over',eventId:15,cue:'fallEnd'});await send({});
+    await waitClip('owl_crash.mp3');
+    await send({phase:'menu',cue:''});await waitClip('owl_crash.mp3','stop');
+    await send({phase:'play',eventId:16,cue:'start'});
+    await send({phase:'over',eventId:17,cue:'exit'});
+    assert.equal(await page.evaluate(()=>clips.filter(c=>c[0]==='play'&&c[1]==='owl_crash.mp3').length),1);
     assert.deepEqual(errors,[]);
     assert.equal(await page.evaluate(()=>songs.length),1);
     for(const [,name,duration] of await page.evaluate(()=>clips.filter(c=>c[0]==='play')))assert(duration>0,name);

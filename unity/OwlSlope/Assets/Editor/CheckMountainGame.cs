@@ -15,6 +15,9 @@ public static class CheckMountainGame {
         EditorSceneManager.OpenScene("Assets/Mountain.unity");
         EditorApplication.EnterPlaymode();
     }
+    public static void Snowmen(){
+        SessionState.SetBool("Owl.CheckSnowmen",true);Run();
+    }
     static void CheckWhenReady(){
         if(EditorApplication.isPlaying&&!EditorApplication.isCompiling&&SessionState.GetBool(pending,false)
             &&UnityEngine.Object.FindFirstObjectByType<MountainRace>()?.View!=null)
@@ -26,12 +29,14 @@ public static class CheckMountainGame {
         try{
             var race=UnityEngine.Object.FindFirstObjectByType<MountainRace>();
             race.Initialize();
+            if(SessionState.GetBool("Owl.CheckSnowmen",false)){
+                SessionState.EraseBool("Owl.CheckSnowmen");
+                Debug.Log("SNOWMEN PASS "+race.VerifySnowmen());EditorApplication.Exit(0);return;
+            }
             ShopBalanceChecks.Run(race);
             foreach(string hero in new[]{"bear","owl"}){
                 race.Menu();race.ChooseHero(hero);
                 Require(race.MenuActor&&race.MenuActor.gameObject.activeInHierarchy,"Missing menu actor "+hero);
-                var dances=race.GetComponent<MountainDances>();
-                dances.Dance("sway");dances.StopDance();
                 race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"helmets\":1}");
                 Require(race.Hero==hero&&race.World.Items.Any(o=>o.kind=="npc"),"Normal menu entry failed for "+hero);
                 var people=race.World.Items.Where(o=>o.kind=="npc").ToArray();

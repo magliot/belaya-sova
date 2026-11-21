@@ -5,6 +5,7 @@ public static class WeatherFrontChecks {
     static void Need(bool pass,string detail){if(!pass)throw new InvalidOperationException("Weather transition: "+detail);}
 
     public static void Verify(MountainRace race){
+        CheckSlopeEffects.CourseMarkers(race);
         race.StartRace("{\"mode\":\"review\",\"seed\":1911}");
         foreach(int lap in new[]{0,20000}){
             foreach(int edge in new[]{10000,12500,15000,17500}){

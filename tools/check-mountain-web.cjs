@@ -25,10 +25,13 @@ async function main(){
     });
     await page.addInitScript(()=>{
       if(!/\/unity(?:-test)?\/$/.test(location.pathname))return;
-      let callback;window.raceEvents=[];
+      let callback;window.raceEvents=[];window.rewardLabels=[];
       Object.defineProperty(window,'onMountainState',{get(){return callback;},set(fn){
         callback=s=>{window.lastRace=s;window.raceEvents.push([s.phase,s.mode,s.hero,s.metres,s.cue,s.message]);
-          if(window.raceEvents.length>2300)window.raceEvents.shift();fn(s);};
+          if(window.raceEvents.length>2300)window.raceEvents.shift();fn(s);
+          const reward=document.querySelector('#rewardFloats b:last-child');
+          if(reward&&window.rewardLabels.at(-1)!==reward.textContent)window.rewardLabels.push(reward.textContent);
+        };
       }});
     });
     const launch=new URL(root);
@@ -61,6 +64,7 @@ async function main(){
       // the rider all the way to an obstacle while Playwright captures the canvas.
       if(hero==='owl'){
         await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.coins>=1,null,{timeout:60000});
+        assert(await page.evaluate(()=>rewardLabels.includes('+3')),'The ordinary mandarin did not show its earned points');
         await page.screenshot({path:path.join(out,'mandarin.png')});
       }
       await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.metres>=22,null,{timeout:60000});
@@ -78,6 +82,7 @@ async function main(){
     }
     await page.waitForTimeout(950);await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
     await waitState('over','owl');
+    assert.equal(await page.evaluate(()=>lastRace.cue),'fallEnd');
     await page.screenshot({path:path.join(out,'result.png')});
     await page.locator('#again').tap();await waitState('play','owl');
     const metrics=await page.evaluate(()=>{

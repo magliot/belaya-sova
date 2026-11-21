@@ -15,10 +15,7 @@
   <canvas id="slope" aria-label="Горнолыжная трасса" tabindex="0"></canvas>
   <div id="safe">
     <header id="mast" hidden>
-      <h1>Белая Сова</h1><p class="sign">Горнолыжный спуск • Шахтёрск</p>
-      <span id="profileName" hidden></span>
-      <button id="mute" aria-label="Выключить звук" aria-pressed="false"><span aria-hidden="true">🔊</span></button>
-      <button id="dances" data-panel="dances">Танцы</button>
+      <h1>Белая Сова</h1>
     </header>
     <section id="loading" class="sheet" aria-live="polite">
       <h2>Готовим склон</h2><p id="loadText">Загружаем игру…</p>
@@ -45,6 +42,7 @@
       <div id="fisControls" hidden><button id="fisAct" hidden></button><button id="fisLeave" hidden>Продолжить спуск</button></div>
       <div id="rideInfo"><span id="stage"></span><span id="rideStatus" hidden></span><aside id="notice" hidden></aside></div>
       <div id="avalancheMeter" hidden><i></i></div>
+      <div id="rewardFloats" aria-hidden="true"></div>
       <div class="scoreboard" aria-label="Счёт, каски и мандарины">
         <b id="score">0</b><div id="helmets"><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""></div>
         <b id="coins">0</b>

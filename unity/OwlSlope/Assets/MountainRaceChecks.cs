@@ -89,34 +89,57 @@ public partial class MountainRace {
             "park jump targets "+collected+"/"+targets+", gifts "+Status.gifts+", aid "+hasKit);
         return "park lap "+(lap+1)+": "+collected+"/"+targets+" airborne fruit, rescue and gifts";
     }
-    string VerifySnowballThrows(){
-        int onTarget=0,hits=0;
-        for(int sample=0;sample<=20;sample++){
-            bool dodge=sample==20;
-            StartRace("{\"mode\":\"free\",\"seed\":"+(1911+sample)+",\"helmets\":1}");
+    public string VerifySnowmen(){
+        const int samples=100;
+        int hits=0,wide=0;
+        for(int sample=0;sample<samples;sample++){
+            Menu();ChooseHero(sample%2==0?"bear":"owl");
+            StartRace("{\"mode\":\"normal\",\"seed\":"+(1911+sample)+"}");
             Checkpoint(106,0);
             var sender=World.Items.Find(o=>o.kind=="snowman"&&o.distance>135&&o.distance<182);
             Check(sender!=null,"first training snowman missing");
             Checkpoint(sender.distance-30,0);
-            RaceItem shot=null;bool hit=false;
+            RaceItem shot=null;
+            if(sample%4==2)boost=2.5f;
             for(int tick=0;tick<300&&Status.metres<sender.distance+3&&Status.phase=="play";tick++){
+                float aim=sample%3==0?0:sample%3==1?2.7f*Mathf.Sin(tick/30f+sample):Mathf.Lerp(-2,2,Mathf.PingPong(tick/40f,1));
+                DragSteer(aim/(27*sensitivity));
                 Advance(1f/60);
                 if(shot==null)shot=World.Items.Find(o=>o.kind=="ball"&&Mathf.Abs(o.originD-sender.originD)<.01f);
-                if(dodge&&shot!=null)DragSteer(sender.lane>0?-.30f:.30f);
-                if(!hit&&snowPuffs&&snowPuffs.particleCount>0){
-                    hit=true;
-                    Check(Status.helmets==1&&wobble==0&&slow==0,"snowball should only shower the player with snow");
-                }
+                if(shot!=null&&shot.consumed)break;
             }
             Check(sender.threwSnowball&&shot!=null,"snowman did not throw for seed "+(1911+sample));
-            bool aimed=Mathf.Abs(shot.throwEnd.x)<1;
-            if(dodge){Check(aimed&&!hit,"committed throw followed a last-second dodge");continue;}
-            if(aimed)onTarget++;
-            if(hit)hits++;
-            Check(aimed==hit,"throw and physical contact disagree for seed "+(1911+sample));
+            if(Mathf.Abs(shot.throwAimOffset)>1)wide++;
+            if(shot.judged){
+                hits++;
+                Check(snowPuffs&&snowPuffs.particleCount>0&&Status.helmets==0&&crashTimer==0&&fall==0&&wobble==0&&slow==0,"snowball did more than shower the rider");
+            }
         }
-        Check(hits>=19,"snowmen missed too many steady riders: "+hits);
-        return "training throws "+hits+"/20 physical hits, "+onTarget+" aimed; late dodge escaped";
+        Check(hits>=90&&hits<=99&&wide>0,"moving riders: "+hits+"/"+samples+" physical hits, "+wide+" deliberate misses");
+        foreach(string mode in new[]{"sled","tubing"}){
+            StartRace("{\"mode\":\""+mode+"\",\"seed\":1911}");
+            SnowmanPiece first=null;
+            for(int retry=0;retry<2;retry++){
+                Check(System.Array.TrueForAll(snowmanPieces,p=>p==null||!p.pivot.gameObject.activeSelf),"debris survived restart");
+                Checkpoint(mode=="sled"?1:75,0);
+                var target=World.Items.Find(o=>o.kind=="snowman"&&o.distance>Status.metres);
+                Check(target!=null,mode+" target missing");Checkpoint(target.distance,target.lane);
+                Advance(1f/60);
+                Check(target.consumed&&Status.snowmen==1&&bonusPoints>=90,mode+" snowman paid incorrectly");
+                Check(System.Array.FindAll(snowmanPieces,p=>p!=null&&p.pivot.gameObject.activeSelf).Length==3,"expected three mesh pieces");
+                for(int i=0;i<3;i++){
+                    var piece=snowmanPieces[i].pivot.GetChild(0);
+                    Check(piece.name==snowmanParts[i]&&piece.GetComponent<MeshFilter>().sharedMesh.subMeshCount==2,"snowman lost skin or cap");
+                }
+                if(first!=null)Check(first==snowmanPieces[0],"unnecessary new fragments on restart");
+                first=snowmanPieces[0];
+                StepSnowmanPieces(.27f);
+                Check((snowmanPieces[0].pivot.position-snowmanPieces[1].pivot.position).magnitude>1.6f,"snowman still in one silhouette");
+                for(int i=0;i<95;i++)StepSnowmanPieces(1f/60);
+                Check(!first.pivot.gameObject.activeSelf,"fragments did not retire");RestartRide();
+            }
+        }
+        return "snowmen: "+hits+"/"+samples+" physical hits, "+wide+" deliberate misses; sled and tubing three textured pieces on impact and retry";
     }
     string VerifyBodyContacts(){
         foreach(string hero in new[]{"bear","owl"}){
@@ -147,6 +170,47 @@ public partial class MountainRace {
         previousAltitude=rampHeight=0;
         Check(HandleSolid(crossing,10,0,1.7f,.96f,3.2f,0,true)&&Status.helmets==0,"separate contact did not charge a second helmet");
         return "both heroes: side hits, clear passes, coffee, swept crossing, height and one helmet per contact";
+    }
+    string VerifyCourseMarkers(){
+        foreach(string hero in new[]{"bear","owl"}){
+            Menu();ChooseHero(hero);
+            foreach(int choice in new[]{-1,0,1,2}){
+                StartRace("{\"mode\":\"normal\",\"seed\":1911}");
+                Checkpoint(335,0);
+                var gate=World.Items.Find(o=>o.kind=="gate"&&Mathf.Abs(o.distance-347.5f)<.01f);
+                Check(gate!=null&&gate.variant=="trainingCones"&&gate.obj.transform.childCount==2,"training cone pair missing");
+                var left=gate.obj.transform.GetChild(0);var right=gate.obj.transform.GetChild(1);
+                var a=left.position;var b=right.position;
+                Check(Vector3.Distance(a,World.SnowSurface(gate.distance,gate.lane-gate.width*.5f))<.02f&&
+                      Vector3.Distance(b,World.SnowSurface(gate.distance,gate.lane+gate.width*.5f))<.02f,"cone floats above sloped snow");
+                bool clip=Mathf.Abs(choice)==1;
+                Checkpoint(gate.distance-2,gate.lane+choice*(gate.width*.5f));Status.helmets=1;
+                for(int i=0;i<33;i++)Advance(1f/60);
+                Check(fall==0&&Status.helmets==1&&gate.judged,"soft marker charged a helmet");
+                Check(Status.gates==(choice==0?1:0),"clipped or missed training gate awarded points");
+                Check(gate.knockedConeSide==(clip?choice:0),"wrong cone reacted");
+                Check(((left.position-a).magnitude>.3f)==(choice==-1)&&((right.position-b).magnitude>.3f)==(choice==1),
+                    "cone displacement or untouched partner incorrect");
+                if(clip){
+                    var moved=choice<0?left:right;
+                    Check(Vector3.Angle(moved.up,Vector3.up)>30,"struck cone stayed upright");
+                }
+            }
+        }
+        RestartRide();Checkpoint(20335,0);
+        Check(World.Items.Exists(o=>Mathf.Abs(o.distance-20347.5f)<.01f&&o.variant=="trainingCones"&&o.Visual),"second lap cones");
+        RestartRide();Checkpoint(15110,0);
+        var flags=World.Items.Find(o=>o.kind=="gate"&&o.distance>15110);
+        Check(flags!=null&&flags.variant.EndsWith("Night"),"night flag gate missing");
+        Checkpoint(flags.distance-2,flags.lane+flags.width*.5f);Status.helmets=1;
+        for(int i=0;i<15;i++)Advance(1f/60);
+        Check(flags.judged&&Status.gates==0&&Status.helmets==1&&fall==0,"flag pole contact");
+        RestartRide();Checkpoint(12507,0);
+        var rock=World.Items.Find(o=>o.kind=="rock"&&o.variant.StartsWith("gateRock")&&o.distance>=12507);
+        Check(rock!=null,"black gate boulder missing");
+        Checkpoint(rock.distance-1,rock.lane);Status.helmets=1;Advance(.12f);
+        Check(Status.helmets==0&&fall>0,"black gate lost its solid boulders");
+        return "training cones: both heroes, both posts kicked separately, clean/skip scoring, lap two, soft night flags and solid black rocks";
     }
     string VerifyTrainingEncounters(){
         Menu();ChooseHero("bear");StartRace("{\"mode\":\"normal\",\"seed\":1911}");
@@ -259,8 +323,9 @@ public partial class MountainRace {
             Check(Status.phase=="over","unprotected collision did not end the ride");
             report.Add("training pickup + protected and unprotected NPC collisions");
             report.Add(VerifyBodyContacts());
+            report.Add(VerifyCourseMarkers());
             report.Add(VerifyFisSituations());
-            report.Add(VerifySnowballThrows());
+            report.Add(VerifySnowmen());
             report.Add(VerifyTrainingEncounters());
             StartRace("{\"mode\":\"sprint\",\"seed\":1911}");
             Checkpoint(1199,0);Advance(.2f);Check(Status.phase=="finish"&&Status.metres==SprintLength,"sprint finish");

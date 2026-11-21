@@ -87,7 +87,7 @@ public partial class RaceWorld {
                 float d=o.originD+1.7f*(Mathf.Sin(t*1.2f+ph)-Mathf.Sin(ph))+.95f*t;
                 if(dt>0)o.yaw=Mathf.Atan2(x-o.lane,d-o.distance)*Mathf.Rad2Deg;
                 o.distance=d;o.lane=x;o.offset=.055f*Mathf.Abs(Mathf.Sin(t*14));return;}
-            case "ball":MoveSnowball(o,dt);return;
+            case "ball":MoveSnowball(o,player,dt);return;
             case "snowman":ThrowSnowball(o,player,dt);return;
             case "airRing":o.lean=Mathf.Sin(elapsed*.65f+o.originD)*3;return;
             case "coin":case "feather":case "gift":case "thermos":case "aid":case "helmet":case "magnet":

@@ -4,6 +4,54 @@ using UnityEngine.Rendering;
 public partial class RaceWorld {
     static Mesh gateLenses;
     static readonly Material[] gateLampPaint=new Material[2];
+    static Mesh ringGlowBand;
+    static Material mandarinGlow,ringGlow;
+    static MaterialPropertyBlock nightFruitSurface;
+
+    void SetNightGlow(RaceItem item){
+        bool night=mode=="normal"&&StageAt(item.originD)==6;
+        var marker=item.obj.transform.Find("Night glow");
+        if(item.kind=="coin"&&(night||marker)){
+            if(nightFruitSurface==null){
+                nightFruitSurface=new MaterialPropertyBlock();
+                nightFruitSurface.SetFloat("_Glow",.75f);
+            }
+            item.Visual.SetPropertyBlock(night?nightFruitSurface:null);
+        }
+        if(marker){marker.gameObject.SetActive(night);return;}
+        if(!night)return;
+        bool ring=item.kind=="airRing";
+        // Preserve the centre of the flight target. The soft band follows its actual rim.
+        if(ring&&!ringGlowBand){
+            const int sides=64;var vertices=new Vector3[(sides+1)*2];var uv=new Vector2[vertices.Length];
+            var triangles=new int[sides*6];
+            for(int i=0;i<=sides;i++){
+                float a=i*2*Mathf.PI/sides;
+                var radial=new Vector3(Mathf.Cos(a),Mathf.Sin(a),0);int k=i*2;
+                vertices[k]=radial*1.12f;vertices[k+1]=radial*1.98f;
+                uv[k]=Vector2.zero;uv[k+1]=Vector2.right;
+                if(i==sides)break;
+                int t=i*6;
+                triangles[t]=k;triangles[t+1]=k+2;triangles[t+2]=k+1;
+                triangles[t+3]=k+1;triangles[t+4]=k+2;triangles[t+5]=k+3;
+            }
+            ringGlowBand=new Mesh{name="Night flight ring glow",vertices=vertices,uv=uv,triangles=triangles};
+            ringGlowBand.RecalculateNormals();
+        }
+        if(!mandarinGlow){
+            var shader=Resources.Load<Shader>("Race/NightMarker");
+            mandarinGlow=new Material(shader){name="Mandarin amber halo"};
+            mandarinGlow.SetColor("_Tint",new Color(1,.49f,.12f));
+            ringGlow=new Material(shader){name="Night flight ring light"};
+            ringGlow.SetFloat("_Ring",1);ringGlow.SetColor("_Tint",new Color(.32f,.95f,1));
+        }
+        var child=new GameObject("Night glow");child.transform.SetParent(item.obj.transform,false);
+        if(ring)child.transform.localPosition=Vector3.back*.13f;
+        else child.transform.localScale=Vector3.one*.55f;
+        child.AddComponent<MeshFilter>().sharedMesh=ring?ringGlowBand:UnitSphere();
+        var renderer=child.AddComponent<MeshRenderer>();renderer.sharedMaterial=ring?ringGlow:mandarinGlow;
+        renderer.shadowCastingMode=ShadowCastingMode.Off;renderer.receiveShadows=false;
+    }
 
     static void AddGateLamps(GameObject gate,bool blue){
         // Both lamp quads share a draw call. UV expands each quad in camera space at the pole cap.
@@ -84,11 +132,11 @@ public partial class RaceWorld {
         var spray=go.AddComponent<ParticleSystem>();spray.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
         var main=spray.main;main.startLifetime=new ParticleSystem.MinMaxCurve(1.0f,1.35f);
         main.startSpeed=new ParticleSystem.MinMaxCurve(8.7f,11.5f);main.startSize=new ParticleSystem.MinMaxCurve(.095f,.23f);
-        main.maxParticles=165;main.startColor=new Color(.88f,.95f,1,.92f);main.gravityModifier=.50f;
+        main.maxParticles=250;main.startColor=new Color(.88f,.95f,1,.92f);main.gravityModifier=.50f;
         main.playOnAwake=false;main.simulationSpace=ParticleSystemSimulationSpace.Local;
         var shape=spray.shape;shape.enabled=true;shape.shapeType=ParticleSystemShapeType.Cone;
-        shape.angle=8;shape.radius=.29f;shape.radiusThickness=1;
-        var emission=spray.emission;emission.rateOverTime=110;
+        shape.angle=10;shape.radius=.29f;shape.radiusThickness=1;
+        var emission=spray.emission;emission.rateOverTime=170;
         var size=spray.sizeOverLifetime;size.enabled=true;
         size.size=new ParticleSystem.MinMaxCurve(1,new AnimationCurve(new Keyframe(0,.72f),new Keyframe(.6f,1.65f),new Keyframe(1,2.2f)));
         var gradient=new Gradient();
