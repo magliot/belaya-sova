@@ -160,7 +160,7 @@ public partial class MountainRace {
         if(!menuLifts.ContainsKey(key))menuLifts[key]=MeasureFeet(menuModel);
         menuModel.gameObject.SetActive(IsMenu||BonusMode);
         rideModel.gameObject.SetActive(!IsMenu&&!BonusMode);
-        PaintKit(rideModel);
+        PaintKit(rideModel);PaintHeadwear(rideModel);PaintHeadwear(menuModel);
         if(IsMenu){
             PlaceMenuEquipment();
             PaintKit(stowed);
@@ -248,9 +248,20 @@ public partial class MountainRace {
         actorRoot.SetPositionAndRotation(ground,Quaternion.Euler(0,World.HeadingAt(0)*Mathf.Rad2Deg,0));
         menuModel.localScale=Vector3.one*scale;menuModel.localPosition=Vector3.up*menuLifts[key]*scale;
         menuModel.localRotation=Quaternion.Euler(0,menuYaw+Mathf.Sin(Time.time*.5f)*3,0);
-        View.fieldOfView=58;
-        Vector3 eye=ground+actorRoot.rotation*new Vector3(.17f,1.42f,3.62f);
-        Vector3 aim=ground+actorRoot.rotation*new Vector3(.17f,.30f,0);
+        bool kit=settings.inspect=="gear",head=settings.inspect=="headgear";
+        menuModel.gameObject.SetActive(!kit);
+        if(stowed){
+            stowed.gameObject.SetActive(!head);
+            float pivot=Hero=="owl"?.77f:.83f;
+            stowed.localRotation=Quaternion.Euler(0,kit?menuYaw:0,0);
+            stowed.localPosition=kit?Vector3.right*pivot-stowed.localRotation*(Vector3.right*pivot):Vector3.left*.31f;
+        }
+        menuShadow.gameObject.SetActive(!kit&&!head);
+        View.fieldOfView=kit?52:50;
+        // Frame the rotating product above the shop sheet and the home hero beside the resort sign.
+        float x=kit?.80f:head?0:-Mathf.Min(.15f,View.aspect*.26f);
+        Vector3 eye=ground+actorRoot.rotation*new Vector3(x,head?1.50f:kit?1.55f:1.39f,kit?3.6f:head?1.56f:3.12f);
+        Vector3 aim=ground+actorRoot.rotation*new Vector3(x,kit?.07f:head?.87f:.58f,0);
         View.transform.SetPositionAndRotation(eye,Quaternion.LookRotation(aim-eye,Vector3.up));
         UpdateWeather();
     }

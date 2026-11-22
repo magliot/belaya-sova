@@ -24,14 +24,11 @@ button small{display:block;font-size:10px;font-weight:500;margin-top:2px}
 .home .picks button{display:flex;align-items:center;gap:7px;padding:3px 6px;min-height:44px;text-align:left;border:2px solid #a6c8d8}
 .home .picks button[aria-pressed=true]{background:linear-gradient(140deg,#edfdff,#96d9ef);border-color:#1977a0;color:#073e61;box-shadow:inset 0 1px white,0 0 0 1px #78cee6}
 .picks img{width:36px;height:36px;object-fit:cover;border-radius:9px;border:1px solid #7191a163}.picks small{font-size:10px}
-.balances,.heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+ .heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .balances{padding:0 4px;color:#274e68;font-size:12px;line-height:1}.balances span{max-width:42%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .balances button,.home .rules-link{min-height:23px;border:0;background:transparent;color:#174d70;box-shadow:none;font-size:12px;text-decoration:underline;text-underline-offset:3px}
 .start-row .primary{width:100%}
 .home .start-row>*{flex:1 1 0;min-width:0}
-.home .bonuses button{min-height:38px}
-.home .bonuses button:disabled{color:#52626a;border-color:#a7c1cd;background:#e6eff2}.bonuses small{font-size:10px}
-.home .sprint{min-height:29px;font-size:12px}
 .utilities{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}.utilities button{min-height:43px;padding:3px 1px;font-size:11px}
 .utilities span{display:block;margin-bottom:2px;font-size:18px;line-height:1}.home .rules-link{justify-self:center}
 #hud{position:absolute;inset:0;pointer-events:none;font-variant-numeric:tabular-nums}
@@ -73,16 +70,41 @@ details{border-radius:6px;background:#f1fcffb8}details summary{cursor:pointer;pa
 #review{padding:9px}
 #reviewBody{display:grid;gap:4px}#review .row{align-items:center}
 #review button,#review select,#review input[type=number]{min-height:34px;font-size:12px}#review input[type=number]{width:60px;border:1px solid #adc0c5;border-radius:9px;text-align:center}
-@container (max-height:690px){
-  .sheet.home{gap:3px;padding:6px 8px}.home .picks button{min-height:35px}.picks img{width:28px;height:28px}
-  .balances button,.home .rules-link{min-height:20px}.start-row .primary{min-height:38px;font-size:19px}
-  .home .bonuses button{min-height:31px;padding:2px 4px}.home .sprint{min-height:24px;padding:2px 4px}.utilities button{min-height:34px}.utilities span{font-size:14px}
-}
-@container (max-width:345px){.picks small{font-size:9px}.utilities button{font-size:10px}#mast{padding-inline:32px}}
-@container (max-height:610px) and (max-width:540px){
-  .sheet.home{grid-template-columns:minmax(0,2.1fr) minmax(90px,1fr);grid-template-areas:"heroes heroes" "wallet rules" "start sprint" "bonus bonus" "tools tools"}
-  .picks{grid-area:heroes}.balances{grid-area:wallet;padding:0;gap:4px}.balances button{padding-inline:2px}
-  .start-row{grid-area:start}.home .sprint{grid-area:sprint;font-size:11px}.bonuses{grid-area:bonus}.utilities{grid-area:tools}
-  .home .rules-link{grid-area:rules;justify-self:end;padding-inline:2px;font-size:10px}
-}
-@container (max-height:520px) and (min-aspect-ratio:6/5){.sheet.home{left:auto;right:0;transform:none;width:min(42%,360px)}#mast{width:54%;padding-inline:0}#mast h1{font-size:32px}}
+
+/* Resort menu. Keep the artwork and the live 3D turntable visible between the controls. */
+#mast{position:absolute;inset:0 0 auto;display:flex;align-items:center;gap:7px;padding:4px;pointer-events:none}
+#mast button,#mast .wallet-pill{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;color:#fff;background:#102b4ce8;border:1px solid #c7e8ffad;box-shadow:inset 0 1px #ffffff29,0 2px 6px #071a396b;border-radius:18px;min-height:42px;padding:6px 12px;font-size:17px;font-variant-numeric:tabular-nums;line-height:1}
+#mast .record-pill{max-width:47%}#mast .wallet-pill{max-width:34%}#mast strong{overflow:hidden;text-overflow:ellipsis}
+#mast #menuRank{font-size:11px;color:#bceaff}#mast #menuRank:empty{display:none}#mast .settings-key{margin-left:auto;width:44px;padding:3px;border-radius:50%;font-size:26px}
+.sheet.home{width:min(476px,100%);overflow:visible;background:none;border:0;box-shadow:none;gap:clamp(7px,1.25vh,13px);padding:0 5px 2px;color:white}
+.sheet.home::before{content:"";position:absolute;inset:-38px -22px -16px;background:linear-gradient(transparent,#123b696b 45%,#0b2b57e8);z-index:-1;pointer-events:none}
+.home .picks{justify-content:center;gap:10px}
+.home .picks button{flex:0 1 153px;border-radius:26px;gap:8px;padding:3px 8px 3px 3px;min-height:43px;border:1px solid #d1e7ff9c;color:white;background:#112e50ea;box-shadow:0 2px 7px #0a254b44;font-size:16px}
+.home .picks button[aria-pressed=true]{border-color:#c6f1ff;color:white;background:linear-gradient(145deg,#198bda,#095da9);box-shadow:0 0 0 2px #62caff80}
+.picks img{width:37px;height:37px;border-radius:50%;border:1px solid #dcf2ff}.picks small{font-size:9px;color:#d9f3ff;white-space:nowrap;max-width:100%;overflow:hidden}.picks span{min-width:0}
+.home .start-row{justify-content:center}.home #play,.sheet .primary{background:linear-gradient(#ffb92b,#fa8206 81%);border:1px solid #ffe2a5;box-shadow:inset 0 2px #ffe5ac,inset 0 -3px #d36a03,0 3px 6px #10244855;color:#fff}
+.home #play{position:relative;flex:0 1 334px;min-height:clamp(47px,6.8vh,61px);font-size:clamp(25px,7vw,32px);border-radius:17px;text-shadow:0 2px #9c4d0a}
+#play span{position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:.82em}
+.utilities{gap:0}.utilities button,.home .rules-link{background:none;border:0;border-radius:8px;box-shadow:none;color:#fff;text-shadow:0 1px 3px #0c2851}
+.utilities button{min-height:48px;font-size:12px}.utilities svg{display:block;width:26px;height:26px;margin:0 auto 4px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
+.home .rules-link{padding:0 10px;min-height:29px;color:#e7f6ff;text-decoration:none;font-size:12px}
+#panel,#paused,#result,#shareSheet,#loading{background:linear-gradient(153deg,#183e62fa,#102b4bfd);color:#f4faff;border:1px solid #b6d9f1;border-radius:19px;box-shadow:0 6px 28px #081d4199}
+#panel,#panelBody{grid-template-columns:minmax(0,1fr);min-width:0}
+#panel .heading{position:sticky;top:0;background:#173956;z-index:1;padding-bottom:5px}
+#panel button:not(.primary),#paused button:not(.primary),#result button:not(.primary){color:#fff;background:#254e70;border:1px solid #7199b5;box-shadow:inset 0 1px #ffffff1f;min-height:39px}
+#panel button:disabled{color:#cadceb;background:#1e3b55;border-color:#4c6980}
+#panel #closePanel{min-width:40px;font-size:24px;line-height:1}#panel details,#result details{background:#204765}
+#panel .stat,#result .stat{border-color:#6386a15c}.letter-row abbr{color:#183b53}
+#panel[data-view="shop"]{top:auto;bottom:0;transform:translateX(-50%);max-height:46%;gap:4px;padding:10px 12px}
+#resultScore{color:#ffda82}#resultRule{color:#d5edff}
+#panelBody .wallet .feather{display:inline-block;width:14px;height:19px;margin:0 4px -4px 1px;border-radius:90% 0 85% 8%;background:repeating-linear-gradient(145deg,transparent 0 4px,#96601b 4px 5px),linear-gradient(55deg,#ffaf25 46%,#774813 48%,#ffdf88 55%);transform:rotate(13deg)}
+#panelBody .shelf-tabs{display:flex;align-items:stretch;gap:4px}.shelf-tabs button{flex:1;min-width:0;padding-inline:3px;font-size:12px;overflow-wrap:break-word}
+#panel button[aria-pressed=true]{background:#186b9b;border-color:#9cdfff}
+#previewHint{position:absolute;top:3px;left:50%;transform:translateX(-50%);padding:5px 12px;border-radius:20px;color:#fff;background:#123456bd;white-space:nowrap;pointer-events:none}
+#panelBody .wallet{font-weight:800;color:#ffdc91;font-size:14px}
+#panelBody .product h3,#panelBody .bonus-card h3{margin:0 0 4px;font-size:18px}
+#panelBody .product p,#panelBody .bonus-card p{color:#d4e7f3;font-size:13px}
+#panelBody .store-actions{display:flex;gap:5px;margin-top:6px}.store-actions button{flex:1;font-size:13px}
+#panelBody .bonus-card{border-top:1px solid #52758d;padding-top:8px}
+@container (max-height:680px){.sheet.home{gap:4px}.home .picks button{min-height:37px}.picks img{width:30px;height:30px}.utilities button{min-height:39px}.utilities svg{width:21px;height:21px}.home .rules-link{min-height:24px}}
+@container (min-aspect-ratio:6/5) and (max-height:600px){.sheet.home{left:auto;right:1%;transform:none;width:min(41%,350px)}#panel[data-view="shop"]{left:auto;right:0;transform:none;width:min(44%,380px);max-height:94%}}

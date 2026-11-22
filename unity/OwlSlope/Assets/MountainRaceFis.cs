@@ -9,7 +9,7 @@ public partial class MountainRace {
     readonly List<int> ruleContexts=new List<int>();
     float stopMetre,stopDeceleration,walkStart,lookSince,brakeUntil,brakeFrom,rejoinUntil,lastFisMessage;
     bool keptToEdge;
-    bool FisCourse=>Status.mode=="normal"||Status.mode=="free";
+    bool FisCourse=>Status.mode=="normal";
     const float SafePassGap=3f;
 
     void ResetFis(){

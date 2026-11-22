@@ -7,9 +7,9 @@ using UnityEngine;
 public partial class MountainRace : MonoBehaviour {
     [Serializable] public class Settings {
         public string mode="normal",reviewRide="normal";
-        public string equipment="standard";
+        public string equipment="standard",headgear="standard",inspect="";
         public bool ownedEquipment;
-        public int tuning;
+        public int tuning,headTuning;
         public int seed=1911, sensitivity=4, helmets, boost, mag, collectedLetters;
         public bool showFisHints;
     }
@@ -19,11 +19,13 @@ public partial class MountainRace : MonoBehaviour {
             feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds,horns;
         public float metres,elapsed,engineNear,enginePan,boulderNear,blizzard,edge,boostSeconds,magnetSeconds;
         public int letterSide,bonusLocation;
+        public bool boulderChasing;
+        public float boulderLine;
         public float riderLane,riderScreenX=.5f,riderScreenY=.65f;
         public int scoreDistance,scoreFruit,scoreGates,scoreRings,scoreFis;
         public bool rankedResult;
         public bool freeRideTrickReady,freeRideInCrevasse;
-        public bool air,boost,feather,goldenOwl,tubingUnlocked,sledUnlocked;
+        public bool air,boost,feather,goldenOwl;
         public int[] fis=Array.Empty<int>();
         public int[] fisContexts=Array.Empty<int>();
         public string fisAction="";
@@ -55,7 +57,7 @@ public partial class MountainRace : MonoBehaviour {
     int rewardChain,challenge,challengeNeed,challengeBaseline,consecutiveGates,bestStage;
     bool challengeDone;
     float challengeClean;
-    string CourseMode=>Review?settings.reviewRide:Status.mode=="free"?"normal":Status.mode;
+    string CourseMode=>Review?settings.reviewRide:Status.mode;
     bool BonusMode=>CourseMode=="sled"||CourseMode=="tubing";
     const float BonusSeconds=75, BonusBoost=1.22f;
     float BonusLaunch=>CourseMode=="sled"?22:20;
@@ -63,8 +65,7 @@ public partial class MountainRace : MonoBehaviour {
     float BonusSpeed(float elapsed)=>BonusLaunch+BonusGain*Mathf.Clamp01(elapsed/BonusSeconds);
     bool Review=>Status.mode=="review";
     int Mult=>Mathf.Min(10,1+Status.combo/5);
-    const float FallTime=1.7f;
-    const int SprintLength=1200;
+    float FallTime=>1.70f-(OrangeHelmet?.15f*(1+HeadTuning):0);
     static readonly string[] Words={"EMCO","СОВА","ШАХТЕРСК"};
 #if UNITY_WEBGL && !UNITY_EDITOR
     [System.Runtime.InteropServices.DllImport("__Internal")]
@@ -92,7 +93,7 @@ public partial class MountainRace : MonoBehaviour {
     }
     public void Menu(){
         ShowFisWalker(false);
-        dragging=false;reviewRate=0;airborne=false;ResetFreeRideInput();
+        dragging=false;reviewRate=0;airborne=false;settings.inspect="";ResetFreeRideInput();
         Status=new State{hero=Status.hero,phase="menu"};
         if(!World)return;
         lane=angle=fall=0;World.Configure(1911,"normal");World.Refresh(0,0);
@@ -102,8 +103,8 @@ public partial class MountainRace : MonoBehaviour {
         if(!World)Initialize();
         var selected=String.IsNullOrEmpty(json)?new Settings():JsonUtility.FromJson<Settings>(json);
         if(selected==null)return;
-        switch(selected.mode){case "normal":case "free":case "sprint":case "tubing":case "sled":case "review":break;default:selected.mode="normal";break;}
-        switch(selected.reviewRide){case "sprint":case "tubing":case "sled":break;default:selected.reviewRide="normal";break;}
+        switch(selected.mode){case "normal":case "tubing":case "sled":case "review":break;default:selected.mode="normal";break;}
+        switch(selected.reviewRide){case "tubing":case "sled":break;default:selected.reviewRide="normal";break;}
         settings=selected;ResetRun();
     }
     public void RestartRide(){ResetRun();}
@@ -111,7 +112,7 @@ public partial class MountainRace : MonoBehaviour {
         string hero=Status.hero;
         Status=new State{hero=hero,mode=settings.mode,seed=settings.seed,
             phase=settings.mode=="review"?"review":"play",lettersTotal=Mathf.Clamp(settings.collectedLetters,0,16)};
-        Status.helmets=((Status.mode=="free"||Status.mode=="sprint")&&settings.helmets>0)?1:0;
+        Status.helmets=(Status.mode=="normal"&&settings.helmets>0)?1:0;
         helmetsIssued=Status.helmets;
         nextKitSpark=0;if(kitSparks)kitSparks.Clear();
         random=new System.Random(settings.seed);World.Configure(settings.seed,CourseMode);
@@ -155,7 +156,7 @@ public partial class MountainRace : MonoBehaviour {
     }
     public void Seek(float metres){
         if(!Review)return;
-        float end=BonusMode?Mathf.Ceil((BonusLaunch+.5f*BonusGain)*BonusSeconds*BonusBoost):CourseMode=="sprint"?1199:4*RaceWorld.LapLength-1;
+        float end=BonusMode?Mathf.Ceil((BonusLaunch+.5f*BonusGain)*BonusSeconds*BonusBoost):4*RaceWorld.LapLength-1;
         Status.metres=Mathf.Clamp(metres,0,end);Status.elapsed=Status.metres/14;
         if(BonusMode){
             float accel=BonusGain/BonusSeconds;
@@ -250,7 +251,6 @@ public partial class MountainRace : MonoBehaviour {
             break;
         }
         Status.multiplier=BonusMode?Mathf.Min(4,1+(Status.elapsed-lastReward<=3?rewardChain:0)/5):Mult;
-        Status.tubingUnlocked=Status.feather;Status.sledUnlocked=Status.feather||Status.goldenOwl;
 #if UNITY_WEBGL && !UNITY_EDITOR
         MountainState(JsonUtility.ToJson(Status));
 #endif

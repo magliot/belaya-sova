@@ -16,6 +16,7 @@ public sealed class RaceItem {
     internal int knockedConeSide;
     internal float coneHitAt;
     internal int route;
+    public bool PursuesRider=>kind=="snowBoulder"&&route==1;
     internal bool leap,small,decor;
     internal bool movingPoseReady;
     internal bool threwSnowball,honked;
@@ -56,7 +57,7 @@ public partial class RaceWorld : MonoBehaviour {
         }
     }
     public void Configure(int seed,string mode){
-        ClearObjects();this.seed=seed;this.mode=mode??"normal";lastDistance=lastTime=0;snowVertices=null;
+        ClearObjects();this.seed=seed;this.mode=mode=="sled"||mode=="tubing"?mode:"normal";lastDistance=lastTime=0;snowVertices=null;
         firstSegment=int.MaxValue;lastSegment=int.MinValue;chunk=int.MinValue;
         letter=null;letterAdded=false;letterDistance=float.PositiveInfinity;
         firstTower=int.MinValue;BuildTurns();Refresh(0,0);
@@ -81,18 +82,18 @@ public partial class RaceWorld : MonoBehaviour {
     }
     static float RowLength(int stage,string mode){
         if(mode=="normal"&&stage%StageCount==AlpineStage)return FreeRideSectionLength;
-        if(mode=="sprint")return 75;if(mode=="tubing")return 33;if(mode=="sled")return 31;
+        if(mode=="tubing")return 33;if(mode=="sled")return 31;
         if(stage>=StageCount&&stage%StageCount==6)return 50;
         switch(stage%StageCount){case 0:return 62.5f;case 1:return 50;case 2:return 117;case 3:return 75;case 5:case 6:return 90;default:return 50;}
     }
     int Segment(float d){
         d=Mathf.Max(0,d);
-        if(mode=="sprint"||mode=="tubing"||mode=="sled")return Mathf.FloorToInt(d/RowLength(0,mode));
+        if(mode=="tubing"||mode=="sled")return Mathf.FloorToInt(d/RowLength(0,mode));
         int stage=Mathf.FloorToInt(d/2500);
         return stage*1000+Mathf.FloorToInt((d-stage*2500)/RowLength(stage,mode));
     }
     int Following(int seg){
-        if(mode=="sprint"||mode=="tubing"||mode=="sled")return seg+1;
+        if(mode=="tubing"||mode=="sled")return seg+1;
         int stage=seg/1000,index=seg%1000;
         return (index+1)*RowLength(stage,mode)>=2500?(stage+1)*1000:seg+1;
     }
@@ -117,7 +118,7 @@ public partial class RaceWorld : MonoBehaviour {
                 Release(o);Items.RemoveAt(i);continue;
             }
             o.previousLane=o.lane;o.previousDistance=o.distance;o.previousOffset=o.offset;
-            MoveItem(o,distance,elapsed,dt);
+            MoveItem(o,distance,riderLane,elapsed,dt);
             if(!o.positioned){
                 o.previousLane=o.lane;o.previousDistance=o.distance;o.previousOffset=o.offset;o.positioned=true;
             }

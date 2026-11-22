@@ -62,6 +62,7 @@ public static class CourseRideChecks {
         var s=race.Status;float d=s.metres,lane=race.Lane,speed=Mathf.Max(10,s.speed/3.6f);
         float width=race.World.WidthAt(d+speed)*.5f-.35f;
         obstacles.Clear();rewards.Clear();
+        if(s.boulderChasing)ObstacleAt(s.boulderLine,1.0f,2.45f);
         if(race.World.TryFreeRideGap(d,out var cut)&&d>cut.lipD-45&&d<cut.endD){
             for(int knot=1;knot<RaceWorld.FreeRideGap.ShapeSegments;knot++){
                 float at=cut.SectionDistance(knot);

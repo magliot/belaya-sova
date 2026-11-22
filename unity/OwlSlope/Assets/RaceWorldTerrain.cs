@@ -31,7 +31,7 @@ public partial class RaceWorld {
         float b=36f/52*Mathf.Sin(d/52)-16f/97*Mathf.Sin(d/97);
         float c=36f/(52*52)*Mathf.Cos(d/52)-16f/(97*97)*Mathf.Cos(d/97);
         cx=a;dx=b;float dd=c;
-        if(d<2500&&mode!="sprint"){
+        if(d<2500){
             if(d<=0){cx=dx=curve=0;return;}
             int lo=0,hi=turns.Count;
             while(lo<hi){int mid=(lo+hi)/2;var t=turns[mid];if(d>=t.start+t.length)lo=mid+1;else hi=mid;}

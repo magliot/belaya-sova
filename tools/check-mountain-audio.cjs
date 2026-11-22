@@ -146,5 +146,6 @@ async function main(){
 // Only an actual feather contact may emit this gameplay cue.
 const sources=['MountainRaceContacts.cs','MountainRacePhysics.cs'].map(file=>fs.readFileSync(path.resolve('unity/OwlSlope/Assets',file),'utf8')).join('\n');
 assert.equal((sources.match(/Notice\([^;]+,"feather"\)/g)||[]).length,1);
-assert.match(sources,/case "feather":Status\.feather=true;Status\.feathers\+\+;[^;]+;Notice\([^;]+,"feather"\)/);
+assert.match(sources,/void CollectFeather\(RaceItem item\)\s*{\s*item\.Consume\(\);Status\.feather=true;Status\.feathers\+\+;[^;]+;\s*Notice\([^;]+,"feather"\)/);
+assert.match(sources,/case "feather":[\s\S]*?TouchAir\(o,[\s\S]*?if\(flightTricks>=2\)CollectFeather\(o\)/);
 main().catch(error=>{console.error(error);process.exitCode=1;});

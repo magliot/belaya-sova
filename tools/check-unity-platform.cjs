@@ -36,7 +36,7 @@ async function main(){
   const after=create({storage:driver,app});await after.load();
   assert.equal(after.data.hero,'bear');assert.equal(after.data.coins,total);assert.equal(after.data.best,1400);assert.equal(after.data.coll.length,2);
   const foreign=create({storage:driver,app:telegram(998,values)});await foreign.load();
-  assert.equal(foreign.data.best,0);assert.equal(foreign.data.hero,'bear');assert(!foreign.data.meet.prizeFeather);
+  assert.equal(foreign.data.best,0);assert.equal(foreign.data.hero,'owl');assert(!foreign.data.meet.prizeFeather);
   const guest=create({storage:driver});await guest.load();assert.equal(guest.data.best,7);assert.equal(guest.data.hero,'owl');
   const lower=create({storage:driver,app:telegram(127,{save:JSON.stringify({...oldCloud,best:5000,uid:998})}),channel:'production'});await lower.load();
   assert.equal(lower.data.best,900);assert.equal(lower.data.hero,'bear');assert(!lower.data.meet.prizeFeather);

@@ -5,17 +5,41 @@ public partial class MountainRace {
     int helmetsIssued;
     ParticleSystem kitSparks;
     float nextKitSpark;
-    bool Fireboard=>!BonusMode&&Hero=="owl"&&settings.equipment=="fireboard";
-    bool CarveSkis=>!BonusMode&&Hero=="bear"&&settings.equipment=="carveSkis";
-    int FreeTuning=>settings.ownedEquipment?FreeUpgrade(settings.tuning):0;
-    int FreeUpgrade(int level)=>Status.mode=="free"?Mathf.Clamp(level,0,5):0;
+    bool Fireboard=>!BonusMode&&settings.ownedEquipment&&Hero=="owl"&&settings.equipment=="fireboard";
+    bool CarveSkis=>!BonusMode&&settings.ownedEquipment&&Hero=="bear"&&settings.equipment=="carveSkis";
+    float KitAcceleration(float stock)=>Fireboard?stock+8+2*KitTuning:CarveSkis?stock*.575f:stock;
+    int KitTuning=>Mathf.Clamp(settings.tuning,0,2);
+    int HeadTuning=>Mathf.Clamp(settings.headTuning,0,2);
+    bool OrangeHelmet=>!BonusMode&&Hero=="bear"&&settings.headgear=="orangeHelmet";
+    bool PinkGoggles=>!BonusMode&&Hero=="owl"&&settings.headgear=="pinkGoggles";
+    float GroundFruitRadius=>1.1f+(PinkGoggles?.25f+.20f*HeadTuning:0);
+    int MainUpgrade(int level)=>CourseMode=="normal"?Mathf.Clamp(level,0,5):0;
 
     public void PreviewGear(string json){
         if(!IsMenu&&!Review)return;
         var preview=JsonUtility.FromJson<Settings>(json);
         if(preview==null)return;
         settings.equipment=preview.equipment;settings.ownedEquipment=preview.ownedEquipment;settings.tuning=preview.tuning;
-        PaintKit(rideModel);PaintKit(stowed);
+        settings.headgear=preview.headgear;settings.headTuning=preview.headTuning;
+        if(IsMenu&&settings.inspect!=preview.inspect){menuYaw=menuVelocity=0;spinHeld=false;}
+        settings.inspect=IsMenu?preview.inspect:"";
+        PaintKit(rideModel);PaintKit(stowed);PaintHeadwear(rideModel);PaintHeadwear(menuModel);
+        if(IsMenu)RenderMenu(0);
+    }
+
+    void PaintHeadwear(Transform model){
+        if(!model)return;
+        bool colored=Hero=="owl"?settings.headgear=="pinkGoggles":settings.headgear=="orangeHelmet";
+        foreach(var skin in model.GetComponentsInChildren<SkinnedMeshRenderer>(true)){
+            var paint=skin.sharedMaterial;
+            if(!paint||!paint.name.StartsWith("tripo_material")||!paint.mainTexture)continue;
+            MaterialPropertyBlock block=null;
+            if(colored){
+                var variant=Resources.Load<Texture2D>("Art/"+paint.mainTexture.name+"Shop");
+                if(variant){block=new MaterialPropertyBlock();block.SetTexture("_BaseMap",variant);}
+            }
+            skin.SetPropertyBlock(block,0);
+        }
     }
 
     void PaintKit(Transform root){
@@ -54,9 +78,9 @@ public partial class MountainRace {
     }
 #if UNITY_EDITOR
     public void VerifyEquipment(){
-        (float speed,float slide,float turn) DriveKit(string hero,string kit,string mode,bool owned){
+        (float speed,float slide,float turn) DriveKit(string hero,string kit,bool owned,int level=0){
             Menu();ChooseHero(hero);
-            string config=JsonUtility.ToJson(new Settings{mode=mode,seed=1911,equipment=kit,ownedEquipment=owned,tuning=2,helmets=50,boost=5,mag=5});
+            string config=JsonUtility.ToJson(new Settings{mode="normal",seed=1911,equipment=kit,ownedEquipment=owned,tuning=level,helmets=50,boost=5,mag=5});
             void CheckFinish(Transform root,string scene){
                 string name=hero=="owl"?"Snowboard":"Left_Ski";
                 var part=System.Array.Find(root.GetComponentsInChildren<Transform>(true),t=>t.name==name||t.name==name+"(Clone)");
@@ -65,24 +89,36 @@ public partial class MountainRace {
             }
             PreviewGear(config);CheckFinish(stowed,"menu");
             StartRace(config);CheckFinish(rideModel,"race");
-            Check((Status.helmets==1)==(mode=="free"),"starting helmet entitlement");
-            Check(FreeUpgrade(settings.boost)==(mode=="free"?5:0),"purchased coffee affected ranking");
+            Check(Status.helmets==1&&MainUpgrade(settings.boost)==5,"main descent must use purchased helmet and boosts");
             Checkpoint(100,0);speed=13;boost=4;slip=1.5f;DragSteer(.08f);
             for(int tick=0;tick<12;tick++)Advance(1f/60);
             Check(Status.phase=="play"&&fall<=0,"kit measurement interrupted");
             if(owned&&kit=="fireboard")Check(kitSparks&&kitSparks.particleCount>0,"personal board fireworks missing");
             return(speed,Mathf.Abs(slip),lane);
         }
-        var basic=DriveKit("owl","standard","normal",false);
-        var loan=DriveKit("owl","fireboard","normal",false);
-        var own=DriveKit("owl","fireboard","normal",true);
-        var free=DriveKit("owl","fireboard","free",true);
-        Check(Mathf.Abs(own.speed-loan.speed)<.001f&&Mathf.Abs(own.turn-loan.turn)<.001f,"ranking gear differs from rental");
-        Check(loan.speed>basic.speed+.4f&&loan.turn<basic.turn&&free.speed>loan.speed+.2f,"board acceleration/steering tradeoff");
-        var basicSki=DriveKit("bear","standard","normal",false);
-        var carve=DriveKit("bear","carveSkis","normal",false);
+        var basic=DriveKit("owl","standard",false);
+        var board=DriveKit("owl","fireboard",true);
+        var tuned=DriveKit("owl","fireboard",true,2);
+        Check(board.speed>basic.speed+.4f&&board.turn<basic.turn&&tuned.speed>board.speed+.2f,"board acceleration and tuning");
+        var basicSki=DriveKit("bear","standard",false);
+        var carve=DriveKit("bear","carveSkis",true,2);
         Check(carve.speed<basicSki.speed-.25f&&carve.slide<basicSki.slide*.75f,"ski edge and acceleration tradeoff");
-        Menu();StartRace("{\"mode\":\"normal\",\"seed\":1911,\"helmets\":40}");
+        foreach(string hero in new[]{"bear","owl"}){
+            Menu();ChooseHero(hero);
+            var spec=new Settings{headgear=hero=="bear"?"orangeHelmet":"pinkGoggles",headTuning=2,inspect="headgear"};
+            string json=JsonUtility.ToJson(spec);
+            void CheckBody(Transform body){
+                foreach(var skin in body.GetComponentsInChildren<SkinnedMeshRenderer>(true)){
+                    if(!skin.sharedMaterial.name.StartsWith("tripo_material"))continue;
+                    var block=new MaterialPropertyBlock();skin.GetPropertyBlock(block,0);
+                    Check(block.GetTexture("_BaseMap")!=null,"missing purchased headwear texture "+body.name);return;
+                }
+                Check(false,"missing head mesh "+body.name);
+            }
+            PreviewGear(json);CheckBody(menuModel);StartRace(json);CheckBody(rideModel);
+            Check(hero=="bear"?Mathf.Abs(FallTime-1.25f)<.001f:Mathf.Abs(GroundFruitRadius-1.75f)<.001f,"headgear boost");
+        }
+        Menu();StartRace("{\"mode\":\"normal\",\"seed\":1911,\"helmets\":0}");
         Checkpoint(4,0);
         void ContactHelmet(){
             var item=World.Add("helmet",Status.metres,lane,.5f,.7f);
@@ -98,7 +134,7 @@ public partial class MountainRace {
         // Resolve the final unprotected impact via the production collision and finish path.
         Hit("npc");for(int i=0;i<150&&Status.phase=="play";i++)Advance(1f/60);
         Check(Status.phase=="over","third fall extended the attempt");
-        Debug.Log("EQUIPMENT PASS ranked loan/own="+loan.speed+"/"+own.speed+" m/s, tuned free="+free.speed+
+        Debug.Log("EQUIPMENT PASS main stock/board/tuned="+basic.speed+"/"+board.speed+"/"+tuned.speed+
             "; basic/carve lateral slip="+basicSki.slide+"/"+carve.slide+" m/s");
         Menu();
     }

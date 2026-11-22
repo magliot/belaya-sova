@@ -133,14 +133,12 @@ public static class RaceWorldChecks {
             race.RestartRide();Require(Layout(world)==first,"seed 1911 restart differs");
             race.StartRace("{\"mode\":\"normal\",\"seed\":4903}");
             Require(Layout(world)!=first,"second seed repeats all training objects");
-            foreach(var jump in new[]{("normal",15459.5f,"thermos"),("sprint",750f,"thermos"),("sprint",1050f,"helmet")}){
-                world.Configure(1911,jump.Item1);world.Refresh(jump.Item2,40);
-                float at=jump.Item2+4.5f;
-                var outer=world.Items.Single(o=>o.kind==jump.Item3&&Mathf.Abs(o.distance-at)<.02f);
+            {
+                world.Configure(1911,"normal");world.Refresh(15459.5f,40);
+                float at=15464;
+                var outer=world.Items.Single(o=>o.kind=="thermos"&&Mathf.Abs(o.distance-at)<.02f);
                 var ramp=world.Items.First(o=>o.kind=="ramp"&&o.distance>at&&o.distance<at+30);
-                Require(!outer.air&&Mathf.Abs(outer.lane-ramp.lane)>3.5f,"short kicker forces "+jump.Item3);
-                if(jump.Item1=="sprint")Require(world.Items.Any(o=>o.kind=="coin"&&Mathf.Abs(o.distance-at)<.02f),
-                    "short sprint kicker lost its approach fruit");
+                Require(!outer.air&&Mathf.Abs(outer.lane-ramp.lane)>3.5f,"short kicker forces "+"thermos");
                 Require(world.Items.Count(o=>o.kind=="coin"&&o.air&&o.distance>at&&o.distance<at+60)==4,
                     "missing aerial fruit at "+at);
             }
@@ -212,8 +210,6 @@ public static class RaceWorldChecks {
                     "gate boulders obstruct scoring passage");
                 Debug.Log("BLACK GATE PASS seed "+seed+" rock gate "+gate.distance+" m");
             }
-            world.Configure(1911,"sprint");world.Refresh(1170,100);
-            Require(world.Items.Any(o=>o.kind=="finish"&&o.distance==1200),"sprint finish line");
             world.Configure(1911,"tubing");world.Refresh(810,38);
             Require(world.Items.Any(o=>o.kind=="tree")&&world.Items.Any(o=>o.kind=="gate"),"tubing forest and slalom");
             world.Refresh(1690,70);Require(world.Items.Any(o=>o.kind=="gift"),"tubing gift finish");
@@ -222,7 +218,7 @@ public static class RaceWorldChecks {
             CheckSnowContact(race);
             RiderCourseChecks.Verify(race);
             RaceRouteChecks.Run(race);
-            Debug.Log("RACE WORLD CHECK PASS: 8 stages, two seeds, signs, portrait people, moving riders, sprint and bonuses");
+            Debug.Log("RACE WORLD CHECK PASS: 9 stages, two seeds, arches, visible moving riders and both bonuses");
         }finally{race.View.aspect=aspect;race.Menu();}
     }
 }

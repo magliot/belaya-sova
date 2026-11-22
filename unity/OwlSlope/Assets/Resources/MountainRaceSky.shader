@@ -45,7 +45,7 @@ Shader "Owl/MountainRaceSky" {
    fixed4 frag(V i):SV_Target{
     if(_Menu>.5){
      float2 screen=i.screen.xy/i.screen.w;
-     float crop=(_ScreenParams.x/_ScreenParams.y)/(889./1580.);
+     float crop=(_ScreenParams.x/_ScreenParams.y)/(852./1846.);
      float2 uv=.5+(screen-.5)*float2(min(crop,1.),min(1./crop,1.));
      // Anchor the snow platform under the menu rider when a wide viewport crops the artwork.
      uv.y=.40+(screen.y-.40)*min(1./crop,1.);

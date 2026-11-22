@@ -8,11 +8,34 @@ public partial class RaceWorld {
         int key=Mathf.FloorToInt(start);
         float radius=Mathf.Lerp(.89f,1.20f,Roll(seed,key,1400));
         float side=Mathf.Sign(gap.lane);
-        var o=Add("snowBoulder",start+117,side*7.7f,2*radius,2*radius);
-        o.scale=radius;o.side=side;o.vCruise=8+3*Roll(seed,key,1401);
+        bool pursuit=section%4==0;
+        var o=Add("snowBoulder",start+(pursuit?112:117),side*(pursuit?8.8f:7.7f),2*radius,2*radius);
+        o.route=pursuit?1:0;
+        o.scale=radius;o.side=side;o.vCruise=(pursuit?32:8)+3*Roll(seed,key,1401);
         o.phase=Roll(seed,key,1402)*Mathf.PI*2;
     }
-    static void RollSnowBoulder(RaceItem o,float player,float dt){
+    static void RollSnowBoulder(RaceItem o,float player,float riderLane,float dt){
+        if(o.route==1){
+            if(o.age==0){
+                float lead=player-o.originD;
+                if(lead<14||dt<=0)return;
+                if(lead>29){o.Consume();return;}
+                o.to=Mathf.Clamp(riderLane,-10.5f,10.5f);
+                o.pace=19;
+            }
+            o.age+=dt;
+            o.pace=Mathf.MoveTowards(o.pace,o.vCruise,8.5f*dt);
+            float roll=o.pace*dt;
+            o.distance+=roll;
+            float travel=o.distance-o.originD;
+            // The snowball commits to the player's old tracks and cannot steer after them.
+            o.lane=Mathf.Lerp(o.originX,o.to,Smooth(travel/42));
+            float escape=Smooth(Mathf.InverseLerp(90,125,travel));
+            o.lane=Mathf.Lerp(o.lane,-o.side*15,escape);
+            o.stride=Mathf.Repeat(o.stride+roll/o.scale*Mathf.Rad2Deg,360);
+            if(travel>=125)o.Consume();
+            return;
+        }
         if(o.age==0&&o.originD-player>68)return;
         o.age+=dt;
         // Start on a shoulder, roll across the fall line, then carry on downhill

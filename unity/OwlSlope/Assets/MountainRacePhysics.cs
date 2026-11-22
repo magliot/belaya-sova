@@ -51,14 +51,14 @@ public partial class MountainRace {
             // No ground traction in the air. Finishing a trick or losing coffee cannot brake a flying rider.
             speed=flightSpan/airMax;
         }else if(freeRide){
-            speed=Mathf.MoveTowards(speed,targetSpeed,(fall>0?22:6)*dt);
+            speed=Mathf.MoveTowards(speed,targetSpeed,(fall>0?22:speed<targetSpeed&&!airborne?KitAcceleration(6):6)*dt);
         }else if(snowpark){
             targetSpeed=Mathf.Min(targetSpeed,37)*(1-.035f*StepBlend(rampPhase));
-            speed=Mathf.MoveTowards(speed,targetSpeed,(speed>targetSpeed?9:6)*dt);
-        }else if((s.mode=="normal"||s.mode=="free")&&d>40&&fall<=0){
+            speed=Mathf.MoveTowards(speed,targetSpeed,(speed>targetSpeed?9:KitAcceleration(6))*dt);
+        }else if(s.mode=="normal"&&d>40&&fall<=0){
             // Everyone leaves the start at the same pace. The deck gains speed sooner on a steep line.
             if(Fireboard)targetSpeed*=1+.10f*Mathf.InverseLerp(.16f,.55f,grade);
-            float acceleration=Fireboard?16+FreeTuning*2:CarveSkis?4.6f:8;
+            float acceleration=KitAcceleration(8);
             speed=Mathf.MoveTowards(speed,targetSpeed,(speed<targetSpeed?acceleration:19)*dt);
         }else speed=targetSpeed;
         speed=FisApproachSpeed(previousSpeed,speed,dt);
@@ -80,7 +80,7 @@ public partial class MountainRace {
                 Mathf.Max(1,(World.SampleGround(d+1,0)-World.SampleGround(d-1,0)).magnitude);
             float bank=(World.SampleGround(d,lane+.1f).y-World.SampleGround(d,lane-.1f).y)/.2f;
             slip=airborne?0:Mathf.Lerp(slip,Mathf.Clamp(( -curve*speed*speed-9.81f*bank)*.24f,-1.8f,1.8f),4*dt);
-            if(CarveSkis&&!airborne)slip*=Mathf.Exp(-(7+FreeTuning*2)*dt);
+            if(CarveSkis&&!airborne)slip*=Mathf.Exp(-(7+KitTuning*2)*dt);
         }else{
             velocity=Status.mode=="tubing"?velocity*Mathf.Exp(-2.4f*dt):0;
             float delta=Mathf.DeltaAngle(heading*Mathf.Rad2Deg,travelYaw*Mathf.Rad2Deg)*Mathf.Deg2Rad;
@@ -95,7 +95,7 @@ public partial class MountainRace {
         if(edgeReturn){float t=Mathf.Clamp01((1-fall/FallTime)*1.7f);lane=Mathf.Lerp(edgeOrigin,0,StepBlend(t));dragTarget=lane;if(t>=1)edgeReturn=false;}
         float next=d+speed*dt;
         if(airborne&&parkFlight)next=flightStart+speed*(airTime+dt);
-        s.metres=s.mode=="sprint"?Mathf.Min(SprintLength,next):next;
+        s.metres=next;
         TickAir(dt,d,oldLane);
         World.SetThrowTarget(lane,speed,velocity+slip,Altitude);
         World.Refresh(s.metres,s.elapsed,lane,drawWorld);
@@ -104,7 +104,6 @@ public partial class MountainRace {
         TickTimers(dt);
         if(!BonusMode&&!freeRide){TickChallenge();FisHints(d,s.metres);}
         if(BonusMode&&s.elapsed>=BonusSeconds)Finish(true,s.mode=="tubing"?"Финиш у бухты!":"Снежная доставка завершена!");
-        else if(s.mode=="sprint"&&s.metres>=SprintLength)Finish(true,"Короткий спуск пройден!");
     }
     float MogulShape(float d,float x){
         // Measure local bumps on the generated terrain, removing its base gradient.
@@ -250,7 +249,7 @@ public partial class MountainRace {
     }
     void SelectChallenge(int stage){
         if(random==null)return;
-        challenge=Status.mode=="sprint"?1:random.Next(5);consecutiveGates=0;challengeDone=false;challengeClean=Status.metres;
+        challenge=random.Next(5);consecutiveGates=0;challengeDone=false;challengeClean=Status.metres;
         int[] needs={25,6,500,4,3};challengeNeed=Mathf.RoundToInt(needs[challenge]*(1+.12f*stage));challengeBaseline=Progress();
     }
     int Progress(){

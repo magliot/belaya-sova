@@ -98,12 +98,15 @@ async function main() {
     assert.equal(await page.locator('#freeRideJump').count(),0);
     await shot('menu');
     await page.setViewportSize({width:320,height:640});
-    for(const name of ['collection','missions','shop','settings','rules']){
+    for(const name of ['collection','missions','shop','bonuses','settings','rules']){
       await page.locator('[data-panel="'+name+'"]').tap();
       const el=page.locator('#panel');
       assert(await el.isVisible());
-      assert.match(await el.evaluate(node=>getComputedStyle(node).borderImageSource),/hud-59b/);
-      assert(await el.evaluate(node=>node.scrollWidth<=node.clientWidth+1));
+      assert.equal(await el.getAttribute('data-view'),name);
+      assert(await el.evaluate(node=>getComputedStyle(node).backgroundImage.includes('gradient')));
+      const overflow=await el.evaluate(node=>node.scrollWidth<=node.clientWidth+1?'':Array.from(node.querySelectorAll('*'))
+        .filter(e=>e.getBoundingClientRect().right>node.getBoundingClientRect().right).map(e=>e.tagName+' '+e.textContent.slice(0,30)).slice(0,6).join(', ')||node.scrollWidth+' / '+node.clientWidth);
+      assert.equal(overflow,'','Panel overflows at 320 px: '+name+' '+overflow);
       await click('closePanel');
     }
     await shot('menu-320');await page.setViewportSize({width:390,height:780});
@@ -197,6 +200,19 @@ async function main() {
       const moves=await page.evaluate(()=>turnNames);
       if(hero==='owl')assert.deepEqual(moves,['Сальто назад','Оборот вправо']);
       samples.push({hero,park:s.metres,tricks:s.tricks,feather:s.feather,moves});
+      await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await leavePractice();
+    }
+    await quickLink('boulder_1911',20119);
+    for(const evade of [false,true]){
+      await setLane(0);await seek(20119);await click('reviewPlay');
+      const origin={x:195,y:480,id:1};
+      await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[origin]});
+      await page.waitForFunction(()=>probe.boulderChasing&&document.getElementById('rideStatus').textContent.includes('Ком сзади'));
+      const warning=await page.evaluate(()=>probe.metres);
+      if(evade)await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...origin,x:125}]});
+      if(!evade)await page.waitForFunction(()=>probe.helmets===0);else await at(20179);
+      const s=await page.evaluate(()=>probe);assert.equal(s.helmets,evade?1:0);
+      samples.push({pursuit:evade?'evaded':'hit',warning,metres:s.metres,helmets:s.helmets});
       await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await leavePractice();
     }
     await quickLink('freeridewide_1911',20165);

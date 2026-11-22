@@ -48,7 +48,8 @@ async function freshTelegramStart(browser,platform){
     await page.waitForURL(u=>u.pathname===root.pathname+'unity/',{timeout:60000});
     await page.locator('#play').waitFor({timeout:180000});
     assert.equal(await page.evaluate(()=>Telegram.WebApp.initDataUnsafe.user.id),user.id);
-    assert.equal((await page.locator('#mast').textContent()).trim(),'Белая Сова');
+    assert(await page.locator('#mast [data-panel="top"]').isVisible());
+    assert(await page.locator('#menu [data-panel="bonuses"]').isVisible());
     assert.equal(await page.locator('#best').innerText(),'0');
     const localHelmets=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('bsova_tg9082_unity_release_v1')).data.helmets);
     if(platform==='ios'){
@@ -77,8 +78,7 @@ async function freshTelegramStart(browser,platform){
     assert(await page.locator('#menu').isHidden());
     if(platform==='ios'){
       assert(await page.evaluate(()=>window.soundFailureObserved));
-      const rentedRanked=await page.evaluate(()=>!!window.MountainEquipment);
-      assert.equal(await localHelmets(),rentedRanked?2:1,'wrong start entitlement for the published ruleset');
+      assert.equal(await localHelmets(),1,'accepted start must consume exactly one stocked helmet');
     }
     assert.deepEqual(errors,[]);
     console.log('PASS fresh Telegram',platform,'ordinary start, moving HUD');

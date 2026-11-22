@@ -4,7 +4,7 @@ public partial class MountainRace {
     RaceItem touchedFeather;
     void CollectFeather(RaceItem item){
         item.Consume();Status.feather=true;Status.feathers++;bonusPoints+=300*Mult;
-        Notice("Золотое перо! Открыты оба бонуса","feather");
+        Notice("Золотое перо +1","feather");
     }
     void ScheduleLetter(float d,bool missed){
         if(CourseMode!="normal")return;
@@ -108,13 +108,14 @@ public partial class MountainRace {
             if(freeRideFalling)return;
         }
         else UpdateRidingSurface(before,d);
-        Status.boulderNear=0;Status.engineNear=0;Status.enginePan=0;
+        Status.boulderChasing=false;Status.boulderNear=0;Status.engineNear=0;Status.enginePan=0;
         foreach(var o in World.Items){
             if(o.consumed)continue;
             float dx=lane-o.lane,dy=d-o.distance,abs=Mathf.Abs(dx),ahead=-dy;
             if(o.kind=="snowBoulder"){
                 float distance=Mathf.Sqrt(dx*dx+dy*dy);
                 Status.boulderNear=Mathf.Max(Status.boulderNear,1-Mathf.Clamp01(distance/42));
+                if(o.PursuesRider&&o.age>0&&!o.judged&&dy> -3&&dy<28){Status.boulderChasing=true;Status.boulderLine=o.to;}
             }
             if(o.kind=="npc"&&!o.judged)ObserveRider(o,ahead,dx);
             if(o.kind=="cat"||o.kind=="snowmobile"){
@@ -178,7 +179,7 @@ public partial class MountainRace {
                 }
                 break;
               case "coin":case "thermos":case "helmet":case "magnet":
-                float radius=o.kind=="coin"?1.1f:1.2f;
+                float radius=o.kind=="coin"?GroundFruitRadius:1.2f;
                 if(o.kind=="coin"&&!o.air&&magnet>0&&square<8.5f*8.5f){
                     float length=Mathf.Sqrt(square);
                     if(length>.0001f){
@@ -194,15 +195,15 @@ public partial class MountainRace {
                 }
                 o.Consume();
                 switch(o.kind){
-                    case "thermos":boost=4.5f+FreeUpgrade(settings.boost)*.8f;Notice(BonusMode?"Кофе · ускорение +22%":"Кофе · ускорение +65%","power");break;
+                    case "thermos":boost=4.5f+MainUpgrade(settings.boost)*.8f;Notice(BonusMode?"Кофе · ускорение +22%":"Кофе · ускорение +65%","power");break;
                     case "helmet":
                         if(Status.helmets==0&&helmetsIssued<MaxHelmetsPerRide){Status.helmets=1;helmetsIssued++;Notice("Каска EMCO","power");}
                         break;
-                    case "magnet":magnet=7+FreeUpgrade(settings.mag)*2;Notice("Магнит для мандаринов","power");break;
+                    case "magnet":magnet=7+MainUpgrade(settings.mag)*2;Notice("Магнит для мандаринов","power");break;
                 }break;
               case "goldenOwl":
                 if(square<1.5f*1.5f&&Mathf.Abs((airborne?FlightHeight(d):0)+1-o.height)<1.7f){
-                    o.Consume();Status.goldenOwl=true;bonusPoints+=500*Mult;Notice("Золотая сова! Снегоход открыт","chime");}
+                    o.Consume();Status.goldenOwl=true;bonusPoints+=500*Mult;Notice("Золотая сова!","chime");}
                 break;
               case "letter":
                 if(square<1.4f*1.4f&&(!o.air||airborne)){

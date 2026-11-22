@@ -6,16 +6,18 @@
   <meta name="theme-color" content="#183c56">
   <title>Белая Сова · Спуск</title>
   <link rel="icon" type="image/jpeg" href="art/av_owl.jpg">
-  <link rel="stylesheet" href="race.css?v=5e5c1de362af">
+  <link rel="stylesheet" href="race.css?v=74fb4a72ad3d">
   <script src="vendor/telegram-web-app.js?v=e999954b603b"></script>
-  <script src="release.js?v=02306089b92b"></script><script src="save.js?v=7139177cfd6c"></script><script src="equipment.js?v=af0fbdc2a8b9"></script>
+  <script src="release.js?v=02306089b92b"></script><script src="save.js?v=22dd03bb9afd"></script><script src="equipment.js?v=a8e8dc877787"></script>
   <script defer src="mountain-audio.js?v=4a1e7fcd87e4"></script><script defer src="mountain-metrics.js?v=2c1afe0401dc"></script>
 </head>
 <body><main id="app">
   <canvas id="slope" aria-label="Горнолыжная трасса" tabindex="0"></canvas>
   <div id="safe">
     <header id="mast" hidden>
-      <h1>Белая Сова</h1>
+      <button class="record-pill" data-panel="top" aria-label="Рейтинг и личный рекорд"><span aria-hidden="true">🏆</span><strong id="best">0</strong><small id="menuRank"></small></button>
+      <span class="wallet-pill" aria-label="Мандарины в кошельке"><span aria-hidden="true">🍊</span><strong id="bank">0</strong></span>
+      <button class="settings-key" data-panel="settings" aria-label="Настройки">⚙</button>
     </header>
     <section id="loading" class="sheet" aria-live="polite">
       <h2>Готовим склон</h2><p id="loadText">Загружаем игру…</p>
@@ -27,13 +29,10 @@
         <button data-hero="bear" aria-pressed="false"><img src="art/av_bear.jpg" alt=""><span>Мишаня<small>Лыжи · сносит сугробы</small></span></button>
         <button data-hero="owl" aria-pressed="false"><img src="art/av_owl.jpg" alt=""><span>Сова<small>Сноуборд · долго парит</small></span></button>
       </div>
-      <div class="balances"><span>⭐ Рекорд <b id="best">0</b></span><button data-panel="top">🏆 Рейтинг<small id="menuRank"></small></button><span>🍊 <b id="bank">0</b></span></div>
-      <div class="row start-row"><button id="play" class="primary" data-mode="normal">Поехали!</button></div>
-      <div class="row bonuses"><button data-mode="tubing">Плюшки<small></small></button><button data-mode="sled">Снегоход<small></small></button></div>
-      <div class="row"><button class="sprint" data-mode="free">Свободное катание</button><button class="sprint" data-mode="sprint">Короткий · 1,2 км</button></div>
+      <div class="row start-row"><button id="play" class="primary" data-mode="normal">Поехали! <span aria-hidden="true">➜</span></button></div>
       <nav class="utilities" aria-label="Разделы игры">
-        <button data-panel="collection"><span aria-hidden="true">🏅</span>Коллекция</button><button data-panel="missions"><span aria-hidden="true">🎯</span>Задания</button>
-        <button data-panel="shop"><span aria-hidden="true">🎿</span>Прокат и магазин</button><button data-panel="settings"><span aria-hidden="true">⚙️</span>Настройки</button>
+        <button data-panel="missions"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="16" rx="2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m8 12 2 2 5-5m-7 8h7"/></svg>Задания</button><button data-panel="collection"><svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="6" width="15" height="15" rx="2"/><path d="M7 3h12a2 2 0 0 1 2 2v12m-10-7 1.1 2.2 2.4.4-1.7 1.6.4 2.4-2.2-1.1-2.1 1.1.4-2.4-1.8-1.6 2.4-.4z"/></svg>Коллекция</button>
+        <button data-panel="shop"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19 15 4q1-1.5 2-.8t-.1 2.4L6 20q-2 2-3 .2m6 .8L20 6q1-1.4 2-.6M5 4l11 16m-3-1 4-3M3 6l3-2"/></svg>Магазин</button><button data-panel="bonuses"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 9h18v4H3zm2 4v8h14v-8M12 9v12"/><path d="M12 9C9 9 6 8 6 5.8 6 3.4 10 3 12 9Zm0 0c3 0 6-1 6-3.2C18 3.4 14 3 12 9Z"/></svg>Бонусы</button>
       </nav>
       <button class="rules-link" data-panel="rules">Правила FIS · <b id="ruleCount">0/10</b></button>
     </section>
@@ -49,7 +48,7 @@
     </div>
     <section id="review" class="sheet" hidden>
       <div class="row"><b>Осмотр · <output id="reviewMetres">0</output> м</b><button id="reviewFold" aria-expanded="true">Свернуть</button><button id="reviewExit">В меню</button></div>
-      <div id="reviewBody"><div class="row"><select id="reviewRide" aria-label="Трасса осмотра"><option value="normal">Полный спуск</option><option value="sprint">Короткий спуск</option><option value="tubing">Плюшки</option><option value="sled">Снегоход</option></select><select id="reviewHero" aria-label="Герой осмотра"><option value="owl">Сова</option><option value="bear">Мишаня</option></select></div><label>Перемотка
+      <div id="reviewBody"><div class="row"><select id="reviewRide" aria-label="Трасса осмотра"><option value="normal">Полный спуск</option><option value="tubing">Плюшки</option><option value="sled">Снегоход</option></select><select id="reviewHero" aria-label="Герой осмотра"><option value="owl">Сова</option><option value="bear">Мишаня</option></select></div><label>Перемотка
       <input id="seek" aria-label="Положение на трассе" type="range" min="0" max="79999" step="1" value="0"></label>
       <div class="row"><button id="reviewEarlier">−100 м</button><input id="reviewAt" aria-label="Перейти на метр" type="number" min="0" max="79999" step="1" value="0"><button id="reviewLater">+100 м</button></div>
       <div class="row"><select id="reviewRate" aria-label="Скорость осмотра">
@@ -69,7 +68,7 @@
       <div id="breakdown" hidden aria-label="Состав очков заезда"></div>
       <p id="resultRule" hidden></p><details id="resultTasks"><summary>Задания заезда</summary><div></div></details>
       <button id="again" class="primary">Ещё заезд</button>
-      <div class="row" id="resultBonuses" hidden><button data-mode="tubing">Плюшки</button><button data-mode="sled">Снегоход</button></div>
+      <p id="resultBonuses" hidden>Золотые перья можно потратить в магазине и в разделе «Бонусы».</p>
       <div class="row"><button id="share">Поделиться</button><button id="exitResult">В меню</button></div>
     </section>
     <section id="shareSheet" class="sheet" aria-label="Карточка заезда" hidden>
@@ -78,14 +77,15 @@
       <p id="shareHint" role="status">Удержи картинку, чтобы сохранить её.</p>
       <div class="row"><button id="copyShare">Копировать текст</button><button id="sendShare" class="primary">Отправить</button></div>
     </section>
+    <small id="previewHint" hidden>Поверни модель пальцем</small>
     <section id="panel" class="sheet" hidden><div class="heading"><h2 id="panelTitle"></h2><button id="closePanel" aria-label="Закрыть">×</button></div>
       <div id="panelBody"></div>
     </section>
   </div>
-</main><script src="race.js?v=5efd5996df34"></script>
+</main><script src="race.js?v=dce4c8bcf081"></script>
 <script>
   MountainShell.boot({
-    loader:'Build/7c200f0585c9060747ca869d35eb53af.loader.js', data:'Build/8e923860e6b132ea092a8abd6e8b823a.data.unityweb',
-    framework:'Build/03e23be05751131bdf03db6d7bb218f0.framework.js.unityweb', code:'Build/d40c274955e812f27e5ac5cebe86c654.wasm.unityweb'
+    loader:'Build/198a6bf99ccfcdc6fcc3e052bee6cb49.loader.js', data:'Build/45362528317ef1795e5086ed653d75cd.data.unityweb',
+    framework:'Build/370fb442dffaa1201eaa85be65a085a5.framework.js.unityweb', code:'Build/39a37c91f5ad4dc98362761ff631c109.wasm.unityweb'
   });
 </script></body></html>

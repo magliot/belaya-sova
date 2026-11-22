@@ -11,88 +11,73 @@ async function inventoryLimits(){
   const open=()=>MountainSaves.create({channel:'progression',storage});
   const account=open();await account.load();
   assert.equal(account.buy('carveSkis'),false);
-  account.change(['coins'],d=>{d.coins=10000;});
-  function paid(item){
-    const before=account.data.coins,cost=MountainSaves.price(account.data,item);
-    assert(account.buy(item));assert.equal(account.data.coins,before-cost);
+  account.change(['coins','meet'],d=>{d.coins=20500;d.meet.feathers=50;});
+  const value=(p,via)=>via==='coins'?p.data.coins:MountainSaves.featherBalance(p.data);
+  function paid(id,via='coins',kit){
+    const before=value(account,via),cost=MountainSaves.price(account.data,id,via,kit);
+    assert(account.buy(id,via,kit),id);assert.equal(value(account,via),before-cost,id);
   }
-  function capped(item){const before=account.data.coins;assert.equal(account.buy(item),false);assert.equal(account.data.coins,before);}
+  function capped(id,via='coins',kit){
+    const before=value(account,via);assert.equal(account.buy(id,via,kit),false);assert.equal(value(account,via),before);
+  }
   for(let i=0;i<3;i++)paid('helmets');capped('helmets');
-  for(const [hero,kit] of [['bear','carveSkis'],['owl','fireboard']]){
-    account.change(['hero'],d=>{d.hero=hero;});
-    paid(kit);capped(kit);assert.equal(account.data.gear[hero],kit);
-    paid('tune');paid('tune');capped('tune');
+  for(const [hero,slot,key] of [['owl','gear','fireboard'],['bear','gear','carveSkis'],['bear','headgear','orangeHelmet'],['owl','headgear','pinkGoggles']]){
+    assert.equal(MountainSaves.price(account.data,key),10);
+    capped(key,'coins');paid(key,'feathers');capped(key,'feathers');
+    assert.equal(account.data[slot][hero],key);
+    paid('tune','coins',key);paid('tune','coins',key);capped('tune','coins',key);
   }
   for(const item of ['boost','mag']){for(let i=0;i<5;i++)paid(item);capped(item);}
+  assert.equal(MountainSaves.price(account.data,'sled','coins'),5000);
+  assert.equal(MountainSaves.price(account.data,'tubing','coins'),3000);
+  paid('tubing','coins');capped('tubing','feathers');paid('sled','feathers');capped('sled','coins');
   const restored=open();await restored.load();
-  assert.deepEqual(restored.data.ownedGear.slice().sort(),['carveSkis','fireboard']);
-  assert.deepEqual(restored.data.tuning,{fireboard:2,carveSkis:2});
+  assert.equal(value(restored,'feathers'),0);assert.equal(restored.data.meet.feathers,50);
+  assert.deepEqual(restored.data.bonuses.sort(),['sled','tubing']);
+  assert.deepEqual(restored.data.tuning,{fireboard:2,carveSkis:2,orangeHelmet:2,pinkGoggles:2});
   assert.equal(restored.data.helmets,3);assert.equal(restored.data.coins,account.data.coins);
-  for(const scenario of ['buy from rental','already paid on second phone','older owned finish','explicit stock']){
-    const isBuy=scenario.startsWith('buy')||scenario.startsWith('already');
-    const cached={hero:'owl',coins:isBuy?300:85,gear:{owl:'fireboard'},ownedGear:isBuy?[]:['fireboard']};
-    const anotherOwns=scenario==='already paid on second phone';
-    const remote={hero:'owl',coins:anotherOwns?85:300,gear:{owl:'standard',bear:'carveSkis'},ownedGear:anotherOwns?['fireboard']:[]};
-    const key='unity_test_v1',localKey='bsova_tg91_'+key;
-    const record=(data,updated)=>JSON.stringify({schema:1,uid:91,updated,data});
-    storage.setItem(localKey,record(cached,1));
+  const earned=MountainSaves.create({channel:'progression'});await earned.load();
+  const prize={mode:'normal',phase:'over',hero:'owl',stage:3,metres:7731,feather:true,feathers:1,coins:0};
+  for(let n=1;n<=10;n++){
+    earned.unlock(prize);assert(earned.finish('park-'+n,prize));assert(!earned.finish('park-'+n,prize));
+    assert.equal(MountainSaves.featherBalance(earned.data),n);
+    assert.deepEqual(earned.data.bonuses,[]);
+    assert.equal(earned.buy('pinkGoggles','feathers'),n===10);
+  }
+  assert.equal(earned.data.headgear.owl,'pinkGoggles');assert.equal(MountainSaves.featherBalance(earned.data),0);
+  for(const [flag,expected] of [['prizeFeather',['tubing','sled']],['goldenOwl',['sled']]]){
+    const result=MountainSaves.legacyMerge({hero:'bear',meet:{[flag]:true,feathers:1},gear:{bear:'carveSkis'}},null,0);
+    assert.deepEqual(result.bonuses,expected);assert.equal(result.gear.bear,'standard');
+  }
+  for(const elsewhere of [false,true]){
+    const key='unity_test_v1', wrap=(data,updated)=>JSON.stringify({schema:1,uid:91,updated,data});
+    const initial={hero:'owl',coins:6000,meet:{feathers:20},ownedGear:['fireboard'],gear:{owl:'standard'}};
+    storage.setItem('bsova_tg91_'+key,wrap(initial,1));
     let incoming;
     const app={initData:'fixture',initDataUnsafe:{user:{id:91}},isVersionAtLeast:()=>true,
       CloudStorage:{getItems:(_keys,done)=>{incoming=done;},setItem:(_key,_v,done)=>done(null)}};
-    const saved=MountainSaves.create({channel:'test',storage,app});
-    const loading=saved.load();
-    if(isBuy)assert(saved.buy('fireboard'));
-    if(scenario==='explicit stock')saved.change(['gear'],p=>{p.gear.owl='standard';});
-    incoming(null,{[key]:record(remote,2)});await loading;
-    assert(saved.data.ownedGear.includes('fireboard'),scenario);
-    assert.equal(saved.data.gear.owl,scenario==='explicit stock'?'standard':'fireboard',scenario);
-    assert.equal(saved.data.gear.bear,'carveSkis',scenario);
-    if(isBuy)assert.equal(saved.data.coins,85,scenario);
+    const local=MountainSaves.create({channel:'test',storage,app});const loading=local.load();
+    assert(local.buy('tubing','coins'));assert(local.buy('pinkGoggles','feathers'));
+    const remote=elsewhere?{...initial,coins:3000,bonuses:['tubing'],ownedGear:['pinkGoggles','fireboard'],
+      payments:{tubing:'coins',pinkGoggles:'feathers'}}:initial;
+    incoming(null,{[key]:wrap(remote,2)});await loading;
+    assert.equal(local.data.coins,3000);assert.equal(value(local,'feathers'),10);
+    assert.equal(local.data.headgear.owl,'pinkGoggles');assert.equal(local.data.gear.owl,'standard');
+    assert.deepEqual(local.data.bonuses,['tubing']);
   }
 }
-// A long uninterrupted descent can pay for equipment early. Check the target using the typical harvest.
-function checkTypicalPrice(harvest,price){
-  const sorted=harvest.slice().sort((a,b)=>a-b);
-  const middle=Math.floor(sorted.length/2);
-  const median=(sorted[middle]+sorted[Math.floor((sorted.length-1)/2)])/2;
-  const rides=price/median;
-  assert(rides>=4&&rides<=6,'Personal kit costs '+rides.toFixed(2)+' median rides');
-}
-// Use the actual six finished rides exported by ShopBalanceChecks, including their earned fruit.
 async function checkEarnedKits(rides){
   assert.equal(rides.length,6);
-  for(const [hero,kit] of [['owl','fireboard'],['bear','carveSkis']]){
-    const records=new Map(),storage={getItem:k=>records.get(k),setItem:(k,v)=>records.set(k,v)};
-    const open=()=>MountainSaves.create({channel:'progression',storage});
-    const profile=open();await profile.load();
-    profile.change(['hero'],d=>{d.hero=hero;});
-    const price=MountainSaves.price(profile.data,kit);assert.equal(price,215);
-    let collected=0,purchaseRide=0;
-    for(const [index,ride] of rides.entries()){
-      const id='earned-'+ride.seed;
-      const state={...ride,mode:'normal',phase:'over',rankedResult:true};
-      assert(profile.finish(id,state));
-      assert.equal(profile.finish(id,state),false);
-      collected+=ride.coins;
-      if(!purchaseRide){
-        assert.equal(profile.data.coins,collected);
-        const bought=profile.buy(kit);
-        assert.equal(bought,collected>=price);
-        if(bought){
-          purchaseRide=index+1;
-          assert.equal(profile.buy(kit),false);
-        }
-      }
-      assert.equal(profile.data.coins,collected-(purchaseRide?price:0));
-    }
-    assert(purchaseRide>0,'The earned fruit never bought a kit');
-    checkTypicalPrice(rides.map(ride=>ride.coins),price);
-    const restored=open();await restored.load();
-    assert.equal(restored.data.gear[hero],kit);
-    assert.deepEqual(restored.data.ownedGear,[kit]);
-    assert.equal(restored.data.coins,collected-price);
-    console.log('EARNED KIT',kit,'ride',purchaseRide,'earned',collected,'price',price,'balance',restored.data.coins);
+  const profile=MountainSaves.create({channel:'progression'});await profile.load();
+  let fruit=0,feathers=0;
+  for(const ride of rides){
+    const state={...ride,mode:'normal',phase:'over',rankedResult:true};
+    assert(profile.finish('earned-'+ride.seed,state));assert.equal(profile.finish('earned-'+ride.seed,state),false);
+    fruit+=ride.coins;feathers+=ride.feathers||0;
+    assert.equal(profile.data.coins,fruit);assert.equal(MountainSaves.featherBalance(profile.data),feathers);
   }
+  assert(profile.buy('helmets','coins'));assert.equal(profile.data.coins,fruit-50);
+  console.log('Six finished rides',rides.map(r=>r.coins),'earned fruit',fruit,'feathers',feathers,'after start helmet',profile.data.coins);
 }
 async function main(){
   await inventoryLimits();
@@ -129,7 +114,7 @@ async function main(){
       assert.equal(Number(await page.locator('#bank').innerText()),wallet);
       console.log('WEB SHOP START',ride.hero,'seed',ride.seed,'wallet',wallet);
       await page.locator('[data-hero="'+ride.hero+'"]').tap();
-      price=await page.evaluate(()=>MountainSaves.price({gear:{owl:'standard'},hero:'owl',ownedGear:[]},'fireboard'));
+      price=await page.evaluate(()=>MountainSaves.price({helmets:0},'helmets'));
       await page.locator('#play').tap();await page.waitForFunction(()=>shopRace.phase==='play');
       if(!continuous)assert(await page.evaluate(()=>Number.isFinite(shopRace.riderLane)),'Update the Web build for short-drag replay');
       const build=await page.evaluate(()=>performance.getEntriesByType('resource').find(r=>r.name.includes('.wasm.'))?.name.split('/').pop());
@@ -171,22 +156,17 @@ async function main(){
       console.log('WEB SHOP RIDE',JSON.stringify(rows.at(-1)));
       fs.writeFileSync(path.join(out,'actual-rides.json'),JSON.stringify({rows,firstAffordable,price},null,2));
     }
-    assert(wallet>=price,'six actual rides did not buy a kit');
+    assert(wallet>=price,'six rides should afford a start helmet');
     await page.locator('[data-hero="owl"]').tap();await page.locator('[data-panel="shop"]').tap();
-    await page.getByRole('button',{name:/взять напрокат/}).tap();
-    assert.match(await page.locator('#panelBody').innerText(),/Доска «Салют» · выбрано/);
-    await page.getByRole('button',{name:/Купить свой комплект/}).tap();
+    await page.locator('[data-product="supplies"]').tap();
+    await page.locator('[data-buy="helmets"]').tap();
     assert.equal(Number(await page.locator('#bank').textContent()),wallet-price);
-    assert.equal(await page.locator('#panelBody .stat b').first().innerText(),(wallet-price)+' 🍊');
-    assert(await page.locator('#panelBody').getByRole('button',{name:/Настройка · 0\/2/}).isVisible());
     await page.screenshot({path:path.join(out,'purchase.png')});
     await page.reload({waitUntil:'commit'});await page.locator('#play').waitFor({timeout:180000});
-    assert.match(await page.locator('[data-hero="owl"]').innerText(),/Салют/);
-    assert.doesNotMatch(await page.locator('[data-hero="owl"]').innerText(),/прокат/);
-    await page.screenshot({path:path.join(out,'personal-board-menu.png')});
     // A separate ride in the purchased kit, using an independent finger gesture and a natural fall.
     await page.locator('#play').tap();
-    await page.waitForFunction(()=>shopRace.phase==='play'&&shopRace.metres>=10);
+    await page.waitForFunction(()=>window.shopRace?.phase==='play'&&shopRace.metres>=10);
+    assert.equal(await page.evaluate(()=>shopRace.helmets),1);
     await touch('touchStart',195);await touch('touchMove',245);
     await page.waitForFunction(()=>shopRace.metres>=22||shopRace.phase==='over');
     await touch('touchEnd');
@@ -197,7 +177,6 @@ async function main(){
     assert.equal(balance,wallet-price+ownRide.fruit);
     const report={rows,steering:continuous?'held':'short drags',firstAffordable,price,balanceAfterPurchase:wallet-price,ownRide,balance};
     fs.writeFileSync(path.join(out,'actual-rides.json'),JSON.stringify(report,null,2));
-    checkTypicalPrice(rows.map(ride=>ride.fruit),price);
     console.log('WEB SHOP PASS',JSON.stringify(report));
   }finally{await browser.close();}
 }

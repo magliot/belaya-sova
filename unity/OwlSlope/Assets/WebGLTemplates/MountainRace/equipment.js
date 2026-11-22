@@ -1,35 +1,65 @@
 window.MountainEquipment=(()=>{
-  const types={
-    owl:{key:'fireboard',name:'Доска «Салют»',stock:'Обычная доска',detail:'Быстрее набирает ход на уклоне и после кофе. Медленнее меняет направление.',finish:'Малиновая дека и цветные искры.'},
-    bear:{key:'carveSkis',name:'Лыжи «Ледорез»',stock:'Обычные лыжи',detail:'Держат дугу с меньшим сносом. Медленнее разгоняются после поворота.',finish:'Бирюзовые лыжи и ледяные искры на канте.'}
+  const kits={
+    fireboard:{hero:'owl',slot:'gear',tab:'Доска',name:'Доска «Салют»',stock:'Обычная доска',effect:'Быстрее разгоняется, чуть медленнее перекантовывается. За доской летят искры.',tune:'+2 м/с² к разгону'},
+    carveSkis:{hero:'bear',slot:'gear',tab:'Лыжи',name:'Лыжи «Ледорез»',stock:'Обычные лыжи',effect:'Меньше бокового сноса в повороте. Скорость после поворота набирается медленнее.',tune:'быстрее гасится боковой снос'},
+    orangeHelmet:{hero:'bear',slot:'headgear',tab:'Каска М',name:'Оранжевая каска «М»',stock:'Белая каска «М»',effect:'Мишаня встаёт на 0,15 с быстрее после удара, который погасила защитная каска.',tune:'ещё −0,15 с на восстановление'},
+    pinkGoggles:{hero:'owl',slot:'headgear',tab:'Очки',name:'Розовые очки Совы',stock:'Синие очки',effect:'Сова подбирает мандарины на снегу на 25 см шире.',tune:'ещё +20 см к радиусу сбора'}
   };
-  function config(d,hero=d.hero){
-    const equipment=d.gear[hero];
-    return {equipment,ownedEquipment:d.ownedGear.includes(equipment),tuning:d.tuning[equipment]||0};
+  const primary=hero=>hero==='owl'?'fireboard':'carveSkis';
+  function config(d,hero=d.hero,inspect){
+    const item=kits[inspect],equipment=item?.slot==='gear'?inspect:d.gear[hero];
+    const headgear=item?.slot==='headgear'?inspect:d.headgear[hero];
+    return {equipment,ownedEquipment:d.ownedGear.includes(equipment)||item?.slot==='gear',
+      tuning:d.tuning[equipment]||0,headgear,headTuning:d.tuning[headgear]||0,inspect:item?.slot||''};
   }
-  function render(body,profile,btn,stat,refresh){
-    const d=profile.data,kit=types[d.hero];
-    const own=d.ownedGear.includes(kit.key),equipped=d.gear[d.hero]===kit.key;
-    function pick(key){profile.change(['gear'],p=>{p.gear[p.hero]=key;});refresh();}
-    function buy(key,label){
-      const cost=MountainSaves.price(d,key);
-      body.append(btn(cost===undefined?label+' · максимум':label+' · '+cost+' 🍊',()=>{profile.buy(key);refresh();},cost===undefined||d.coins<cost));
+  function node(tag,cls,content){
+    const el=document.createElement(tag);if(cls)el.className=cls;if(content)el.textContent=content;return el;
+  }
+  function wallet(d){
+    const el=node('div','wallet'),icon=node('i','feather');icon.setAttribute('aria-hidden','true');
+    el.append(icon,'Перья '+MountainSaves.featherBalance(d)+'  ·  🍊 '+d.coins);return el;
+  }
+  function buyButton(profile,btn,id,currency,label,again,kit){
+    const d=profile.data,cost=MountainSaves.price(d,id,currency,kit);
+    const funds=currency==='feathers'?MountainSaves.featherBalance(d):d.coins;
+    const button=btn(label+(cost===undefined?' · максимум':' · '+cost+(currency==='feathers'?' перьев':' 🍊')),
+      ()=>{if(profile.buy(id,currency,kit))again();},cost===undefined||funds<cost);
+    button.dataset.buy=id;button.dataset.currency=currency;return button;
+  }
+  function render(body,profile,btn,selected,select){
+    const d=profile.data,item=kits[selected],refresh=()=>select(selected);
+    body.append(wallet(d));const tabs=node('div','shelf-tabs');
+    for(const [id,title] of [...Object.entries(kits).map(([id,k])=>[id,k.tab]),['supplies','Бусты']]){
+      const tab=btn(title,()=>select(id));tab.dataset.product=id;tab.setAttribute('aria-pressed',id===selected);tabs.append(tab);
     }
-    function note(value){const text=document.createElement('p');text.textContent=value;body.append(text);}
-    body.append(stat('Кошелёк',d.coins+' 🍊'));
-    body.append(btn(kit.stock+(equipped?'':' · выбрано'),()=>pick('standard'),!equipped));
-    body.append(btn(kit.name+(equipped?' · выбрано':own?' · надеть':' · взять напрокат бесплатно'),()=>pick(kit.key),equipped));
-    note(kit.detail+' В зачёте прокат и личный комплект едут одинаково.');
-    if(!own){note(kit.finish);buy(kit.key,'Купить свой комплект');}
-    else if(equipped){note('Настройка действует в свободном катании.');buy('tune','Настройка · '+d.tuning[kit.key]+'/2');}
-    note('Каску можно взять на свободный или короткий спуск. За заезд можно использовать две каски, по одной за раз.');
-    buy('helmets','Каска на старт · в запасе '+d.helmets);
-    note('В свободном катании улучшения продлевают действие подбора на трассе.');
-    buy('boost','Кофе · +0,8 с · уровень '+d.boost+'/5');buy('mag','Магнит · +2 с · уровень '+d.mag+'/5');
+    body.append(tabs);
+    if(!item){
+      for(const [key,label] of [['helmets','Каска на старт · запас '+d.helmets+'/3'],['boost','Кофе +0,8 с · '+d.boost+'/5'],['mag','Магнит +2 с · '+d.mag+'/5']])
+        body.append(buyButton(profile,btn,key,'coins',label,refresh));
+      return;
+    }
+    const product=node('section','product');product.append(node('h3','',item.name),node('p','',item.effect));
+    const owned=d.ownedGear.includes(selected),equipped=d[item.slot][item.hero]===selected;
+    const actions=node('div','store-actions');
+    if(!owned)actions.append(buyButton(profile,btn,selected,'feathers','Купить',refresh));
+    else{
+      const equip=btn(equipped?'Снять':'Надеть',()=>{
+        profile.change([item.slot],p=>{p[item.slot][item.hero]=equipped?'standard':selected;},item.hero);refresh();
+      });equip.dataset.equip=selected;actions.append(equip);
+      actions.append(buyButton(profile,btn,'tune','coins','Улучшить '+d.tuning[selected]+'/2',refresh,selected));
+    }
+    product.append(actions,node('p','', 'Улучшение: '+item.tune+'.'));body.append(product);
   }
-  function label(d,hero){
-    const kit=types[hero];
-    return d.gear[hero]===kit.key?kit.name+(d.ownedGear.includes(kit.key)?'':' · прокат'):kit.stock;
+  function bonuses(body,profile,btn,start,refresh){
+    const d=profile.data;body.append(wallet(d));
+    for(const [id,title,desc] of [['tubing','Плюшки','Скоростной слалом на плюшке. Собирай подарки и мандарины.'],['sled','Снегоход','75 секунд, чтобы сбить снеговиков и собрать подарки.']]){
+      const card=node('section','bonus-card');card.append(node('h3','',title),node('p','',desc));
+      const actions=node('div','store-actions');
+      if(d.bonuses.includes(id)){const go=btn('Поехали!',()=>start(id));go.dataset.mode=id;actions.append(go);}
+      else for(const via of ['feathers','coins'])actions.append(buyButton(profile,btn,id,via,'Открыть',refresh));
+      card.append(actions);body.append(card);
+    }
   }
-  return {config,render,label};
+  function label(d,hero){return kits[d.gear[hero]]?.name||kits[primary(hero)].stock;}
+  return {config,render,bonuses,label,primary,heroFor:id=>kits[id]?.hero};
 })();

@@ -140,7 +140,7 @@ public partial class MountainRace {
         Check(flightDuration>1.35f&&flightDuration<2.36f&&Mathf.Abs(crestSpeed-takeoffSpeed)<.05f,result+" park flight");
         if(coffee)Check(takeoffSpeed>34&&boost==0,result+" airborne coffee expiry");
         Check(Status.tricks==taps,result+" gesture count");
-        Check(Status.feather==(taps==2)&&Status.feathers==(taps==2?1:0)&&Status.tubingUnlocked==Status.feather&&Status.sledUnlocked==Status.feather,result+" feather gate");
+        Check(Status.feather==(taps==2)&&Status.feathers==(taps==2?1:0),result+" feather gate");
         Check(Status.rings==(taps==0?0:1),result+" upper ring");
         return result;
     }
@@ -417,8 +417,8 @@ public partial class MountainRace {
             report.Add(VerifySnowmen());
             report.Add(VerifyTrainingEncounters());
             StartRace("{\"mode\":\"sprint\",\"seed\":1911}");
-            Checkpoint(1199,0);Advance(.2f);Check(Status.phase=="finish"&&Status.metres==SprintLength,"sprint finish");
-            report.Add("sprint 1200m");
+            Checkpoint(1199,0);Advance(.2f);Check(Status.phase=="play"&&Status.mode=="normal"&&Status.metres>1200,"obsolete quick-start must enter the full course");
+            report.Add("legacy launch enters the main descent");
             foreach(var mode in new[]{"tubing","sled"}){
                 StartRace("{\"mode\":\""+mode+"\",\"seed\":1911}");
                 var item=World.Items.Find(o=>o.kind==(mode=="sled"?"snowman":"coin"));

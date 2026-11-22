@@ -87,7 +87,9 @@ async function main(){
     console.log('New game reached the menu.');
     assert.equal(await p.locator('[data-hero="owl"]').getAttribute('aria-pressed'),'true');
     assert.equal(await p.locator('#best').innerText(),String(JSON.parse(legacy.bsova_tg127_best)));
-    for(const mode of ['tubing','sled'])assert(await p.locator('#menu [data-mode="'+mode+'"]').isEnabled());
+    await p.locator('[data-panel="bonuses"]').click();
+    for(const mode of ['tubing','sled'])assert(await p.locator('#panelBody [data-mode="'+mode+'"]').isEnabled());
+    await p.locator('#closePanel').click();
     if(!process.argv[2]){
       const sample={phase:'play',hero:'owl',mode:'normal',metres:2520,stage:1,elapsed:10.3,speed:57,score:123456,helmets:1,coins:12,multiplier:3,gates:4};
       const hud=fields=>p.evaluate(s=>onMountainState(s),{...sample,...fields});
@@ -117,7 +119,7 @@ async function main(){
       await hud({nextLetter:'С',letterSide:-1});assert.equal(await p.locator('#rideStatus').innerText(),'Буква «С» ←');
       await hud({speed:90});assert.equal(await p.locator('#pace').innerText(),'90 км/ч');
       assert.equal(await p.locator('#speedometer').evaluate(el=>el.style.getPropertyValue('--needle')),'0deg');
-      await hud({mode:'sprint',metres:101});assert.equal(await p.locator('#stage').innerText(),'Финиш · 1099 м');
+      await hud({boulderChasing:true,boulderLine:4});assert.equal(await p.locator('#rideStatus').innerText(),'Ком сзади · справа');await hud({});
       assert.equal(await p.locator('#avalancheMeter').count(),0);assert(await p.locator('#rideStatus').isHidden());
       await hud({mode:'tubing',metres:490,bonusLocation:1});assert.equal(await p.locator('#stage').innerText(),'Плюшки · 65 с');
       assert.equal(await p.locator('#multiplier').innerText(),'×3');
@@ -129,7 +131,7 @@ async function main(){
     }
     await p.evaluate(()=>Telegram.WebView.receiveEvent('viewport_changed',{height:565,is_state_stable:true,is_expanded:true}));
     assert.equal(Math.round((await p.locator('#app').boundingBox()).height),565);
-    for(const v of ['#play','[data-hero="bear"]','#menu [data-mode="sled"]'])assert(await p.locator(v).evaluate(el=>{const b=el.getBoundingClientRect();return el.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2));}));
+    for(const v of ['#play','[data-hero="bear"]','[data-panel="bonuses"]'])assert(await p.locator(v).evaluate(el=>{const b=el.getBoundingClientRect();return el.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2));}));
     await p.locator('#slope').tap({position:{x:90,y:170}});assert.deepEqual(await p.evaluate(()=>spinCalls),[]);
     await p.mouse.move(80,170);await p.mouse.down();await p.mouse.move(104,170);await p.mouse.move(119,170);await p.mouse.up();
     assert.deepEqual(await p.evaluate(()=>spinCalls),[['MenuSpin',24],['MenuSpin',15],['EndMenuSpin',null]]);
@@ -140,15 +142,11 @@ async function main(){
     await menu('top');
     await p.locator('#panelBody').getByText(/На этом устройстве|Личные заезды/).waitFor();await back();
     await menu('missions');assert.equal(await p.locator('#panelBody .stat').count(),4);await back();
-    await menu('shop');assert.match(await p.locator('#panelBody').innerText(),/Магнит/);
-    assert.match(await p.locator('#panelBody').innerText(),/Каска на старт/);
-    if(!process.argv[2]){
-      await p.locator('#panelBody').getByRole('button',{name:/взять напрокат/}).click();
-      assert.match(await p.locator('#panelBody').innerText(),/Доска «Салют» · выбрано/);
-      await back();assert.match(await p.locator('[data-hero="owl"]').innerText(),/Салют.*прокат/);
-      await menu('shop');await p.locator('#panelBody').getByRole('button',{name:'Обычная доска'}).click();
-    }
-    await back();
+    await menu('shop');assert.match(await p.locator('#panelBody').innerText(),/Доска «Салют»/);
+    assert(await p.locator('[data-buy="fireboard"]').isDisabled());
+    await p.locator('[data-product="supplies"]').click();
+    assert.match(await p.locator('#panelBody').innerText(),/Магнит/);
+    assert.match(await p.locator('#panelBody').innerText(),/Каска на старт/);await back();
     await menu('collection');assert.equal(await p.locator('.letter-row').count(),3);await back();
     await menu('rules');
     if(await p.evaluate(()=>!!window.MountainEquipment)){
@@ -160,8 +158,8 @@ async function main(){
       await p.locator('#panelBody summary').nth(8).click();assert.match(await p.locator('details[open]').innerText(),/аптечка/);
     }
     await back();
-    assert.equal(await p.locator('#dances,#mast button,#mast .sign').count(),0);
-    assert.equal(await p.locator('#mast h1').textContent(),'Белая Сова');
+    assert.equal(await p.locator('#dances,[data-mode="sprint"],[data-mode="free"]').count(),0);
+    assert.equal(await p.locator('#mast [data-panel="settings"]').count(),1);
     await menu('settings');await p.getByRole('button',{name:'Выключить звук',exact:true}).click();
     await p.getByRole('button',{name:'Включить звук',exact:true}).click();await back();
     await menu('settings');await nav('Замеры');await p.locator('dialog[open]').waitFor();await back();await p.locator('dialog').waitFor({state:'detached'});

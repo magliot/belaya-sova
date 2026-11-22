@@ -48,7 +48,7 @@ public partial class RaceWorld {
     void BuildRow(int seg,bool geometryOnly=false){
         int start=Items.Count;
         if(seg==0&&mode!="sled"&&mode!="tubing")Add("startArch",12,0,12,5);
-        if(mode=="sprint"){Sprint(seg);Filter(start);return;}
+
         if(mode=="tubing"){Tubing(seg);Filter(start);return;}
         if(mode=="sled"){Sled(seg);Filter(start);return;}
         int fullStage=seg/1000,n=seg%1000,stage=fullStage%StageCount;
@@ -62,7 +62,7 @@ public partial class RaceWorld {
                 if(n==5||n==6)TrainingTraffic(d,fullStage,n==6);
                 else Training(Mathf.FloorToInt(y/1250),y);
                 break;
-            case 1:Forest(y,n,false);break;
+            case 1:Forest(y,n);break;
             case 2:if(full)Rollers(y,n);break;
             case 3:
                 if(full)Park(y,n);
@@ -86,7 +86,7 @@ public partial class RaceWorld {
             var a=Items[i];bool gate=a.kind=="gate"&&!a.stoneGate;if(!Solid(a)&&!gate)continue;
             bool overlaps=false;float z=a.length>0?a.length*.5f:a.kind=="rock"?1.2f:.7f;
             float stageDist=Mathf.Round(a.distance/2500)*2500;
-            if(mode!="tubing"&&mode!="sled"&&mode!="sprint"&&stageDist>0&&Mathf.Abs(a.distance-stageDist)<z+.55f&&Mathf.Abs(Mathf.Abs(a.lane)-7)<a.width*.5f+.55f)overlaps=true;
+            if(mode!="tubing"&&mode!="sled"&&stageDist>0&&Mathf.Abs(a.distance-stageDist)<z+.55f&&Mathf.Abs(Mathf.Abs(a.lane)-7)<a.width*.5f+.55f)overlaps=true;
             for(int j=0;j<i&&!overlaps;j++){
                 var b=Items[j];if(Mathf.Abs(b.distance-a.distance)>z+(b.length>0?b.length*.5f:1)+.15f)continue;
                 if(gate&&Solid(b))overlaps=Mathf.Abs(Mathf.Abs(a.lane-b.lane)-a.width*.5f)<b.width*.5f+.45f;
@@ -150,11 +150,11 @@ public partial class RaceWorld {
         if(n>4&&n%5==1)Gate(open,y+1050,130,n%2);
         if(n%6==1)Entry("thermos",open+side*61,y+950,22,.85f);
     }
-    void Forest(float y,int n,bool sprint){
+    void Forest(float y,int n){
         int id=Mathf.FloorToInt(y/1000);float R(int k)=>Roll(seed,id,k);int side=R(31)>.5f?1:-1;
         if(n==49)return;
         float line=200-side*(56+R(32)*17),j=Mathf.Floor(R(35)*46);
-        bool canopy=!sprint&&n%4==0;
+        bool canopy=n%4==0;
         if(canopy){
             float centre=200+side*(12+R(34)*13);
             bool pines=n%8==0;
@@ -167,16 +167,13 @@ public partial class RaceWorld {
             line=centre;
         }else{
             Tree(200+side*145,y+260+j,1,.97f);Tree(200+side*(51+R(34)*20),y+332+j,2,.90f);
-            if(!sprint&&n%3==1)Tree(200+side*R(36)*16,y+451+j,0,.83f);
+            if(n%3==1)Tree(200+side*R(36)*16,y+451+j,0,.83f);
         }
         Tree(200+side*161,y+409+j,0,1.13f);Tree(200-side*148,y+750-j,0,1.02f);
         if(R(39)>.30f)Tree(200-side*121,y+822-j,2,.88f);
-        if(sprint?n==3:n%3==0)TrailActor("snowmobile",y+610,side);
-        if(!sprint){
-            if(n%3!=0)Person(line,y+654,52,n%3==1?"snowboarder":"skier",14,R(41)*6);
-            if(n%8==3)Kicker(line,y+180,54,64,.7f);if(n%7==2)Entry("mogul",200+side*43,y+732,28,.4f,"mound"+n%3);
-        }
-        if(sprint)for(int i=0;i<6;i++)Entry("coin",200+(line-200)*Mathf.Sin((i+1)*Mathf.PI/8),y+78+i*94,22,0);
+        if(n%3==0)TrailActor("snowmobile",y+610,side);
+        if(n%3!=0)Person(line,y+654,52,n%3==1?"snowboarder":"skier",14,R(41)*6);
+        if(n%8==3)Kicker(line,y+180,54,64,.7f);if(n%7==2)Entry("mogul",200+side*43,y+732,28,.4f,"mound"+n%3);
         if(n%3!=1&&R(38)<.23f)Gate(line,y+558,112,side>0?1:0);
     }
     float Valley(float y)=>200+20*MogulLine(y*.05f);
@@ -215,7 +212,7 @@ public partial class RaceWorld {
         if(fullPark){
             if(section%4==1)Entry(section%8==1?"thermos":"helmet",x+side*79,y+117,24,.9f);
         }else if(tier>0){
-            if(mode=="sprint")Entry("coin",x,y+90,22,0);
+
             Entry(tier==1?"thermos":"helmet",x+side*76,y+90,24,.85f);
         }
         bool groundLine=fullPark&&(section%9==3||tier==0&&!trick);
@@ -281,14 +278,6 @@ public partial class RaceWorld {
         if(item!=null){
             Entry(item,item=="gift"?open:open+side*65,y+1410,24,.85f);
         }
-    }
-    void Sprint(int n){
-        float y=n*1500;if(n>16)return;if(n==16){Entry("finish",200,y,320,4.5f);return;}
-        if(n==3||n==8||n==12)Forest(y,n,true);
-        else if(n==5||n==10||n==14)Park(y,n,n==5?0:n==10?1:2);
-        else if(n==2||n==9){Coins(200,y,5,100);Entry("thermos",265,y+400,24,.85f);}
-        else if(n==7){Snowman(269,y+440);Coins(150,y+100,5,115);}
-        else for(int j=0;j<3;j++){float x=200+((n+j)%2==1?48:-48);Gate(x,y+300+j*415,138,j);Entry("coin",x,y+300+j*415,22,0);}
     }
     float BonusLine(float row){
         float arc=Mathf.Sin(row*.96f+Roll(seed,0,55)*6.28f);

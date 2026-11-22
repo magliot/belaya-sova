@@ -126,6 +126,12 @@ public partial class RaceWorld {
         }
         Boulder(start+23+6*Roll(seed,section,1310),side*(8.4f+Roll(seed,section,1311)),1.75f+.7f*Roll(seed,section,1312),false);
         if(section%3!=1)Boulder(start+34,side*10.1f,1.7f,true);
+        // Offset outcrops tighten alternate approaches, well above the lip and the single exit shelf.
+        if(!gap.transverse&&section%3!=0){
+            float spur=-(3.0f+1.1f*Roll(seed,section,1381))*side;
+            Boulder(start+19+4*Roll(seed,section,1380),spur,1.48f,false);
+            if(section%3==2)Boulder(start+37,side*(4.7f+Roll(seed,section,1382)),1.50f,true);
+        }
         if(gap.transverse){
             float shelfSide=Mathf.Sign(gap.bypassLane);
             Boulder(gap.lipD-10,shelfSide*14.1f,1.85f,false);
