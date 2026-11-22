@@ -17,7 +17,7 @@
   let seedOverride=fixedSeed!==null&&/^\d{1,10}$/.test(fixedSeed)&&+fixedSeed<=2147483647?+fixedSeed:null;
   let player,ready=false,snapshot=null,panel='',run=null,finger=null,noticeTimer,rankPeriod='all',topRequest=0,requestPause=false;
   const actions={brake:'Сбавить ход',stop:'Остановиться у края',patrol:'Вызвать патруль',witness:'Назваться свидетелем',walk:'Пешком по краю',look:'Осмотреть склон',join:'Выехать на трассу'};
-  let catalogData,modelIndex=-1,group='all',menuFinger=null;
+  let catalogData,modelIndex=-1,group='all',menuFinger=null,tapFinger=null;
   let pendingStart=null,soundFailed=false;
   function sound(method,value){
     if(soundFailed)return;
@@ -58,12 +58,6 @@
   function drawHud(s){
     const mode=s.courseMode||(s.mode==='review'?$('reviewRide').value:s.mode);
     const metres=Math.floor(s.metres),bonus=mode==='tubing'||mode==='sled';
-    const jump=$('freeRideJump');
-    jump.hidden=mode!=='normal'||s.stage!==8||s.phase!=='play'||s.air||s.freeRideInCrevasse;
-    if(!jump.hidden){
-      jump.classList.toggle('ready',!!s.freeRideJumpReady);
-      setText('freeRideJump',s.freeRideJumpQueued?'✓ Готово':'↑ Прыжок');
-    }
     const warning=s.chaseSeconds>0||s.avalanche>0;
     setText('metres',metres+' м');setText('pace',Math.round(s.speed||0)+' км/ч');
     $('pace').classList.toggle('boosting',!!s.boost);
@@ -148,6 +142,7 @@
   function onState(s){
     if(!s||typeof s.phase!=='string')return;
     const prev=snapshot;snapshot=s;
+    if(prev?.phase==='play'&&s.phase!=='play')finger=tapFinger=null;
     if(pendingStart&&s.mode===pendingStart.mode&&s.seed===pendingStart.seed&&s.phase===(s.mode==='review'?'review':'play')){
       const {useHelmet,timeout}=pendingStart;pendingStart=null;clearTimeout(timeout);$('loading').hidden=true;
       if(run?.mode==='normal'&&!profile.data.fisIntroSeen)profile.change(['fisIntroSeen'],d=>{d.fisIntroSeen=true;});
@@ -244,24 +239,34 @@
     if(snapshot?.phase==='play'){pause();return;}
     if(snapshot?.phase&&snapshot.phase!=='menu')leave();
   }
+  const outsideTap=(e,f)=>Math.hypot(e.clientX-f.x,e.clientY-f.y)>=20;
   const releaseFinger=e=>{
     if(menuFinger?.id===e.pointerId){
       if(menuFinger.moved)command('EndMenuSpin');
       menuFinger=null;return;
     }
-    if(finger?.id!==e.pointerId)return;
-    const f=finger;finger=null;
-    if(e.type==='pointerup'&&snapshot?.air&&!f.tricked&&performance.now()-f.at<300&&Math.hypot(e.clientX-f.x,e.clientY-f.y)<20)command('AirTrick','tap');
-    else if(e.type==='pointerup'&&snapshot?.air&&f.pending&&!f.tricked)command('AirTrick',f.pending);
-    command('ReleaseSteer');
+    const second=tapFinger?.id===e.pointerId;
+    const f=second?tapFinger:finger;
+    if(f?.id!==e.pointerId)return;
+    if(second)tapFinger=null;else finger=null;
+    if(e.type==='pointerup'&&snapshot?.phase==='play'&&!f.tricked){
+      // Unity resolves a tap against the current lip or flight at input time.
+      if(!f.moved&&!outsideTap(e,f)&&performance.now()-f.at<300)command('AirTrick','tap');
+      else if(snapshot.air&&f.pending)command('AirTrick',f.pending);
+    }
+    if(!second)command('ReleaseSteer');
   };
   canvas.addEventListener('pointerdown',e=>{
     if(ready&&snapshot?.phase==='menu'&&!panel&&!menuFinger&&e.button===0){
       menuFinger={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};canvas.setPointerCapture(e.pointerId);return;
     }
-    if(snapshot?.phase!=='play'||finger||e.button!==0)return;
-    const at=performance.now();finger={id:e.pointerId,x:e.clientX,y:e.clientY,rx:e.clientX,ry:e.clientY,jumpX:e.clientX,jumpY:e.clientY,at,since:at,pending:null,tricked:false};
-    canvas.setPointerCapture(e.pointerId);command('BeginSteer');canvas.focus();
+    if(snapshot?.phase!=='play'||e.button!==0)return;
+    if(finger&&(e.pointerType!=='touch'||tapFinger))return;
+    const at=performance.now(),contact={id:e.pointerId,x:e.clientX,y:e.clientY,at,moved:false};
+    canvas.setPointerCapture(e.pointerId);
+    if(finger){finger.moved=true;tapFinger=contact;return;}
+    finger={...contact,rx:contact.x,ry:contact.y,jumpX:contact.x,jumpY:contact.y,since:at,pending:null,tricked:false,moved:!!tapFinger};
+    command('BeginSteer');canvas.focus();
   });
   canvas.addEventListener('pointermove',e=>{
     if(menuFinger?.id===e.pointerId){
@@ -271,7 +276,11 @@
       if(dx){menuFinger.moved=true;menuFinger.x=e.clientX;command('MenuSpin',dx);}
       return;
     }
-    if(!finger||finger.id!==e.pointerId)return;const f=finger,t=performance.now();
+    const f=tapFinger?.id===e.pointerId?tapFinger:finger;
+    if(f?.id!==e.pointerId)return;
+    if(outsideTap(e,f))f.moved=true;
+    if(f===tapFinger)return;
+    const t=performance.now();
     command('DragSteer',(e.clientX-f.x)/canvas.clientWidth);
     if(!snapshot?.air){
       if(snapshot?.courseMode==='normal'&&snapshot.stage===8){
@@ -444,9 +453,6 @@
     profile.change(['hero'],p=>p.hero=b.dataset.hero);
   };
   for(const b of document.querySelectorAll('[data-mode]'))b.onclick=()=>start(b.dataset.mode);
-  const jumpButton=$('freeRideJump');
-  jumpButton.onpointerdown=e=>{if(e.button===0){e.preventDefault();command('AirTrick','tap');}};
-  jumpButton.onclick=e=>{if(e.detail===0)command('AirTrick','tap');};
   $('closePanel').onclick=back;
   for(const b of document.querySelectorAll('[data-panel]'))b.onclick=()=>switchPanel(b.dataset.panel);
   $('pause').onclick=pause;$('resume').onclick=()=>{requestPause=false;command('ResumeRide');canvas.focus();};

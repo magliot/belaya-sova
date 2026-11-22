@@ -77,6 +77,7 @@ async function main() {
     }
     await phase('menu');
     assert.equal(await page.locator('[data-mode="freeride"]').count(),0);
+    assert.equal(await page.locator('#freeRideJump').count(),0);
     await shot('menu');
     await click('play');await at(3);
     assert.equal(await page.evaluate(()=>probe.stage),0);
@@ -93,20 +94,53 @@ async function main() {
       await at(20001);
       await page.waitForFunction(()=>probe.stage===8);
       const x=195-4.83*390/(27*.79);
-      await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:515,id:1}]});
+      const steer={x,y:515,id:1};
+      await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[steer]});
       await page.waitForFunction(()=>probe.freeRideJumpReady&&probe.metres>=20065,null,{timeout:12000});
-      await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:445,id:1}]});
+      if(hero==='bear'){
+        await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+        await page.touchscreen.tap(285,490);
+        await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[steer]});
+      }else{
+        const tap={x:290,y:535,id:2};
+        await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[steer,tap]});
+        await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[tap]});
+      }
+      await page.waitForFunction(()=>probe.freeRideJumpQueued||probe.air,null,{timeout:3000});
       await page.waitForFunction(()=>probe.air&&probe.metres>=20090,null,{timeout:12000});
       await shot(hero+'-jump');
       await at(20116);
       const stats=await page.evaluate(()=>probe);
       assert.equal(stats.helmets,1);assert.equal(stats.tricks,1);assert.equal(stats.courseMode,'normal');
-      samples.push({hero,metres:stats.metres,coins:stats.coins,tricks:stats.tricks,helmets:stats.helmets});
+      samples.push({hero,input:hero==='bear'?'tap':'second finger tap',metres:stats.metres,coins:stats.coins,tricks:stats.tricks,helmets:stats.helmets});
+      if(hero==='owl'){
+        await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...steer,x:x+52}]});
+        await page.waitForFunction(lane=>probe.riderLane>lane+1,stats.riderLane,{timeout:3000});
+      }
       await page.waitForFunction(()=>probe.boulderNear>.30,null,{timeout:12000});
       if(hero==='bear')await shot('rolling-snow');
       await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
       await leavePractice();
     }
+    // A quick steering correction out and back ends where it began. It must still count as a drag.
+    await seek(20048);
+    await page.locator('#reviewLane').evaluate(el=>{el.value='-4.8';el.dispatchEvent(new Event('input',{bubbles:true}));});
+    await click('reviewPlay');
+    const centre={x:182,y:480,id:1};
+    await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[centre]});
+    await page.waitForFunction(()=>probe.freeRideJumpReady,null,{timeout:12000});
+    await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[centre]});
+    await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...centre,x:centre.x+32}]});
+    await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[centre]});
+    await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[centre]});
+    await page.waitForFunction(()=>probe.freeRideInCrevasse,null,{timeout:8000});
+    assert.equal(await page.evaluate(()=>probe.helmets),0);
+    assert.equal(await page.evaluate(()=>probe.tricks),0);
+    await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await leavePractice();
+    await page.locator('#reviewLane').evaluate(el=>{el.value='0';el.dispatchEvent(new Event('input',{bubbles:true}));});
     await seek(22485);await click('reviewPlay');await at(22503);
     assert.equal(await page.evaluate(()=>probe.stage),0);
     assert.match(await page.locator('#stage').innerText(),/Круг 2/);
