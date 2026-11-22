@@ -21,11 +21,14 @@ public static class FreeRideChecks {
         catch(Exception e){Debug.LogException(e);EditorApplication.Exit(2);}
     }
     static void Need(bool condition,string detail){if(!condition)throw new InvalidOperationException("Free Ride: "+detail);}
-    static void Start(MountainRace race,string hero,int seed,bool guest=false){
+    const int Entry=RaceWorld.AlpineStage*RaceWorld.StageLength;
+    static void Start(MountainRace race,string hero,int seed){
         race.Menu();race.ChooseHero(hero);
-        race.StartRace(JsonUtility.ToJson(new MountainRace.Settings{mode="freeride",seed=seed,sensitivity=4,helmets=1,freeRideSkier=guest}));
-        Need(race.Status.phase=="play"&&race.World.Mode=="freeride","menu did not launch freeride");
-        Need(race.Status.helmets==1,"expected a trial helmet");race.BeginSteer();
+        race.StartRace(JsonUtility.ToJson(new MountainRace.Settings{mode="review",seed=seed,sensitivity=4}));
+        race.Seek(Entry);race.RideFromReview();
+        Need(race.Status.phase=="play"&&race.World.Mode=="normal"&&race.Status.stage==8,"normal-course powder stage");
+        Need(race.World.Items.Any(o=>o.kind=="arch"&&o.variant=="arch8"),"missing entry arch");
+        race.BeginSteer();
     }
     enum Path {Jump,Bypass,Miss,NoJump}
     static void CheckRenderedCut(RaceWorld world,RaceWorld.FreeRideGap gap){
@@ -57,12 +60,11 @@ public static class FreeRideChecks {
             Debug.Log("FREE RIDE MESH measured ice floor "+cut.ToString("F2")+" m below the snow and bank support "+rim.ToString("F3")+" m");
         }finally{UnityEngine.Object.DestroyImmediate(collider);}
     }
-    static void FirstCut(MountainRace race,string hero,int seed,Path path,bool guest=false){
-        Start(race,hero,seed,guest);
-        Need(race.Status.freeRideSkier==guest,"guest selection lost");
-        Need(race.World.TryFreeRideGap(80,out var gap),"missing first crevasse");
-        if(path==Path.Jump&&!guest)CheckRenderedCut(race.World,gap);
-        Need(race.World.Items.All(o=>o.kind=="coin"||o.kind=="rock"),"mixed regular course objects into powder");
+    static void FirstCut(MountainRace race,string hero,int seed,Path path){
+        Start(race,hero,seed);
+        Need(race.World.TryFreeRideGap(Entry+80,out var gap),"missing first crevasse");
+        if(path==Path.Jump)CheckRenderedCut(race.World,gap);
+        Need(race.World.Items.All(o=>o.distance<Entry||o.kind=="coin"||o.kind=="rock"||o.kind=="arch"||o.kind=="snowBoulder"),"mixed regular course objects into powder");
         var fruit=race.World.Items.Where(o=>o.kind=="coin"&&o.air&&o.distance>gap.lipD&&o.distance<gap.endD).ToArray();
         Need(fruit.Length==3,"unmarked lip");
         float peak=0,depth=0,landing=0;bool airborne=false,pressed=false,queued=false,prompt=false;
@@ -81,15 +83,14 @@ public static class FreeRideChecks {
                 pressed=true;
                 if(path==Path.Jump||path==Path.Miss)race.AirTrick(hero=="bear"?"up":"tap");
             }
-            if(guest&&race.Status.air&&d>gap.endD)race.AirTrick("big-left");
-            if(path==Path.NoJump&&d==0)race.AirTrick("tap"); // An early tap cannot arm a later cornice.
+            if(path==Path.NoJump&&d==Entry)race.AirTrick("tap"); // An early tap cannot arm a later cornice.
             if(race.Status.helmets==0)x=0;
             race.DragSteer(x/(27*.79f));race.Advance(1f/30);
             queued|=race.Status.freeRideJumpQueued;
             prompt|=race.Status.freeRideJumpReady;
             if(!String.IsNullOrEmpty(shots)){
-                if(path==Path.Jump&&!guest&&d<gap.lipD-13&&race.Status.metres>=gap.lipD-13)RiderCourseChecks.Shot(race.View,"01-approach",shots,384,832);
-                if(path==Path.Jump&&d<gap.SectionDistance(4)&&race.Status.metres>=gap.SectionDistance(4))RiderCourseChecks.Shot(race.View,guest?"04-skier":"02-jump",shots,384,832);
+                if(path==Path.Jump&&d<gap.lipD-13&&race.Status.metres>=gap.lipD-13)RiderCourseChecks.Shot(race.View,"01-approach",shots,384,832);
+                if(path==Path.Jump&&d<gap.SectionDistance(4)&&race.Status.metres>=gap.SectionDistance(4))RiderCourseChecks.Shot(race.View,hero+"-jump",shots,384,832);
                 if(path==Path.NoJump&&depth<2.8f&&race.Altitude<=-2.8f)RiderCourseChecks.Shot(race.View,"03-fall",shots,384,832);
             }
             peak=Mathf.Max(peak,race.Altitude);
@@ -108,9 +109,27 @@ public static class FreeRideChecks {
             Need(!airborne&&depth>=4&&race.Status.helmets==0&&!race.Status.freeRideInCrevasse,"fall must drop below the cornice, cost one helmet, and recover: "+path);
             Need(fruit.All(o=>!o.consumed)&&race.Status.tricks==0,"fall collected an airborne reward");
         }
-        Debug.Log("FREE RIDE "+(guest?"guest skier":hero)+" seed "+seed+" "+path+" lip "+gap.lipD.ToString("F1")+".."+gap.endD.ToString("F1")+
+        Debug.Log("FREE RIDE "+hero+" seed "+seed+" "+path+" lip "+gap.lipD.ToString("F1")+".."+gap.endD.ToString("F1")+
             " lane "+gap.lane.ToString("F1")+" peak "+peak.ToString("F2")+" landing "+landing.ToString("F1")+
             " air fruit "+fruit.Count(o=>o.consumed)+"/3 helmets "+race.Status.helmets+" drop "+depth.ToString("F2"));
+    }
+    static void RollingSnow(MountainRace race,bool collide){
+        Start(race,"bear",1911);
+        var snow=race.World.Items.First(o=>o.kind=="snowBoulder");
+        float first=snow.distance,rotation=0,volume=0;
+        var orientation=snow.Visual.transform.rotation;
+        for(int i=0;i<570&&race.Status.phase=="play"&&race.Status.metres<Entry+184;i++){
+            float d=race.Status.metres;
+            float lane=d<Entry+101?3.3f:collide?snow.lane:-7.5f;
+            race.DragSteer(lane/(27*.79f));race.Advance(1f/30);
+            volume=Mathf.Max(volume,race.Status.boulderNear);
+            if(snow.Visual)rotation=Mathf.Max(rotation,Quaternion.Angle(orientation,snow.Visual.transform.rotation));
+            if(collide&&snow.judged||!collide&&race.Status.metres>snow.distance+3)break;
+        }
+        Need(snow.distance-first>12&&rotation>75&&volume>.65f,"boulder did not travel, rotate or approach audibly");
+        Need(snow.judged==collide&&race.Status.phase=="play"&&race.Status.helmets==(collide?0:1),
+            "snow collision/bypass "+collide+" at "+race.Status.metres+", ball "+snow.distance+"/"+snow.lane+", "+race.Status.message);
+        Debug.Log("ROLLING SNOW PASS "+(collide?"collision":"bypass")+", helmets "+race.Status.helmets+", proximity "+volume.ToString("F2"));
     }
     public static void Run(MountainRace race){
         FirstCut(race,"owl",1911,Path.Jump);FirstCut(race,"bear",1911,Path.Bypass);
@@ -127,26 +146,29 @@ public static class FreeRideChecks {
         }
         Need(deepestFalls==2&&race.Status.phase=="over"&&!race.Status.rankedResult,"second fall should finish the trial below the snow");
         Start(race,"owl",1911);
-        Need(race.World.TryFreeRideGap(80,out var first),"missing replay");
-        Need(Mathf.Abs(first.lipD-83.81f)<.02f&&Mathf.Abs(first.lane+4.833f)<.02f,"seed 1911 changed");
+        Need(race.World.TryFreeRideGap(Entry+80,out var first),"missing replay");
+        Need(Mathf.Abs(first.lipD-Entry-83.81f)<.02f&&Mathf.Abs(first.lane+4.833f)<.02f,"seed 1911 changed");
         float lastCommandLip=-1;int jumps=0;
-        for(int i=0;i<2500&&race.Status.phase=="play";i++){
+        for(int i=0;i<5700&&race.Status.phase=="play"&&race.Status.metres<RaceWorld.LapLength+3;i++){
             float d=race.Status.metres;
-            Need(race.World.TryFreeRideGap(d,out var gap),"missing active crevasse before the valley");
+            if(!race.World.TryFreeRideGap(d,out var gap)){race.DragSteer(0);race.Advance(1f/30);continue;}
             float ahead=gap.lipD-d;
-            race.DragSteer((ahead<40&&d<gap.endD+12?gap.lane:0)/(27*.79f));
+            float target=ahead<40&&d<gap.endD+12?gap.lane:0;
+            var rolling=race.World.Items.FirstOrDefault(o=>o.kind=="snowBoulder"&&!o.consumed&&o.distance>d-3&&o.distance<d+29);
+            if(rolling!=null&&!(ahead<32&&d<gap.endD+10)&&race.World.TryFreeRideGap(rolling.distance-55,out var source))
+                target=7.5f*Mathf.Sign(source.lane);
+            race.DragSteer(target/(27*.79f));
             if(ahead<=9&&ahead>0&&lastCommandLip!=gap.lipD){
                 race.AirTrick("tap");lastCommandLip=gap.lipD;jumps++;
             }
             race.Advance(1f/30);
         }
-        Need(race.Status.phase=="finish"&&race.Status.metres==RaceWorld.FreeRideLength&&!race.Status.rankedResult&&
-            jumps==8&&race.Status.tricks==jumps&&race.Status.helmets==1,
-            "failed full descent: "+race.Status.phase+" at "+race.Status.metres+", completed "+race.Status.tricks+"/"+jumps+" tricks");
-        Debug.Log("FREE RIDE all eight cornices jumped on command; helmet intact at 1200 m");
-        FirstCut(race,"bear",1911,Path.Jump,true);
-        FreeRideSkierChecks.Run(race);
-        Debug.Log("FREE RIDE PASS ordinary menu, both heroes, two seeds, jump/bypass/side entry, 1200 m finish");
+        Need(race.Status.phase=="play"&&race.Status.stage==0&&race.Status.metres>=RaceWorld.LapLength&&!race.Status.rankedResult&&
+            jumps==16&&race.Status.tricks==jumps&&race.Status.helmets==1,
+            "failed full descent: "+race.Status.phase+" "+race.Status.message+" at "+race.Status.metres+", completed "+race.Status.tricks+"/"+jumps+" tricks; helmets "+race.Status.helmets);
+        Debug.Log("FREE RIDE all 16 cornices jumped on command; next ordinary lap");
+        RollingSnow(race,true);RollingSnow(race,false);
+        Debug.Log("FREE RIDE PASS ordinary menu, both heroes, two seeds, jump/bypass/side entry, 22.5 km lap transition");
         race.Menu();
     }
 }

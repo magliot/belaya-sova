@@ -4,7 +4,7 @@ const path = require('node:path');
 const {chromium} = require(process.env.DANCE_BROWSER_MODULE || 'playwright');
 
 const url = new URL(process.argv[2] || 'http://127.0.0.1:8798/unity/?seed=1911');
-const evidence = process.env.FREERIDE_EVIDENCE_DIR || path.resolve(__dirname, '../course-checks/freeride-skier');
+const evidence = process.env.FREERIDE_EVIDENCE_DIR || path.resolve(__dirname, '../course-checks/freeride-final');
 const seed = Number(url.searchParams.get('seed') || 1911);
 const fromTelegramLink = url.searchParams.get('startapp') === 'freeride_1911';
 if (!fromTelegramLink) url.searchParams.set('seed', seed);
@@ -54,124 +54,63 @@ async function main() {
       metres => window.probe?.phase === 'play' && probe.metres >= metres, metres, {timeout:60000}
     );
     const click = id => page.locator('#' + id).tap();
-    const save = () => page.evaluate(() => JSON.stringify({...localStorage}));
     const shot = filename => page.screenshot({path:path.join(evidence, filename + '.jpg'), type:'jpeg', quality:88});
     await page.goto(url.href, {waitUntil:'commit'});
-    await page.locator('[data-mode="freeride"]').waitFor({timeout:210000});
-    if (fromTelegramLink) {
-      const landing = new URL(page.url());
-      assert.equal(landing.pathname, new URL('unity-test/', url).pathname);
-      assert.equal(landing.searchParams.get('freerideSeed'), '1911');
-      assert.equal(landing.searchParams.has('seed'), false, 'The trial should pin only Free Ride');
-      const profile = await page.evaluate(() => window.mountainRelease);
-      assert.equal(profile.channel, 'test');
-      assert.equal(profile.leaderboardEndpoint, '');
+    async function inspect() {
+      await page.locator('[data-panel="settings"]').tap();
+      await page.getByRole('button',{name:'Осмотр трассы',exact:true}).tap();
+      await phase('review');
     }
-    const rides=[
-      {hero:'owl',line:'swipe'}, {hero:'owl',guest:true,line:'button'},
-      {hero:'owl',guest:true,line:'fall'}, {hero:'bear',line:'bypass'}
-    ];
-    for (const {hero,guest=false,line} of rides) {
-      await page.locator('[data-hero="' + hero + '"]').tap();
-      await phase('menu', hero);
-      const profile = await save();
-      await page.locator('[data-mode="freeride"]').tap();
-      if(line==='button')await shot('pick-skier');
-      await page.getByRole('button',{name:guest?'Лыжник · сальто назад':hero==='owl'?'Ехать за Сову':'Ехать за Мишаню',exact:true}).tap();
-      await phase('play', hero);
-      await at(4);
-      const start = await page.evaluate(() => probe);
-      assert.equal(start.courseMode, 'freeride');
-      assert.equal(start.seed, seed);
-      assert.equal(start.rankedResult, false);
-      assert.equal(start.freeRideSkier, guest);
-      await click('pause');
-      await phase('pause', hero);
-      const pausedAt = await page.evaluate(() => probe.metres);
-      await page.waitForTimeout(350);
-      assert.equal(await page.evaluate(() => probe.metres), pausedAt);
-      await click('resume');
-      await at(pausedAt + 3);
-      await click('pause');
-      await phase('pause', hero);
-      await click('restartPaused');
-      await phase('play', hero);
-      const retry = await page.evaluate(() => probe);
-      assert.equal(retry.seed, seed);
-      assert.equal(retry.freeRideSkier, guest);
-      assert(retry.metres < pausedAt + 2, 'Retry must return to the start');
-
-      const fixedFirstGap = seed === 1911;
-      let steeringTouch;
-      if (fixedFirstGap) {
-        await at(28);
-        // On seed 1911 the first cornice is left of centre. Take it with the owl and pass on the right with the bear.
-        const lane = await page.evaluate(() => probe.riderLane);
-        const destination = line==='bypass' ? 2.9 : -4.83;
-        await touch.send('Input.dispatchTouchEvent', {type:'touchStart', touchPoints:[{x:195,y:515,id:1}]});
-        steeringTouch={x:Math.max(16, Math.min(374, 195 + (destination - lane)*390/(27*.79))),y:515,id:1};
-        await touch.send('Input.dispatchTouchEvent', {type:'touchMove', touchPoints:[steeringTouch]});
-      }
-      await at(58);
-      const frame = await page.evaluate(() => probe);
-      if(line==='button')await shot('skier-descent');
-      assert.equal(frame.courseMode, 'freeride');
-      assert(frame.riderScreenX > .05 && frame.riderScreenX < .95, 'Hero outside phone view');
-      if (fixedFirstGap) {
-        if (line==='button'||line==='swipe') {
-          await page.waitForFunction(()=>probe.freeRideJumpReady&&probe.metres>=69,null,{timeout:8000});
-          if(line==='button'){
-            const box=await page.locator('#freeRideJump').boundingBox();
-            await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[steeringTouch,{x:box.x+box.width/2,y:box.y+box.height/2,id:2}]});
-          }else{
-            await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...steeringTouch,y:447}]});
-          }
-          await page.waitForFunction(() => probe.air && probe.metres >= 86 && probe.metres < 110, null, {timeout:12000});
-          if(guest)await shot('skier-flip');
-        }else if(line==='fall'){
-          await page.waitForFunction(()=>probe.freeRideInCrevasse,null,{timeout:8000});
-          await page.waitForTimeout(410);
-          await shot('cave-fall');
-        }
-        await at(113);
-        const landing = await page.evaluate(() => probe);
-        assert(!landing.air&&!landing.freeRideInCrevasse,'Expected return to snow');
-        assert.equal(landing.helmets,line==='fall'?0:1);
-        if(line==='button'||line==='swipe')assert(landing.tricks>=1,'Expected a completed trick');
-        await touch.send('Input.dispatchTouchEvent', {type:'touchEnd', touchPoints:[]});
-      }
-      await click('pause');
-      await phase('pause', hero);
-      await click('exitPaused');
-      await phase('over', hero);
-      const result = await page.evaluate(() => probe);
-      assert.equal(result.rankedResult, false);
-      assert.match(await page.locator('#rankStatus').innerText(), /вне рейтинга/i);
-      samples.push({hero,guest,line,seed,coins:result.coins,helmets:result.helmets,tricks:result.tricks,stoppedAt:result.metres});
-      await click('exitResult');
-      await phase('menu', hero);
-      assert.equal(await save(), profile, 'Free Ride changed the saved profile for ' + hero);
+    async function seek(d) {
+      await page.locator('#reviewAt').fill(String(d));await page.locator('#reviewAt').press('Enter');
+      await page.waitForFunction(d=>probe.phase==='review'&&probe.metres===d,d);
     }
-    // Inspect both lines from the same game camera, at the exact metre before the first cornice.
-    await page.locator('[data-panel="settings"]').tap();
-    const inspectionSeed = page.getByLabel('Номер трассы');
-    await inspectionSeed.fill(String(seed));
-    await inspectionSeed.press('Tab');
-    await page.getByRole('button', {name:'Осмотр трассы', exact:true}).tap();
-    await phase('review', 'bear');
-    await page.locator('#reviewRide').selectOption('freeride');
-    await page.locator('#reviewAt').fill('64');
-    await page.locator('#reviewAt').press('Enter');
-    await page.waitForFunction(n => probe.courseMode === 'freeride' && probe.seed === n && probe.metres === 64, seed);
-    await click('reviewFold');
-    await shot('approach-64m');
-    await click('reviewExit');
+    async function leavePractice() {
+      await click('pause');await phase('pause');await click('exitPaused');await phase('review');
+    }
+    if(fromTelegramLink){
+      await phase('review');
+      await page.waitForFunction(()=>probe.metres===19955&&probe.seed===1911);
+      assert.equal(new URL(page.url()).searchParams.get('reviewStage'),'8');
+      assert.equal(await page.evaluate(()=>mountainRelease.channel),'test');
+      await click('reviewExit');
+    }
     await phase('menu');
-    await click('play');
-    await at(7);
-    assert.equal(await page.evaluate(() => probe.courseMode), 'normal');
-    assert.equal(await page.evaluate(() => probe.freeRideSkier), false);
-    assert(samples.some(sample => sample.coins > 0), 'No mandarin collected to check wallet isolation');
+    assert.equal(await page.locator('[data-mode="freeride"]').count(),0);
+    await shot('menu');
+    await click('play');await at(3);
+    assert.equal(await page.evaluate(()=>probe.stage),0);
+    await click('pause');await click('exitPaused');await phase('menu');
+    await inspect();
+    for(const hero of ['bear','owl']){
+      await page.locator('#reviewHero').selectOption(hero);
+      await phase('review',hero);
+      await seek(19955);
+      await click('reviewPlay');await phase('play',hero);
+      await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:195,y:515,id:1}]});
+      await at(19967);
+      if(hero==='bear')await shot('arch-19970m');
+      await at(20001);
+      await page.waitForFunction(()=>probe.stage===8);
+      const x=195-4.83*390/(27*.79);
+      await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:515,id:1}]});
+      await page.waitForFunction(()=>probe.freeRideJumpReady&&probe.metres>=20065,null,{timeout:12000});
+      await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:445,id:1}]});
+      await page.waitForFunction(()=>probe.air&&probe.metres>=20090,null,{timeout:12000});
+      await shot(hero+'-jump');
+      await at(20116);
+      const stats=await page.evaluate(()=>probe);
+      assert.equal(stats.helmets,1);assert.equal(stats.tricks,1);assert.equal(stats.courseMode,'normal');
+      samples.push({hero,metres:stats.metres,coins:stats.coins,tricks:stats.tricks,helmets:stats.helmets});
+      await page.waitForFunction(()=>probe.boulderNear>.30,null,{timeout:12000});
+      if(hero==='bear')await shot('rolling-snow');
+      await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+      await leavePractice();
+    }
+    await seek(22485);await click('reviewPlay');await at(22503);
+    assert.equal(await page.evaluate(()=>probe.stage),0);
+    assert.match(await page.locator('#stage').innerText(),/Круг 2/);
+    await leavePractice();await click('reviewExit');
     assert.deepEqual(posts, []);
     assert.deepEqual(errors, []);
     console.log('FREE RIDE WEB PASS', JSON.stringify(samples));

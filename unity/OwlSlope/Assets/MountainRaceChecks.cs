@@ -17,7 +17,7 @@ public partial class MountainRace {
     }
     string VerifyPrize(string hero,int taps,int lap=0,bool coffee=false){
         Menu();ChooseHero(hero);StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
-        Checkpoint(7620+lap*20000,0);
+        Checkpoint(7620+lap*RaceWorld.LapLength,0);
         var ramp=World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
         var feather=World.Items.Find(o=>o.kind=="feather");
         Check(ramp!=null&&feather!=null,"prize row missing from seed 1911");
@@ -58,7 +58,7 @@ public partial class MountainRace {
     }
     string VerifyParkJumps(int lap){
         Menu();ChooseHero("bear");StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
-        float start=7500+lap*20000,end=start+2500;
+        float start=7500+lap*RaceWorld.LapLength,end=start+2500;
         Checkpoint(start,0);chaseNext=end+900;
         var features=new HashSet<RaceItem>();
         for(int frame=0;frame<3300&&Status.phase=="play"&&Status.metres<end;frame++){
@@ -197,8 +197,8 @@ public partial class MountainRace {
                 }
             }
         }
-        RestartRide();Checkpoint(20335,0);
-        Check(World.Items.Exists(o=>Mathf.Abs(o.distance-20347.5f)<.01f&&o.variant=="trainingCones"&&o.Visual),"second lap cones");
+        RestartRide();Checkpoint(RaceWorld.LapLength+335,0);
+        Check(World.Items.Exists(o=>Mathf.Abs(o.distance-(RaceWorld.LapLength+347.5f))<.01f&&o.variant=="trainingCones"&&o.Visual),"second lap cones");
         RestartRide();Checkpoint(15110,0);
         var flags=World.Items.Find(o=>o.kind=="gate"&&o.distance>15110);
         Check(flags!=null&&flags.variant.EndsWith("Night"),"night flag gate missing");

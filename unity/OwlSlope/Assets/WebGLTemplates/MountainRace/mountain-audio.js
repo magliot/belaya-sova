@@ -6,7 +6,7 @@
   let graphUnavailable=false,musicUnavailable=false;
   const samples=new Map();
   const rare=new Map();
-let engG=null,engP=null,rumG=null;const engO=[];
+let engG=null,engP=null,rumG=null,rumFilter=null;const engO=[];
 let AC=null,master=null,windG=null,carveG=null,windF=null,noiseBuf=null,sfxBus=null,voxBus=null,musBus=null;
 // три канала громкости: музыка, звуки игры, голоса героев (0…10 из настроек)
 const VOLK={music:0.55,sfx:1,vox:1};
@@ -23,7 +23,7 @@ function initAudio(){
     }catch(error){
       graphUnavailable=true;
       changeContextState('close');
-      AC=master=windG=carveG=windF=noiseBuf=sfxBus=voxBus=musBus=engG=engP=rumG=null;
+      AC=master=windG=carveG=windF=noiseBuf=sfxBus=voxBus=musBus=engG=engP=rumG=rumFilter=null;
       engO.length=0;
       console.warn('Web Audio unavailable:',error);
       return;
@@ -46,7 +46,7 @@ function createGraph(){
     const n3=AC.createBufferSource();n3.buffer=noiseBuf;n3.loop=true;const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=160;bp.Q.value=1.2;const ng=AC.createGain();ng.gain.value=1.4;n3.connect(bp).connect(ng).connect(lp);n3.start();
     lp.connect(chug).connect(engG);if(engP)engG.connect(engP).connect(sfxBus);else engG.connect(sfxBus);}
   // гул лавины
-  {const n4=AC.createBufferSource();n4.buffer=noiseBuf;n4.loop=true;const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=140;rumG=AC.createGain();rumG.gain.value=0;n4.connect(lp).connect(rumG).connect(sfxBus);n4.start(0,1.1);}
+  {const n4=AC.createBufferSource();n4.buffer=noiseBuf;n4.loop=true;rumFilter=AC.createBiquadFilter();rumFilter.type='lowpass';rumFilter.frequency.value=140;rumG=AC.createGain();rumG.gain.value=0;n4.connect(rumFilter).connect(rumG).connect(sfxBus);n4.start(0,1.1);}
   const n2=AC.createBufferSource();n2.buffer=noiseBuf;n2.loop=true;const hp=AC.createBiquadFilter();hp.type='highpass';hp.frequency.value=700;const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3200;carveG=AC.createGain();carveG.gain.value=0;n2.connect(hp).connect(lp).connect(carveG).connect(sfxBus);n2.start(0,0.7);
 }
 function tone(f,d,v,type,f2,delay){if(!AC||save.muted)return;const t0=AC.currentTime+(delay||0);const o=AC.createOscillator(),g=AC.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f,t0);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t0+d);g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(v,t0+0.015);g.gain.exponentialRampToValueAtTime(0.0001,t0+d);o.connect(g).connect(sfxBus);o.start(t0);o.stop(t0+d+0.05);}
@@ -115,7 +115,7 @@ const SFX={
   }
   async function speak(key,priority=false,phase='play'){
     const now=performance.now();
-    if(!active||save.muted||!save.vol.vox||document.hidden||state.freeRideSkier)return;
+    if(!active||save.muted||!save.vol.vox||document.hidden)return;
     const cooldown={polite:40000,miss:40000,warn:16000,jump:14000}[key]||0;
     if(!priority&&(voice||now-lastVoice<3000||now-(rare.get(key)??-Infinity)<cooldown))return;
     stopVoice();const ticket=voiceTicket;
@@ -155,7 +155,10 @@ const SFX={
     const motor=next.mode==='sled'?.2*proximity*proximity:.30*proximity*(.55+.45*proximity);
     engG.gain.setTargetAtTime(riding?motor:0,t,.12);
     engP?.pan.setTargetAtTime(next.enginePan||0,t,.1);
-    rumG.gain.setTargetAtTime(riding?.16*(next.avalanche||0):0,t,.12);
+    const snow=next.boulderNear||0;
+    rumFilter.frequency.setTargetAtTime(140+460*snow,t,.16);
+    const roll=.30*snow**1.6*(.84+.16*Math.sin((next.elapsed||0)*13));
+    rumG.gain.setTargetAtTime(riding?Math.max(.16*(next.avalanche||0),roll):0,t,.12);
     if(!riding){
       if(next.phase==='over'&&previous.phase!=='over'&&next.cue==='fallEnd')speak('crash',true,'over');
       lastEvent=next.eventId;return;
@@ -171,7 +174,7 @@ const SFX={
     if(key==='feather')return;
     if(key==='gate')SFX.gate(Math.max(1,next.combo||1),false);
     else if(Object.prototype.hasOwnProperty.call(SFX,key))SFX[key]();
-    if(key==='crash'&&save.vol.vox>0&&!next.freeRideSkier)loadSample(next.hero+'_crash');
+    if(key==='crash'&&save.vol.vox>0)loadSample(next.hero+'_crash');
     if(['start','jump','helmet','fis','record','polite','warn','miss','stage'].includes(key))speak(key,key==='start');
   }
   function activate(){

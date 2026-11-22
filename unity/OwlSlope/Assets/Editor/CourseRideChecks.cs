@@ -37,23 +37,23 @@ public static class CourseRideChecks {
             for(int i=0;i<64;i++){
                 var s=race.Status;
                 if(s.phase!="play"){
-                    if(s.metres<20100||stageSeen!=255||!s.rankedResult)
+                    if(s.metres<RaceWorld.LapLength+100||stageSeen!=(1<<RaceWorld.StageCount)-1||!s.rankedResult)
                         throw new InvalidOperationException("Continuous run ended early at "+s.metres+" m, stage "+s.stage+" lane "+race.Lane+" · "+s.message);
-                    Debug.Log("CONTINUOUS LAP PASS seed 1911, ordinary start: "+s.metres+" m, eight stages, lap "+lap+
+                    Debug.Log("CONTINUOUS LAP PASS seed 1911, ordinary start: "+s.metres+" m, nine stages, lap "+lap+
                         ", "+s.coins+" mandarins, "+s.gates+" gates, "+s.rings+" rings, "+
                         s.score+" points = "+s.scoreDistance+" distance + "+s.scoreFruit+" fruit + "+s.scoreGates+" gates + "+
                         s.scoreRings+" rings + "+s.scoreFis+" FIS, finish: "+s.message);
                     race=null;EditorApplication.Exit(0);return;
                 }
                 if((stageSeen&(1<<s.stage))==0)Debug.Log("COURSE RIDE stage "+s.stage+" at "+s.metres+" m, "+s.coins+" mandarins");
-                if(s.metres<20000)lapApproach=s.speed;
-                if(lap==1&&s.metres>=20000){
+                if(s.metres<RaceWorld.LapLength)lapApproach=s.speed;
+                if(lap==1&&s.metres>=RaceWorld.LapLength){
                     if(Mathf.Abs(s.speed-lapApproach)>8)throw new InvalidOperationException("Discontinuous speed at the lap boundary");
-                    Debug.Log("COURSE RIDE crossed 20 km at "+lapApproach+" -> "+s.speed+" km/h");
+                    Debug.Log("COURSE RIDE crossed 22.5 km at "+lapApproach+" -> "+s.speed+" km/h");
                 }
-                stageSeen|=1<<s.stage;lap=1+Mathf.FloorToInt(s.metres/20000);
+                stageSeen|=1<<s.stage;lap=1+Mathf.FloorToInt(s.metres/RaceWorld.LapLength);
                 velocity=(race.Lane-lastLane)*10;lastLane=race.Lane;
-                target=s.metres>=20100?20:SelectLane();
+                target=s.metres>=RaceWorld.LapLength+100?20:SelectLane();
                 race.DragSteer(target/(27*.79f));race.Advance(.10f);
             }
         }catch(Exception error){race=null;Debug.LogException(error);EditorApplication.Exit(2);}
@@ -61,6 +61,7 @@ public static class CourseRideChecks {
     static float SelectLane(){
         var s=race.Status;float d=s.metres,lane=race.Lane,speed=Mathf.Max(10,s.speed/3.6f);
         float width=race.World.WidthAt(d+speed)*.5f-.35f;
+        if(race.World.AlpineAt(d)&&race.World.TryFreeRideGap(d,out var cut)&&d>cut.lipD-30&&d<cut.endD+3)return -Mathf.Sign(cut.lane)*2.3f;
         obstacles.Clear();rewards.Clear();
         foreach(var item in race.World.Items){
             float dz=item.distance-d;
@@ -77,6 +78,7 @@ public static class CourseRideChecks {
                     continue;
                 case "npc":radius=1.44f;break;
                 case "tree":radius=item.width*.5f+.75f;break;
+                case "snowBoulder":radius=item.width*.5f+1;length=2;break;
                 case "rock":radius=item.width*.5f+.72f;break;
                 case "cat":radius=3.3f;length=3.7f;break;
                 case "mogulYeti":case "yeti":radius=2.85f;length=2.05f;break;

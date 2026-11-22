@@ -27,7 +27,7 @@ public partial class RaceWorld {
     }
     void EndlessRoad(float d,ref float x,ref float slope,ref float second){
         const float spacing=154,transition=195;
-        float distance=d-20000;
+        float distance=d-LapLength;
         int knot=Mathf.FloorToInt(distance/spacing);
         float t=distance/spacing-knot;
         float a=Roll(seed,knot,655)*65-32.5f,b=Roll(seed,knot+1,655)*65-32.5f,delta=b-a;
@@ -41,8 +41,8 @@ public partial class RaceWorld {
         second+=f*dds+2*df*ds+ddf*side;slope+=f*ds+df*side;x+=f*side;
     }
     void EndlessScene(int fullStage,int n){
-        int stage=fullStage%8,section=n/10,row=n%10;
-        int scenario=RouteScenario(seed,stage,fullStage/8,section);
+        int stage=fullStage%StageCount,section=n/10,row=n%10;
+        int scenario=RouteScenario(seed,stage,fullStage/StageCount,section);
         int key=fullStage*50+n;
         float direction=Roll(seed,fullStage*5+section,644)<.5f?-1:1;
         float start=fullStage*2500+n*50;

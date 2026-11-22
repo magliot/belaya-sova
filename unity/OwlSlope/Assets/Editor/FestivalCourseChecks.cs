@@ -6,7 +6,7 @@ using UnityEngine;
 public static class FestivalCourseChecks {
     static void Need(bool ok,string message){if(!ok)throw new InvalidOperationException("Holiday slalom: "+message);}
     public static void Run(MountainRace race){
-        foreach(var start in new[]{17500,37500}){
+        foreach(var start in new[]{17500,17500+RaceWorld.LapLength}){
             race.Menu();race.ChooseHero(start==17500?"bear":"owl");
             race.StartRace("{\"mode\":\"review\",\"reviewRide\":\"normal\",\"sensitivity\":4,\"seed\":1911}");
             race.Seek(start+2);race.RideFromReview();race.BeginSteer();

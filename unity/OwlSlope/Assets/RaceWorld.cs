@@ -45,7 +45,9 @@ public partial class RaceWorld : MonoBehaviour {
     string mode,letter;
     bool letterAdded;
     public string Mode=>mode;
-    public static int StageAt(float d)=>Mathf.FloorToInt(Mathf.Max(0,d)/2500)%8;
+    public const int StageLength=2500, AlpineStage=8, StageCount=9, LapLength=StageLength*StageCount;
+    public bool AlpineAt(float d)=>mode=="normal"&&d>=0&&StageAt(d)==AlpineStage;
+    public static int StageAt(float d)=>Mathf.FloorToInt(Mathf.Max(0,d)/StageLength)%StageCount;
     public static float Roll(int seed,int row,int stream){
         unchecked{
             uint n=(uint)seed ^ ((uint)(row+1)*0x9e3779b1u) ^ ((uint)(stream+1)*0x85ebca6bu);
@@ -78,19 +80,19 @@ public partial class RaceWorld : MonoBehaviour {
         item.obj.SetActive(false);stack.Push(item.obj);
     }
     static float RowLength(int stage,string mode){
-        if(mode=="freeride")return FreeRideSectionLength;
+        if(mode=="normal"&&stage%StageCount==AlpineStage)return FreeRideSectionLength;
         if(mode=="sprint")return 75;if(mode=="tubing")return 33;if(mode=="sled")return 31;
-        if(stage>=8&&stage%8==6)return 50;
-        switch(stage%8){case 0:return 62.5f;case 1:return 50;case 2:return 117;case 3:return 75;case 5:case 6:return 90;default:return 50;}
+        if(stage>=StageCount&&stage%StageCount==6)return 50;
+        switch(stage%StageCount){case 0:return 62.5f;case 1:return 50;case 2:return 117;case 3:return 75;case 5:case 6:return 90;default:return 50;}
     }
     int Segment(float d){
         d=Mathf.Max(0,d);
-        if(mode=="sprint"||mode=="tubing"||mode=="sled"||mode=="freeride")return Mathf.FloorToInt(d/RowLength(0,mode));
+        if(mode=="sprint"||mode=="tubing"||mode=="sled")return Mathf.FloorToInt(d/RowLength(0,mode));
         int stage=Mathf.FloorToInt(d/2500);
         return stage*1000+Mathf.FloorToInt((d-stage*2500)/RowLength(stage,mode));
     }
     int Following(int seg){
-        if(mode=="sprint"||mode=="tubing"||mode=="sled"||mode=="freeride")return seg+1;
+        if(mode=="sprint"||mode=="tubing"||mode=="sled")return seg+1;
         int stage=seg/1000,index=seg%1000;
         return (index+1)*RowLength(stage,mode)>=2500?(stage+1)*1000:seg+1;
     }
@@ -132,6 +134,7 @@ public partial class RaceWorld : MonoBehaviour {
         if(o.kind=="ramp"||o.kind=="rail")return Ramp(o);
         if(pool.TryGetValue(o.variant,out var stack)&&stack.Count>0){var reuse=stack.Pop();reuse.SetActive(true);return reuse;}
         if(o.variant=="trainingCones")return CreateConePair();
+        if(o.kind=="snowBoulder")return MakeSnowBoulder();
         return o.variant.StartsWith("forestCard")?ForestCard(o.variant):CreateVisual(o.variant,transform);
     }
     void Place(RaceItem o){
@@ -159,6 +162,10 @@ public partial class RaceWorld : MonoBehaviour {
             attitude=SnowFrame(o.distance,o.lane)*Quaternion.Euler(0,o.yaw,roll);
         }else attitude=Quaternion.Euler(0,HeadingAt(o.distance)*Mathf.Rad2Deg+o.yaw,o.lean);
         float y=o.offset;
+        if(o.kind=="snowBoulder"){
+            attitude=SnowFrame(o.distance,o.lane)*Quaternion.Euler(o.stride,0,0);
+            y+=o.scale*.93f;
+        }
         if(o.air||o.kind=="ball"||o.kind=="letter"||o.kind=="goldenOwl")y+=o.height;
         else if(o.kind=="coin")y+=.6f;else if(o.kind=="thermos"||o.kind=="helmet"||o.kind=="magnet"||o.kind=="aid"||o.kind=="gift")y+=.84f;
         o.obj.transform.SetPositionAndRotation(SnowSurface(o.distance,o.lane)+Vector3.up*y,attitude);
@@ -202,7 +209,7 @@ public partial class RaceWorld : MonoBehaviour {
     }
     static bool Moves(string kind){
         switch(kind){
-            case "npc":case "tube":case "cat":case "snowmobile":case "mogulYeti":case "yeti":case "dog":case "ball":case "snowman":
+            case "snowBoulder":case "npc":case "tube":case "cat":case "snowmobile":case "mogulYeti":case "yeti":case "dog":case "ball":case "snowman":
             case "airRing":case "coin":case "feather":case "gift":case "thermos":case "aid":case "helmet":case "magnet":return true;
             default:return false;
         }

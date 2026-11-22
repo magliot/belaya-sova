@@ -13,7 +13,7 @@ public partial class RaceWorld {
     static float Smooth(float t){t=Mathf.Clamp01(t);return t*t*(3-2*t);}
     void BuildTurns(){
         turns.Clear();cacheD=float.NaN;float d=0,x=0;int i=0;
-        if(mode=="freeride"){PrepareAlpineProfile();return;}
+        PrepareAlpineProfile();
         void AddTurn(float length,float end){turns.Add(new Turn{start=d,length=length,x=x,delta=end-x});d+=length;x=end;}
         float side=Roll(seed,0,0)>.5f?1:-1;
         AddTurn(22,0);
@@ -27,8 +27,7 @@ public partial class RaceWorld {
     }
     void SampleRoad(float d){
         if(d==cacheD)return;cacheD=d;
-        if(mode=="freeride"){SampleAlpineProfile(d);return;}
-        float a=36*(1-Mathf.Cos(d/52))+16*(Mathf.Cos(d/97)-1);
+        float a=PisteCentre(d);
         float b=36f/52*Mathf.Sin(d/52)-16f/97*Mathf.Sin(d/97);
         float c=36f/(52*52)*Mathf.Cos(d/52)-16f/(97*97)*Mathf.Cos(d/97);
         cx=a;dx=b;float dd=c;
@@ -43,12 +42,14 @@ public partial class RaceWorld {
             cx=seg.x+seg.delta*blend;dx=seg.delta*vel;dd=seg.delta*accel;
             if(tail){dx+=blend*b;dd+=2*vel*b+blend*c;}
         }
-        if(d>=20000&&mode=="normal")EndlessRoad(d,ref cx,ref dx,ref dd);
+        if(d>=LapLength&&mode=="normal")EndlessRoad(d,ref cx,ref dx,ref dd);
+        if(AlpineAt(d))BlendAlpineCentre(d,ref cx,ref dx,ref dd);
         curve=dd/Mathf.Pow(1+dx*dx,1.5f);
+        if(AlpineAt(d))SampleAlpineProfile(d);
     }
     public float HeadingAt(float metres){SampleRoad(metres);return Mathf.Atan(dx);}
     public float WidthAt(float metres){
-        if(mode=="freeride")return 24;
+        if(AlpineAt(metres))return 21+3*AlpineBlend(metres);
         if(mode=="tubing")return 16.2f;
         float blend=Smooth(Mathf.Repeat(metres,2500)/35)*Smooth((2500-Mathf.Repeat(metres,2500))/35);
         return StageAt(metres)==1?21-7.5f*blend:21;
@@ -56,10 +57,10 @@ public partial class RaceWorld {
     public static float Grade(float d)=>.29f+.22f*Mathf.Sin(d/42)+.09f*Mathf.Sin(d/17+1);
     public Vector3 SampleGround(float metres,float lane){
         SampleRoad(metres);
-        if(mode=="freeride")return AlpineGround(metres,lane);
+        if(AlpineAt(metres))return AlpineGround(metres,lane);
         float d=metres,mag=Mathf.Abs(lane),h=Mathf.Atan(dx);
         float bank=.12f*(float)Math.Tanh(-curve*10/.12f);
-        float height=-.29f*d+9.24f*(Mathf.Cos(d/42)-1)+1.53f*(Mathf.Cos(d/17+1)-Mathf.Cos(1));
+        float height=CourseHeight(d);
         float shoulder=Smooth((mag-9.4f)/5.8f)*(3.4f+.65f*Mathf.Sin(d/23+(lane<0?1.4f:0))+.25f*Mathf.Cos(d/9));
         int stage=StageAt(d);float within=Mathf.Repeat(d,2500),blend=Smooth(within/35)*Smooth((2500-within)/35);
         if(stage==1)shoulder=Mathf.Lerp(shoulder,2.8f*Smooth((mag-6.6f)/5.8f),blend);
@@ -95,7 +96,7 @@ public partial class RaceWorld {
         return MogulLine(d)*Smooth(local/16)*Smooth((2457-local)/24);
     }
     float ColumnLane(int column,float width,float trail){
-        if(mode=="freeride")return alpineLanes[column];
+        if(usingAlpineMesh)return alpineLanes[column];
         float x=columns[column];
         if(Mathf.Abs(x)>11)return x;
         float lane=x*width/22;
@@ -107,7 +108,7 @@ public partial class RaceWorld {
         float width0=WidthAt(lower),width1=WidthAt(lower+2);
         float trail0=MeshTrail(lower),trail1=MeshTrail(lower+2);
         float LaneAt(int j)=>Mathf.Lerp(ColumnLane(j,width0,trail0),ColumnLane(j,width1,trail1),t);
-        int cols=mode=="freeride"?alpineLanes.Length:columns.Length;
+        int cols=usingAlpineMesh?alpineLanes.Length:columns.Length;
         int lo=0,hi=cols-1;
         while(hi-lo>1){int mid=(lo+hi)/2;if(lane<LaneAt(mid))hi=mid;else lo=mid;}
         float u=Mathf.InverseLerp(LaneAt(lo),LaneAt(hi),lane);
@@ -131,8 +132,10 @@ public partial class RaceWorld {
     Material SnowPaint(string key,Color color){var m=new Material(Resources.Load<Material>("SlopeLit"));m.color=color;
         m.mainTexture=Resources.Load<Texture2D>("Art/"+key);m.SetFloat("_Smoothness",.06f);return m;}
     readonly byte[] markings=new byte[150];
+    bool usingAlpineMesh;
     void UpdateTerrain(float centre){
-        if(mode=="freeride"){
+        usingAlpineMesh=AlpineAt(centre)||AlpineAt(centre+84);
+        if(usingAlpineMesh){
             if(groomedRun&&groomedRun.activeSelf)groomedRun.SetActive(false);
             UpdateAlpineTerrain(centre);return;
         }
@@ -194,11 +197,11 @@ public partial class RaceWorld {
     }
     int sceneryRow=int.MinValue;
     void UpdateScenery(float d){
-        if(mode=="freeride")return;
         int start=Mathf.FloorToInt((d-25)/12),end=Mathf.CeilToInt((d+146)/12);
         for(int i=scenery.Count-1;i>=0;i--)if(scenery[i].distance<start*12||scenery[i].distance>(end+1)*12){Release(scenery[i]);scenery.RemoveAt(i);}
         if(scenery.Count==0)sceneryRow=start-1;
         for(int row=Mathf.Max(start,sceneryRow+1);row<=end;row++)foreach(int side in sides){
+            if(AlpineAt(row*12))continue;
             int stage=StageAt(row*12);int count=1+(Roll(seed,row,100+side)>.38f?2:0);
             if(mode=="tubing"){
                 float woods=TubeWoods(row*12);

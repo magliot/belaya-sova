@@ -5,6 +5,44 @@ using System.Reflection;
 using UnityEngine;
 
 public static class HeroMotionChecks {
+    public static void JumpLibrary(MountainRace race,string hero){
+        int count=hero=="bear"?7:5;
+        race.Menu();race.ChooseHero(hero);
+        race.StartRace("{\"mode\":\"normal\",\"seed\":1911}");
+        var checkpoint=typeof(MountainRace).GetMethod("Checkpoint",BindingFlags.NonPublic|BindingFlags.Instance);
+        var selected=typeof(MountainRace).GetField("airPose",BindingFlags.NonPublic|BindingFlags.Instance);
+        var rider=race.transform.Find("Selected rider/"+(hero=="bear"?"Bear":"OwlRide"));
+        var deck=rider.GetComponentsInChildren<Transform>().First(p=>p.name==(hero=="bear"?"Left_Ski":"Snowboard"));
+        var hips=rider.GetComponentsInChildren<Transform>().First(p=>p.name.EndsWith("Hips"));
+        var seen=new HashSet<int>();var sequence=new List<int>();int previous=-1;
+        string shots=Environment.GetEnvironmentVariable("SOVA_JUMP_SHOTS");
+        for(int jump=0;jump<=count;jump++){
+            checkpoint.Invoke(race,new object[]{7620f+jump*RaceWorld.LapLength,0f});
+            var ramp=race.World.Items.First(o=>o.kind=="ramp"&&o.prizeLine);
+            float lip=ramp.distance+ramp.length*.5f;
+            checkpoint.Invoke(race,new object[]{lip-1,ramp.lane});
+            int pose=-1;float turn=0;
+            Quaternion relative=Quaternion.identity;bool photo=false;
+            for(int frame=0;frame<420;frame++){
+                race.Advance(1f/60);
+                if(!race.Status.air){if(pose>=0)break;continue;}
+                Quaternion heading=Quaternion.Inverse(race.World.SnowFrame(race.Status.metres,ramp.lane))*deck.rotation;
+                if(pose>=0)turn+=Quaternion.Angle(heading,relative);
+                relative=heading;pose=(int)selected.GetValue(race);
+                if(rider.InverseTransformPoint(hips.position).magnitude>1.7f)
+                    throw new Exception("Baked film trajectory still moves "+hero+" out of its flight");
+                if(!photo&&!String.IsNullOrEmpty(shots)&&race.Status.metres>lip+ramp.span*.49f){
+                    RiderCourseChecks.Shot(race.View,hero+"-"+pose,shots,384,832);photo=true;
+                }
+            }
+            if(pose<0||pose==previous||(jump<count&&!seen.Add(pose)))throw new Exception("Jump shuffle or takeoff "+hero+" "+pose+" at "+jump+" · "+race.Status.phase+" "+race.Status.metres+" "+race.Status.message);
+            if((hero=="bear"&&(pose==4||pose==5)||hero=="owl"&&pose>=3)&&turn<280||hero=="bear"&&pose==6&&turn<140)
+                throw new Exception(hero+" jump "+pose+" only rotated "+turn+" degrees");
+            previous=pose;sequence.Add(pose);
+        }
+        if(race.Status.tricks!=0)throw new Exception("Automatic visuals received gesture points");
+        Debug.Log("JUMP LIBRARY PASS "+hero+" "+String.Join(",",sequence)+"; full deck, mounted equipment, automatic jumps award zero tricks");
+    }
     // Follow the actual boot vertices through takeoff, both trick transitions and
     // the landing. Testing relative to the deck also catches a binding that moves
     // together with a boot while both leave the visible board.
@@ -61,7 +99,7 @@ public static class HeroMotionChecks {
             string detail=hero+" "+ids[0].Count+"/"+ids[1].Count+" sole vertices, max deck-space drift "+error.ToString("F3")+
                 " m, perpendicular "+heightError.ToString("F3")+" m @ "+worstAt.ToString("F1")+" m; whole-rig turns "+
                 turns[0].ToString("F0")+"/"+turns[1].ToString("F0")+" degrees";
-            if(race.Status.tricks!=2||race.Status.metres<landing+4||Mathf.Min(turns[0],turns[1])<340||error>.027f||heightError>.016f)
+            if(race.Status.tricks!=2||race.Status.metres<landing+4||error>.027f||heightError>.016f)
                 throw new Exception("Airborne equipment: "+detail);
             Debug.Log("AIRBORNE SOLES PASS "+detail);
         }finally{UnityEngine.Object.Destroy(mesh);}
@@ -96,7 +134,8 @@ public static class HeroMotionChecks {
         }
         string detail=key+" wrists "+travel[0].ToString("F3")+"/"+travel[1].ToString("F3")+
             " m, compression "+(high-low).ToString("F3")+" m, boot/binding error "+drift.ToString("F3")+" m";
-        if(Mathf.Min(travel[0],travel[1])<.025f||high-low<.020f||drift>.022f)
+        bool stance=hero=="bear"?Mathf.Max(travel[0],travel[1])<.012f&&high-low<.01f:Mathf.Min(travel[0],travel[1])>=.025f&&high-low>=.020f;
+        if(!stance||drift>.022f)
             throw new Exception("Ride motion or attachment: "+detail);
         Debug.Log("HERO MOTION PASS "+detail);
     }

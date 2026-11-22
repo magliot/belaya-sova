@@ -146,7 +146,7 @@ public static class RaceWorldChecks {
             }
             race.StartRace("{\"mode\":\"review\",\"seed\":1911}");
             StartBanner(race,0);StartBanner(race,3);StartBanner(race,15);
-            for(int stage=1;stage<8;stage++){
+            for(int stage=1;stage<RaceWorld.StageCount;stage++){
                 float boundary=stage*2500;race.Seek(boundary-32);
                 var arch=world.Items.FirstOrDefault(o=>o.kind=="arch"&&Mathf.Abs(o.distance-boundary)<.01f);
                 InFrame(race.View,arch,"stage "+stage+" arch");
@@ -161,7 +161,8 @@ public static class RaceWorldChecks {
                 }
                 string[][] required={null,new[]{"tree","snowmobile","npc","ramp"},new[]{"tube","mogulYeti","rail","npc"},
                     new[]{"airRing","feather","ramp","rail","npc"},new[]{"rock","dog","fence","cannon","aid","snowman"},
-                    new[]{"gate","rock","npc","tube"},new[]{"mogulYeti","cat","npc","airRing","thermos"},new[]{"gift","coin","npc"}};
+                    new[]{"gate","rock","npc","tube"},new[]{"mogulYeti","cat","npc","airRing","thermos"},new[]{"gift","coin","npc"},
+                    new[]{"coin","rock","snowBoulder","arch"}};
                 foreach(string kind in required[stage])Require(objects.Contains(kind),"stage "+stage+" lacks "+kind);
             }
             world.Configure(1911,"normal");world.Refresh(15064,1000);

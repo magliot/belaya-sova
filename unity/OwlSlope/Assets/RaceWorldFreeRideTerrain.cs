@@ -24,8 +24,37 @@ public partial class RaceWorld {
         public float shoulder,spur,peak,crest;
     }
     Ridge alpineLeft,alpineRight;
+    int alpineStart=-1;
+    float entranceX,exitDrift;
+    static float PisteCentre(float d)=>36*(1-Mathf.Cos(d/52))+16*(Mathf.Cos(d/97)-1);
+    float BoundaryCentre(float d){
+        float x=PisteCentre(d),slope=0,second=0;
+        if(d>=LapLength)EndlessRoad(d,ref x,ref slope,ref second);
+        return x;
+    }
+    float CirqueCentre(float t)=>18*(Mathf.Sin(t/76+alpinePhase)-Mathf.Sin(alpinePhase))
+        +14*(Mathf.Cos(t/121+alpinePhaseB)-Mathf.Cos(alpinePhaseB));
+    void BlendAlpineCentre(float d,ref float x,ref float slope,ref float second){
+        int start=Mathf.FloorToInt(d/StageLength)*StageLength;
+        if(start!=alpineStart){
+            alpineStart=start;entranceX=BoundaryCentre(start);
+            exitDrift=(BoundaryCentre(start+StageLength)-entranceX-CirqueCentre(StageLength))/StageLength;
+        }
+        float t=d-start, target=entranceX+CirqueCentre(t)+t*exitDrift;
+        float a=t/76+alpinePhase,b=t/121+alpinePhaseB;
+        float ds=18f/76*Mathf.Cos(a)-14f/121*Mathf.Sin(b)+exitDrift;
+        float dd=-18f/(76*76)*Mathf.Sin(a)-14f/(121*121)*Mathf.Cos(b);
+        const float fade=140;
+        float u=Mathf.Clamp01(Mathf.Min(t,StageLength-t)/fade);
+        float blend=u*u*u*(10+u*(-15+6*u));
+        float dw=30*u*u*(1-u)*(1-u)/fade*(t<StageLength/2?1:-1);
+        float d2w=60*u*(1-u)*(1-2*u)/(fade*fade);
+        second=Mathf.Lerp(second,dd,blend)+2*dw*(ds-slope)+d2w*(target-x);
+        slope=Mathf.Lerp(slope,ds,blend)+dw*(target-x);x=Mathf.Lerp(x,target,blend);
+    }
 
     void PrepareAlpineProfile(){
+        alpineStart=-1;
         alpinePhase=Roll(seed,0,891)*Mathf.PI*2;
         alpinePhaseB=Roll(seed,0,892)*Mathf.PI*2;
     }
@@ -37,21 +66,38 @@ public partial class RaceWorld {
             peak=59+22*(1-summit)+8*Mathf.Sin(d*.057f+phase),
             crest=1-Mathf.Abs(Mathf.Sin(d*.045f+phase))};
     }
-    void SampleAlpineProfile(float d){
-        float a=d/76+alpinePhase,b=d/121+alpinePhaseB;
-        cx=18*(Mathf.Sin(a)-Mathf.Sin(alpinePhase))+14*(Mathf.Cos(b)-Mathf.Cos(alpinePhaseB));
-        dx=18f/76*Mathf.Cos(a)-14f/121*Mathf.Sin(b);
+    static float AlpineBlend(float d){
+        float local=Mathf.Repeat(d,StageLength);
+        return Smooth(local/55)*Smooth((StageLength-local)/55);
+    }
+    static float PisteHeight(float d)=>-.29f*d+9.24f*(Mathf.Cos(d/42)-1)+1.53f*(Mathf.Cos(d/17+1)-Mathf.Cos(1));
+    float CourseHeight(float d){
+        float normal=PisteHeight(d);
+        if(mode!="normal"||d<AlpineStage*StageLength)return normal;
+        float laps=Mathf.Floor(d/LapLength),local=Mathf.Max(0,Mathf.Repeat(d,LapLength)-AlpineStage*StageLength);
+        // Integrate the additional grade with level tangents at each stage boundary.
+        const float fade=45;
+        float Integrated(float t)=>t<=0?0:t<fade?t*t/(2*fade):t-fade/2;
+        float drop=Integrated(local)-Integrated(local-(StageLength-fade));
+        float priorDrop=.48f*laps*(StageLength-fade);
+        float joined=normal-priorDrop-.48f*drop;
+        if(local<=0)return joined;
+        float alpine=PisteHeight(d-local)-priorDrop-.77f*local
+            -18.02f*(Mathf.Sin(local/106+alpinePhase)-Mathf.Sin(alpinePhase))
+            +8.16f*(Mathf.Cos(local/51+alpinePhaseB)-Mathf.Cos(alpinePhaseB));
+        return Mathf.Lerp(joined,alpine,Smooth(local/68)*Smooth((StageLength-local)/130));
+    }
+    void SampleAlpineProfile(float worldD){
+        float d=Mathf.Repeat(worldD,StageLength);
         alpineAcross=1/Mathf.Sqrt(1+dx*dx);
-        curve=(-18f/(76*76)*Mathf.Sin(a)-14f/(121*121)*Mathf.Cos(b))*alpineAcross*alpineAcross*alpineAcross;
-        alpineHeight=-.77f*d-18.02f*(Mathf.Sin(d/106+alpinePhase)-Mathf.Sin(alpinePhase))
-            +8.16f*(Mathf.Cos(d/51+alpinePhaseB)-Mathf.Cos(alpinePhaseB));
-        float tail=Mathf.Clamp01((d-1150)/66);
+        alpineHeight=CourseHeight(worldD);
+        float tail=Mathf.Clamp01((d-(StageLength-110))/85);
         valleyOpening=Smooth(tail);
-        alpineHeight+=.35f*(66*tail*tail*tail*(1-.5f*tail)+Mathf.Max(0,d-1216));
+
         alpineBank=Mathf.Sin(d*.026f+alpinePhaseB)*.045f;
         pillowA=d*.10f+alpinePhase;pillowB=d*.052f+alpinePhaseB;
         alpineLeft=SampleRidge(d,alpinePhase+.7f);alpineRight=SampleRidge(d,alpinePhaseB+3.3f);
-        alpineNearLip=TryFreeRideGap(d,out alpineGap)&&d>=alpineGap.lipD-7&&d<alpineGap.lipD+8;
+        alpineNearLip=TryFreeRideGap(worldD,out alpineGap)&&worldD>=alpineGap.lipD-7&&worldD<alpineGap.lipD+8;
     }
     Vector3 AlpineGround(float d,float lane){
         float side=Mathf.Abs(lane)*(1-.26f*valleyOpening);
@@ -72,7 +118,12 @@ public partial class RaceWorld {
             float cross=Smooth((alpineGap.halfWidth+.65f-Mathf.Abs(lane-alpineGap.lane))/1.25f);
             y+=.72f*cross*Smooth((d-lip+7)/7)*(1-Smooth((d-lip)/8));
         }
-        return new Vector3(cx+lane*alpineAcross,y,d-lane*dx*alpineAcross);
+        float bank=.12f*(float)System.Math.Tanh(-curve*10/.12f);
+        float shoulder=Smooth((Mathf.Abs(lane)-9.4f)/5.8f)*(3.4f+.65f*Mathf.Sin(d/23+(lane<0?1.4f:0))+.25f*Mathf.Cos(d/9));
+        y=Mathf.Lerp(alpineHeight+bank*Mathf.Clamp(lane,-14,14)+shoulder,y,AlpineBlend(d));
+        // The distant walls run down the valley. Extrapolating a ski's road
+        // normal a hundred metres into the rock folds the outer mesh on bends.
+        return new Vector3(cx+lane*alpineAcross,y,d-Mathf.Clamp(lane,-16,16)*dx*alpineAcross);
     }
 
     void PrepareAlpineMesh(){
@@ -106,7 +157,7 @@ public partial class RaceWorld {
             SampleRoad(d);
             for(int j=0;j<cols;j++){
                 float x=alpineLanes[j];
-                Vector3 p=AlpineGround(d,x);snowVertices[row*cols+j]=p;
+                Vector3 p=SampleGround(d,x);snowVertices[row*cols+j]=p;
                 alpineVertices.Add(p);alpineUV.Add(AlpineMap(d,x));
             }
             for(int j=0;j<cols;j++){

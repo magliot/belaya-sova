@@ -31,7 +31,7 @@ public partial class RaceWorld {
         liftSeed=seed;
     }
     void RefreshLift(float d,float elapsed){
-        if(mode=="tubing"||mode=="freeride"){if(lift&&lift.activeSelf)lift.SetActive(false);return;}
+        if(mode=="tubing"||AlpineAt(d)){if(lift&&lift.activeSelf)lift.SetActive(false);return;}
         if(lift&&liftSeed!=seed){DisposeOwned(lift);lift=null;firstTower=int.MinValue;}
         if(!lift)PrepareLift();else if(!lift.activeSelf)lift.SetActive(true);
         int first=Mathf.FloorToInt((d-35)/35);

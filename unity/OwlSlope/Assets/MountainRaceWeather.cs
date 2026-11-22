@@ -25,11 +25,10 @@ public partial class MountainRace {
         new SkyPalette(new Color(.73f,.84f,.94f),new Color(.18f,.45f,.72f),new Color(1,.91f,.78f),new Color(.93f,.97f,1),.88f,.72f)
     };
     const int ClearSky=0,ParkSky=1,StormSky=2,NightSky=3,HolidaySky=4,PowderSky=5;
-    static readonly int[] stageSky={ClearSky,ClearSky,ClearSky,ParkSky,StormSky,ClearSky,NightSky,HolidaySky};
+    static readonly int[] stageSky={ClearSky,ClearSky,ClearSky,ParkSky,StormSky,ClearSky,NightSky,HolidaySky,PowderSky};
 
     void WeatherFront(out int from,out int to,out float mix){
         from=to=ClearSky;mix=1;
-        if(CourseMode=="freeride"){from=to=PowderSky;return;}
         if(CourseMode=="tubing"){
             to=ParkSky;mix=StepBlend(Mathf.InverseLerp(900,1470,Status.metres));return;
         }
@@ -37,7 +36,7 @@ public partial class MountainRace {
         // The front rolls in 220 m before its arch; the light and visibility settle 80 m after it.
         int next=Mathf.FloorToInt((Status.metres+220)/2500);
         if(next==0)return;
-        from=stageSky[(next-1)%8];to=stageSky[next%8];
+        from=stageSky[(next-1)%RaceWorld.StageCount];to=stageSky[next%RaceWorld.StageCount];
         if(from!=to)mix=StepBlend(Mathf.InverseLerp(-220,80,Status.metres-next*2500));
     }
     static float WeatherWeight(int sky,int from,int to,float t)=>Mathf.Lerp(from==sky?1:0,to==sky?1:0,t);

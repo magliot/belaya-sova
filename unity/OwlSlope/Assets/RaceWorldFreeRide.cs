@@ -1,7 +1,7 @@
 using UnityEngine;
 
 public partial class RaceWorld {
-    public const int FreeRideLength=1200;
+    public const int FreeRideLength=StageLength;
     const int FreeRideSectionLength=150;
     public struct FreeRideGap {
         public const int ShapeSegments=8;
@@ -49,25 +49,30 @@ public partial class RaceWorld {
         }
     }
     readonly FreeRideGap[] freeRideGaps=new FreeRideGap[FreeRideLength/FreeRideSectionLength];
-    int freeRideSeed;
+    int freeRideSeed,freeRideVisit;
     bool gapsReady;
 
     // Both mesh cutting and riding contacts read the same seeded ice fracture.
     // Include the approaches in the lookup so the snow can rise into a natural lip.
     public bool TryFreeRideGap(float d,out FreeRideGap gap){
         gap=default;
-        if(mode!="freeride"||d<0||d>=FreeRideLength)return false;
-        if(!gapsReady||freeRideSeed!=seed){
+        if(!AlpineAt(d))return false;
+        int visit=Mathf.FloorToInt(d/LapLength);
+        int origin=visit*LapLength+AlpineStage*StageLength;
+        int section=Mathf.FloorToInt((d-origin)/FreeRideSectionLength);
+        if(section>=freeRideGaps.Length)return false; // Final runout into the next lap.
+        int layout=unchecked(seed+visit*4651);
+        if(!gapsReady||freeRideSeed!=seed||freeRideVisit!=visit){
             for(int i=0;i<freeRideGaps.Length;i++){
-                float side=Roll(seed,i,1300)<.5f?-1:1;
-                float lip=i*FreeRideSectionLength+(i==0?85:75)+(2*Roll(seed,i,1301)-1)*(i==0?3:16);
-                freeRideGaps[i]=new FreeRideGap{lipD=lip,endD=lip+12+4*Roll(seed,i,1302),
-                    lane=side*(4+2.4f*Roll(seed,i,1303)),halfWidth=2.55f+.75f*Roll(seed,i,1304)};
-                freeRideGaps[i].Shape(seed,i);
+                float side=Roll(layout,i,1300)<.5f?-1:1;
+                float lip=origin+i*FreeRideSectionLength+(i==0?85:75)+(2*Roll(layout,i,1301)-1)*(i==0?3:16);
+                freeRideGaps[i]=new FreeRideGap{lipD=lip,endD=lip+12+4*Roll(layout,i,1302),
+                    lane=side*(4+2.4f*Roll(layout,i,1303)),halfWidth=2.55f+.75f*Roll(layout,i,1304)};
+                freeRideGaps[i].Shape(layout,i);
             }
-            gapsReady=true;freeRideSeed=seed;
+            gapsReady=true;freeRideSeed=seed;freeRideVisit=visit;
         }
-        gap=freeRideGaps[Mathf.FloorToInt(d/FreeRideSectionLength)];return true;
+        gap=freeRideGaps[section];return true;
     }
     public float FreeRidePace(float d){
         float grade=(SampleGround(d-3,0).y-SampleGround(d+3,0).y)/6;
@@ -86,8 +91,8 @@ public partial class RaceWorld {
     internal static float FreeRideFlightY(float originY,float vertical,float seconds){
         return originY+vertical*seconds-.5f*FreeRideGravity*seconds*seconds;
     }
-    void BuildFreeRideSection(int section){
-        float start=section*FreeRideSectionLength;
+    void BuildFreeRideSection(int section,float start){
+        if(section%2==0)SpawnSnowBoulder(start,section);
         if(!TryFreeRideGap(start,out var gap))return;
         float side=Mathf.Sign(gap.lane);
         // A rocky shoulder marks the bowl early. The centre and the other shoulder

@@ -6,7 +6,7 @@ public partial class RaceWorld {
     // Keep pickups and the side to round each fountain on this same curve.
     public float HolidayLine(float metres){
         float local=Mathf.Repeat(metres,2500);
-        int visit=Mathf.FloorToInt(metres/20000);
+        int visit=Mathf.FloorToInt(metres/LapLength);
         float direction=Roll(seed,visit,718)<.5f?-1:1;
         float amplitude=3.65f+.62f*Mathf.Sin(local/95+Roll(seed,visit,719)*6.28f);
         return direction*amplitude*Mathf.Sin(local*Mathf.PI/50);
@@ -29,7 +29,7 @@ public partial class RaceWorld {
         }
         var fir=Add("tree",start+40,-outer*7.8f,1.4f,4.2f,"holidayFir");
         fir.yaw=row*57;fir.scale=1.17f+.19f*Roll(seed,Mathf.FloorToInt(start),720);fir.offset=-.09f;
-        int scene=(row+Mathf.FloorToInt(start/20000))%7;
+        int scene=(row+Mathf.FloorToInt(start/LapLength))%7;
         float xEdge=200+outer*151;
         switch(scene){
             case 0:case 3:Person(xEdge,y+160,55,scene==0?"skier":"snowboarder",13,row*.81f);break;

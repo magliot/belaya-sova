@@ -12,7 +12,7 @@ public partial class MountainRace {
     }
     bool FreeRideJumpWindow(out float gapID,float lateralMargin=.55f){
         gapID=float.NaN;
-        if(CourseMode!="freeride"||Status.phase!="play"||airborne||freeRideFalling||fall>0||crashTimer>0)return false;
+        if(!World.AlpineAt(Status.metres)||Status.phase!="play"||airborne||freeRideFalling||fall>0||crashTimer>0)return false;
         float d=Status.metres;
         if(!World.TryFreeRideGap(d,out var gap))return false;
         if(!gap.TryFrontLip(lane,out float localLip)&&!gap.TryFrontLip(lane-lateralMargin,out localLip)&&
@@ -43,6 +43,7 @@ public partial class MountainRace {
         flightSpan=Mathf.Max(.05f,hi);airMax=flightSpan/freeRideTakeoffSpeed;
         airTime=Mathf.Max(0,(Status.metres-flightStart)/freeRideTakeoffSpeed);
         lipHeight=rampHeight=rampPhase=0;flightTricks=0;trickProgress=-1;
+        ChooseAirPose(airMax-airTime);
     }
     void FallIntoFreeRideGap(RaceWorld.FreeRideGap gap){
         if(freeRideFalling)return;
@@ -68,7 +69,7 @@ public partial class MountainRace {
         speed=0;dragTarget=lane;
         if(crashTimer>0){
             crashTimer-=dt;
-            if(crashTimer<=0){freeRideFalling=false;Finish(false,"Срыв в расщелину",fell:true);}
+            if(crashTimer<=0){freeRideFalling=false;Status.rankedResult=settings.mode=="normal"&&Status.mode=="normal";Finish(false,"Срыв в расщелину",fell:true);}
         }else{
             fall=Mathf.Max(0,fall-dt);
             if(age>=1.35f){

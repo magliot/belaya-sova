@@ -29,8 +29,6 @@ button small{display:block;font-size:10px;font-weight:500;margin-top:2px}
 .balances button,.home .rules-link{min-height:23px;border:0;background:transparent;color:#245476;font-size:12px;text-decoration:underline;text-underline-offset:3px}
 .start-row .primary{width:100%;color:#532e0b;background:linear-gradient(#ffd07b,#ffad3a 54%,#fa9324);border-color:#b8651a}
 .home .start-row>*{flex:1 1 0;min-width:0}
-.home .freeride-start{background:#16506b;border-color:#48849a;color:#fff}
-.freeride-start small{display:block;font-size:10px;color:#d6f4ff}
 .home .bonuses button{min-height:38px;color:#59411f;border-color:#c3a674;background:linear-gradient(#fff9e9,#ffe6ad)}
 .home .bonuses button:disabled{color:#52626a;border-color:#a7c1cd;background:#e6eff2}.bonuses small{font-size:10px}
 .home .sprint{min-height:29px;background:#e8f6fd;border-color:#a1c5d8;font-size:12px}
@@ -39,8 +37,6 @@ button small{display:block;font-size:10px;font-weight:500;margin-top:2px}
 #hud{position:absolute;inset:0;pointer-events:none;font-variant-numeric:tabular-nums}
 #freeRideJump{position:absolute;right:3%;bottom:9%;min-height:46px;padding:8px 14px;border-radius:24px;pointer-events:auto;touch-action:none;background:#e9f3f4d9;border-color:#7898aa;color:#214657}
 #freeRideJump.ready{background:#ffcf72;border-color:#ad671e;color:#522e10}
-.trial-skier{display:flex;align-items:center;justify-content:center;gap:12px;padding-block:2px;background:#17506a;border-color:#2e748f;color:#fff}
-.trial-skier img{object-fit:contain;align-self:end}
 #fisControls{position:absolute;bottom:7%;right:0;display:grid;gap:5px;max-width:48%;pointer-events:auto}
 #fisControls button{min-height:42px;padding:4px 12px}
 #menuRank{display:block;font-size:10px;font-weight:600;line-height:1.1}

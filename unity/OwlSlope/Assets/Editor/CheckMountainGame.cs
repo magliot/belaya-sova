@@ -60,6 +60,7 @@ public static class CheckMountainGame {
                 race.RestartRide();Require(race.Status.phase=="play"&&race.Status.metres<.01f,"Restart failed");
                 HeroMotionChecks.OnSnow(race,hero);
                 HeroMotionChecks.OnAir(race,hero);
+                HeroMotionChecks.JumpLibrary(race,hero);
             }
             // Tests are compiled only for the Editor and exercise the same native generators and contacts.
             var worldChecks=AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType("RaceWorldChecks")).First(t=>t!=null);

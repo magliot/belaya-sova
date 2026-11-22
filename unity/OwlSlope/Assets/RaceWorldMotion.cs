@@ -57,6 +57,7 @@ public partial class RaceWorld {
     }
     void MoveItem(RaceItem o,float player,float elapsed,float dt){
         switch(o.kind){
+            case "snowBoulder":RollSnowBoulder(o,player,dt);return;
             case "npc":MoveRider(o,player,elapsed,dt);return;
             case "yeti":o.age+=dt;return;
             case "tube":MoveTube(o,player,dt);return;

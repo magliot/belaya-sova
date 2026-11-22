@@ -42,7 +42,7 @@ public partial class RaceWorld {
     readonly Dictionary<float,SummitTurn> summitTurns=new Dictionary<float,SummitTurn>();
 
     float SummitBase(float metres){
-        float local=Mathf.Repeat(metres,2500),phase=Roll(seed,Mathf.FloorToInt(metres/20000),736)*6.28f;
+        float local=Mathf.Repeat(metres,2500),phase=Roll(seed,Mathf.FloorToInt(metres/LapLength),736)*6.28f;
         return (3.0f*Mathf.Sin(local/71+phase)+.7f*Mathf.Sin(local/41-phase))*Smooth(local/33)*Smooth((2500-local)/35);
     }
 
@@ -131,8 +131,8 @@ public partial class RaceWorld {
         }
     }
     float SummitField(float d,float lane){
-        float y=(Mathf.Repeat(d,20000))*20,x=200+lane*20;
-        foreach(var p in GetLayout(4,Mathf.FloorToInt(d/20000)).patches){
+        float y=(Mathf.Repeat(d,LapLength))*20,x=200+lane*20;
+        foreach(var p in GetLayout(4,Mathf.FloorToInt(d/LapLength)).patches){
             if(y<p.y0||y>p.y1)continue;float h=0;
             foreach(var b in p.b){
                 float dx=(x-b.x)/(b.Rx>0?b.Rx:b.R),dy=(y-b.y)/(b.Ry>0?b.Ry:b.R);

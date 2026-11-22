@@ -46,17 +46,17 @@ public partial class RaceWorld {
         var o=Entry("tube",x,y,44,1.15f,model);o.side=side;return o;
     }
     void BuildRow(int seg,bool geometryOnly=false){
-        if(mode=="freeride"){BuildFreeRideSection(seg);return;}
         int start=Items.Count;
         if(seg==0&&mode!="sled"&&mode!="tubing")Add("startArch",12,0,12,5);
         if(mode=="sprint"){Sprint(seg);Filter(start);return;}
         if(mode=="tubing"){Tubing(seg);Filter(start);return;}
         if(mode=="sled"){Sled(seg);Filter(start);return;}
-        int fullStage=seg/1000,n=seg%1000,stage=fullStage%8;
+        int fullStage=seg/1000,n=seg%1000,stage=fullStage%StageCount;
         float rowLength=RowLength(fullStage,mode),d=2500*fullStage+n*rowLength,y=d*20;
         bool full=d+rowLength<=(fullStage+1)*2500+.01f;
         if(n==0&&fullStage>0)Entry("arch",200,y,280,5.6f,"arch"+stage);
-        if(fullStage>=8&&(stage==1||stage==6))EndlessScene(fullStage,n);
+        if(stage==AlpineStage){BuildFreeRideSection(n,d);return;}
+        if(fullStage>=StageCount&&(stage==1||stage==6))EndlessScene(fullStage,n);
         else switch(stage){
             case 0:
                 if(n==5||n==6)TrainingTraffic(d,fullStage,n==6);

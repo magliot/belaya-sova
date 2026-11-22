@@ -30,7 +30,7 @@ public partial class MountainRace {
     }
     void ReviewContact(){
         rampHeight=0;airborne=false;
-        if(CourseMode=="freeride"){PreviewFreeRideJump();return;}
+        if(World.AlpineAt(Status.metres)){PreviewFreeRideJump();return;}
         foreach(var o in World.Items){
             if((o.kind!="ramp"&&o.kind!="rail")||Mathf.Abs(lane-o.lane)>o.width*.5f)continue;
             float lip=o.distance+o.length*.5f;
@@ -93,15 +93,19 @@ public partial class MountainRace {
     }
     void CheckItems(float before,float fromLane){
         float d=Status.metres;int letterChange=0;
-        if(CourseMode=="freeride"){
+        if(World.AlpineAt(Status.metres)){
             FreeRideContact(before,fromLane);
             if(freeRideFalling)return;
         }
         else UpdateRidingSurface(before,d);
-        Status.engineNear=0;Status.enginePan=0;
+        Status.boulderNear=0;Status.engineNear=0;Status.enginePan=0;
         foreach(var o in World.Items){
             if(o.consumed)continue;
             float dx=lane-o.lane,dy=d-o.distance,abs=Mathf.Abs(dx),ahead=-dy;
+            if(o.kind=="snowBoulder"){
+                float distance=Mathf.Sqrt(dx*dx+dy*dy);
+                Status.boulderNear=Mathf.Max(Status.boulderNear,1-Mathf.Clamp01(distance/42));
+            }
             if(o.kind=="npc"&&!o.judged)ObserveRider(o,ahead,dx);
             if(o.kind=="cat"||o.kind=="snowmobile"){
                 float vol=1-Mathf.Clamp01(Mathf.Sqrt(dx*dx*2.56f+dy*dy)/(o.kind=="cat"?56:35));
@@ -118,6 +122,7 @@ public partial class MountainRace {
             float square=dx*dx+dy*dy;
             bool cross=before<o.distance&&d>=o.distance;
             switch(o.kind){
+              case "snowBoulder":HandleSolid(o,before,fromLane,o.scale,o.scale,1.9f*o.scale,0,true);break;
               case "festivalFountain":
                 if(HandleSolid(o,before,fromLane,.52f,.52f,.78f))break;
                 if(!o.judged&&cross){

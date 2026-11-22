@@ -22,8 +22,8 @@ for(const input of ['?startapp=freeride_1911','#tgWebAppStartParam=freeride_1911
   '#'+new URLSearchParams({tgWebAppData:data.replace('unitytest_20g','freeride_1911')})]){
   const trial=route(input);
   assert.equal(trial.pathname,root.pathname+'unity-test/');
-  assert.equal(trial.searchParams.get('freerideSeed'),'1911');
-  assert(!trial.searchParams.has('seed'));
+  assert.equal(trial.searchParams.get('reviewStage'),'8');
+  assert.equal(trial.searchParams.get('seed'),'1911');
 }
 for(const input of ['?startapp=unitytest_progress21','#tgWebAppStartParam=unitytest_progress21',
   '#'+new URLSearchParams({tgWebAppData:previewData})]){

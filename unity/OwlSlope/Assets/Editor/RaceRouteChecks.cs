@@ -48,14 +48,14 @@ public static class RaceRouteChecks {
         }
         race.StartRace("{\"mode\":\"normal\",\"hero\":\"bear\",\"seed\":1911}");
         // Run the ordinary state machine across the first loop boundary and into the later forest and night scenes.
-        race.Status.metres=19998;race.Advance(.17f);
-        Need(race.Status.phase=="play"&&race.Status.metres>20000,"ordinary race stops at 20 km");
-        foreach(int start in new[]{22500,35000}){
+        race.Status.metres=RaceWorld.LapLength-2;race.Advance(.17f);
+        Need(race.Status.phase=="play"&&race.Status.metres>RaceWorld.LapLength,"ordinary race stops at 22.5 km");
+        foreach(int start in new[]{25000,37500}){
             race.Status.metres=start+92;race.Advance(.04f);
             Need(race.Status.stage==RaceWorld.StageAt(start),"stage after ordinary advance");
             var gate=world.Items.Single(o=>o.kind=="gate"&&Mathf.Abs(o.distance-start-107)<.05f);
             Need(gate.Visual&&gate.Visual.gameObject.activeInHierarchy,"single gate missing on repeat at "+start);
-            if(start==35000)Need(gate.variant.EndsWith("Night"),"night gate lamps missing");
+            if(start==37500)Need(gate.variant.EndsWith("Night"),"night gate lamps missing");
             race.Status.metres=start+410;race.Advance(.04f);
             Need(!world.Items.Any(o=>o.distance>start+425&&o.distance<start+500&&o.kind!="coin"),"recovery obstructed");
             string one=Signature(world,1911,start+115);
@@ -72,12 +72,12 @@ public static class RaceRouteChecks {
             float path=world.MogulLine(d);Need(world.MogulRoughness(d,path)==0&&world.MogulRoughness(d,path+5)>.85f,"flat and rough lanes lack contrast");
         }
         race.StartRace("{\"mode\":\"review\",\"seed\":1911}");
-        foreach(int start in new[]{22500,35000}){
+        foreach(int start in new[]{25000,37500}){
             race.Seek(start+92);Need(race.Status.metres==start+92,"inspector clipped a late stage");
             var gate=world.Items.Single(o=>o.kind=="gate"&&Mathf.Abs(o.distance-start-107)<.05f);
             var p=race.View.WorldToViewportPoint(gate.Visual.bounds.center);
             Need(p.z>10&&p.x>.01f&&p.x<.99f&&p.y>.01f&&p.y<.99f,"gate outside portrait game camera at "+start);
         }
-        Debug.Log("OPEN COURSE PASS: one visible gate and a merging skier on three seeds, five repeat scenarios per theme, clear run-out and ordinary 20 km transition.");
+        Debug.Log("OPEN COURSE PASS: one visible gate and a merging skier on three seeds, five repeat scenarios per theme, clear run-out and ordinary 22.5 km transition.");
     }
 }

@@ -8,7 +8,7 @@ public partial class MountainRace : MonoBehaviour {
     [Serializable] public class Settings {
         public string mode="normal",reviewRide="normal";
         public string equipment="standard";
-        public bool ownedEquipment,freeRideSkier;
+        public bool ownedEquipment;
         public int tuning;
         public int seed=1911, sensitivity=4, helmets, boost, mag, collectedLetters;
         public bool showFisHints;
@@ -17,11 +17,11 @@ public partial class MountainRace : MonoBehaviour {
         public string phase="menu",hero="bear",mode="normal",courseMode="normal",message="",cue="",nextLetter="";
         public int seed,score,coins,helmets,stage,gates,tricks,rings,combo,maxCombo,polite,gifts,snowmen,
             feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds,horns;
-        public float metres,elapsed,engineNear,enginePan,avalanche,blizzard,edge,boostSeconds,magnetSeconds,chaseSeconds,chaseGap;
+        public float metres,elapsed,engineNear,enginePan,boulderNear,avalanche,blizzard,edge,boostSeconds,magnetSeconds,chaseSeconds,chaseGap;
         public int letterSide,bonusLocation;
         public float riderLane,riderScreenX=.5f,riderScreenY=.65f;
         public int scoreDistance,scoreFruit,scoreGates,scoreRings,scoreFis;
-        public bool rankedResult,freeRideSkier;
+        public bool rankedResult;
         public bool freeRideJumpReady,freeRideJumpQueued,freeRideInCrevasse;
         public bool air,boost,feather,goldenOwl,tubingUnlocked,sledUnlocked;
         public int[] fis=Array.Empty<int>();
@@ -31,7 +31,7 @@ public partial class MountainRace : MonoBehaviour {
     }
     public State Status {get;private set;}=new State();
     public bool IsMenu=>Status.phase=="menu";
-    public string Hero=>Status.freeRideSkier?"bear":Status.hero;
+    public string Hero=>Status.hero;
     public Transform MenuActor=>menuModel;
     public float Lane=>lane;
     public float Altitude=>airborne?FlightHeight(Status.metres):rampHeight;
@@ -46,7 +46,7 @@ public partial class MountainRace : MonoBehaviour {
     float speed,baseSpeed,boost,magnet,slow,wobble,fall,fallSide,edgeOrigin,previousAltitude;
     float airTime,airMax,lipHeight,flightStart,flightSpan,flightLift,trickProgress,trickLength;
     bool parkFlight,trickLine,prizeLine;
-    int flightTricks,trickType,poseStyle;
+    int flightTricks,trickType;
     float rampHeight,rampPhase,lastLanding,crashTimer,cleanStart,lastClose;
     float chaseNext,chaseDistance,chaseLeft,noticeUntil,lastReward;
     float reviewRate, reviewLane,nextHud;
@@ -86,6 +86,7 @@ public partial class MountainRace : MonoBehaviour {
         if((selected!="owl"&&selected!="bear")||(!IsMenu&&!Review))return;
         Status.hero=selected;
         if(!World)return;
+        if(Review){ResetJumpPoses();PrepareActors();Seek(Status.metres);return;}
         PrepareActors();RenderRace(0,true);Publish();
     }
     public void Menu(){
@@ -100,17 +101,16 @@ public partial class MountainRace : MonoBehaviour {
         if(!World)Initialize();
         var selected=String.IsNullOrEmpty(json)?new Settings():JsonUtility.FromJson<Settings>(json);
         if(selected==null)return;
-        switch(selected.mode){case "normal":case "free":case "freeride":case "sprint":case "tubing":case "sled":case "review":break;default:selected.mode="normal";break;}
-        switch(selected.reviewRide){case "freeride":case "sprint":case "tubing":case "sled":break;default:selected.reviewRide="normal";break;}
+        switch(selected.mode){case "normal":case "free":case "sprint":case "tubing":case "sled":case "review":break;default:selected.mode="normal";break;}
+        switch(selected.reviewRide){case "sprint":case "tubing":case "sled":break;default:selected.reviewRide="normal";break;}
         settings=selected;ResetRun();
     }
     public void RestartRide(){ResetRun();}
     void ResetRun(){
         string hero=Status.hero;
         Status=new State{hero=hero,mode=settings.mode,seed=settings.seed,
-            freeRideSkier=settings.freeRideSkier&&settings.mode=="freeride",
             phase=settings.mode=="review"?"review":"play",lettersTotal=Mathf.Clamp(settings.collectedLetters,0,16)};
-        Status.helmets=Status.mode=="freeride"||((Status.mode=="free"||Status.mode=="sprint")&&settings.helmets>0)?1:0;
+        Status.helmets=((Status.mode=="free"||Status.mode=="sprint")&&settings.helmets>0)?1:0;
         helmetsIssued=Status.helmets;
         random=new System.Random(settings.seed);World.Configure(settings.seed,CourseMode);
         sensitivity=.35f+.11f*Mathf.Clamp(settings.sensitivity,1,10);
@@ -118,7 +118,7 @@ public partial class MountainRace : MonoBehaviour {
         speed=baseSpeed=BonusMode?BonusLaunch:12;travelYaw=World.HeadingAt(0);boost=magnet=slow=wobble=fall=0;
         rampHeight=rampPhase=airTime=flightSpan=crashTimer=cleanStart=reviewRate=reviewLane=noticeUntil=0;
         parkFlight=trickLine=prizeLine=false;trickProgress=-1;lastLanding=-10;lastClose=-10;
-        ResetFreeRideInput();
+        ResetFreeRideInput();ResetJumpPoses();
         earnedRules.Clear();bonusPoints=flightTricks=rewardChain=consecutiveGates=0;lastReward=-100;
         ResetFis();
         chaseLeft=0;chaseNext=900;bestStage=0;nextHud=0;reviewEffect="normal";SelectChallenge(0);
@@ -137,7 +137,7 @@ public partial class MountainRace : MonoBehaviour {
     }
     public void Seek(float metres){
         if(!Review)return;
-        float end=BonusMode?Mathf.Ceil((BonusLaunch+.5f*BonusGain)*BonusSeconds*BonusBoost):CourseMode=="freeride"?RaceWorld.FreeRideLength-1:CourseMode=="sprint"?1199:79999;
+        float end=BonusMode?Mathf.Ceil((BonusLaunch+.5f*BonusGain)*BonusSeconds*BonusBoost):CourseMode=="sprint"?1199:4*RaceWorld.LapLength-1;
         Status.metres=Mathf.Clamp(metres,0,end);Status.elapsed=Status.metres/14;
         if(BonusMode){
             float accel=BonusGain/BonusSeconds;
@@ -148,7 +148,7 @@ public partial class MountainRace : MonoBehaviour {
             speed=BonusSpeed(Status.elapsed)*BonusBoost;
         }
         lane=reviewLane;angle=0;rampHeight=0;airborne=false;travelYaw=World.HeadingAt(Status.metres);
-        Status.stage=BonusMode?0:Mathf.FloorToInt(Status.metres/2500)%8;
+        Status.stage=BonusMode?0:RaceWorld.StageAt(Status.metres);
         if(Status.stage==3)speed=ParkPace(Status.metres);
         World.SetThrowTarget(lane,14,0,0);
         World.Refresh(Status.metres,Status.elapsed);ReviewContact();
@@ -167,7 +167,7 @@ public partial class MountainRace : MonoBehaviour {
         if(!Review||Status.phase!="review")return;
         reviewEffect="normal";Seek(Status.metres);
         Status.mode=settings.reviewRide;Status.phase="play";
-        if(CourseMode=="freeride"){airborne=parkFlight=false;ResetFreeRideInput();}
+        if(World.AlpineAt(Status.metres)){airborne=parkFlight=false;ResetFreeRideInput();}
         Status.helmets=BonusMode?0:1;
         helmetsIssued=Status.helmets;
         cleanStart=Status.metres;chaseNext=cleanStart+900;
@@ -222,7 +222,7 @@ public partial class MountainRace : MonoBehaviour {
         Status.courseMode=CourseMode;
         Status.freeRideJumpReady=FreeRideJumpWindow(out var lip);
         Status.freeRideJumpQueued=Status.freeRideJumpReady&&freeRideQueuedLip==lip;
-        Status.freeRideInCrevasse=CourseMode=="freeride"&&freeRideFalling;
+        Status.freeRideInCrevasse=World.AlpineAt(Status.metres)&&freeRideFalling;
         Status.bonusLocation=Status.metres<580?0:Status.metres<1190?1:2;
         Status.boostSeconds=Mathf.Max(0,boost);Status.magnetSeconds=Mathf.Max(0,magnet);
         Status.chaseSeconds=Mathf.Max(0,chaseLeft);Status.chaseGap=Mathf.Max(0,Status.metres-chaseDistance);

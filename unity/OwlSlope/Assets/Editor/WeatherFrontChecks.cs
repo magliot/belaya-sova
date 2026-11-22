@@ -7,7 +7,7 @@ public static class WeatherFrontChecks {
     public static void Verify(MountainRace race){
         CheckSlopeEffects.CourseMarkers(race);
         race.StartRace("{\"mode\":\"review\",\"seed\":1911}");
-        foreach(int lap in new[]{0,20000}){
+        foreach(int lap in new[]{0,RaceWorld.LapLength}){
             foreach(int edge in new[]{10000,12500,15000,17500}){
                 bool blizzard=edge<15000,entering=edge==10000||edge==15000;
                 string property=blizzard?"_Storm":"_Night";
