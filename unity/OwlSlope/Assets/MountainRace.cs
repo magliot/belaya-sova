@@ -22,7 +22,7 @@ public partial class MountainRace : MonoBehaviour {
         public float riderLane,riderScreenX=.5f,riderScreenY=.65f;
         public int scoreDistance,scoreFruit,scoreGates,scoreRings,scoreFis;
         public bool rankedResult;
-        public bool freeRideJumpReady,freeRideJumpQueued,freeRideInCrevasse;
+        public bool freeRideTrickReady,freeRideInCrevasse;
         public bool air,boost,feather,goldenOwl,tubingUnlocked,sledUnlocked;
         public int[] fis=Array.Empty<int>();
         public int[] fisContexts=Array.Empty<int>();
@@ -46,7 +46,8 @@ public partial class MountainRace : MonoBehaviour {
     float speed,baseSpeed,boost,magnet,slow,wobble,fall,fallSide,edgeOrigin,previousAltitude;
     float airTime,airMax,lipHeight,flightStart,flightSpan,flightLift,trickProgress,trickLength;
     bool parkFlight,trickLine,prizeLine;
-    int flightTricks,trickType;
+    int flightTricks;
+    readonly float[] tapOrigin={float.NaN,float.NaN};
     float rampHeight,rampPhase,lastLanding,crashTimer,cleanStart,lastClose;
     float chaseNext,chaseDistance,chaseLeft,noticeUntil,lastReward;
     float reviewRate, reviewLane,nextHud;
@@ -126,7 +127,23 @@ public partial class MountainRace : MonoBehaviour {
         Cue("start");Publish();
     }
     public void BeginSteer(){if(Status.phase=="play"){dragging=true;dragTarget=dragStart=lane;}}
-    public void DragSteer(float delta){if(dragging)dragTarget=Mathf.Clamp(dragStart+delta*27*sensitivity,-LaneLimit(Status.metres),LaneLimit(Status.metres));}
+    public void DragSteer(float delta){
+        if(!dragging)return;
+        if(patrol>=PatrolPhase.Stopped&&patrol!=PatrolPhase.Walking&&Mathf.Abs(delta)>.18f&&delta*lane<0)LeavePatrol();
+        dragTarget=Mathf.Clamp(dragStart+delta*27*sensitivity,-LaneLimit(Status.metres),LaneLimit(Status.metres));
+    }
+    // Record where the contact began in simulation time. A finger held while
+    // steering on the approach cannot become a trick when it crosses the lip.
+    public void BeginTap(float slot){
+        int finger=(int)slot;if(finger<0||finger>=tapOrigin.Length)return;
+        tapOrigin[finger]=airborne?flightStart:float.NegativeInfinity;
+    }
+    public void HoldAirTap(float slot){if(airborne)EndTap(slot);}
+    public void EndTap(float slot){
+        int finger=(int)slot;if(finger<0||finger>=tapOrigin.Length)return;
+        float began=tapOrigin[finger];tapOrigin[finger]=float.NaN;
+        if(began==(airborne?flightStart:float.NegativeInfinity))AirTrick("tap");
+    }
     public void ReleaseSteer(){dragging=false;}
     public void PauseRide(){if(Status.phase=="play"){Status.phase="pause";ReleaseSteer();flakes.Pause();fireworks.Pause();World.PauseCannons(true);Publish();}else if(Review)ReviewRate(0);}
     public void ResumeRide(){if(Status.phase=="pause"){Status.phase="play";flakes.Play();fireworks.Play();World.PauseCannons(false);Publish();}}
@@ -220,8 +237,7 @@ public partial class MountainRace : MonoBehaviour {
             Status.riderScreenX=rider.x;Status.riderScreenY=1-rider.y;
         }
         Status.courseMode=CourseMode;
-        Status.freeRideJumpReady=FreeRideJumpWindow(out var lip);
-        Status.freeRideJumpQueued=Status.freeRideJumpReady&&freeRideQueuedLip==lip;
+        Status.freeRideTrickReady=airborne&&freeRideAwaitingTrick;
         Status.freeRideInCrevasse=World.AlpineAt(Status.metres)&&freeRideFalling;
         Status.bonusLocation=Status.metres<580?0:Status.metres<1190?1:2;
         Status.boostSeconds=Mathf.Max(0,boost);Status.magnetSeconds=Mathf.Max(0,magnet);
@@ -243,17 +259,18 @@ public partial class MountainRace : MonoBehaviour {
         dragging=false;Status.phase=completed?"finish":"over";Status.message=description;Cue(fell?"fallEnd":completed?"finish":"exit");Publish();
     }
 #if !UNITY_WEBGL || UNITY_EDITOR
-    Vector2 mouseOrigin;float mouseTime;
+    Vector2 mouseOrigin;float mouseTime;bool mouseMoved;
     void NativePointer(){
         Vector2 position=Input.mousePosition;
-        if(Input.GetMouseButtonDown(0)){mouseOrigin=position;mouseTime=Time.unscaledTime;BeginSteer();}
-        if(Input.GetMouseButton(0))DragSteer((position.x-mouseOrigin.x)/Screen.width);
+        if(Input.GetMouseButtonDown(0)){mouseOrigin=position;mouseTime=Time.unscaledTime;mouseMoved=false;BeginTap(0);BeginSteer();}
+        if(Input.GetMouseButton(0)){
+            mouseMoved|=(position-mouseOrigin).magnitude>=20;
+            DragSteer((position.x-mouseOrigin.x)/Screen.width);
+            if(!mouseMoved&&Time.unscaledTime-mouseTime>=.15f)HoldAirTap(0);
+        }
         if(!Input.GetMouseButtonUp(0))return;
         Vector2 delta=position-mouseOrigin;ReleaseSteer();
-        if(delta.magnitude>42){
-            string dir=Mathf.Abs(delta.x)>Mathf.Abs(delta.y)?(delta.x<0?"left":"right"):(delta.y<0?"down":"up");
-            AirTrick((delta.magnitude>110?"big-":"")+dir);
-        }else if(Time.unscaledTime-mouseTime<.3f&&delta.magnitude<20)AirTrick("tap");
+        if(!mouseMoved&&delta.magnitude<20&&Time.unscaledTime-mouseTime<.3f)EndTap(0);
     }
 #endif
 }

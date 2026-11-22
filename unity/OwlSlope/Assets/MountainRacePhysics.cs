@@ -2,8 +2,6 @@ using UnityEngine;
 
 public partial class MountainRace {
     static readonly float[] StageSpeed={1,.9f,.86f,1,.9f,1.15f,1,1,1};
-    static readonly int[] TrickScores={120,170,170,150,230,100,210,240};
-    static readonly float[] TrickTimes={1,1.15f,1.15f,1.05f,1.35f,.8f,1.3f,1.4f};
     static float StepBlend(float t){t=Mathf.Clamp01(t);return t*t*(3-2*t);}
     static float ParkPace(float d){
         return (26+3*RaceWorld.Grade(d))*(d>=RaceWorld.LapLength?1.08f:1);
@@ -102,7 +100,7 @@ public partial class MountainRace {
         float next=d+speed*dt;
         if(airborne&&parkFlight)next=flightStart+speed*(airTime+dt);
         s.metres=s.mode=="sprint"?Mathf.Min(SprintLength,next):next;
-        TickAir(dt);
+        TickAir(dt,d,oldLane);
         World.SetThrowTarget(lane,speed,velocity+slip,Altitude);
         World.Refresh(s.metres,s.elapsed,lane,drawWorld);
         if(crashTimer<=0)CheckItems(d,oldLane);
@@ -136,7 +134,7 @@ public partial class MountainRace {
             airMax=(Hero=="owl"?1.45f:.85f)*(1+(speed*20-245)/1400)*(.75f+.25f*flightLift/2.3f);
         }
         airTime=Mathf.Max(0,(Status.metres-flightStart)/Mathf.Max(1,speed));trickProgress=-1;flightTricks=0;
-        if(!BonusMode)ChooseAirPose(airMax-airTime);
+        if(!BonusMode)ChooseAirPose(airMax-airTime,true);
         Notice(prizeLine?"Два трюка за полёт":trickLine?"Тап в воздухе — оборот":"Прыжок!","jump");
     }
     float FlightHeight(float d){
@@ -146,39 +144,50 @@ public partial class MountainRace {
         return RaceWorld.KickerArc(t,lipHeight,flightLift);
     }
     public void AirTrick(string gesture){
-        if(!airborne&&World.AlpineAt(Status.metres)){
-            if((gesture=="tap"||gesture=="up"||gesture=="big-up"||gesture=="down"||gesture=="big-down")&&FreeRideJumpWindow(out float lip,1.35f)){
-                freeRideQueuedLip=lip;freeRideQueuedTrick=gesture;nextHud=0;
+        if(gesture!="tap"||Status.phase!="play"||freeRideFalling||fall>0||crashTimer>0)return;
+        if(!airborne){
+            if(!World.AlpineAt(Status.metres)&&FisCourse){
+                RefreshFisAction();
+                if(Status.fisAction.Length>0)FisAction(Status.fisAction);
             }
             return;
         }
-        if(!airborne||Status.phase!="play"||trickProgress>=0||Status.mode=="tubing"||Status.mode=="sled")return;
-        int type;
-        switch(gesture){
-          case "up":type=1;break;case "big-up":type=7;break;case "down":type=5;break;case "big-down":type=2;break;
-          case "left":type=3;break;case "big-left":type=4;break;case "right":type=0;break;case "big-right":type=6;break;
-          default:type=Hero=="owl"&&flightTricks%2==1?1:0;break;
+        if(trickProgress>=0||BonusMode)return;
+        float remaining=airMax-airTime;
+        if(World.AlpineAt(Status.metres)){
+            if(!freeRideAwaitingTrick||airTime>=freeRideTrickUntil)return;
+            freeRideAwaitingTrick=false;freeRideTrickAt=airTime;
+            foreach(var fruit in crossedFruit)if(!fruit.consumed)CollectCoin(fruit);
+            crossedFruit.Clear();
+            trickLength=Mathf.Max(.1f,remaining);ChooseAirPose(trickLength,true);
+        }else{
+            float minimum=Hero=="bear"?.42f:.50f;
+            if(remaining<minimum+.025f)return;
+            float preferred=prizeLine?airMax*.32f:parkFlight&&flightTricks==0?airMax*.46f-.07f:.94f;
+            trickLength=Mathf.Clamp(remaining-.10f,minimum,Mathf.Clamp(preferred,minimum,.94f));
+            RequestAirPose(trickLength);
         }
-        float duration=Hero=="bear"?.42f:.5f;
-        float minimum=duration*TrickTimes[type];
-        if(airMax-airTime<minimum+.025f)return;
-        trickType=type;
-        float preferred=type==5?.8f:TrickTimes[type]*.94f;
-        if(prizeLine)preferred=Mathf.Clamp(airMax*.32f,minimum,preferred);
-        else if(parkFlight&&flightTricks==0)preferred=Mathf.Clamp(airMax*.46f-.07f,minimum,preferred);
-        trickLength=Mathf.Clamp(airMax-airTime-.10f,minimum,preferred);
-        trickProgress=0;RequestAirPose(trickLength);
+        trickProgress=0;
         Notice(AirPoseName,"trick");
     }
-    void TickAir(float dt){
+    void TickAir(float dt,float before,float fromLane){
         if(!airborne)return;
         airTime+=dt;
+        if(freeRideAwaitingTrick){
+            float ahead=.055f;
+            bool nearBank=!flightGap.OverOpening(Status.metres+speed*ahead,lane+(lane-fromLane)*ahead/dt);
+            if(airTime>=freeRideTrickUntil||nearBank){
+                if(!flightGap.OverOpening(Status.metres,lane)){Status.metres=before;lane=fromLane;}
+                FallIntoFreeRideGap(flightGap);return;
+            }
+        }
         if(trickProgress>=0){
             trickProgress+=dt/trickLength;
             if(trickProgress>=1)AwardTrick(false);
         }
         if(parkFlight&&World.AlpineAt(Status.metres)){
             if(airTime<.06f||FreeRideClearance(Status.metres,lane)>0)return;
+            if(freeRideAwaitingTrick){FallIntoFreeRideGap(flightGap);return;}
             if(World.TryFreeRideGap(Status.metres,out var gap)&&gap.OverOpening(Status.metres,lane)){
                 FallIntoFreeRideGap(gap);return;
             }
@@ -191,11 +200,12 @@ public partial class MountainRace {
     }
     void AwardTrick(bool landing){
         Status.tricks++;flightTricks++;trickProgress=-1;
-        bonusPoints+=Mathf.RoundToInt(TrickScores[trickType]*Mult*(Status.stage==3?2:1)*(!landing&&flightTricks>1?1.5f:1));
+        bonusPoints+=Mathf.RoundToInt(120*Mult*(Status.stage==3?2:1)*(!landing&&flightTricks>1?1.5f:1));
         Cue("trickDone");
     }
     void Hit(string kind){
         if(Review||fall>0||crashTimer>0)return;
+        freeRideAwaitingTrick=false;crossedFruit.Clear();
         if(BonusMode){
             // Banks and trees break the chain and cost speed. The prize ride lasts its full 75 seconds.
             rewardChain=0;Status.combo=0;lastReward=-100;

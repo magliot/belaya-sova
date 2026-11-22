@@ -29,7 +29,7 @@ public partial class MountainRace {
         return o.height*t*(o.park?.65f+.35f*t:1);
     }
     void ReviewContact(){
-        rampHeight=0;airborne=false;
+        rampHeight=0;airborne=parkFlight=false;ResetFreeRideInput();
         if(World.AlpineAt(Status.metres)){PreviewFreeRideJump();return;}
         foreach(var o in World.Items){
             if((o.kind!="ramp"&&o.kind!="rail")||Mathf.Abs(lane-o.lane)>o.width*.5f)continue;
@@ -90,6 +90,11 @@ public partial class MountainRace {
             if(o.kind=="ramp"){BeginFlight(o);rampHeight=0;return;}
             if(o.ridden&&!o.judged){o.judged=true;Status.grinds++;bonusPoints+=120*Mult;Notice(CourseMode=="normal"?"Скольжение по боксу":"Бокс +"+120*Mult,"trickDone");}
         }
+    }
+    void CollectCoin(RaceItem o){
+        o.Consume();Status.coins++;Burst(o,true);
+        if(BonusMode)BonusReward(15);else bonusPoints+=5;
+        Cue("coin");
     }
     void CheckItems(float before,float fromLane){
         float d=Status.metres;int letterChange=0;
@@ -172,9 +177,13 @@ public partial class MountainRace {
                     }
                 }
                 if(o.air?!TouchAir(o,before,fromLane,1.12f):square>=radius*radius)break;
+                if(o.kind=="coin"){
+                    if(o.air&&freeRideAwaitingTrick){if(!crossedFruit.Contains(o))crossedFruit.Add(o);}
+                    else CollectCoin(o);
+                    break;
+                }
                 o.Consume();
                 switch(o.kind){
-                    case "coin":Status.coins++;Burst(o,true);if(BonusMode)BonusReward(15);else bonusPoints+=5;Cue("coin");break;
                     case "thermos":boost=4.5f+FreeUpgrade(settings.boost)*.8f;Notice(BonusMode?"Кофе · ускорение +22%":"Кофе · ускорение +65%","power");break;
                     case "helmet":
                         if(Status.helmets==0&&helmetsIssued<MaxHelmetsPerRide){Status.helmets=1;helmetsIssued++;Notice("Каска EMCO","power");}

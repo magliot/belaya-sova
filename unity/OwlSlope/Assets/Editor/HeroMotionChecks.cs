@@ -6,7 +6,7 @@ using UnityEngine;
 
 public static class HeroMotionChecks {
     public static void JumpLibrary(MountainRace race,string hero){
-        int count=hero=="bear"?7:5;
+        int count=hero=="bear"?2:1;
         race.Menu();race.ChooseHero(hero);
         race.StartRace("{\"mode\":\"normal\",\"seed\":1911}");
         var checkpoint=typeof(MountainRace).GetMethod("Checkpoint",BindingFlags.NonPublic|BindingFlags.Instance);
@@ -21,23 +21,33 @@ public static class HeroMotionChecks {
             var ramp=race.World.Items.First(o=>o.kind=="ramp"&&o.prizeLine);
             float lip=ramp.distance+ramp.length*.5f;
             checkpoint.Invoke(race,new object[]{lip-1,ramp.lane});
-            int pose=-1;float turn=0;
-            Quaternion relative=Quaternion.identity;bool photo=false;
+            race.Advance(1f/60);
+            Quaternion CourseGear()=>Quaternion.Inverse(race.World.SnowFrame(race.Status.metres,ramp.lane))*deck.rotation;
+            int pose=-1,groundFrames=0;float turn=0,clockwise=0,landingTurn=0;
+            Quaternion baseline=CourseGear(),relative=baseline;bool photo=false;
             for(int frame=0;frame<420;frame++){
                 race.Advance(1f/60);
-                if(!race.Status.air){if(pose>=0)break;continue;}
-                Quaternion heading=Quaternion.Inverse(race.World.SnowFrame(race.Status.metres,ramp.lane))*deck.rotation;
-                if(pose>=0)turn+=Quaternion.Angle(heading,relative);
+                if(!race.Status.air&&pose<0)continue;
+                Quaternion heading=CourseGear();
+                var delta=heading*Quaternion.Inverse(relative);
+                delta.ToAngleAxis(out float degrees,out var axis);
+                if(axis.sqrMagnitude>.01f)clockwise+=Mathf.DeltaAngle(0,degrees)*axis.y;
+                turn+=Quaternion.Angle(heading,relative);
                 relative=heading;pose=(int)selected.GetValue(race);
+                if(!race.Status.air){
+                    if(groundFrames++==0)landingTurn=Quaternion.Angle(heading,baseline);
+                    if(groundFrames>=32)break;
+                }
                 if(rider.InverseTransformPoint(hips.position).magnitude>1.7f)
                     throw new Exception("Baked film trajectory still moves "+hero+" out of its flight");
                 if(!photo&&!String.IsNullOrEmpty(shots)&&race.Status.metres>lip+ramp.span*.49f){
                     RiderCourseChecks.Shot(race.View,hero+"-"+pose,shots,384,832);photo=true;
                 }
             }
-            if(pose<0||pose==previous||(jump<count&&!seen.Add(pose)))throw new Exception("Jump shuffle or takeoff "+hero+" "+pose+" at "+jump+" · "+race.Status.phase+" "+race.Status.metres+" "+race.Status.message);
-            if((hero=="bear"&&(pose==4||pose==5)||hero=="owl"&&pose>=3)&&turn<280||hero=="bear"&&pose==6&&turn<140)
-                throw new Exception(hero+" jump "+pose+" only rotated "+turn+" degrees");
+            if(pose<0||pose>=count||count>1&&pose==previous||jump<count&&!seen.Add(pose))throw new Exception("Unexpected jump "+hero+" "+pose);
+            float finalHeading=Quaternion.Angle(CourseGear(),baseline);
+            if(groundFrames<32||turn<280||finalHeading>15||hero=="owl"&&clockwise<300||hero=="bear"&&pose==0&&landingTurn<95)
+                throw new Exception(hero+" jump "+pose+" turn "+turn+" clockwise "+clockwise+" at touchdown "+landingTurn+" after recovery "+finalHeading);
             previous=pose;sequence.Add(pose);
         }
         if(race.Status.tricks!=0)throw new Exception("Automatic visuals received gesture points");

@@ -322,7 +322,7 @@ public partial class MountainRace {
             rideModel.localPosition=Vector3.up*((Hero=="bear"?.022f:0)-liftedByClip*scale);
             // The board is authored across local X with the owl looking towards -X.
             // Bring its leading boot and gaze onto the course's downhill +Z axis together.
-            rideModel.localRotation=Quaternion.Euler(0,Hero=="bear"?stanceYaw:90,0);
+            rideModel.localRotation=Quaternion.Euler(0,Hero=="bear"?0:90,0);
         }
         float follow=snap?1:Mathf.Min(1,dt*5);camLane=Mathf.Lerp(camLane,lane,follow);
         // At the shoulder the wide camera can pan towards the piste. A portrait camera must keep the rider in frame.

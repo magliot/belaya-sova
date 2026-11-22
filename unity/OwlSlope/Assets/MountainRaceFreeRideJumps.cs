@@ -2,32 +2,23 @@ using UnityEngine;
 
 public partial class MountainRace {
     float freeRideOriginY,freeRideVertical,freeRideTakeoffSpeed;
-    float freeRideQueuedLip=float.NaN,freeRideDropSince,freeRideEntryMetre,freeRideEntryLane;
-    string freeRideQueuedTrick;
-    bool freeRideFalling;
-    RaceWorld.FreeRideGap fallingGap;
+    float freeRideTrickUntil,freeRideTrickAt,freeRideDropSince,freeRideEntryMetre,freeRideEntryLane,freeRideEntryHeight;
+    bool freeRideAwaitingTrick,freeRideFalling;
+    RaceWorld.FreeRideGap flightGap,fallingGap;
+    readonly System.Collections.Generic.List<RaceItem> crossedFruit=new System.Collections.Generic.List<RaceItem>(3);
 
     void ResetFreeRideInput(){
-        freeRideQueuedLip=float.NaN;freeRideQueuedTrick=null;freeRideFalling=false;
-    }
-    bool FreeRideJumpWindow(out float gapID,float lateralMargin=.55f){
-        gapID=float.NaN;
-        if(!World.AlpineAt(Status.metres)||Status.phase!="play"||airborne||freeRideFalling||fall>0||crashTimer>0)return false;
-        float d=Status.metres;
-        if(!World.TryFreeRideGap(d,out var gap))return false;
-        if(!gap.TryFrontLip(lane,out float localLip)&&!gap.TryFrontLip(lane-lateralMargin,out localLip)&&
-            !gap.TryFrontLip(lane+lateralMargin,out localLip))return false;
-        float ahead=localLip-d;
-        if(ahead<0||ahead>Mathf.Clamp(speed*1.10f,14,27))return false;
-        gapID=gap.lipD;return true;
+        freeRideAwaitingTrick=freeRideFalling=false;crossedFruit.Clear();
     }
 
     float FreeRideClearance(float d,float x){
         float time=(d-flightStart)/freeRideTakeoffSpeed;
-        return RaceWorld.FreeRideFlightY(freeRideOriginY,freeRideVertical,time)-World.SampleGround(d,x).y;
+        float clearance=RaceWorld.FreeRideFlightY(freeRideOriginY,freeRideVertical,time)-World.SampleGround(d,x).y;
+        return RaceWorld.FreeRideHeight(clearance,StepBlend((time-freeRideTrickAt)/.31f));
     }
     void LaunchFromCornice(RaceWorld.FreeRideGap gap,float originD,float x,float pace){
         airborne=parkFlight=true;trickLine=prizeLine=false;
+        freeRideTrickAt=float.PositiveInfinity;
         flightStart=originD;freeRideTakeoffSpeed=Mathf.Max(1,pace);
         freeRideOriginY=World.SampleGround(flightStart,x).y;
         freeRideVertical=World.FreeRideLaunchVelocity(gap,flightStart,x,freeRideTakeoffSpeed);
@@ -43,11 +34,15 @@ public partial class MountainRace {
         flightSpan=Mathf.Max(.05f,hi);airMax=flightSpan/freeRideTakeoffSpeed;
         airTime=Mathf.Max(0,(Status.metres-flightStart)/freeRideTakeoffSpeed);
         lipHeight=rampHeight=rampPhase=0;flightTricks=0;trickProgress=-1;
-        ChooseAirPose(airMax-airTime);
+        flightGap=gap;crossedFruit.Clear();freeRideAwaitingTrick=true;airPose=-1;
+        // Leave enough snow beyond the far wall to finish a late trick at downhill speed.
+        freeRideTrickUntil=Mathf.Min(airMax-.22f,(gap.endD-1.2f-originD)/freeRideTakeoffSpeed);
+        if(!Review)Notice("Тап в воздухе — трюк","jump");
     }
     void FallIntoFreeRideGap(RaceWorld.FreeRideGap gap){
         if(freeRideFalling)return;
-        fallingGap=gap;freeRideFalling=true;freeRideQueuedLip=float.NaN;
+        freeRideEntryHeight=Altitude;
+        fallingGap=gap;freeRideFalling=true;freeRideAwaitingTrick=false;crossedFruit.Clear();
         freeRideDropSince=Status.elapsed;freeRideEntryMetre=Status.metres;freeRideEntryLane=lane;
         Hit("crevasse");
         // The rider is already below these prizes. Clear the sightline into this
@@ -56,16 +51,18 @@ public partial class MountainRace {
             if(item.kind=="coin"&&item.air&&item.distance>gap.lipD&&item.distance<gap.endD&&item.obj)
                 item.obj.SetActive(false);
         }
-        velocity=slip=angle=0;edgeReturn=false;rampHeight=0;nextHud=0;
+        velocity=slip=angle=0;edgeReturn=false;rampHeight=freeRideEntryHeight;nextHud=0;
     }
     void StepCrevasseFall(float dt,bool drawWorld){
         float age=Status.elapsed-freeRideDropSince;
         // Enter along the current direction, then sink into the wider middle of the fissure.
-        float middle=Mathf.Max(freeRideEntryMetre,fallingGap.SectionDistance(4));
+        float middle=Mathf.Clamp(freeRideEntryMetre+3.5f,fallingGap.SectionDistance(4),fallingGap.endD-.7f);
         float into=1-Mathf.Pow(Mathf.Clamp01(1-age/.72f),2);
         Status.metres=Mathf.Lerp(freeRideEntryMetre,middle,into);
-        lane=Mathf.Lerp(freeRideEntryLane,fallingGap.CentreAt(Status.metres),into);
-        rampHeight=-Mathf.Min(5.0f,6.8f*age*age);
+        Vector2 banks=fallingGap.CrossSection(Status.metres);
+        float middleLane=(banks.x+banks.y)*.5f;
+        lane=Mathf.Clamp(Mathf.Lerp(freeRideEntryLane,middleLane,into),banks.x,banks.y);
+        rampHeight=Mathf.Max(-5f,freeRideEntryHeight-11.5f*age*age);
         speed=0;dragTarget=lane;
         if(crashTimer>0){
             crashTimer-=dt;
@@ -82,9 +79,9 @@ public partial class MountainRace {
         World.Refresh(Status.metres,Status.elapsed,lane,drawWorld);
     }
     void FreeRideContact(float before,float fromLane){
+        if(freeRideFalling)return;
         float d=Status.metres;rampHeight=rampPhase=0;
-        if(airborne||freeRideFalling||fall>0||crashTimer>0||!World.TryFreeRideGap(d,out var gap))return;
-        if(freeRideQueuedLip==gap.lipD&&d>gap.SectionDistance(3)){freeRideQueuedLip=float.NaN;freeRideQueuedTrick=null;}
+        if(airborne||fall>0||crashTimer>0||!World.TryFreeRideGap(d,out var gap))return;
         if(!gap.OverOpening(d,lane))return;
         if(!gap.OverOpening(before,fromLane)&&before<gap.SectionDistance(3)){
             float lo=0,hi=1;
@@ -93,9 +90,8 @@ public partial class MountainRace {
                 if(gap.OverOpening(Mathf.Lerp(before,d,mid),Mathf.Lerp(fromLane,lane,mid)))hi=mid;else lo=mid;
             }
             float entry=Mathf.Lerp(before,d,hi),x=Mathf.Lerp(fromLane,lane,hi);
-            if(freeRideQueuedLip==gap.lipD&&gap.TryFrontLip(x,out float lip)&&Mathf.Abs(entry-lip)<.035f){
-                LaunchFromCornice(gap,entry,x,speed);freeRideQueuedLip=float.NaN;
-                AirTrick(freeRideQueuedTrick);freeRideQueuedTrick=null;return;
+            if(gap.TryFrontLip(x,out float lip)&&Mathf.Abs(entry-lip)<.035f){
+                LaunchFromCornice(gap,entry,x,speed);return;
             }
         }
         FallIntoFreeRideGap(gap);
@@ -104,6 +100,9 @@ public partial class MountainRace {
         float d=Status.metres;
         if(!World.TryFreeRideGap(d,out var gap)||d<=gap.lipD||d>gap.endD+30||!gap.TryFrontLip(lane,out float lip)||d<=lip)return;
         speed=World.FreeRidePace(lip);LaunchFromCornice(gap,lip,lane,speed);
-        if(airTime>=airMax){airborne=parkFlight=false;}
+        if(airTime>=airMax){airborne=parkFlight=freeRideAwaitingTrick=false;}
+        else if(airTime>freeRideTrickUntil*.55f){
+            freeRideAwaitingTrick=false;freeRideTrickAt=freeRideTrickUntil*.55f;ChooseAirPose(airMax,true);
+        }
     }
 }

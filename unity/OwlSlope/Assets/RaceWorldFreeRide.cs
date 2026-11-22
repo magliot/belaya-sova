@@ -66,7 +66,7 @@ public partial class RaceWorld {
             for(int i=0;i<freeRideGaps.Length;i++){
                 float side=Roll(layout,i,1300)<.5f?-1:1;
                 float lip=origin+i*FreeRideSectionLength+(i==0?85:75)+(2*Roll(layout,i,1301)-1)*(i==0?3:16);
-                freeRideGaps[i]=new FreeRideGap{lipD=lip,endD=lip+12+4*Roll(layout,i,1302),
+                freeRideGaps[i]=new FreeRideGap{lipD=lip,endD=lip+18+4*Roll(layout,i,1302),
                     lane=side*(4+2.4f*Roll(layout,i,1303)),halfWidth=2.55f+.75f*Roll(layout,i,1304)};
                 freeRideGaps[i].Shape(layout,i);
             }
@@ -83,13 +83,19 @@ public partial class RaceWorld {
     internal float FreeRideLaunchVelocity(FreeRideGap gap,float originD,float x,float pace){
         // Takeoff follows the lip's fixed launch angle. A slower rider covers less
         // ground. At cruise speed the landing zone begins beyond the far wall.
-        float span=gap.endD-originD+11;
+        float span=gap.endD-originD+16;
         float cruise=FreeRidePace(originD);
         float drop=SampleGround(originD+span,x).y-SampleGround(originD,x).y;
         return pace*(drop/span+.5f*FreeRideGravity*span/(cruise*cruise));
     }
     internal static float FreeRideFlightY(float originY,float vertical,float seconds){
         return originY+vertical*seconds-.5f*FreeRideGravity*seconds*seconds;
+    }
+    internal static float FreeRideHeight(float clearance,float trickBlend){
+        if(clearance<=0)return clearance;
+        float glide=.82f*(1-Mathf.Exp(-clearance/.90f));
+        float leap=2.6f*(1-Mathf.Exp(-clearance/2.6f));
+        return Mathf.Lerp(glide,leap,trickBlend);
     }
     void BuildFreeRideSection(int section,float start){
         if(section%2==0)SpawnSnowBoulder(start,section);
@@ -115,7 +121,8 @@ public partial class RaceWorld {
         for(int i=0;i<3;i++){
             float d=Mathf.Lerp(gap.lipD,gap.endD,.20f+i*.31f);
             float y=FreeRideFlightY(originY,vertical,(d-gap.lipD)/cruise)-SampleGround(d,gap.lane).y;
-            Add("coin",d,gap.lane,1.1f,y+.9f).air=true;
+            // A centred rider can reach this fruit with an early or late tap.
+            Add("coin",d,gap.lane,1.1f,FreeRideHeight(y,.5f)+.9f).air=true;
         }
         int count=2+(section%2);
         float lane=-side*(2.7f+Roll(seed,section,1316)*1.9f);

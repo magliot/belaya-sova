@@ -35,8 +35,6 @@ button small{display:block;font-size:10px;font-weight:500;margin-top:2px}
 .utilities{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}.utilities button{min-height:43px;padding:3px 1px;font-size:11px}
 .utilities span{display:block;margin-bottom:2px;font-size:18px;line-height:1}.home .rules-link{justify-self:center}
 #hud{position:absolute;inset:0;pointer-events:none;font-variant-numeric:tabular-nums}
-#fisControls{position:absolute;bottom:7%;right:0;display:grid;gap:5px;max-width:48%;pointer-events:auto}
-#fisControls button{min-height:42px;padding:4px 12px}
 #menuRank{display:block;font-size:10px;font-weight:600;line-height:1.1}
 #breakdown{display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;text-align:left;font-size:12px}
 #course{position:absolute;left:0;top:2px;display:grid;gap:8px;color:#264b71;font-size:12px}

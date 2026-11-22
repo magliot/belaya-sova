@@ -32,14 +32,11 @@ async function main(){
     const seen={};
     async function act(action){
       await page.waitForFunction(key=>window.fisRide?.fisAction===key,action,{timeout:60000});
-      const button=at('#fisAct');
-      const bounds=await button.boundingBox();
-      assert.ok(bounds&&bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=320.01&&bounds.y+bounds.height<=640.01&&bounds.height>=40,
-        action+' action is clipped or too small');
-      seen[action]={label:await button.innerText(),at:await page.evaluate(()=>Math.round(fisRide.metres)),width:Math.round(bounds.width),height:Math.round(bounds.height)};
+      assert.deepEqual(await page.locator('#hud button').evaluateAll(nodes=>nodes.map(node=>node.id)),['pause']);
+      seen[action]={at:await page.evaluate(()=>Math.round(fisRide.metres))};
       console.log('FIS touch',action,seen[action]);
       if(action==='patrol'||action==='join')await shot('hud-'+action);
-      await button.tap();
+      await page.touchscreen.tap(175,390);
     }
     await at('#play').tap();await act('brake');
     await page.waitForFunction(()=>fisRide.phase==='play'&&fisRide.metres>=43,null,{timeout:60000});

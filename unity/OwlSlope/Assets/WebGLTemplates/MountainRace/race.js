@@ -16,7 +16,7 @@
   const fixedSeed=new URLSearchParams(location.search).get('seed');
   let seedOverride=fixedSeed!==null&&/^\d{1,10}$/.test(fixedSeed)&&+fixedSeed<=2147483647?+fixedSeed:null;
   let player,ready=false,snapshot=null,panel='',run=null,finger=null,noticeTimer,rankPeriod='all',topRequest=0,requestPause=false;
-  const actions={brake:'Сбавить ход',stop:'Остановиться у края',patrol:'Вызвать патруль',witness:'Назваться свидетелем',walk:'Пешком по краю',look:'Осмотреть склон',join:'Выехать на трассу'};
+  const actions={stop:'остановиться у края',patrol:'вызвать патруль',witness:'назваться свидетелем',walk:'идти по обочине',look:'осмотреть склон',join:'вернуться на трассу'};
   let catalogData,modelIndex=-1,group='all',menuFinger=null,tapFinger=null;
   let pendingStart=null,soundFailed=false;
   function sound(method,value){
@@ -63,14 +63,12 @@
     $('pace').classList.toggle('boosting',!!s.boost);
     $('multiplier').hidden=!bonus||!(s.multiplier>1);if(bonus&&s.multiplier>1)setText('multiplier','×'+s.multiplier);
     const action=actions[s.fisAction]||'';
-    $('fisControls').hidden=s.phase!=='play'||(!action&&!s.fisCanLeave);
-    $('fisAct').hidden=!action;if(action)setText('fisAct',action);
-    $('fisLeave').hidden=!s.fisCanLeave;
     const stage=bonus?modes[mode]+' · '+Math.max(0,Math.ceil(75-s.elapsed))+' с':
       mode==='sprint'?'Финиш · '+Math.max(0,1200-metres)+' м':(metres>=lapLength?'Круг '+(1+Math.floor(metres/lapLength))+' · ':'')+(1+s.stage%stages.length)+' · '+stages[s.stage%stages.length];
     setText('stage',stage);
     let status='';
     if(mode==='sled')status='Снеговики '+(s.snowmen||0)+' · подарки '+(s.gifts||0);
+    else if(action)status='Тап — '+action;
     else if(warning)status=s.chaseSeconds>0?'Лавина · '+Math.ceil(s.chaseSeconds)+' с · '+Math.round(s.chaseGap)+' м':'Лавина';
     else if(s.boostSeconds>0)status='☕ Ускорение · '+s.boostSeconds.toFixed(1)+' с';
     else if(s.magnetSeconds>0)status='🧲 Магнит · '+s.magnetSeconds.toFixed(1)+' с';
@@ -249,11 +247,8 @@
     const f=second?tapFinger:finger;
     if(f?.id!==e.pointerId)return;
     if(second)tapFinger=null;else finger=null;
-    if(e.type==='pointerup'&&snapshot?.phase==='play'&&!f.tricked){
-      // Unity resolves a tap against the current lip or flight at input time.
-      if(!f.moved&&!outsideTap(e,f)&&performance.now()-f.at<300)command('AirTrick','tap');
-      else if(snapshot.air&&f.pending)command('AirTrick',f.pending);
-    }
+    clearTimeout(f.holdTimer);
+    if(e.type==='pointerup'&&snapshot?.phase==='play'&&!f.moved&&!outsideTap(e,f)&&performance.now()-f.at<300)command('EndTap',f.slot);
     if(!second)command('ReleaseSteer');
   };
   canvas.addEventListener('pointerdown',e=>{
@@ -262,10 +257,15 @@
     }
     if(snapshot?.phase!=='play'||e.button!==0)return;
     if(finger&&(e.pointerType!=='touch'||tapFinger))return;
-    const at=performance.now(),contact={id:e.pointerId,x:e.clientX,y:e.clientY,at,moved:false};
+    const slot=finger?1:0;
+    const contact={id:e.pointerId,x:e.clientX,y:e.clientY,at:performance.now(),slot,moved:false};
     canvas.setPointerCapture(e.pointerId);
+    command('BeginTap',slot);
+    contact.holdTimer=setTimeout(()=>{
+      if((finger===contact||tapFinger===contact)&&!contact.moved&&snapshot?.phase==='play')command('HoldAirTap',slot);
+    },150);
     if(finger){finger.moved=true;tapFinger=contact;return;}
-    finger={...contact,rx:contact.x,ry:contact.y,jumpX:contact.x,jumpY:contact.y,since:at,pending:null,tricked:false,moved:!!tapFinger};
+    finger=contact;finger.moved=!!tapFinger;
     command('BeginSteer');canvas.focus();
   });
   canvas.addEventListener('pointermove',e=>{
@@ -280,25 +280,7 @@
     if(f?.id!==e.pointerId)return;
     if(outsideTap(e,f))f.moved=true;
     if(f===tapFinger)return;
-    const t=performance.now();
     command('DragSteer',(e.clientX-f.x)/canvas.clientWidth);
-    if(!snapshot?.air){
-      if(snapshot?.courseMode==='normal'&&snapshot.stage===8){
-        const rise=f.jumpY-e.clientY,side=Math.abs(e.clientX-f.jumpX);
-        if(rise>=36&&rise>side*1.25){
-          command('AirTrick','up');f.jumpY=e.clientY;f.jumpX=e.clientX;f.tricked=true;
-        }else if(rise<0||side>Math.max(30,rise*1.25)){f.jumpY=e.clientY;f.jumpX=e.clientX;}
-      }
-      f.rx=e.clientX;f.ry=e.clientY;f.since=t;f.pending=null;return;
-    }
-    if(t-f.since>260&&!f.pending){f.rx=e.clientX;f.ry=e.clientY;f.since=t;return;}
-    const dx=e.clientX-f.rx,dy=e.clientY-f.ry,len=Math.hypot(dx,dy);
-    const dir=Math.abs(dx)>Math.abs(dy)?dx<0?'left':'right':dy<0?'up':'down';
-    if(len>110){command('AirTrick','big-'+dir);f.tricked=true;f.rx=e.clientX;f.ry=e.clientY;f.since=t;f.pending=null;}
-    else if(len>42&&!f.pending){
-      f.pending=dir;
-      setTimeout(()=>{if(finger===f&&f.pending&&snapshot?.air){command('AirTrick',f.pending);f.tricked=true;f.pending=null;f.rx=e.clientX;f.ry=e.clientY;f.since=performance.now();}},150);
-    }
   });
   for(const e of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(e,releaseFinger);
   function btn(label,action,disabled=false){
@@ -381,7 +363,7 @@
       body.append(btn('Осмотр трассы',()=>start('review')),btn('Лист моделей',()=>{modelIndex=-1;switchPanel('catalog');}),btn('Замеры',()=>window.MountainMetrics?.show()));
       const guide=document.createElement('details'),heading=document.createElement('summary'),controls=document.createElement('p'),scoring=document.createElement('p');
       heading.textContent='Как играть и получать очки';
-      controls.textContent='Веди пальцем влево и вправо, чтобы рулить. Герой разгоняется сам. Кофе прибавляет 65% скорости. Трамплин подбрасывает героя. В воздухе коснись экрана или проведи пальцем, чтобы сделать трюк до приземления.';
+      controls.textContent='Веди пальцем влево и вправо, чтобы рулить. Герой разгоняется сам. На трамплине или у кромки Free Ride герой отрывается от снега сам. Тапни в воздухе, чтобы сделать трюк. Пока рулишь, можно тапнуть вторым пальцем. У пострадавшего тап помогает остановиться и вызвать патруль.';
       scoring.textContent='В общий рейтинг идёт лучший спуск со старта до падения. Метр даёт 1 очко, мандарин — 3, чистый проезд ворот — 8, кольцо — 14. Оставляй людям место для манёвра. Первое применение каждого правила FIS за спуск приносит 25 очков. Два трюка и золотое перо открывают оба бонуса.';
       guide.append(heading,controls,scoring);body.append(guide);
       if(profile.cloudError)body.append(profile.cloudError);
@@ -456,8 +438,6 @@
   $('closePanel').onclick=back;
   for(const b of document.querySelectorAll('[data-panel]'))b.onclick=()=>switchPanel(b.dataset.panel);
   $('pause').onclick=pause;$('resume').onclick=()=>{requestPause=false;command('ResumeRide');canvas.focus();};
-  $('fisAct').onclick=()=>{if(snapshot?.fisAction)command('FisAction',snapshot.fisAction);};
-  $('fisLeave').onclick=()=>command('FisAction','leave');
   $('pauseSense').oninput=e=>{const v=Number(e.target.value);setText('pauseSenseValue',v);profile.change(['sens'],p=>p.sens=v);command('SetSensitivity',v);};
   function rideFromInspection(){
     if(snapshot?.phase!=='review'||!run)return;

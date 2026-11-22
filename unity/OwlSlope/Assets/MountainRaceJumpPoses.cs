@@ -3,76 +3,67 @@ using UnityEngine;
 public partial class MountainRace {
     // Inclusive Blender scene frames, exported together so skis, bindings and
     // glove-mounted poles are sampled at precisely the same instant as the skin.
-    static readonly int[] BearJumpStart={184,236,299,369,442,519,601};
-    static readonly int[] BearJumpEnd={235,298,368,441,518,600,674};
-    static readonly string[] BearJumpNames={"Подскок с двух лыж","Прямой прыжок","Шифти","Спред-игл","Вращение 360°","Сальто назад","180° в свитч"};
-    static readonly string[] OwlJumpNames={"Олли","Indy","Melon","Frontside 360 · Indy","Backside 360 · Melon"};
-    int[] jumpOrder;
+    static readonly int[] BearJumpStart={442,519};
+    static readonly int[] BearJumpEnd={518,600};
     System.Random jumpRandom;
-    int jumpSlot,airPose=-1;
-    float poseStart,poseDuration,stanceYaw;
+    int airPose=-1,lastBearJump=-1;
+    float poseStart,poseDuration,poseFrom,poseTo,switchStarted,switchFrame;
+    const float SwitchRecovery=.38f;
     const float BearCrouch=(194-184)/30f;
 
     void ResetJumpPoses(){
-        int count=Hero=="bear"?BearJumpNames.Length:OwlJumpNames.Length;
-        jumpOrder=new int[count];jumpSlot=count;airPose=-1;stanceYaw=0;
-        jumpRandom=new System.Random(settings.seed^(Hero=="bear"?48173:95311));
+        airPose=lastBearJump=-1;switchStarted=float.NegativeInfinity;
+        jumpRandom=new System.Random(settings.seed^48173);
     }
-    void ChooseAirPose(float duration){
-        if(jumpOrder==null)ResetJumpPoses();
-        if(Review){
-            airPose=Mathf.Min(jumpOrder.Length-1,(int)(jumpOrder.Length*RaceWorld.Roll(settings.seed,Mathf.FloorToInt(flightStart),492)));
-            poseStart=0;poseDuration=airMax;return;
+    void ChooseAirPose(float duration,bool finishOnSnow=false){
+        if(jumpRandom==null)ResetJumpPoses();
+        airPose=0;
+        if(Hero=="bear"){
+            if(Review)airPose=RaceWorld.Roll(settings.seed,Mathf.FloorToInt(flightStart),492)<.5f?0:1;
+            else airPose=lastBearJump=lastBearJump<0?jumpRandom.Next(2):1-lastBearJump;
         }
-        if(jumpSlot==jumpOrder.Length){
-            for(int i=0;i<jumpOrder.Length;i++)jumpOrder[i]=i;
-            for(int i=jumpOrder.Length-1;i>0;i--){
-                int j=jumpRandom.Next(i+1);
-                int previous=jumpOrder[j];jumpOrder[j]=jumpOrder[i];jumpOrder[i]=previous;
-            }
-            if(jumpOrder[0]==airPose){int j=1+jumpRandom.Next(jumpOrder.Length-1);jumpOrder[0]=jumpOrder[j];jumpOrder[j]=airPose;}
-            jumpSlot=0;
-        }
-        airPose=jumpOrder[jumpSlot++];poseStart=airTime;poseDuration=Mathf.Max(.1f,duration);
+        poseStart=Review?0:airTime;poseDuration=Mathf.Max(.1f,duration);poseFrom=0;
+        poseTo=finishOnSnow&&Hero=="bear"&&airPose==0?.52f:1;
+        switchStarted=float.NegativeInfinity;
     }
     void EndAirPose(){
-        if(Hero=="bear"&&airPose==6)stanceYaw=Mathf.Repeat(stanceYaw+180,360);
+        if(Hero=="bear"&&airPose==0&&poseTo<1){
+            switchFrame=PoseTime;switchStarted=Status.elapsed;
+        }
     }
-    float PoseTime=>Mathf.Clamp01((airTime-poseStart)/Mathf.Max(.1f,poseDuration));
-    string AirPoseName=>Hero=="bear"?BearJumpNames[airPose]:OwlJumpNames[airPose];
+    float PoseTime=>Mathf.Lerp(poseFrom,poseTo,(airTime-poseStart)/Mathf.Max(.1f,poseDuration));
+    string AirPoseName=>Hero=="owl"?"Оборот вправо":airPose==0?"Вращение 360°":"Сальто назад";
     void RequestAirPose(float length){
         if(flightTricks==0&&airPose>=0){
             // Continue the movement already visible on takeoff. A tap changes the
             // time left for completion without jumping back to its first pose.
-            float t=PoseTime;
-            poseDuration=length/Mathf.Max(.03f,1-t);poseStart=airTime-t*poseDuration;
+            poseFrom=PoseTime;poseTo=1;poseStart=airTime;poseDuration=length;
         }else{
-            EndAirPose();ChooseAirPose(length);
+            ChooseAirPose(length);
         }
     }
     Vector3 SnowboardTurn(){
-        if(!airborne||Hero!="owl"||airPose<3||BonusMode)return Vector3.zero;
+        if(!airborne||Hero!="owl"||airPose<0||BonusMode)return Vector3.zero;
         float t=PoseTime;
         float spin=360*(t-.82f*Mathf.Sin(2*Mathf.PI*t)/(2*Mathf.PI));
-        return new Vector3(0,airPose==3?spin:-spin,(airPose==3?8:-9)*Mathf.Sin(t*Mathf.PI));
+        return new Vector3(0,spin,8*Mathf.Sin(t*Mathf.PI));
     }
     float SampleBearPose(){
-        if(!airborne||airPose<0){
+        float age=Status.elapsed-switchStarted;
+        bool recovery=!airborne&&age>=0&&age<SwitchRecovery&&fall<=0&&crashTimer<=0;
+        if(!recovery&&(!airborne||airPose<0)){
             rideClip.SampleAnimation(rideModel.gameObject,BearCrouch);
             return 0;
         }
-        float frame=Mathf.Lerp(BearJumpStart[airPose],BearJumpEnd[airPose],PoseTime);
-        float t=PoseTime, mix=StepBlend(t/.10f);
-        if(airPose!=6)mix*=StepBlend((1-t)/.12f);
+        float t=recovery?Mathf.Lerp(switchFrame,1,StepBlend((age-.055f)/(SwitchRecovery-.055f))):PoseTime;
+        float frame=Mathf.Lerp(BearJumpStart[airPose],BearJumpEnd[airPose],t);
+        float mix=StepBlend(t/.10f)*StepBlend((1-t)/.12f);
         ridePose.Sample(rideClip,rideModel.gameObject,BearCrouch,(frame-184)/30,mix);
         return 0;
     }
     float SampleOwlJump(float flight){
         float baseline=3.25f+.83f*flight;
-        if(airPose<=0){rideClip.SampleAnimation(rideModel.gameObject,baseline);return .28f*4*flight*(1-flight);}
-        float t=PoseTime,mix=StepBlend(t/.25f)*StepBlend((1-t)/.29f);
-        bool toe=airPose==1||airPose==3;
-        ridePose.Sample(rideClip,rideModel.gameObject,baseline,(toe?6:7)+Mathf.Min(.966f,t),mix);
-        return .28f*4*flight*(1-flight)*(1-mix);
+        rideClip.SampleAnimation(rideModel.gameObject,baseline);
+        return .28f*4*flight*(1-flight);
     }
 }

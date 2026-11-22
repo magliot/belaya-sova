@@ -81,6 +81,7 @@ async function main() {
     await shot('menu');
     await click('play');await at(3);
     assert.equal(await page.evaluate(()=>probe.stage),0);
+    assert.deepEqual(await page.locator('#hud button').evaluateAll(nodes=>nodes.map(node=>node.id)),['pause']);
     await click('pause');await click('exitPaused');await phase('menu');
     await inspect();
     for(const hero of ['bear','owl']){
@@ -96,23 +97,25 @@ async function main() {
       const x=195-4.83*390/(27*.79);
       const steer={x,y:515,id:1};
       await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[steer]});
-      await page.waitForFunction(()=>probe.freeRideJumpReady&&probe.metres>=20065,null,{timeout:12000});
+      await page.waitForFunction(()=>probe.freeRideTrickReady&&probe.air&&probe.metres>=20086,null,{timeout:12000});
+      const tapMetres=await page.evaluate(()=>probe.metres);
       if(hero==='bear'){
         await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-        await page.touchscreen.tap(285,490);
+        await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:285,y:490,id:1}]});
+        await page.waitForFunction(()=>probe.air&&!probe.freeRideTrickReady,null,{timeout:2500});
+        await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
         await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[steer]});
       }else{
         const tap={x:290,y:535,id:2};
         await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[steer,tap]});
         await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[tap]});
       }
-      await page.waitForFunction(()=>probe.freeRideJumpQueued||probe.air,null,{timeout:3000});
-      await page.waitForFunction(()=>probe.air&&probe.metres>=20090,null,{timeout:12000});
+      await page.waitForFunction(()=>probe.air&&!probe.freeRideTrickReady&&probe.metres>=20092,null,{timeout:3000});
       await shot(hero+'-jump');
-      await at(20116);
+      await at(20124);
       const stats=await page.evaluate(()=>probe);
       assert.equal(stats.helmets,1);assert.equal(stats.tricks,1);assert.equal(stats.courseMode,'normal');
-      samples.push({hero,input:hero==='bear'?'tap':'second finger tap',metres:stats.metres,coins:stats.coins,tricks:stats.tricks,helmets:stats.helmets});
+      samples.push({hero,input:hero==='bear'?'airborne press':'second finger tap',tapMetres,metres:stats.metres,coins:stats.coins,tricks:stats.tricks,helmets:stats.helmets});
       if(hero==='owl'){
         await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...steer,x:x+52}]});
         await page.waitForFunction(lane=>probe.riderLane>lane+1,stats.riderLane,{timeout:3000});
@@ -128,17 +131,18 @@ async function main() {
     await click('reviewPlay');
     const centre={x:182,y:480,id:1};
     await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[centre]});
-    await page.waitForFunction(()=>probe.freeRideJumpReady,null,{timeout:12000});
+    await at(20070);
     await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await page.touchscreen.tap(182,480);
     await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[centre]});
+    await page.waitForFunction(()=>probe.air&&probe.freeRideTrickReady,null,{timeout:12000});
     await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...centre,x:centre.x+32}]});
     await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[centre]});
     await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-    await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[centre]});
     await page.waitForFunction(()=>probe.freeRideInCrevasse,null,{timeout:8000});
     assert.equal(await page.evaluate(()=>probe.helmets),0);
     assert.equal(await page.evaluate(()=>probe.tricks),0);
-    await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    samples.push({hero:'owl',input:'ground tap, then steer only',helmets:0,tricks:0});
     await leavePractice();
     await page.locator('#reviewLane').evaluate(el=>{el.value='0';el.dispatchEvent(new Event('input',{bubbles:true}));});
     await seek(22485);await click('reviewPlay');await at(22503);
