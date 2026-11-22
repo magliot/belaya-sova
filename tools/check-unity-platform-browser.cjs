@@ -5,8 +5,9 @@ const {chromium}=require(process.env.DANCE_BROWSER_MODULE||'playwright');
 const docs=path.resolve('docs'),template=path.resolve('unity/OwlSlope/Assets/WebGLTemplates/MountainRace');
 const mimes={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css','.woff2':'font/woff2','.wasm':'application/wasm','.mp3':'audio/mpeg','.webp':'image/webp','.jpg':'image/jpeg'};
 const goldenSource=fs.readFileSync('tools/check-golden-run.cjs','utf8').match(/const probe=`([\s\S]*?)`;\r?\nasync function run/)[1];
+const courseFixture={stageLength:4000,tubingEnd:2608,sledEnd:2974};
 const mockLoader=`window.createUnityInstance=async(canvas,config,progress)=>{
-  progress(1);let s={phase:'menu',mode:'normal',hero:'bear',metres:0,stage:0,stageLength:4000,tubingEnd:2608,sledEnd:2974,score:0,coins:0,helmets:0,seed:0};
+  progress(1);let s={phase:'menu',mode:'normal',hero:'bear',metres:0,stage:0,...${JSON.stringify(courseFixture)},score:0,coins:0,helmets:0,seed:0};
   const emit=()=>window.onMountainState({...s});emit();
   return {SendMessage(_,name,arg){
     if(name==='ChooseHero')s.hero=arg;
@@ -91,7 +92,7 @@ async function main(){
     for(const mode of ['tubing','sled'])assert(await p.locator('#panelBody [data-mode="'+mode+'"]').isEnabled());
     await p.locator('#closePanel').click();
     if(!process.argv[2]){
-      const sample={phase:'play',hero:'owl',mode:'normal',metres:2520,stage:1,elapsed:10.3,speed:57,score:123456,helmets:1,coins:12,multiplier:3,gates:4};
+      const sample={...courseFixture,phase:'play',hero:'owl',mode:'normal',metres:4020,stage:1,elapsed:10.3,speed:57,score:123456,helmets:1,coins:12,multiplier:3,gates:4};
       const hud=fields=>p.evaluate(s=>onMountainState(s),{...sample,...fields});
       await hud({score:42,scoreDistance:42,riderScreenX:.47,riderScreenY:.61});
       await hud({score:43,scoreDistance:43,riderScreenX:.47,riderScreenY:.61});
@@ -102,13 +103,13 @@ async function main(){
       assert.equal(await p.locator('#rewardFloats b').last().innerText(),'+8');
       await hud({boost:true,boostSeconds:3.4});
       assert.equal(await p.locator('#stage').innerText(),'2 · Лесная тропа');
-      assert.equal(await p.locator('#metres').innerText(),'2520 м');assert.equal(await p.locator('#pace').innerText(),'57 км/ч');
+      assert.equal(await p.locator('#metres').innerText(),'4020 м');assert.equal(await p.locator('#pace').innerText(),'57 км/ч');
       assert(await p.locator('#multiplier').isHidden());assert.equal(await p.locator('#score').innerText(),'123456');
       assert.equal(await p.locator('#coins').innerText(),'12');assert.match(await p.locator('#helmets').getAttribute('aria-label'),/1/);
       assert.match(await p.locator('#rideStatus').innerText(),/Ускорение · 3.4 с/);
       for(const width of [320,384]){
         await p.setViewportSize({width,height:740});
-        await hud({stage:7,metres:17540,boost:true,boostSeconds:3.4});
+        await hud({stage:7,metres:28040,boost:true,boostSeconds:3.4});
         const [pause,stage,status,board]=await Promise.all(['#pause','#stage','#rideStatus','.scoreboard'].map(s=>p.locator(s).boundingBox()));
         assert(stage.y>=pause.y+pause.height&&stage.x>=board.x+board.width-1,'Stage should sit below Pause beside the scoreboard');
         assert(status.y>=stage.y+stage.height&&status.x>=board.x+board.width-1,'Boost must stay in the right column');
