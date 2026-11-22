@@ -6,7 +6,7 @@ using UnityEngine;
 
 public static class HeroMotionChecks {
     public static void JumpLibrary(MountainRace race,string hero){
-        int count=hero=="bear"?2:1;
+        const int count=2;
         race.Menu();race.ChooseHero(hero);
         race.StartRace("{\"mode\":\"normal\",\"seed\":1911}");
         var checkpoint=typeof(MountainRace).GetMethod("Checkpoint",BindingFlags.NonPublic|BindingFlags.Instance);
@@ -23,7 +23,7 @@ public static class HeroMotionChecks {
             checkpoint.Invoke(race,new object[]{lip-1,ramp.lane});
             race.Advance(1f/60);
             Quaternion CourseGear()=>Quaternion.Inverse(race.World.SnowFrame(race.Status.metres,ramp.lane))*deck.rotation;
-            int pose=-1,groundFrames=0;float turn=0,clockwise=0,landingTurn=0;
+            int pose=-1,groundFrames=0;float turn=0,clockwise=0,pitch=0,landingTurn=0;
             Quaternion baseline=CourseGear(),relative=baseline;bool photo=false;
             for(int frame=0;frame<420;frame++){
                 race.Advance(1f/60);
@@ -31,7 +31,10 @@ public static class HeroMotionChecks {
                 Quaternion heading=CourseGear();
                 var delta=heading*Quaternion.Inverse(relative);
                 delta.ToAngleAxis(out float degrees,out var axis);
-                if(axis.sqrMagnitude>.01f)clockwise+=Mathf.DeltaAngle(0,degrees)*axis.y;
+                if(axis.sqrMagnitude>.01f){
+                    clockwise+=Mathf.DeltaAngle(0,degrees)*axis.y;
+                    pitch+=Mathf.DeltaAngle(0,degrees)*axis.x;
+                }
                 turn+=Quaternion.Angle(heading,relative);
                 relative=heading;pose=(int)selected.GetValue(race);
                 if(!race.Status.air){
@@ -46,8 +49,8 @@ public static class HeroMotionChecks {
             }
             if(pose<0||pose>=count||count>1&&pose==previous||jump<count&&!seen.Add(pose))throw new Exception("Unexpected jump "+hero+" "+pose);
             float finalHeading=Quaternion.Angle(CourseGear(),baseline);
-            if(groundFrames<32||turn<280||finalHeading>15||hero=="owl"&&clockwise<300||hero=="bear"&&pose==0&&landingTurn<95)
-                throw new Exception(hero+" jump "+pose+" turn "+turn+" clockwise "+clockwise+" at touchdown "+landingTurn+" after recovery "+finalHeading);
+            if(groundFrames<32||turn<280||finalHeading>15||hero=="owl"&&(pose==0?clockwise<300:pitch> -300)||hero=="bear"&&pose==0&&landingTurn<95)
+                throw new Exception(hero+" jump "+pose+" turn "+turn+" clockwise "+clockwise+" pitch "+pitch+" at touchdown "+landingTurn+" after recovery "+finalHeading);
             previous=pose;sequence.Add(pose);
         }
         if(race.Status.tricks!=0)throw new Exception("Automatic visuals received gesture points");

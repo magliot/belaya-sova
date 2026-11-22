@@ -40,8 +40,8 @@
     d.sens=Number.isFinite(raw.sens)?Math.min(10,Math.max(1,Math.round(raw.sens))):4;
     d.mag=Math.min(5,d.mag);d.boost=Math.min(5,d.boost);
     for(const [hero,key] of [['bear','carveSkis'],['owl','fireboard']]){
-      if(raw.gear?.[hero]===key)d.gear[hero]=key;
       if(Array.isArray(raw.ownedGear)&&raw.ownedGear.includes(key))d.ownedGear.push(key);
+      if(raw.gear?.[hero]===key||raw.gear?.[hero]==null&&d.ownedGear.includes(key))d.gear[hero]=key;
       if(d.ownedGear.includes(key))d.tuning[key]=Math.min(2,count(raw.tuning?.[key]));
     }
     if(obj(raw.vol))for(const k of Object.keys(d.vol))if(Number.isFinite(raw.vol[k]))d.vol[k]=Math.min(10,count(raw.vol[k]));
@@ -88,7 +88,7 @@
     const initial=clone(record.data);
     if(!Array.isArray(record.rows))record.rows=[];
     let writing=false,queued=false,readyForWrite=!cloud,changed=false,loaded,lastCloudError='';
-    const edited=new Set();
+    const edited=new Set(),gearChoices=new Set();
     function sendCloud(){
       if(!cloud||writing||!readyForWrite||!queued)return;
       const envelope={...record,rows:undefined,recent:undefined};
@@ -101,8 +101,9 @@
       });}catch{writing=false;lastCloudError='Облачное сохранение недоступно.';}
     }
     function notify(){onChange(record.data);}
-    function commit(keys){
+    function commit(keys,gearHero=record.data.hero){
       changed=true;for(const k of keys)edited.add(k);
+      if(keys.includes('gear'))gearChoices.add(gearHero);
       record.updated=Math.max(now(),record.updated+1);put(key,record);queued=true;sendCloud();notify();
     }
     function mergeCloud(values){
@@ -110,10 +111,21 @@
       let previous=localSnapshot||null;
       if(valid(remote)&&(!previous||remote.updated>previous.updated))previous=remote;
       const migrated=legacyMerge(legacyLocal,preview?null:old,uid), merged=previous?clean(previous.data):migrated;
+      if(localSnapshot&&valid(remote)){
+        const other=clean((previous===remote?localSnapshot:remote).data);
+        for(const [hero,kit] of [['owl','fireboard'],['bear','carveSkis']]){
+          if(!other.ownedGear.includes(kit))continue;
+          if(!merged.ownedGear.includes(kit)){
+            merged.ownedGear.push(kit);merged.gear[hero]=other.gear[hero];
+          }
+          merged.tuning[kit]=Math.max(merged.tuning[kit],other.tuning[kit]);
+        }
+      }
       merged.best=Math.max(merged.best,migrated.best);
       for(const flag of ['prizeFeather','goldenOwl'])if(migrated.meet[flag])merged.meet[flag]=true;
       if(changed){
         // A slow Telegram callback must preserve edits already made during this session.
+        const paidElsewhere=record.data.ownedGear.filter(kit=>!initial.ownedGear.includes(kit)&&merged.ownedGear.includes(kit)).length*gearPrice;
         for(const k of edited)if(k in defaults){
           if(k==='best')merged.best=Math.max(record.data.best,merged.best);
           else if(k==='meet'){
@@ -121,17 +133,15 @@
             merged.meet.bestStage=Math.max(count(merged.meet.bestStage),count(record.data.meet.bestStage));
             for(const name of ['gifts','feathers','yeti'])merged.meet[name]=Math.max(0,count(merged.meet[name])+count(record.data.meet[name])-count(initial.meet[name]));
           }else if(k==='ownedGear')merged.ownedGear=[...new Set([...merged.ownedGear,...record.data.ownedGear])];
-          else if(k==='tuning'||k==='gear'){
-            for(const key of Object.keys(initial[k])){
-              if(record.data[k][key]!==initial[k][key])merged[k][key]=k==='tuning'?Math.max(merged[k][key],record.data[k][key]):record.data[k][key];
-            }
-          }else if(k==='fis')merged.fis=[...new Set([...merged.fis,...record.data.fis])];
+          else if(k==='gear'){for(const hero of gearChoices)merged.gear[hero]=record.data.gear[hero];}
+          else if(k==='tuning'){for(const kit of Object.keys(initial.tuning))merged.tuning[kit]=Math.max(merged.tuning[kit],record.data.tuning[kit]);}
+          else if(k==='fis')merged.fis=[...new Set([...merged.fis,...record.data.fis])];
           else if(k==='fisContexts')merged.fisContexts=mergeContexts(merged.fisContexts,record.data.fisContexts);
           else if(k==='testerKey')merged.testerKey=merged.testerKey||record.data.testerKey;
           else if(k==='coll'){
             for(const c of record.data.coll)if(!merged.coll.some(entry=>entry.w===c.w&&entry.i===c.i))merged.coll.push(c);
           }else if(['coins','helmets','mdone','boost','mag'].includes(k)){
-            merged[k]=Math.max(0,merged[k]+record.data[k]-initial[k]);
+            merged[k]=Math.max(0,merged[k]+record.data[k]-initial[k]+(k==='coins'?paidElsewhere:0));
             if(k==='boost'||k==='mag')merged[k]=Math.min(5,merged[k]);
           }
           else merged[k]=record.data[k];
@@ -175,7 +185,7 @@
         if(kind==='fireboard'||kind==='carveSkis'){
           s.ownedGear.push(kind);
           s.gear[kind==='fireboard'?'owl':'bear']=kind;
-          commit(['coins','ownedGear','gear']);
+          commit(['coins','ownedGear','gear'],kind==='fireboard'?'owl':'bear');
         }else if(kind==='tune'){
           s.tuning[s.gear[s.hero]]++;commit(['coins','tuning']);
         }else{s[kind]++;commit(['coins',kind]);}

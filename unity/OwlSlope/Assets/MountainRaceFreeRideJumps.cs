@@ -17,7 +17,7 @@ public partial class MountainRace {
         return RaceWorld.FreeRideHeight(clearance,StepBlend((time-freeRideTrickAt)/.31f));
     }
     void LaunchFromCornice(RaceWorld.FreeRideGap gap,float originD,float x,float pace){
-        airborne=parkFlight=true;trickLine=prizeLine=false;
+        airborne=parkFlight=true;trickLine=prizeLine=parkTapQueued=false;
         freeRideTrickAt=float.PositiveInfinity;
         flightStart=originD;freeRideTakeoffSpeed=Mathf.Max(1,pace);
         freeRideOriginY=World.SampleGround(flightStart,x).y;
@@ -36,8 +36,13 @@ public partial class MountainRace {
         lipHeight=rampHeight=rampPhase=0;flightTricks=0;trickProgress=-1;
         flightGap=gap;crossedFruit.Clear();freeRideAwaitingTrick=true;airPose=-1;
         // Leave enough snow beyond the far wall to finish a late trick at downhill speed.
-        freeRideTrickUntil=Mathf.Min(airMax-.22f,(gap.endD-1.2f-originD)/freeRideTakeoffSpeed);
+        freeRideTrickUntil=Mathf.Min(airMax-TurnSeconds,(gap.endD-1.2f-originD)/freeRideTakeoffSpeed);
         if(!Review)Notice("Тап в воздухе — трюк","jump");
+    }
+    void StartCorniceTrick(float startTime){
+        freeRideAwaitingTrick=false;freeRideTrickAt=startTime;
+        ChooseAirPose(TurnSeconds);
+        poseStart=startTime;trickLength=TurnSeconds;
     }
     void FallIntoFreeRideGap(RaceWorld.FreeRideGap gap){
         if(freeRideFalling)return;
@@ -102,7 +107,7 @@ public partial class MountainRace {
         speed=World.FreeRidePace(lip);LaunchFromCornice(gap,lip,lane,speed);
         if(airTime>=airMax){airborne=parkFlight=freeRideAwaitingTrick=false;}
         else if(airTime>freeRideTrickUntil*.55f){
-            freeRideAwaitingTrick=false;freeRideTrickAt=freeRideTrickUntil*.55f;ChooseAirPose(airMax,true);
+            StartCorniceTrick(freeRideTrickUntil*.55f);
         }
     }
 }

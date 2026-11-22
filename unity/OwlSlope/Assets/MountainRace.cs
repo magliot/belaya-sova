@@ -113,12 +113,13 @@ public partial class MountainRace : MonoBehaviour {
             phase=settings.mode=="review"?"review":"play",lettersTotal=Mathf.Clamp(settings.collectedLetters,0,16)};
         Status.helmets=((Status.mode=="free"||Status.mode=="sprint")&&settings.helmets>0)?1:0;
         helmetsIssued=Status.helmets;
+        nextKitSpark=0;if(kitSparks)kitSparks.Clear();
         random=new System.Random(settings.seed);World.Configure(settings.seed,CourseMode);
         sensitivity=.35f+.11f*Mathf.Clamp(settings.sensitivity,1,10);
         lane=velocity=slip=angle=dragStart=dragTarget=0;edgeReturn=dragging=airborne=false;
         speed=baseSpeed=BonusMode?BonusLaunch:12;travelYaw=World.HeadingAt(0);boost=magnet=slow=wobble=fall=0;
         rampHeight=rampPhase=airTime=flightSpan=crashTimer=cleanStart=reviewRate=reviewLane=noticeUntil=0;
-        parkFlight=trickLine=prizeLine=false;trickProgress=-1;lastLanding=-10;lastClose=-10;
+        parkFlight=trickLine=prizeLine=false;trickProgress=-1;touchedFeather=null;lastLanding=-10;lastClose=-10;
         ResetFreeRideInput();ResetJumpPoses();
         earnedRules.Clear();bonusPoints=flightTricks=rewardChain=consecutiveGates=0;lastReward=-100;
         ResetFis();

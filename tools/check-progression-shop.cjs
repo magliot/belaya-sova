@@ -28,6 +28,27 @@ async function inventoryLimits(){
   assert.deepEqual(restored.data.ownedGear.slice().sort(),['carveSkis','fireboard']);
   assert.deepEqual(restored.data.tuning,{fireboard:2,carveSkis:2});
   assert.equal(restored.data.helmets,3);assert.equal(restored.data.coins,account.data.coins);
+  for(const scenario of ['buy from rental','already paid on second phone','older owned finish','explicit stock']){
+    const isBuy=scenario.startsWith('buy')||scenario.startsWith('already');
+    const cached={hero:'owl',coins:isBuy?300:85,gear:{owl:'fireboard'},ownedGear:isBuy?[]:['fireboard']};
+    const anotherOwns=scenario==='already paid on second phone';
+    const remote={hero:'owl',coins:anotherOwns?85:300,gear:{owl:'standard',bear:'carveSkis'},ownedGear:anotherOwns?['fireboard']:[]};
+    const key='unity_test_v1',localKey='bsova_tg91_'+key;
+    const record=(data,updated)=>JSON.stringify({schema:1,uid:91,updated,data});
+    storage.setItem(localKey,record(cached,1));
+    let incoming;
+    const app={initData:'fixture',initDataUnsafe:{user:{id:91}},isVersionAtLeast:()=>true,
+      CloudStorage:{getItems:(_keys,done)=>{incoming=done;},setItem:(_key,_v,done)=>done(null)}};
+    const saved=MountainSaves.create({channel:'test',storage,app});
+    const loading=saved.load();
+    if(isBuy)assert(saved.buy('fireboard'));
+    if(scenario==='explicit stock')saved.change(['gear'],p=>{p.gear.owl='standard';});
+    incoming(null,{[key]:record(remote,2)});await loading;
+    assert(saved.data.ownedGear.includes('fireboard'),scenario);
+    assert.equal(saved.data.gear.owl,scenario==='explicit stock'?'standard':'fireboard',scenario);
+    assert.equal(saved.data.gear.bear,'carveSkis',scenario);
+    if(isBuy)assert.equal(saved.data.coins,85,scenario);
+  }
 }
 // A long uninterrupted descent can pay for equipment early. Check the target using the typical harvest.
 function checkTypicalPrice(harvest,price){

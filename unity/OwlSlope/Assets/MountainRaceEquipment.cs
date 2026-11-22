@@ -11,10 +11,10 @@ public partial class MountainRace {
     int FreeUpgrade(int level)=>Status.mode=="free"?Mathf.Clamp(level,0,5):0;
 
     public void PreviewGear(string json){
-        if(!IsMenu)return;
+        if(!IsMenu&&!Review)return;
         var preview=JsonUtility.FromJson<Settings>(json);
         if(preview==null)return;
-        settings.equipment=preview.equipment;settings.ownedEquipment=preview.ownedEquipment;
+        settings.equipment=preview.equipment;settings.ownedEquipment=preview.ownedEquipment;settings.tuning=preview.tuning;
         PaintKit(rideModel);PaintKit(stowed);
     }
 

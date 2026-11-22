@@ -41,6 +41,11 @@ public static class CheckMountainGame {
                 Debug.Log("SNOWMEN PASS "+race.VerifySnowmen());EditorApplication.Exit(0);return;
             }
             ChaseCameraChecks.Run(race);
+            string turns=Environment.GetEnvironmentVariable("SOVA_TURN_FILM");
+            Action<Camera,string,int> capture=null;
+            if(!String.IsNullOrEmpty(turns))capture=(camera,name,frame)=>
+                RiderCourseChecks.Shot(camera,name+"-"+frame.ToString("D3"),turns,384,680);
+            race.VerifyVisibleTurns(capture);
             FreeRideChecks.Run(race);
             ShopBalanceChecks.Run(race);
             foreach(string hero in new[]{"bear","owl"}){

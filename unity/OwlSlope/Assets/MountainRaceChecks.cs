@@ -42,10 +42,65 @@ public partial class MountainRace {
                 if(requested&&!airborne)break;
             }
             Check(requested&&Status.tricks==1&&high>0,"no scored park rotation at "+start);
-            Check(Mathf.Abs(low-ParkTurnSeconds)<.012f&&Mathf.Abs(high-ParkTurnSeconds)<.012f,
+            Check(Mathf.Abs(low-TurnSeconds)<.012f&&Mathf.Abs(high-TurnSeconds)<.012f,
                 "park motion changed speed at "+start+" seconds per turn "+low+".."+high);
             Debug.Log("PARK TEMPO "+hero+" lip "+(ramp.distance+ramp.length*.5f).ToString("F1")+" flight "+airMax.ToString("F2")+
                 " tap "+tapAt.ToString("F2")+" seconds per full motion "+low.ToString("F3")+".."+high.ToString("F3"));
+        }
+    }
+    public void VerifyVisibleTurns(Action<Camera,string,int> capture=null){
+        // Measure the rendered ski / board in the course frame. A linear clock
+        // alone misses a flip concentrated into a few frames of its Blender clip.
+        (float middle,float peak) Ride(string hero,int pose,bool cornice){
+            Menu();ChooseHero(hero);StartRace("{\"mode\":\"normal\",\"seed\":1911}");
+            lastJump=1-pose;
+            float start=cornice?20070:7650;
+            Checkpoint(start,0);
+            if(cornice){
+                Check(World.TryFreeRideGap(start,out var gap),"tempo checkpoint outside Free Ride");
+                Checkpoint(gap.lipD-1,gap.lane);speed=World.FreeRidePace(gap.lipD);
+            }else{
+                var ramp=World.Items.Find(o=>o.prizeLine&&o.kind=="ramp");
+                Checkpoint(ramp.distance+ramp.length*.5f-1,ramp.lane);
+            }
+            string name=hero=="bear"?"Left_Ski":"Snowboard";
+            var deck=Array.Find(rideModel.GetComponentsInChildren<Transform>(),t=>t.name==name);
+            Quaternion DeckRotation()=>Quaternion.Inverse(World.SnowFrame(Status.metres,lane))*deck.rotation;
+            RenderRace(0,true);
+            bool filming=capture!=null&&pose==1;
+            string clipName=hero+(cornice?"-freeride":"-park");
+            float travelled=0,peak=0,first=-1,last=-1;
+            bool tapped=false;int ticks=0;
+            for(int i=0;i<270&&Status.phase=="play";i++){
+                if(!tapped&&airborne&&(!cornice||airTime>=.22f)){
+                    BeginTap(0);EndTap(0);tapped=true;
+                    Check(trickProgress>=0&&airPose==pose,"wrong action after tap "+hero+"/"+pose+"/"+cornice);
+                    if(filming)capture(View,clipName,0);
+                }
+                Quaternion before=DeckRotation();
+                Advance(1f/60);
+                if(!tapped)continue;
+                ticks++;
+                if(filming&&ticks%2==0)capture(View,clipName,ticks/2);
+                float delta=Quaternion.Angle(before,DeckRotation());
+                travelled+=delta;peak=Mathf.Max(peak,delta*60);
+                if(first<0&&travelled>=55)first=ticks/60f;
+                if(last<0&&travelled>=300)last=ticks/60f;
+                if(!airborne||Status.tricks>0)break;
+            }
+            string detail=hero+" "+(pose==1?"flip":"spin")+" "+(cornice?"Free Ride":"Snow Park")+
+                " 55..300 deg "+(last-first).ToString("F3")+" s, peak "+peak.ToString("F0")+" deg/s, travelled "+travelled.ToString("F0");
+            Debug.Log("VISIBLE TRICK "+detail);
+            Check(tapped&&Status.tricks==1&&first>=0&&last>first&&peak<900&&last-first>.32f,detail);
+            if(filming)while(ticks<150){
+                Advance(1f/60);ticks++;if(ticks%2==0)capture(View,clipName,ticks/2);
+            }
+            return(last-first,peak);
+        }
+        foreach(string hero in new[]{"bear","owl"})foreach(int pose in new[]{0,1}){
+            var park=Ride(hero,pose,false);var gap=Ride(hero,pose,true);
+            Check(Mathf.Abs(park.middle-gap.middle)<.065f&&Mathf.Abs(park.peak-gap.peak)<95,
+                "visible rotation differs between slopes for "+hero+" pose "+pose);
         }
     }
     string VerifyPrize(string hero,int taps,int lap=0,bool coffee=false){
@@ -85,7 +140,7 @@ public partial class MountainRace {
         Check(flightDuration>1.35f&&flightDuration<2.36f&&Mathf.Abs(crestSpeed-takeoffSpeed)<.05f,result+" park flight");
         if(coffee)Check(takeoffSpeed>34&&boost==0,result+" airborne coffee expiry");
         Check(Status.tricks==taps,result+" gesture count");
-        Check(Status.feather==(taps==2)&&Status.tubingUnlocked==Status.feather&&Status.sledUnlocked==Status.feather,result+" feather gate");
+        Check(Status.feather==(taps==2)&&Status.feathers==(taps==2?1:0)&&Status.tubingUnlocked==Status.feather&&Status.sledUnlocked==Status.feather,result+" feather gate");
         Check(Status.rings==(taps==0?0:1),result+" upper ring");
         return result;
     }

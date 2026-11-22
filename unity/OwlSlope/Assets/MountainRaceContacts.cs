@@ -1,6 +1,11 @@
 using UnityEngine;
 
 public partial class MountainRace {
+    RaceItem touchedFeather;
+    void CollectFeather(RaceItem item){
+        item.Consume();Status.feather=true;Status.feathers++;bonusPoints+=300*Mult;
+        Notice("Золотое перо! Открыты оба бонуса","feather");
+    }
     void ScheduleLetter(float d,bool missed){
         if(CourseMode!="normal")return;
         int i=Status.lettersTotal;
@@ -166,8 +171,13 @@ public partial class MountainRace {
                     o.judged=true;Status.rings++;
                     bonusPoints+=Mathf.Max(1,o.points)*Mult;Notice("Воздушное кольцо!","gate");
                 }break;
-              case "coin":case "thermos":case "helmet":case "magnet":case "feather":
-                if(o.kind=="feather"&&(!prizeLine||flightTricks<2))break;
+              case "feather":
+                if(prizeLine&&flightTricks>=1&&TouchAir(o,before,fromLane,1.12f)){
+                    if(flightTricks>=2)CollectFeather(o);
+                    else if(trickProgress>=0)touchedFeather=o;
+                }
+                break;
+              case "coin":case "thermos":case "helmet":case "magnet":
                 float radius=o.kind=="coin"?1.1f:1.2f;
                 if(o.kind=="coin"&&!o.air&&magnet>0&&square<8.5f*8.5f){
                     float length=Mathf.Sqrt(square);
@@ -189,7 +199,6 @@ public partial class MountainRace {
                         if(Status.helmets==0&&helmetsIssued<MaxHelmetsPerRide){Status.helmets=1;helmetsIssued++;Notice("Каска EMCO","power");}
                         break;
                     case "magnet":magnet=7+FreeUpgrade(settings.mag)*2;Notice("Магнит для мандаринов","power");break;
-                    case "feather":Status.feather=true;Status.feathers++;bonusPoints+=300*Mult;Notice("Золотое перо! Открыты оба бонуса","feather");break;
                 }break;
               case "goldenOwl":
                 if(square<1.5f*1.5f&&Mathf.Abs((airborne?FlightHeight(d):0)+1-o.height)<1.7f){

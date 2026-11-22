@@ -3,8 +3,8 @@ window.MountainEquipment=(()=>{
     owl:{key:'fireboard',name:'Доска «Салют»',stock:'Обычная доска',detail:'Быстрее набирает ход на уклоне и после кофе. Медленнее меняет направление.',finish:'Малиновая дека и цветные искры.'},
     bear:{key:'carveSkis',name:'Лыжи «Ледорез»',stock:'Обычные лыжи',detail:'Держат дугу с меньшим сносом. Медленнее разгоняются после поворота.',finish:'Бирюзовые лыжи и ледяные искры на канте.'}
   };
-  function config(d){
-    const equipment=d.gear[d.hero];
+  function config(d,hero=d.hero){
+    const equipment=d.gear[hero];
     return {equipment,ownedEquipment:d.ownedGear.includes(equipment),tuning:d.tuning[equipment]||0};
   }
   function render(body,profile,btn,stat,refresh){

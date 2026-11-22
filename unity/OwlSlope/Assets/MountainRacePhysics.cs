@@ -118,7 +118,7 @@ public partial class MountainRace {
     }
     void BeginFlight(RaceItem item){
         airborne=true;parkFlight=item.park;trickLine=item.trickLine;prizeLine=item.prizeLine;
-        parkTapQueued=false;
+        parkTapQueued=false;touchedFeather=null;
         lipHeight=item.height;flightStart=item.distance+item.length*.5f;
         if(parkFlight){
             // A slow rider lands short, without stretching the same jump into slow motion.
@@ -153,15 +153,14 @@ public partial class MountainRace {
         float remaining=airMax-airTime;
         if(trickProgress>=0){
             float left=(1-trickProgress)*trickLength;
-            if(SnowParkFlight&&flightTricks==0&&left<=.24f&&remaining>=left+ParkTurnSeconds)parkTapQueued=true;
+            if(SnowParkFlight&&flightTricks==0&&left<=.24f&&remaining>=left+TurnSeconds)parkTapQueued=true;
             return;
         }
         if(World.AlpineAt(Status.metres)){
             if(!freeRideAwaitingTrick||airTime>=freeRideTrickUntil)return;
-            freeRideAwaitingTrick=false;freeRideTrickAt=airTime;
+            StartCorniceTrick(airTime);
             foreach(var fruit in crossedFruit)if(!fruit.consumed)CollectCoin(fruit);
             crossedFruit.Clear();
-            trickLength=Mathf.Max(.1f,remaining);ChooseAirPose(trickLength,true);
         }else if(SnowParkFlight){
             if(!RequestParkPose())return;
         }else{
@@ -203,16 +202,19 @@ public partial class MountainRace {
         else if(trickProgress>=0){Status.combo=0;wobble=.6f;slow=.5f;Notice("Не докрутил — серия сброшена","warn");}
         else {Status.combo+=flightTricks;Status.maxCombo=Mathf.Max(Status.maxCombo,Status.combo);Cue("land");}
         if(!BonusMode)EndAirPose();
-        airborne=parkFlight=false;trickProgress=-1;lastLanding=Status.elapsed;
+        airborne=parkFlight=false;trickProgress=-1;touchedFeather=null;lastLanding=Status.elapsed;
     }
     void AwardTrick(bool landing){
         Status.tricks++;flightTricks++;trickProgress=-1;
         bonusPoints+=Mathf.RoundToInt(120*Mult*(Status.stage==3?2:1)*(!landing&&flightTricks>1?1.5f:1));
         Cue("trickDone");
+        if(!landing&&flightTricks==2&&touchedFeather!=null){
+            CollectFeather(touchedFeather);touchedFeather=null;
+        }
     }
     void Hit(string kind){
         if(Review||fall>0||crashTimer>0)return;
-        freeRideAwaitingTrick=false;crossedFruit.Clear();
+        freeRideAwaitingTrick=false;crossedFruit.Clear();touchedFeather=null;
         if(BonusMode){
             // Banks and trees break the chain and cost speed. The prize ride lasts its full 75 seconds.
             rewardChain=0;Status.combo=0;lastReward=-100;

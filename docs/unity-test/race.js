@@ -35,8 +35,13 @@
     sound('settings',profile.data);
     if(!ready)return;
     updateMenu();
-    if(snapshot?.phase==='menu'&&snapshot.hero!==profile.data.hero)command('ChooseHero',profile.data.hero);
-    if(snapshot?.phase==='menu')command('PreviewGear',JSON.stringify(MountainEquipment.config(profile.data)));
+    syncMenuRider();
+  }
+  function syncMenuRider(){
+    if(snapshot?.phase!=='menu')return;
+    const d=profile.data;
+    if(snapshot.hero!==d.hero)command('ChooseHero',d.hero);
+    command('PreviewGear',JSON.stringify(MountainEquipment.config(d)));
   }
   function updateMenu(){
     const d=profile.data;setText('best',d.best);setText('bank',d.coins);
@@ -107,7 +112,13 @@
     const finished=s.phase==='over'||s.phase==='finish';
     if(!finished)$('shareSheet').hidden=true;
     $('result').hidden=!finished||!$('shareSheet').hidden;
-    if(home){updateMenu();if(prev?.phase!=='menu')refreshMenuRank();}
+    if(home){
+      updateMenu();
+      if(prev?.phase!=='menu'){
+        refreshMenuRank();
+        if(prev)queueMicrotask(syncMenuRider);
+      }
+    }
     if(!$('hud').hidden){
       drawHud(s);
       if(review){
@@ -207,9 +218,7 @@
   }
   function leave(){
     bankInterruptedRide();
-    const restoreHero=snapshot?.hero!==profile.data.hero;
     finger=null;requestPause=false;run=null;panel='';command('ReleaseSteer');command('Menu');
-    if(restoreHero)command('ChooseHero',profile.data.hero);
   }
   function pause(){
     if(finger){finger=null;command('ReleaseSteer');}
@@ -444,7 +453,7 @@
   function returnToInspection(restart=false){
     const from=run.practice;delete run.practice;
     const d=profile.data;requestPause=false;finger=null;
-    command('StartRace',JSON.stringify({mode:'review',reviewRide:from.course,seed:run.seed,sensitivity:d.sens,boost:d.boost,mag:d.mag,collectedLetters:d.coll.length}));
+    command('StartRace',JSON.stringify({mode:'review',reviewRide:from.course,seed:run.seed,sensitivity:d.sens,boost:d.boost,mag:d.mag,collectedLetters:d.coll.length,...MountainEquipment.config(d,snapshot.hero)}));
     $('reviewEffect').value='normal';$('reviewRate').value='0';
     command('ReviewLane',from.lane);command('Seek',from.metres);
     if(restart){run.practice=from;command('RideFromReview');canvas.focus();}
@@ -465,10 +474,13 @@
     const ride=$('reviewRide').value,end=ride==='normal'?4*lapLength-1:(ride==='sprint')?1199:ride==='sled'?2471:2196;
     $('seek').max=$('reviewAt').max=end;$('reviewStage').disabled=ride!=='normal';return end;
   }
-  $('reviewHero').onchange=e=>command('ChooseHero',e.target.value);
+  $('reviewHero').onchange=e=>{
+    command('ChooseHero',e.target.value);
+    command('PreviewGear',JSON.stringify(MountainEquipment.config(profile.data,e.target.value)));
+  };
   $('reviewRide').onchange=()=>{
     const d=profile.data,at=Math.min(snapshot.metres,setReviewBounds());
-    command('StartRace',JSON.stringify({mode:'review',reviewRide:$('reviewRide').value,seed:run.seed,sensitivity:d.sens,collectedLetters:d.coll.length}));
+    command('StartRace',JSON.stringify({mode:'review',reviewRide:$('reviewRide').value,seed:run.seed,sensitivity:d.sens,boost:d.boost,mag:d.mag,collectedLetters:d.coll.length,...MountainEquipment.config(d,snapshot.hero)}));
     command('ReviewLane',+$('reviewLane').value);command('Seek',at);command('ReviewEffect',$('reviewEffect').value);command('ReviewRate',+$('reviewRate').value);
   };
   $('reviewLane').oninput=e=>command('ReviewLane',+e.target.value);

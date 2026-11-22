@@ -41,7 +41,12 @@ async function main() {
       let listener;
       Object.defineProperty(window, 'onMountainState', {
         get: () => listener,
-        set: fn => { listener = s => { window.probe = s; fn(s); }; }
+        set: fn => { listener = s => {
+          window.probe=s;
+          if(window.turnNames&&s.phase==='play'&&['Сальто назад','Оборот вправо','Вращение 360°'].includes(s.message)
+            &&window.turnNames.at(-1)!==s.message)window.turnNames.push(s.message);
+          fn(s);
+        }; }
       });
     });
     fs.mkdirSync(evidence, {recursive:true});
@@ -112,6 +117,7 @@ async function main() {
       await page.locator('#reviewHero').selectOption(hero);
       await phase('review',hero);
       await seek(19955);
+      await page.evaluate(()=>{window.turnNames=[];});
       await click('reviewPlay');await phase('play',hero);
       await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:195,y:515,id:1}]});
       await at(19967);
@@ -139,7 +145,9 @@ async function main() {
       await at(20124);
       const stats=await page.evaluate(()=>probe);
       assert.equal(stats.helmets,1);assert.equal(stats.tricks,1);assert.equal(stats.courseMode,'normal');
-      samples.push({hero,input:hero==='bear'?'airborne press':'second finger tap',tapMetres,metres:stats.metres,coins:stats.coins,tricks:stats.tricks,helmets:stats.helmets});
+      const moves=await page.evaluate(()=>turnNames);
+      if(hero==='owl')assert.deepEqual(moves,['Сальто назад']);
+      samples.push({hero,input:hero==='bear'?'airborne press':'second finger tap',tapMetres,metres:stats.metres,coins:stats.coins,tricks:stats.tricks,helmets:stats.helmets,moves});
       if(hero==='owl'){
         await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...steer,x:x+52}]});
         await page.waitForFunction(lane=>probe.riderLane>lane+1,stats.riderLane,{timeout:3000});
@@ -176,6 +184,7 @@ async function main() {
     await quickLink('snowpark_1911',7500);
     for(const hero of ['bear','owl']){
       await page.locator('#reviewHero').selectOption(hero);await phase('review',hero);
+      await page.evaluate(()=>{window.turnNames=[];});
       await setLane(-2.75);await seek(7650);await click('reviewPlay');
       const steer={x:190,y:510,id:1};
       await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[steer]});
@@ -185,7 +194,9 @@ async function main() {
       await at(7694);await shot('park-turn-'+hero);
       await at(7736);const s=await page.evaluate(()=>probe);
       assert.equal(s.tricks,2);assert.equal(s.rings,1);assert(s.feather);
-      samples.push({hero,park:s.metres,tricks:s.tricks,feather:s.feather});
+      const moves=await page.evaluate(()=>turnNames);
+      if(hero==='owl')assert.deepEqual(moves,['Сальто назад','Оборот вправо']);
+      samples.push({hero,park:s.metres,tricks:s.tricks,feather:s.feather,moves});
       await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await leavePractice();
     }
     await quickLink('freeridewide_1911',20165);
