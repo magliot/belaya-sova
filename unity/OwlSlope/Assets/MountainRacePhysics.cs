@@ -9,8 +9,8 @@ public partial class MountainRace {
     float LaneLimit(float d){
         if(World.AlpineAt(Status.metres))return World.WidthAt(d)*.5f;
         if(Status.mode=="tubing")return 8.1f+1.6f;
-        float local=Mathf.Repeat(d,2500);
-        float forest=Status.stage==1?StepBlend(local/35)*StepBlend((2500-local)/35):0;
+        float local=Mathf.Repeat(d,RaceWorld.StageLength);
+        float forest=Status.stage==1?StepBlend(local/35)*StepBlend((RaceWorld.StageLength-local)/35):0;
         return .5f*(21-7.5f*forest)+1.6f;
     }
     float FallSlow(){
@@ -175,6 +175,8 @@ public partial class MountainRace {
     void TickAir(float dt,float before,float fromLane){
         if(!airborne)return;
         airTime+=dt;
+        bool overCornice=parkFlight&&World.AlpineAt(Status.metres);
+        if(overCornice)TrackGapCrossing(before,fromLane);
         if(freeRideAwaitingTrick){
             float ahead=.055f;
             bool nearBank=!flightGap.OverOpening(Status.metres+speed*ahead,lane+(lane-fromLane)*ahead/dt);
@@ -190,7 +192,7 @@ public partial class MountainRace {
                 if(parkTapQueued){parkTapQueued=false;AirTrick("tap");}
             }
         }
-        if(parkFlight&&World.AlpineAt(Status.metres)){
+        if(overCornice){
             if(airTime<.06f||FreeRideClearance(Status.metres,lane)>0)return;
             if(freeRideAwaitingTrick){FallIntoFreeRideGap(flightGap);return;}
             if(World.TryFreeRideGap(Status.metres,out var gap)&&gap.OverOpening(Status.metres,lane)){
@@ -200,6 +202,7 @@ public partial class MountainRace {
         if(trickProgress>=.7f)AwardTrick(true);
         else if(trickProgress>=0){Status.combo=0;wobble=.6f;slow=.5f;Notice("Не докрутил — серия сброшена","warn");}
         else {Status.combo+=flightTricks;Status.maxCombo=Mathf.Max(Status.maxCombo,Status.combo);Cue("land");}
+        if(overCornice)RewardGapLanding();
         if(!BonusMode)EndAirPose();
         airborne=parkFlight=false;trickProgress=-1;touchedFeather=null;lastLanding=Status.elapsed;
     }

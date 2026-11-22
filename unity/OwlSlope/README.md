@@ -20,12 +20,15 @@ node tools/serve.cjs docs 8784
 
 Чтобы пройти выбранный участок самому, в осмотре задайте режим, метры и положение на трассе, затем нажмите «Проехать отсюда». Пауза позволяет повторить тренировку или вернуться к осмотру. Прогресс и рейтинг учитывают заезды, начатые из основного меню.
 
+На seed `1911` первый створ салютов стоит на 28 025 м. Первый разлом Free Ride начинается на 32 084 м, первый широкий — на 32 224 м. В Telegram открываются отдельные тренировки через `startapp=festival_1911`, `startapp=freeride_1911` и `startapp=freeridewide_1911`. В открывшемся осмотре нажмите «Проехать отсюда».
+
 ## Проверка Web
 
 Команды выполняются из корня при работающем локальном сервере. Скрипты используют Playwright с Chromium. Переменная `DANCE_BROWSER_MODULE` позволяет указать установленный модуль.
 
 ```powershell
 node tools/check-unity-entry.cjs
+node tools/check-winter-course-web.cjs http://127.0.0.1:8784/
 node tools/check-unity-platform.cjs
 node tools/check-unity-platform-catalog.cjs
 node tools/check-unity-host.cjs http://127.0.0.1:8784/unity/

@@ -3,12 +3,12 @@ using UnityEngine;
 public partial class MountainRace {
     float freeRideOriginY,freeRideVertical,freeRideTakeoffSpeed;
     float freeRideTrickUntil,freeRideTrickAt,freeRideDropSince,freeRideEntryMetre,freeRideEntryLane,freeRideEntryHeight;
-    bool freeRideAwaitingTrick,freeRideFalling;
+    bool freeRideAwaitingTrick,freeRideFalling,crossedGapMiddle;
     RaceWorld.FreeRideGap flightGap,fallingGap;
     readonly System.Collections.Generic.List<RaceItem> crossedFruit=new System.Collections.Generic.List<RaceItem>(3);
 
     void ResetFreeRideInput(){
-        freeRideAwaitingTrick=freeRideFalling=false;crossedFruit.Clear();
+        freeRideAwaitingTrick=freeRideFalling=crossedGapMiddle=false;crossedFruit.Clear();
     }
 
     float FreeRideClearance(float d,float x){
@@ -34,7 +34,7 @@ public partial class MountainRace {
         flightSpan=Mathf.Max(.05f,hi);airMax=flightSpan/freeRideTakeoffSpeed;
         airTime=Mathf.Max(0,(Status.metres-flightStart)/freeRideTakeoffSpeed);
         lipHeight=rampHeight=rampPhase=0;flightTricks=0;trickProgress=-1;
-        flightGap=gap;crossedFruit.Clear();freeRideAwaitingTrick=true;airPose=-1;
+        flightGap=gap;crossedFruit.Clear();crossedGapMiddle=false;freeRideAwaitingTrick=true;airPose=-1;
         // Leave enough snow beyond the far wall to finish a late trick at downhill speed.
         freeRideTrickUntil=Mathf.Min(airMax-TurnSeconds,(gap.endD-1.2f-originD)/freeRideTakeoffSpeed);
         if(!Review)Notice("Тап в воздухе — трюк","jump");
@@ -43,6 +43,20 @@ public partial class MountainRace {
         freeRideAwaitingTrick=false;freeRideTrickAt=startTime;
         ChooseAirPose(TurnSeconds);
         poseStart=startTime;trickLength=TurnSeconds;
+    }
+    void TrackGapCrossing(float before,float fromLane){
+        float middle=flightGap.SectionDistance(4);
+        if(before<middle&&Status.metres>=middle){
+            float t=Mathf.InverseLerp(before,Status.metres,middle);
+            crossedGapMiddle=flightGap.OverOpening(middle,Mathf.Lerp(fromLane,lane,t));
+        }
+    }
+    void RewardGapLanding(){
+        if(!crossedGapMiddle||flightTricks==0||Status.metres<flightGap.endD||fall>0||crashTimer>0||Review)return;
+        int fruit=flightGap.transverse?15:10;
+        Status.coins+=fruit;Status.crevasseCoins+=fruit;
+        Notice("Перелёт! +"+fruit+" мандаринов","chime");
+        crossedGapMiddle=false;
     }
     void FallIntoFreeRideGap(RaceWorld.FreeRideGap gap){
         if(freeRideFalling)return;

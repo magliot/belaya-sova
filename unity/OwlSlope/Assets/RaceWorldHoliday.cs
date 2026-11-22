@@ -2,20 +2,26 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 public partial class RaceWorld {
-    // Each fifty-metre bend joins the next at the centre of the piste.
-    // Keep pickups and the side to round each fountain on this same curve.
+    // The guide line runs through the middle of each pair of fountains.
     public float HolidayLine(float metres){
-        float local=Mathf.Repeat(metres,2500);
+        float local=Mathf.Repeat(metres,StageLength);
         int visit=Mathf.FloorToInt(metres/LapLength);
         float direction=Roll(seed,visit,718)<.5f?-1:1;
         float amplitude=3.65f+.62f*Mathf.Sin(local/95+Roll(seed,visit,719)*6.28f);
-        return direction*amplitude*Mathf.Sin(local*Mathf.PI/50);
+        float turn=Mathf.Sin(local*Mathf.PI/50);
+        // Keep the outside shoulder clear for braking and calling patrol beside the aid station.
+        if(Mathf.FloorToInt(local/50)%6==2)amplitude=Mathf.Lerp(amplitude,2,turn*turn);
+        return direction*amplitude*turn;
     }
 
     void Holiday(float y,int row){
         float start=y*.05f,apex=start+25,outer=Mathf.Sign(HolidayLine(apex));
-        var pot=Add("festivalFountain",apex,HolidayLine(apex)-outer*2.65f,1.04f,.78f);
-        pot.side=outer;pot.length=1.04f;
+        float centre=HolidayLine(apex),halfSpan=3.15f+.38f*Roll(seed,Mathf.FloorToInt(start),723);
+        foreach(int side in sides){
+            var pot=Add("festivalFountain",apex,centre+side*halfSpan,1.04f,.78f);
+            pot.side=side;pot.length=1.04f;
+        }
+        Add("gate",apex,centre,2*(halfSpan-.52f),0,"fountainGate");
         for(int i=0;i<6;i++){
             float at=start+5+8*i,x=HolidayLine(at);
             if(row%6==2&&i==4){
@@ -38,6 +44,14 @@ public partial class RaceWorld {
             case 4:Entry("dog",200+outer*198,y+170,24,.8f);break;
             case 6:Rock(xEdge,y+220,true,15);break;
         }
+    }
+
+    void PoseTippedFountain(RaceItem pot,float elapsed){
+        float t=Smooth((elapsed-pot.fountainHitAt)/.42f);
+        float lane=pot.originX+pot.side*.55f*t,d=pot.originD+.45f*t;
+        Quaternion snow=SnowFrame(d,lane);
+        pot.obj.transform.SetPositionAndRotation(SnowSurface(d,lane)+snow*Vector3.up*(.30f*t),
+            snow*Quaternion.Euler(12*t,0,-pot.side*78*t));
     }
 
     static Material fountainSpark;

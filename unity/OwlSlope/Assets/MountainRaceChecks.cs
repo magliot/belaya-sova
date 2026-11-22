@@ -19,7 +19,7 @@ public partial class MountainRace {
         foreach(string hero in new[]{"owl","bear"})foreach(int lap in new[]{0,1})foreach(int row in new[]{0,1,2})
         foreach(float tapAt in row==2?new[]{.12f,.50f}:new[]{.12f}){
             Menu();ChooseHero(hero);StartRace("{\"mode\":\"normal\",\"seed\":1911}");
-            float start=7500+lap*RaceWorld.LapLength+row*75;
+            float start=12000+lap*RaceWorld.LapLength+row*75;
             Checkpoint(start,0);
             var ramp=World.Items.Find(o=>o.kind=="ramp"&&o.park&&o.distance>=start&&o.distance<start+60);
             Check(ramp!=null,"missing test kicker at "+start);
@@ -54,7 +54,7 @@ public partial class MountainRace {
         (float middle,float peak) Ride(string hero,int pose,bool cornice){
             Menu();ChooseHero(hero);StartRace("{\"mode\":\"normal\",\"seed\":1911}");
             lastJump=1-pose;
-            float start=cornice?20070:7650;
+            float start=cornice?32070:12150;
             Checkpoint(start,0);
             if(cornice){
                 Check(World.TryFreeRideGap(start,out var gap),"tempo checkpoint outside Free Ride");
@@ -105,7 +105,7 @@ public partial class MountainRace {
     }
     string VerifyPrize(string hero,int taps,int lap=0,bool coffee=false){
         Menu();ChooseHero(hero);StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
-        Checkpoint(7620+lap*RaceWorld.LapLength,0);
+        Checkpoint(12120+lap*RaceWorld.LapLength,0);
         var ramp=World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
         var feather=World.Items.Find(o=>o.kind=="feather");
         Check(ramp!=null&&feather!=null,"prize row missing from seed 1911");
@@ -146,10 +146,10 @@ public partial class MountainRace {
     }
     string VerifyParkJumps(int lap){
         Menu();ChooseHero("bear");StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
-        float start=7500+lap*RaceWorld.LapLength,end=start+2500;
+        float start=3*RaceWorld.StageLength+lap*RaceWorld.LapLength,end=start+RaceWorld.StageLength;
         Checkpoint(start,0);
         var features=new HashSet<RaceItem>();
-        for(int frame=0;frame<3300&&Status.phase=="play"&&Status.metres<end;frame++){
+        for(int frame=0;frame<RaceWorld.StageLength*2&&Status.phase=="play"&&Status.metres<end;frame++){
             foreach(var item in World.Items){
                 if(item.distance<start||item.distance>=end)continue;
                 if(item.kind=="ramp"||item.kind=="gift"||item.kind=="aid"||item.air&&item.kind=="coin")features.Add(item);
@@ -287,14 +287,14 @@ public partial class MountainRace {
         }
         RestartRide();Checkpoint(RaceWorld.LapLength+335,0);
         Check(World.Items.Exists(o=>Mathf.Abs(o.distance-(RaceWorld.LapLength+347.5f))<.01f&&o.variant=="trainingCones"&&o.Visual),"second lap cones");
-        RestartRide();Checkpoint(15110,0);
-        var flags=World.Items.Find(o=>o.kind=="gate"&&o.distance>15110);
+        RestartRide();Checkpoint(24110,0);
+        var flags=World.Items.Find(o=>o.kind=="gate"&&o.distance>24110);
         Check(flags!=null&&flags.variant.EndsWith("Night"),"night flag gate missing");
         Checkpoint(flags.distance-2,flags.lane+flags.width*.5f);Status.helmets=1;
         for(int i=0;i<15;i++)Advance(1f/60);
         Check(flags.judged&&Status.gates==0&&Status.helmets==1&&fall==0,"flag pole contact");
-        RestartRide();Checkpoint(12507,0);
-        var rock=World.Items.Find(o=>o.kind=="rock"&&o.variant.StartsWith("gateRock")&&o.distance>=12507);
+        RestartRide();Checkpoint(20007,0);
+        var rock=World.Items.Find(o=>o.kind=="rock"&&o.variant.StartsWith("gateRock")&&o.distance>=20007);
         Check(rock!=null,"black gate boulder missing");
         Checkpoint(rock.distance-1,rock.lane);Status.helmets=1;Advance(.12f);
         Check(Status.helmets==0&&fall>0,"black gate lost its solid boulders");
@@ -427,10 +427,17 @@ public partial class MountainRace {
                 Check(mode=="sled"?Status.snowmen>0:Status.coins>0,mode+" bonus pickup");
                 if(mode=="tubing")Check(mandarinPeels&&mandarinPeels.particleCount>0&&mandarinPeels.GetComponent<ParticleSystemRenderer>().renderMode==ParticleSystemRenderMode.Mesh,"no curled mandarin peels at contact");
                 RestartRide();BeginSteer();
-                // Follow the visible fruit line through the streaming world for the entire timed round.
+                float left=0,right=0;bool snowmanRow=false,fruitRow=false;
+                // Steer toward visible fruit and inspect the formations actually streamed during all 75 seconds.
                 for(int tick=0;tick<760&&Status.phase=="play";tick++){
                     RaceItem nearest=null;
                     foreach(var candidate in World.Items){
+                        if(tick%25==0&&(candidate.kind=="snowman"||candidate.kind=="coin"&&!candidate.air)){
+                            left=Mathf.Min(left,candidate.lane);right=Mathf.Max(right,candidate.lane);
+                            if(World.Items.Exists(o=>o.kind==candidate.kind&&Mathf.Abs(o.distance-candidate.distance)<.05f&&Mathf.Abs(o.lane-candidate.lane)>1.4f)){
+                                if(candidate.kind=="snowman")snowmanRow=true;else fruitRow=true;
+                            }
+                        }
                         if(candidate.kind!="coin"||candidate.consumed||candidate.distance<Status.metres+4)continue;
                         if(nearest==null||candidate.distance<nearest.distance)nearest=candidate;
                     }
@@ -438,7 +445,8 @@ public partial class MountainRace {
                     Advance(.1f);
                 }
                 Check(Status.phase=="finish"&&Mathf.Abs(Status.elapsed-75)<.001f,mode+" limit");
-                Check(Status.metres>1450&&Status.coins>70&&Status.gifts>3&&Status.snowmen>2&&Status.score>Status.metres+1500,
+                Check(left< -5.75f&&right>5.75f&&fruitRow&&snowmanRow,mode+" formations across the slope "+left+"/"+right);
+                Check(Status.metres>(mode=="tubing"?1940:2180)&&Status.coins>70&&Status.gifts>3&&Status.snowmen>2&&Status.score>Status.metres+1500,
                     mode+" incomplete reward line: "+Status.metres+" m, "+Status.coins+" fruit, "+Status.gifts+" gifts, "+Status.snowmen+" snowmen");
                 report.Add(mode+" full 75 s, "+(int)Status.metres+" m, "+Status.coins+" fruit, "+Status.gifts+" gifts, "+Status.snowmen+" snowmen, "+Status.score+" points");
             }

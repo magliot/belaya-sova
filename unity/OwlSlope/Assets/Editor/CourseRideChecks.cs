@@ -22,7 +22,7 @@ public static class CourseRideChecks {
     }
     public static void Start(MountainRace game){
         race=game;race.enabled=false;
-        race.Menu();race.ChooseHero("bear");race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
+        race.Menu();race.ChooseHero("bear");race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4,\"helmets\":1}");
         race.BeginSteer();target=velocity=lastLane=lapApproach=0;stageSeen=lap=0;motion.Clear();
     }
     static void Update(){
@@ -49,21 +49,34 @@ public static class CourseRideChecks {
                 if(s.metres<RaceWorld.LapLength)lapApproach=s.speed;
                 if(lap==1&&s.metres>=RaceWorld.LapLength){
                     if(Mathf.Abs(s.speed-lapApproach)>8)throw new InvalidOperationException("Discontinuous speed at the lap boundary");
-                    Debug.Log("COURSE RIDE crossed 22.5 km at "+lapApproach+" -> "+s.speed+" km/h");
+                    Debug.Log( "COURSE RIDE crossed "+RaceWorld.LapLength+" m at "+lapApproach+" -> "+s.speed+" km/h");
                 }
                 stageSeen|=1<<s.stage;lap=1+Mathf.FloorToInt(s.metres/RaceWorld.LapLength);
-                velocity=(race.Lane-lastLane)*10;lastLane=race.Lane;
-                target=s.metres>=RaceWorld.LapLength+100?20:SelectLane();
-                race.DragSteer(target/(27*.79f));race.Advance(.10f);
+                bool alpine=race.World.TryFreeRideGap(s.metres,out var gap);
+                int rate=alpine?30:20;
+                velocity=(race.Lane-lastLane)*rate;lastLane=race.Lane;
+                if(alpine){
+                    target=JumpRoute(race,target,velocity,gap);
+                    if(s.freeRideTrickReady&&s.metres>=gap.SectionDistance(2)){race.BeginTap(1);race.EndTap(1);}
+                }else target=s.metres>=RaceWorld.LapLength+100?20:SelectLane(race,target,velocity,rate);
+                int helmets=s.helmets;bool wasRiding=s.phase=="play";
+                race.DragSteer(target/(27*.79f));race.Advance(1f/rate);
+                if(helmets>s.helmets||wasRiding&&s.phase=="over")Debug.Log("COURSE CONTACT "+s.metres+" x "+race.Lane+" target "+target+" "+s.message);
             }
         }catch(Exception error){race=null;Debug.LogException(error);EditorApplication.Exit(2);}
     }
-    static float SelectLane(){
+    internal static float JumpRoute(MountainRace race,float target,float velocity,RaceWorld.FreeRideGap gap){
+        float d=race.Status.metres,preferred=gap.lane;
+        if(d>gap.endD+8&&race.World.TryFreeRideGap(d+85,out var next))preferred=next.lane;
+        float planned=SelectLane(race,target,velocity,30,preferred);
+        return d>=gap.lipD-17&&d<=gap.endD+4?gap.lane:planned;
+    }
+    static float SelectLane(MountainRace race,float target,float velocity,float sampleRate,float? jumpLine=null){
         var s=race.Status;float d=s.metres,lane=race.Lane,speed=Mathf.Max(10,s.speed/3.6f);
         float width=race.World.WidthAt(d+speed)*.5f-.35f;
         obstacles.Clear();rewards.Clear();
         if(s.boulderChasing)ObstacleAt(s.boulderLine,1.0f,2.45f);
-        if(race.World.TryFreeRideGap(d,out var cut)&&d>cut.lipD-45&&d<cut.endD){
+        if(!jumpLine.HasValue&&race.World.TryFreeRideGap(d,out var cut)&&d>cut.lipD-45&&d<cut.endD){
             for(int knot=1;knot<RaceWorld.FreeRideGap.ShapeSegments;knot++){
                 float at=cut.SectionDistance(knot);
                 if(at<d-1)continue;
@@ -76,13 +89,13 @@ public static class CourseRideChecks {
             if(item.consumed||dz< -8||dz>speed*2.15f+5)continue;
             var pos=item.Visual;
             if(item.kind=="coin"||item.kind=="helmet"){
-                if(dz>2&&dz<speed*1.05f)rewards.Add(new Vector2(item.lane,item.kind=="helmet"&&s.helmets==0?1.8f:.19f));
+                if(dz>2&&dz<speed*1.05f)rewards.Add(new Vector2(item.lane,item.kind=="helmet"&&s.helmets==0?4.5f:.19f));
                 continue;
             }
             float radius,length=.8f;
             switch(item.kind){
                 case "gate":
-                    if(!item.stoneGate){ObstacleAt(item.lane-item.width*.5f,dz/speed,.83f);ObstacleAt(item.lane+item.width*.5f,dz/speed,.83f);}
+                    if(dz>2&&dz<speed)rewards.Add(new Vector2(item.lane,.15f)); // Markers yield. Solid stands have their own physical objects.
                     continue;
                 case "npc":radius=1.44f;break;
                 case "tree":radius=item.width*.5f+.75f;break;
@@ -103,7 +116,7 @@ public static class CourseRideChecks {
             // horizon curved NPC tracks are deliberately given extra clearance.
             float t=dz/speed,predicted=item.lane;
             if(motion.TryGetValue(item,out var old)){
-                float vx=(item.lane-old.x)*10,vz=(item.distance-old.y)*10;
+                float vx=(item.lane-old.x)*sampleRate,vz=(item.distance-old.y)*sampleRate;
                 t=dz/Mathf.Max(5,speed-vz);
                 predicted+=Mathf.Clamp(vx,-8,8)*Mathf.Clamp(t,0,.75f);
                 radius+=Mathf.Min(.6f,Mathf.Abs(vx)*Mathf.Clamp01(t)*.25f);
@@ -117,6 +130,7 @@ public static class CourseRideChecks {
         float best=float.PositiveInfinity,choice=lane;
         for(float x=-width;x<=width+.01f;x+=.32f){
             float cost=.15f*Mathf.Abs(x-lane)+.15f*Mathf.Abs(x-target)+.035f*Mathf.Abs(x);
+            if(jumpLine.HasValue)cost+=2.5f*Mathf.Abs(x-jumpLine.Value);
             foreach(var o in obstacles){
                 float t=Mathf.Max(.035f,o.seconds);
                 float fraction=1-Mathf.Exp(-4.9f*t);
@@ -124,6 +138,7 @@ public static class CourseRideChecks {
                 float travelled=Mathf.Clamp((x-lane)*fraction,-reach,reach);
                 float predicted=lane+travelled+velocity*t*Mathf.Exp(-7*t);
                 float clearance=Mathf.Abs(predicted-o.lane)-o.gap;
+                if(!jumpLine.HasValue)clearance+=Mathf.Clamp((t-.63f)*6.8f,0,4.2f);
                 float danger=Mathf.Max(0,1.10f-clearance);
                 cost+=danger*danger*65/(.33f+t*t);
             }

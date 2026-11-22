@@ -18,7 +18,8 @@ public partial class MountainRace : MonoBehaviour {
         public int seed,score,coins,helmets,stage,gates,tricks,rings,combo,maxCombo,polite,gifts,snowmen,
             feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds,horns;
         public float metres,elapsed,engineNear,enginePan,boulderNear,blizzard,edge,boostSeconds,magnetSeconds;
-        public int letterSide,bonusLocation;
+        public int letterSide,bonusLocation,crevasseCoins;
+        public int stageLength=RaceWorld.StageLength,tubingEnd=BonusDistanceLimit(false),sledEnd=BonusDistanceLimit(true);
         public bool boulderChasing;
         public float boulderLine;
         public float riderLane,riderScreenX=.5f,riderScreenY=.65f;
@@ -60,8 +61,11 @@ public partial class MountainRace : MonoBehaviour {
     string CourseMode=>Review?settings.reviewRide:Status.mode;
     bool BonusMode=>CourseMode=="sled"||CourseMode=="tubing";
     const float BonusSeconds=75, BonusBoost=1.22f;
-    float BonusLaunch=>CourseMode=="sled"?22:20;
-    float BonusGain=>CourseMode=="sled"?10:8;
+    static float BonusStartSpeed(bool motor)=>motor?26:23;
+    static float BonusSpeedGain(bool motor)=>motor?13:11;
+    static int BonusDistanceLimit(bool motor)=>Mathf.CeilToInt((BonusStartSpeed(motor)+.5f*BonusSpeedGain(motor))*BonusSeconds*BonusBoost);
+    float BonusLaunch=>BonusStartSpeed(CourseMode=="sled");
+    float BonusGain=>BonusSpeedGain(CourseMode=="sled");
     float BonusSpeed(float elapsed)=>BonusLaunch+BonusGain*Mathf.Clamp01(elapsed/BonusSeconds);
     bool Review=>Status.mode=="review";
     int Mult=>Mathf.Min(10,1+Status.combo/5);
@@ -156,7 +160,7 @@ public partial class MountainRace : MonoBehaviour {
     }
     public void Seek(float metres){
         if(!Review)return;
-        float end=BonusMode?Mathf.Ceil((BonusLaunch+.5f*BonusGain)*BonusSeconds*BonusBoost):4*RaceWorld.LapLength-1;
+        float end=BonusMode?BonusDistanceLimit(CourseMode=="sled"):4*RaceWorld.LapLength-1;
         Status.metres=Mathf.Clamp(metres,0,end);Status.elapsed=Status.metres/14;
         if(BonusMode){
             float accel=BonusGain/BonusSeconds;

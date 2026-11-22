@@ -18,7 +18,7 @@ public partial class RaceWorld {
         static readonly string[] town={"gate","gifts","skier","board","sbschool","kids","dog","ramp","coins","snowman","lane"};
         static readonly int[] townWeights={22,20,14,8,4,10,8,14,20,6,16};
         static readonly float[] rampWidth={60,44,36,30,48,40},rampHeight={.75f,.55f,.75f,.95f,1.1f,.9f};
-        public UpperBuilder(int seed,int stage){this.seed=seed;this.stage=stage;state=unchecked((uint)(seed+stage));lastLane=stage*50000;}
+        public UpperBuilder(int seed,int stage){this.seed=seed;this.stage=stage;state=unchecked((uint)(seed+stage));lastLane=stage*LegacyLayoutSpan;}
         float Rand(){unchecked{state=1664525u*state+1013904223u;}return (float)(state/4294967296.0);}
         float Range(float a,float b)=>Mathf.LerpUnclamped(a,b,Rand());
         int Index(int n)=>Mathf.Min(n-1,(int)(Rand()*n));
@@ -42,12 +42,16 @@ public partial class RaceWorld {
             return names[names.Length-1];
         }
         static bool PersonKind(string k)=>k=="skier"||k=="board"||k=="kids"||k=="sbschool"||k=="sit"||k=="help";
-        public Layout Generate(Layout landmarks){
-            float y=stage*50000+140,end=(stage+1)*50000;
+        public Layout Generate(Layout landmarks,bool authoredSection){
+            float origin=stage*LegacyLayoutSpan,y=origin+140,end=origin+StageLength*20;
             if(landmarks!=null){
-                // The first 659 metres at the summit are the attended demonstration strip.
-                foreach(var o in landmarks.objects)if(o.y<10675*20&&o.laneAt<10675*20)objects.Add(o);
-                y=10675*20;
+                y=origin+(authoredSection?LegacyLayoutSpan:675*20);
+                foreach(var o in landmarks.objects){
+                    if(o.y>=y||o.laneAt>=y)continue;
+                    objects.Add(o);
+                    if(authoredSection&&o.laneAt>0)lastLane=Mathf.Max(lastLane,o.laneAt);
+                }
+                foreach(var patch in landmarks.patches)if(patch.y0<y)patches.Add(patch);
             }
             while(y<end){
                 float speed=560*(.8f+.7f*Grade(y/20))*1.1f;

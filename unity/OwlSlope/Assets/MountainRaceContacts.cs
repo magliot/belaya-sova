@@ -135,20 +135,17 @@ public partial class MountainRace {
             switch(o.kind){
               case "snowBoulder":HandleSolid(o,before,fromLane,o.scale,o.scale,1.9f*o.scale,0,true);break;
               case "festivalFountain":
-                if(HandleSolid(o,before,fromLane,.52f,.52f,.78f))break;
-                if(!o.judged&&cross){
-                    o.judged=true;
-                    float passage=(Mathf.Lerp(fromLane,lane,(o.distance-before)/Mathf.Max(.001f,d-before))-o.lane)*o.side;
-                    if(fall<=0&&passage>1.0f&&passage<4.6f){
-                        Status.gates++;
-                        bonusPoints+=25*Mult;Cue("chime");
-                    }
-                }break;
+                if(!o.judged&&TouchesBody(o,before,fromLane,.52f,.52f,.78f,0,false)){
+                    o.judged=true;o.fountainHitAt=Status.elapsed;
+                    if(o.spray)o.spray.Stop(true,ParticleSystemStopBehavior.StopEmitting);
+                    Hit(o.kind);
+                }
+                break;
               case "gate":
-                if(!o.judged&&!o.stoneGate){
+                if(!o.judged&&!o.ScoringPlane){
                     int side=dx<0?-1:1;
                     bool cone=o.variant=="trainingCones";
-                    if(TouchesBody(o,before,fromLane,cone?.395f:.105f,cone?.395f:.12f,cone?1.145f:1.65f,side*o.width*.5f,false)){
+                    if(TouchesBody(o,before,fromLane,cone?RaceWorld.ConeHalfWidth:.105f,cone?RaceWorld.ConeHalfWidth:.12f,cone?RaceWorld.ConeHeight:1.65f,side*o.width*.5f,false)){
                         o.judged=true;consecutiveGates=Status.combo=0;
                         if(cone){o.knockedConeSide=side;o.coneHitAt=Status.elapsed;}
                         break;
@@ -157,7 +154,7 @@ public partial class MountainRace {
                 if(!o.judged&&cross){
                     o.judged=true;
                     float crossLane=Mathf.Lerp(fromLane,lane,(o.distance-before)/Mathf.Max(.001f,d-before));
-                    if(fall>0)break;
+                    if(fall>0||crashTimer>0)break;
                     if(Mathf.Abs(crossLane-o.lane)<o.width*.5f){
                         Status.gates++;Status.combo++;consecutiveGates++;Status.maxCombo=Mathf.Max(Status.maxCombo,Status.combo);
                         bonusPoints+=25*Mult;Cue("gate");

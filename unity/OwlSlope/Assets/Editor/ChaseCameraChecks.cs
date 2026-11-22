@@ -81,6 +81,14 @@ public static class ChaseCameraChecks {
             float eyeError=Vector3.Distance(camera.transform.position,oldEye+rotation*(Vector3.back*.70f));
             float angle=Quaternion.Angle(camera.transform.rotation,rotation.normalized);
             float fov=Mathf.Abs(camera.fieldOfView-At(11));
+            if(sample.Contains("-tube-")){
+                // The bonus now covers more ground in the same time. Compare the lateral input response and camera boom at the rider, independent of downhill travel.
+                Vector3 anchor=camera.transform.position-camera.transform.rotation*(Vector3.back*.70f);
+                float cameraGap=anchor.z-rider.position.z-(oldEye.z-Position(1).z);
+                if(Mathf.Abs(rider.position.x-Position(1).x)>.13f||Mathf.Abs(anchor.x-oldEye.x)>.13f||Mathf.Abs(cameraGap)>.03f||fov>.02f)
+                    throw new InvalidOperationException($"Tubing input at {sample}: rider x {rider.position.x:F3}, eye x {anchor.x:F3}, boom delta {cameraGap:F3}, FOV {fov:F2}");
+                return;
+            }
             if(!(riderError<.01f&&eyeError<.01f&&angle<.08f&&fov<.02f))
                 throw new InvalidOperationException($"21b mismatch {sample}: rider {riderError:F4} m, eye {eyeError:F4} m, rotation {angle:F3} deg, FOV {fov:F3} deg");
             maxRider=Mathf.Max(maxRider,riderError);maxEye=Mathf.Max(maxEye,eyeError);

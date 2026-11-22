@@ -84,7 +84,7 @@ public static class RaceWorldChecks {
             worstRubberGap=Mathf.Max(worstRubberGap,Mathf.Abs(RubberGap(riderTube,surface)));
             Require(worstRubberGap<.08f,"rubber/snow separation at contact "+worstRubberGap+" m");
             race.StartRace("{\"mode\":\"review\",\"seed\":1911}");
-            foreach(float at in new[]{2530f,5100f,7620f,15500f}){
+            foreach(float at in new[]{4030f,8100f,12120f,24500f}){
                 race.Seek(at);surface.sharedMesh=null;surface.sharedMesh=piste.sharedMesh;
                 foreach(var item in world.Items.Where(o=>o.kind=="ramp"||o.kind=="rail")){
                     if(item.distance<at-18||item.distance>at+105)continue;
@@ -134,8 +134,8 @@ public static class RaceWorldChecks {
             race.StartRace("{\"mode\":\"normal\",\"seed\":4903}");
             Require(Layout(world)!=first,"second seed repeats all training objects");
             {
-                world.Configure(1911,"normal");world.Refresh(15459.5f,40);
-                float at=15464;
+                world.Configure(1911,"normal");world.Refresh(24459.5f,40);
+                float at=24464;
                 var outer=world.Items.Single(o=>o.kind=="thermos"&&Mathf.Abs(o.distance-at)<.02f);
                 var ramp=world.Items.First(o=>o.kind=="ramp"&&o.distance>at&&o.distance<at+30);
                 Require(!outer.air&&Mathf.Abs(outer.lane-ramp.lane)>3.5f,"short kicker forces "+"thermos");
@@ -145,7 +145,7 @@ public static class RaceWorldChecks {
             race.StartRace("{\"mode\":\"review\",\"seed\":1911}");
             StartBanner(race,0);StartBanner(race,3);StartBanner(race,15);
             for(int stage=1;stage<RaceWorld.StageCount;stage++){
-                float boundary=stage*2500;race.Seek(boundary-32);
+                float boundary=stage*RaceWorld.StageLength;race.Seek(boundary-32);
                 var arch=world.Items.FirstOrDefault(o=>o.kind=="arch"&&Mathf.Abs(o.distance-boundary)<.01f);
                 InFrame(race.View,arch,"stage "+stage+" arch");
                 var objects=new HashSet<string>();
@@ -153,7 +153,7 @@ public static class RaceWorldChecks {
                     world.Refresh(boundary+step*86,30+step);
                     foreach(var o in world.Items){
                         if(o.distance<boundary||o.distance>=boundary+1150)continue;
-                        if(!o.stoneGate)Require(o.Visual!=null&&o.Visual.bounds.size.sqrMagnitude>.001f,"missing mesh "+o.variant);
+                        if(!o.ScoringPlane)Require(o.Visual!=null&&o.Visual.bounds.size.sqrMagnitude>.001f,"missing mesh "+o.variant);
                         objects.Add(o.kind);
                     }
                 }
@@ -163,18 +163,18 @@ public static class RaceWorldChecks {
                     new[]{"coin","rock","snowBoulder","arch"}};
                 foreach(string kind in required[stage])Require(objects.Contains(kind),"stage "+stage+" lacks "+kind);
             }
-            world.Configure(1911,"normal");world.Refresh(15064,1000);
-            var nightGate=world.Items.First(o=>o.kind=="gate"&&o.distance>15110);
+            world.Configure(1911,"normal");world.Refresh(24064,1000);
+            var nightGate=world.Items.First(o=>o.kind=="gate"&&o.distance>24110);
             var caps=nightGate.Visual.transform.Find("Огни на стойках");
             Require(caps&&caps.GetComponent<MeshFilter>().sharedMesh.vertexCount==8&&caps.GetComponent<MeshRenderer>().sharedMaterial.shader.isSupported,
                 "night slalom needs a distant light on both pole caps");
-            LaneStones(world,1911,10675);LaneStones(world,8573,10675);
+            LaneStones(world,1911,16675);LaneStones(world,8573,16675);
             FruitScatterChecks.Run(race);
             FestivalCourseChecks.Run(race);
             SummitRewardChecks.Run(race);
             foreach(int seed in new[]{1911,4903}){
                 world.Configure(seed,"normal");
-                foreach(var passage in new[]{(at:2510,tree:"canopyPine"),(at:2710,tree:"canopyFir")}){
+                foreach(var passage in new[]{(at:4010,tree:"canopyPine"),(at:4210,tree:"canopyFir")}){
                     world.Refresh(passage.at,passage.at/14f);
                     var canopy=world.Items.Where(o=>o.kind=="tree"&&o.variant==passage.tree&&o.distance>passage.at+7&&o.distance<passage.at+14)
                     .OrderBy(o=>o.lane).ToArray();
@@ -202,7 +202,7 @@ public static class RaceWorldChecks {
                         "trunk in forest passage");
                     Debug.Log("FOREST PASS seed "+seed+" "+passage.tree+" at "+canopy[0].distance+" / "+canopy[1].distance);
                 }
-                world.Refresh(12507,850);var gate=world.Items.First(o=>o.stoneGate&&o.distance>=12507);
+                world.Refresh(20007,850);var gate=world.Items.First(o=>o.stoneGate&&o.distance>=20007);
                 var stones=world.Items.Where(o=>o.kind=="rock"&&Mathf.Abs(o.distance-gate.distance)<.01f).ToArray();
                 Require(stones.Length==2&&stones.All(o=>o.Visual.transform.Find("Pickup glow")&&o.Visual.bounds.size.y>1.5f),
                     "black run lacks two lit gate boulders");

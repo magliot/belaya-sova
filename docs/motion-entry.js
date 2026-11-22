@@ -16,7 +16,7 @@
   const signedStart = params => new URLSearchParams(params.get('tgWebAppData') || '').get('start_param');
   const start = signedStart(fragment) || signedStart(query) || query.get('tgWebAppStartParam') ||
     fragment.get('tgWebAppStartParam') || query.get('startapp');
-  const trialStage = start === 'snowpark_1911' ? '3' :
+  const trialStage = start === 'snowpark_1911' ? '3' : start === 'festival_1911' ? '7' :
     ['freeride_1911','freeridewide_1911','boulder_1911'].includes(start) ? '8' : '';
   const test = !!trialStage || start === 'unity' || /^unitytest(?:_[a-z0-9]+)?$/.test(start || '') || pilot;
   const destination = start === 'unitytest_progress21' ? 'progression-test/' : test ? 'unity-test/' : 'unity/';
@@ -24,10 +24,10 @@
   query.delete('tgWebAppData');
   if (trialStage) {
     query.set('reviewStage',trialStage);query.set('seed','1911');
-    if(start==='freeridewide_1911')query.set('reviewAt','20165');
-    if(start==='boulder_1911')query.set('reviewAt','20119');
+    if(start==='freeridewide_1911')query.set('reviewOffset','165');
+    if(start==='boulder_1911')query.set('reviewOffset','119');
   }
-  query.set('v', '2026-11-22g');
+  query.set('v', '2026-11-22h');
   target.search = query.toString();
   target.hash = context.toString();
   location.replace(target.href);

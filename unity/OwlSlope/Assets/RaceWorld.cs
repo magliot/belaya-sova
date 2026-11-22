@@ -16,6 +16,8 @@ public sealed class RaceItem {
     internal int knockedConeSide;
     internal float coneHitAt;
     internal int route;
+    internal float fountainHitAt=-1;
+    public bool ScoringPlane=>stoneGate||variant=="fountainGate";
     public bool PursuesRider=>kind=="snowBoulder"&&route==1;
     internal bool leap,small,decor;
     internal bool movingPoseReady;
@@ -46,7 +48,7 @@ public partial class RaceWorld : MonoBehaviour {
     string mode,letter;
     bool letterAdded;
     public string Mode=>mode;
-    public const int StageLength=2500, AlpineStage=8, StageCount=9, LapLength=StageLength*StageCount;
+    public const int StageLength=4000, AlpineStage=8, StageCount=9, LapLength=StageLength*StageCount;
     public bool AlpineAt(float d)=>mode=="normal"&&d>=0&&StageAt(d)==AlpineStage;
     public static int StageAt(float d)=>Mathf.FloorToInt(Mathf.Max(0,d)/StageLength)%StageCount;
     public static float Roll(int seed,int row,int stream){
@@ -67,7 +69,7 @@ public partial class RaceWorld : MonoBehaviour {
         for(int i=Items.Count-1;i>=0;i--)if(Items[i].kind=="letter"){Release(Items[i]);Items.RemoveAt(i);}
         letter=character;letterDistance=metres;letterAdded=false;
     }
-    void ClearObjects(){foreach(var i in Items)Release(i);Items.Clear();foreach(var i in scenery)Release(i);scenery.Clear();summitTurns.Clear();}
+    void ClearObjects(){foreach(var i in Items)Release(i);Items.Clear();foreach(var i in scenery)Release(i);scenery.Clear();summitTurns.Clear();plannedSummit=null;}
     static void DisposeOwned(UnityEngine.Object value){
         if(Application.isPlaying)Destroy(value);else DestroyImmediate(value);
     }
@@ -89,13 +91,13 @@ public partial class RaceWorld : MonoBehaviour {
     int Segment(float d){
         d=Mathf.Max(0,d);
         if(mode=="tubing"||mode=="sled")return Mathf.FloorToInt(d/RowLength(0,mode));
-        int stage=Mathf.FloorToInt(d/2500);
-        return stage*1000+Mathf.FloorToInt((d-stage*2500)/RowLength(stage,mode));
+        int stage=Mathf.FloorToInt(d/StageLength);
+        return stage*1000+Mathf.FloorToInt((d-stage*StageLength)/RowLength(stage,mode));
     }
     int Following(int seg){
         if(mode=="tubing"||mode=="sled")return seg+1;
         int stage=seg/1000,index=seg%1000;
-        return (index+1)*RowLength(stage,mode)>=2500?(stage+1)*1000:seg+1;
+        return (index+1)*RowLength(stage,mode)>=StageLength?(stage+1)*1000:seg+1;
     }
     public void Refresh(float distance,float elapsed)=>Refresh(distance,elapsed,0);
     public void Refresh(float distance,float elapsed,float riderLane,bool draw=true){
@@ -124,6 +126,7 @@ public partial class RaceWorld : MonoBehaviour {
             }
             if(draw||!o.obj)Place(o);
             if(draw&&o.knockedConeSide!=0)PoseKnockedCone(o,elapsed);
+            if(draw&&o.fountainHitAt>=0)PoseTippedFountain(o,elapsed);
         }
         lastDistance=distance;lastTime=elapsed;
     }
@@ -139,7 +142,7 @@ public partial class RaceWorld : MonoBehaviour {
         return o.variant.StartsWith("forestCard")?ForestCard(o.variant):CreateVisual(o.variant,transform);
     }
     void Place(RaceItem o){
-        if(o.stoneGate)return; // Scoring plane between two individually grounded, illuminated boulders.
+        if(o.ScoringPlane)return; // The two physical posts are individually grounded.
         if(o.obj&&!Moves(o.kind))return;
         if(!o.obj){
             o.obj=GetVisual(o);o.skin=o.obj.GetComponent<SkinnedMeshRenderer>();o.obj.name=o.kind+" · "+o.variant;

@@ -4,7 +4,7 @@
   const app=window.Telegram?.WebApp?.initData?window.Telegram.WebApp:null;
   const names={owl:'Сова',bear:'Мишаня'};
   const stages=['Учебный склон','Лесная тропа','Бугры','Сноупарк','Вершина','Чёрная трасса','Ночная трасса','Новогодний городок','Free Ride'];
-  const lapLength=stages.length*2500;
+  const lapLength=()=>stages.length*snapshot.stageLength;
   const modes={normal:'Спуск',sled:'Снегоход',tubing:'Плюшки',review:'Осмотр трассы'};
   const fis=['Уважай других','Контролируй скорость','Выбирай траекторию','Обгоняй с запасом','Смотри по сторонам','Не стой где попало','Пешком — по краю','Соблюдай знаки','Помоги пострадавшему','Назови себя'];
   const ruleText=['Катайся так, чтобы никому не навредить и никого не напугать.','Подбирай скорость по своим силам, рельефу, снегу, погоде и людям вокруг.','Если ты сверху, выбирай линию безопасно для тех, кто ниже.','Обгоняй с любой стороны и оставляй место на манёвр.','Перед стартом и выездом на трассу оглянись вверх и вниз.','Избегай остановок в узких, плохо видимых местах. Упал — освободи трассу.','Поднимаешься или спускаешься пешком — иди у края трассы.','Следи за указателями и разметкой, держись в пределах сеток.','Заметил пострадавшего — остановись и позови патруль.','Участник или свидетель происшествия сообщает свои данные.'];
@@ -66,7 +66,7 @@
     $('multiplier').hidden=!bonus||!(s.multiplier>1);if(bonus&&s.multiplier>1)setText('multiplier','×'+s.multiplier);
     const action=actions[s.fisAction]||'';
     const stage=bonus?modes[mode]+' · '+Math.max(0,Math.ceil(75-s.elapsed))+' с':
-      (metres>=lapLength?'Круг '+(1+Math.floor(metres/lapLength))+' · ':'')+(1+s.stage%stages.length)+' · '+stages[s.stage%stages.length];
+      (metres>=lapLength()?'Круг '+(1+Math.floor(metres/lapLength()))+' · ':'')+(1+s.stage%stages.length)+' · '+stages[s.stage%stages.length];
     setText('stage',stage);
     let status='';
     if(mode==='sled')status='Снеговики '+(s.snowmen||0)+' · подарки '+(s.gifts||0);
@@ -166,7 +166,7 @@
         setText('resultTitle',s.message||(s.phase==='finish'?'Финиш':'Заезд завершён'));setText('resultScore',s.score+' очков');
         $('breakdown').hidden=s.mode!=='normal';
         if(s.mode==='normal')$('breakdown').replaceChildren(...[
-          ['Дистанция',s.scoreDistance],['Мандарины · '+s.coins,s.scoreFruit],['Ворота · '+s.gates,s.scoreGates],
+          ['Дистанция',s.scoreDistance],['Мандарины · '+s.coins+(s.crevasseCoins?' (за расщелины '+s.crevasseCoins+')':''),s.scoreFruit],['Ворота · '+s.gates,s.scoreGates],
           ['Кольца · '+s.rings,s.scoreRings],['Правила FIS · '+(s.fis?.length||0),s.scoreFis]
         ].map(([label,value])=>stat(label,'+'+(value||0))));
         const detail=s.mode==='sled'?'Снеговики '+(s.snowmen||0)+' · подарки '+(s.gifts||0)+' · бонус за сбор +'+Math.max(0,s.score-Math.floor(s.metres)):
@@ -477,10 +477,10 @@
   $('copyShare').onclick=async()=>{try{await navigator.clipboard.writeText(shareText+' '+shareUrl);setText('shareHint','Результат скопирован.');}catch{setText('shareHint',shareText+' '+shareUrl);}};
   $('seek').oninput=e=>command('Seek',+e.target.value);
   for(const [i,title] of stages.entries())$('reviewStage').add(new Option(title,String(i)));
-  $('reviewStage').onchange=e=>command('Seek',Math.floor(snapshot.metres/lapLength)*lapLength + Number(e.target.value)*2500);
+  $('reviewStage').onchange=e=>command('Seek',Math.floor(snapshot.metres/lapLength())*lapLength() + Number(e.target.value)*snapshot.stageLength);
   $('reviewRate').onchange=e=>command('ReviewRate',+e.target.value);
   function setReviewBounds(){
-    const ride=$('reviewRide').value,end=ride==='normal'?4*lapLength-1:ride==='sled'?2471:2196;
+    const ride=$('reviewRide').value,end=ride==='normal'?4*lapLength()-1:ride==='sled'?snapshot.sledEnd:snapshot.tubingEnd;
     $('seek').max=$('reviewAt').max=end;$('reviewStage').disabled=ride!=='normal';return end;
   }
   $('reviewHero').onchange=e=>{
@@ -537,10 +537,15 @@
       if(!snapshot)throw Error('Mountain race scene did not initialize');
       ready=true;$('loading').hidden=true;draw(snapshot,null);changed();fitHomeMenu();performance.mark('mountain-menu-ready');
       const query=new URLSearchParams(location.search),trialStage=query.get('reviewStage');
-      if(release.channel!=='production'&&(trialStage==='8'||trialStage==='3')){
+      if(release.channel!=='production'&&['3','7','8'].includes(trialStage)){
         start('review');
-        const metres=Number(query.get('reviewAt'));
-        command('Seek',trialStage==='3'?7500:[20119,20165].includes(metres)?metres:19955);
+        const entry=Number(trialStage)*snapshot.stageLength;
+        let offset=Number(query.get('reviewOffset'));
+        if(!offset&&trialStage==='8'){
+          const oldMetre=Number(query.get('reviewAt'));
+          if(oldMetre===20119||oldMetre===20165)offset=oldMetre-20000;
+        }
+        command('Seek',entry+(trialStage==='8'?([119,165].includes(offset)?offset:-45):0));
       }
     }catch(e){failed(e);}
   }};

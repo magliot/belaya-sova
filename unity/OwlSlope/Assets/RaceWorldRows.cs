@@ -52,8 +52,8 @@ public partial class RaceWorld {
         if(mode=="tubing"){Tubing(seg);Filter(start);return;}
         if(mode=="sled"){Sled(seg);Filter(start);return;}
         int fullStage=seg/1000,n=seg%1000,stage=fullStage%StageCount;
-        float rowLength=RowLength(fullStage,mode),d=2500*fullStage+n*rowLength,y=d*20;
-        bool full=d+rowLength<=(fullStage+1)*2500+.01f;
+        float rowLength=RowLength(fullStage,mode),d=StageLength*fullStage+n*rowLength,y=d*20;
+        bool full=d+rowLength<=(fullStage+1)*StageLength+.01f;
         if(n==0&&fullStage>0)Entry("arch",200,y,280,5.6f,"arch"+stage);
         if(stage==AlpineStage){BuildFreeRideSection(n,d);return;}
         if(fullStage>=StageCount&&(stage==1||stage==6))EndlessScene(fullStage,n);
@@ -74,7 +74,7 @@ public partial class RaceWorld {
         }
         if(geometryOnly)return;
         Filter(start);
-        ScatterGroundFruit(start,seg,d,Mathf.Min(rowLength,(fullStage+1)*2500-d));
+        ScatterGroundFruit(start,seg,d,Mathf.Min(rowLength,(fullStage+1)*StageLength-d));
     }
     static bool Solid(RaceItem o){
         switch(o.kind){case "npc":return o.sit||o.stand;
@@ -83,15 +83,15 @@ public partial class RaceWorld {
     }
     void Filter(int start){
         for(int i=start;i<Items.Count;i++){
-            var a=Items[i];bool gate=a.kind=="gate"&&!a.stoneGate;if(!Solid(a)&&!gate)continue;
+            var a=Items[i];bool gate=a.kind=="gate"&&!a.ScoringPlane;if(!Solid(a)&&!gate)continue;
             bool overlaps=false;float z=a.length>0?a.length*.5f:a.kind=="rock"?1.2f:.7f;
-            float stageDist=Mathf.Round(a.distance/2500)*2500;
+            float stageDist=Mathf.Round(a.distance/StageLength)*StageLength;
             if(mode!="tubing"&&mode!="sled"&&stageDist>0&&Mathf.Abs(a.distance-stageDist)<z+.55f&&Mathf.Abs(Mathf.Abs(a.lane)-7)<a.width*.5f+.55f)overlaps=true;
             for(int j=0;j<i&&!overlaps;j++){
                 var b=Items[j];if(Mathf.Abs(b.distance-a.distance)>z+(b.length>0?b.length*.5f:1)+.15f)continue;
                 if(gate&&Solid(b))overlaps=Mathf.Abs(Mathf.Abs(a.lane-b.lane)-a.width*.5f)<b.width*.5f+.45f;
-                else if(gate&&b.kind=="gate"&&!b.stoneGate)overlaps=Mathf.Abs(Mathf.Abs(a.lane-b.lane)-Mathf.Abs(a.width-b.width)*.5f)<.75f;
-                else if(!gate&&b.kind=="gate"&&!b.stoneGate)overlaps=Mathf.Abs(Mathf.Abs(a.lane-b.lane)-b.width*.5f)<a.width*.5f+.45f;
+                else if(gate&&b.kind=="gate"&&!b.ScoringPlane)overlaps=Mathf.Abs(Mathf.Abs(a.lane-b.lane)-Mathf.Abs(a.width-b.width)*.5f)<.75f;
+                else if(!gate&&b.kind=="gate"&&!b.ScoringPlane)overlaps=Mathf.Abs(Mathf.Abs(a.lane-b.lane)-b.width*.5f)<a.width*.5f+.45f;
                 else if(Solid(b))overlaps=Mathf.Abs(a.lane-b.lane)<(a.width+b.width)*.5f+.15f;
             }
             if(overlaps)Items.RemoveAt(i--);
@@ -152,7 +152,7 @@ public partial class RaceWorld {
     }
     void Forest(float y,int n){
         int id=Mathf.FloorToInt(y/1000);float R(int k)=>Roll(seed,id,k);int side=R(31)>.5f?1:-1;
-        if(n==49)return;
+        if(n==StageLength/50-1)return;
         float line=200-side*(56+R(32)*17),j=Mathf.Floor(R(35)*46);
         bool canopy=n%4==0;
         if(canopy){
@@ -280,9 +280,10 @@ public partial class RaceWorld {
         }
     }
     float BonusLine(float row){
-        float arc=Mathf.Sin(row*.96f+Roll(seed,0,55)*6.28f);
-        float weave=Mathf.Sin(row*.41f+Roll(seed,0,87)*6.28f);
-        return 200+Mathf.Min(row,1)*(arc*58+weave*26);
+        bool motor=mode=="sled";
+        float arc=Mathf.Sin(row*.75f+Roll(seed,0,motor?58:55)*6.28f);
+        float weave=Mathf.Sin(row*.34f+Roll(seed,0,87)*6.28f);
+        return 200+Mathf.Min(row,1)*(arc*(motor?104:82)+weave*(motor?40:32));
     }
     void BonusKicker(float y,float x,bool motor){
         float height=motor?1.12f:.92f,lift=motor?2.1f:1.8f;
@@ -300,19 +301,39 @@ public partial class RaceWorld {
         bool jump=n%5==(motor?2:1);
         if(jump)BonusKicker(y,x,motor);
         else{
-            for(int i=0;i<5;i++){
-                float t=.065f+i*.19f;
-                Entry("coin",BonusLine(n+t),y+t*length,22,0);
+            float start=y/20,metres=length/20,edge=motor?8.8f:6.75f;
+            float X(float t)=>(BonusLine(n+t)-200)/20;
+            float Bounded(float lane)=>Mathf.Clamp(lane,-edge,edge);
+            void Fruit(float t,float lane){Add("coin",start+t*metres,Bounded(lane),1.1f,0);}
+            void Target(float t,float lane){Snowman(200+20*Bounded(lane),y+t*length);}
+            int shape=(n+Mathf.FloorToInt(Roll(seed,n/5,motor?853:854)*4))%4;
+            float side=Roll(seed,n,855)<.5f?-1:1;
+            if(shape==0||shape==2){
+                // Three targets across the snow, followed by a fan or a pocket of fruit.
+                float centre=Mathf.Clamp(X(.27f),-edge+3,edge-3);
+                for(int i=-1;i<=1;i++)Target(.27f+(shape==2?.08f*side*i:0),centre+i*3);
+                for(int band=0;band<3;band++){
+                    float t=.54f+band*.14f,spread=shape==0?.85f+band*.65f:2.45f-band*.70f;
+                    float mid=Mathf.Clamp(X(t),-edge+spread,edge-spread);
+                    Fruit(t,mid);Fruit(t,mid-spread);Fruit(t,mid+spread);
+                }
+            }else{
+                // A diagonal fruit run and a separate sweep through a pair of snowmen.
+                for(int i=0;i<6;i++){
+                    float t=.09f+i*.104f;
+                    Fruit(t,X(t)+side*(i-2.5f)*.84f);
+                }
+                float mid=Mathf.Clamp(X(.70f),-edge+2.6f,edge-2.6f);
+                Target(.68f,mid-side*2.5f);Target(.84f,mid+(shape==1?0:side*2.5f));
+                Fruit(.92f,X(.92f)-side*2);
             }
-            if((motor&&n%3!=1)||(!motor&&n%5==3))Snowman(BonusLine(n+.55f),y+length*.55f);
-            if(!motor&&n%3!=1)Gate(BonusLine(n+.58f),y+length*.58f,122,n);
-            if(n%2==0||motor)Entry("gift",BonusLine(n+.93f),y+length*.93f,24,.85f);
+            if(!motor&&n%3!=1)Gate(BonusLine(n+.46f),y+length*.46f,130,n);
+            if(n%2==0||motor)Add("gift",start+.96f*metres,Bounded(X(.96f)+side*.9f),1.2f,.85f);
         }
         if(n%6==0||n%6==3){
             float side=x>=200?-1:1;
-            // A short optional outside line. It rejoins the main fruit trail before the next obstacle.
-            float spare=BonusLine(n+.65f)+side*43;
-            Entry(n%6==0?"thermos":"magnet",spare,y+length*.65f,24,.8f);
+            float spare=Mathf.Clamp(BonusLine(n+.63f)+side*64,motor?32:68,motor?368:332);
+            Entry(n%6==0?"thermos":"magnet",spare,y+length*.63f,24,.8f);
         }
     }
     public static float TubeWoods(float metres)=>Mathf.SmoothStep(0,1,Mathf.InverseLerp(410,710,metres))*

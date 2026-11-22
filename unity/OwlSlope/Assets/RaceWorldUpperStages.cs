@@ -16,18 +16,16 @@ public partial class RaceWorld {
     static readonly Dictionary<int,Layout> upperLayouts=new Dictionary<int,Layout>();
     readonly Dictionary<int,Layout> generatedLayouts=new Dictionary<int,Layout>();
     int generatedSeed,generatedVisit;
+    // Shipped reference JSON uses the original 2.5 km sections and twenty units per metre.
+    const int LegacyLayoutSpan=50000, SummitLayoutStart=4*LegacyLayoutSpan;
     Layout GetLayout(int stage,int visit){
+        if(generatedSeed!=seed||generatedVisit!=visit){generatedLayouts.Clear();generatedSeed=seed;generatedVisit=visit;}
+        if(generatedLayouts.TryGetValue(stage,out var layout))return layout;
         int choice=visit==0?Array.IndexOf(layoutSeeds,seed):-1;
-        if(choice<0){
-            if(generatedSeed!=seed||generatedVisit!=visit){generatedLayouts.Clear();generatedSeed=seed;generatedVisit=visit;}
-            if(!generatedLayouts.TryGetValue(stage,out var generated)){
-                int layoutSeed=visit==0?seed:unchecked(seed^(visit*164579721));
-                generated=new UpperBuilder(layoutSeed,stage).Generate(stage==4&&visit==0?ReferenceLayout(4,0):null);
-                generatedLayouts.Add(stage,generated);
-            }
-            return generated;
-        }
-        return ReferenceLayout(stage,choice);
+        var reference=visit==0?ReferenceLayout(stage,Math.Max(0,choice)):null;
+        int layoutSeed=visit==0?seed:unchecked(seed^(visit*164579721));
+        layout=new UpperBuilder(layoutSeed,stage).Generate(reference,choice>=0);
+        generatedLayouts.Add(stage,layout);return layout;
     }
     static Layout ReferenceLayout(int stage,int choice){
         int key=stage*10+choice;
@@ -42,8 +40,8 @@ public partial class RaceWorld {
     readonly Dictionary<float,SummitTurn> summitTurns=new Dictionary<float,SummitTurn>();
 
     float SummitBase(float metres){
-        float local=Mathf.Repeat(metres,2500),phase=Roll(seed,Mathf.FloorToInt(metres/LapLength),736)*6.28f;
-        return (3.0f*Mathf.Sin(local/71+phase)+.7f*Mathf.Sin(local/41-phase))*Smooth(local/33)*Smooth((2500-local)/35);
+        float local=Mathf.Repeat(metres,StageLength),phase=Roll(seed,Mathf.FloorToInt(metres/LapLength),736)*6.28f;
+        return (3.0f*Mathf.Sin(local/71+phase)+.7f*Mathf.Sin(local/41-phase))*Smooth(local/33)*Smooth((StageLength-local)/35);
     }
 
     public float SummitLine(float metres){
@@ -57,9 +55,12 @@ public partial class RaceWorld {
         return weight>0?Mathf.Lerp(lane,target/weight,Mathf.Min(weight,1)):lane;
     }
 
+    Layout plannedSummit;
+    float plannedDelta;
     void PlanSummitTurns(Layout layout,float delta){
         // Plan the entire visit in the same order for a continuous descent and a direct seek.
-        if(summitTurns.Count!=0)return;
+        if(plannedSummit==layout&&plannedDelta==delta)return;
+        summitTurns.Clear();plannedSummit=layout;plannedDelta=delta;
         foreach(var marker in layout.objects){
             if(marker.laneAt<=0||marker.y!=marker.laneAt||marker.type!="rock")continue;
             float at=(marker.y+delta)*.05f;
@@ -87,9 +88,8 @@ public partial class RaceWorld {
     }
 
     void Mountain(float y,int row){
-        var layout=GetLayout(4,Mathf.FloorToInt(y/400000));
-        float original=200000+row*1000,delta=y-original;
-        if(row==0)summitTurns.Clear();
+        var layout=GetLayout(4,Mathf.FloorToInt(y/(20*LapLength)));
+        float original=SummitLayoutStart+row*1000,delta=y-original;
         PlanSummitTurns(layout,delta);
         foreach(var f in layout.objects){
             if(f.laneAt>0||f.y<original||f.y>=original+1000)continue;
@@ -131,7 +131,7 @@ public partial class RaceWorld {
         }
     }
     float SummitField(float d,float lane){
-        float y=(Mathf.Repeat(d,LapLength))*20,x=200+lane*20;
+        float y=SummitLayoutStart+Mathf.Repeat(d,StageLength)*20,x=200+lane*20;
         foreach(var p in GetLayout(4,Mathf.FloorToInt(d/LapLength)).patches){
             if(y<p.y0||y>p.y1)continue;float h=0;
             foreach(var b in p.b){

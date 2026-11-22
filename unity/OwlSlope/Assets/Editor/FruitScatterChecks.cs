@@ -34,8 +34,8 @@ public static class FruitScatterChecks {
     static void RideGroup(MountainRace race,string hero,int seed,bool park){
         race.Menu();race.ChooseHero(hero);
         race.StartRace("{\"mode\":\""+(park?"review":"normal")+"\",\"reviewRide\":\"normal\",\"sensitivity\":4,\"seed\":"+seed+"}");
-        if(park)race.Seek(7500);
-        var fruit=Fruit(race.World,park?7514:0,park?7610:105);
+        if(park)race.Seek(12000);
+        var fruit=Fruit(race.World,park?12014:0,park?12110:105);
         Need(fruit.Length>=2,"empty stretch for "+seed);
         var group=new List<RaceItem>{fruit[0]};
         for(int i=1;i<fruit.Length&&fruit[i].distance-fruit[i-1].distance<5;i++)group.Add(fruit[i]);
@@ -68,7 +68,7 @@ public static class FruitScatterChecks {
             world.Refresh(312,21,0,false);
             Debug.Log("FRUIT LAYOUT seed "+seed+" from 312 to 375 m: "+string.Join("; ",Fruit(world,312,375).Select(o=>o.distance.ToString("F1")+"@"+o.lane.ToString("F1"))));
             for(int stage=0;stage<8;stage++){
-                float start=stage*2500;int fruitCount=0,left=0,right=0;
+                float start=stage*RaceWorld.StageLength;int fruitCount=0,left=0,right=0;
                 for(int scan=0;scan<700;scan+=70){
                     float at=start+scan;world.Refresh(at,at/24f,0,false);
                     var fruit=Fruit(world,at,at+70);

@@ -1,11 +1,12 @@
 using UnityEngine;
 
 public partial class RaceWorld {
+    const float ConeScale=.75f;
+    internal const float ConeHalfWidth=.395f*ConeScale,ConeHeight=1.145f*ConeScale;
     GameObject CreateConePair(){
         var pair=new GameObject("Training cones");
         pair.transform.SetParent(transform,false);
-        CreateVisual("trainingCone",pair.transform);
-        CreateVisual("trainingCone",pair.transform);
+        for(int i=0;i<2;i++)CreateVisual("trainingCone",pair.transform).transform.localScale*=ConeScale;
         return pair;
     }
 
@@ -26,7 +27,7 @@ public partial class RaceWorld {
         float tilt=Mathf.Lerp(0,105,Mathf.SmoothStep(0,1,Mathf.Min(1,t*1.5f)));
         float hop=t<.64f?1.78f*t*(1-t/.64f):1.4f*(t-.64f)*(1-t);
         // The corner of the weighted foot is the first point to settle back on the snow.
-        float support=.395f*Mathf.Sin(tilt*Mathf.Deg2Rad);
+        float support=ConeHalfWidth*Mathf.Sin(tilt*Mathf.Deg2Rad);
         var snow=SnowFrame(d,x);
         var cone=gate.obj.transform.GetChild(side<0?0:1);
         cone.SetPositionAndRotation(SnowSurface(d,x)+snow*Vector3.up*(support+hop),

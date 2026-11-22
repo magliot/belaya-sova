@@ -6,12 +6,12 @@ const docs=path.resolve('docs'),template=path.resolve('unity/OwlSlope/Assets/Web
 const mimes={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css','.woff2':'font/woff2','.wasm':'application/wasm','.mp3':'audio/mpeg','.webp':'image/webp','.jpg':'image/jpeg'};
 const goldenSource=fs.readFileSync('tools/check-golden-run.cjs','utf8').match(/const probe=`([\s\S]*?)`;\r?\nasync function run/)[1];
 const mockLoader=`window.createUnityInstance=async(canvas,config,progress)=>{
-  progress(1);let s={phase:'menu',mode:'normal',hero:'bear',metres:0,stage:0,score:0,coins:0,helmets:0,seed:0};
+  progress(1);let s={phase:'menu',mode:'normal',hero:'bear',metres:0,stage:0,stageLength:4000,tubingEnd:2608,sledEnd:2974,score:0,coins:0,helmets:0,seed:0};
   const emit=()=>window.onMountainState({...s});emit();
   return {SendMessage(_,name,arg){
     if(name==='ChooseHero')s.hero=arg;
     else if(name==='StartRace'){const c=JSON.parse(arg);Object.assign(s,c,{phase:c.mode==='review'?'review':'play',score:0,metres:0,stage:0});}
-    else if(name==='Seek'&&s.phase==='review'){s.metres=arg;s.stage=Math.floor(s.metres/2500);}
+    else if(name==='Seek'&&s.phase==='review'){s.metres=arg;s.stage=Math.floor(s.metres/s.stageLength);}
     else if(name==='ReviewStep'&&s.phase==='review')s.metres+=.25;
     else if(name==='BeginSteer'&&s.phase==='play')s.metres=35;
     else if(name==='EndRide'&&s.phase==='pause'){s.phase='over';s.score=400;s.gates=1;s.tricks=0;}
@@ -169,14 +169,14 @@ async function main(){
     await p.locator('.catalog-grid button').first().click();assert((await p.locator('#panelBody>img').count())===1);await back();await back();
     await nav('Осмотр трассы');await p.locator('#review').waitFor();
     console.log('Opened the Unity course inspector after navigating the catalog.');
-    await p.locator('#reviewAt').fill('2507');await p.locator('#reviewAt').press('Enter');
-    await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===2507);
-    await p.locator('#reviewLater').click();await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===2607);
+    await p.locator('#reviewAt').fill('4007');await p.locator('#reviewAt').press('Enter');
+    await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===4007);
+    await p.locator('#reviewLater').click();await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===4107);
     await p.locator('#reviewEarlier').click();
     await p.locator('#reviewStep').click();await p.locator('#reviewRate').selectOption('3');await p.locator('#reviewRate').selectOption('0');
     await p.locator('#reviewLane').evaluate(e=>{e.value='3';e.dispatchEvent(new Event('input',{bubbles:true}));});await p.locator('#reviewEffect').selectOption('coffee');
     await p.locator('#reviewHero').selectOption('bear');await p.locator('#reviewRide').selectOption('tubing');
-    await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===2196);assert(await p.locator('#reviewStage').isDisabled());
+    await p.waitForFunction(()=>Number(document.getElementById('reviewMetres').value)===2608);assert(await p.locator('#reviewStage').isDisabled());
     await p.locator('#reviewFold').click();assert(await p.locator('#reviewBody').isHidden());
     await p.locator('#reviewExit').click();await p.locator('#play').waitFor();
     console.log('Driving from ordinary menu.');

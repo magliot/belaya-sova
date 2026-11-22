@@ -40,7 +40,7 @@ public static class CheckSlopeEffects {
                 // Its framing is checked against the original recordings in ChaseCameraChecks.
                 Need(crossing.z>0&&crossing.x>0&&crossing.x<1,"Upcoming crossing left the portrait frame during a fast side-step");
             }
-            race.StartRace("{\"mode\":\"review\",\"seed\":1911}");race.Seek(15455);
+            race.StartRace("{\"mode\":\"review\",\"seed\":1911}");race.Seek(24455);
             int air=0,ground=0,rings=0;
             foreach(var item in race.World.Items){
                 if(item.kind!="coin"&&item.kind!="airRing")continue;
@@ -49,14 +49,14 @@ public static class CheckSlopeEffects {
                 if(item.kind=="airRing")rings++;else if(item.air)air++;else ground++;
             }
             Need(rings>0&&air>0&&ground>0,"Night ring and fruit fixture incomplete");Frame("night-ring-approach");
-            race.Seek(15476);Frame("night-ring");
+            race.Seek(24476);Frame("night-ring");
             race.Seek(308);
             foreach(var item in race.World.Items){
                 if(item.kind!="coin")continue;
                 var glow=item.Visual.transform.Find("Night glow");Need(!glow||!glow.gameObject.activeSelf,"Pooled night halo shown during day");
             }
             Debug.Log("SIGHTLINE PASS 390x780 12-m corridor at 318 m: "+xLeft.ToString("F2")+".."+xRight.ToString("F2")+
-                "; cannons 83.5/208.5; night at 15455 m "+ground+" ground/"+air+" air fruit and "+rings+" rings");
+                "; cannons 83.5/208.5; night at 24455 m "+ground+" ground/"+air+" air fruit and "+rings+" rings");
         }finally{camera.aspect=oldAspect;}
     }
     static void Check(){
@@ -75,8 +75,8 @@ public static class CheckSlopeEffects {
             for(int i=0;i<seen;i++)reach=Mathf.Max(reach,flakes[i].position.z);
             Need(reach>4,"The plume must stream out of the fan across the road");
             Debug.Log("CANNON WEB MODEL seeded particles "+seen+" reach "+reach.ToString("F1")+"m");
-            race.Seek(10104);Need(RenderSettings.fog&&RenderSettings.fogEndDistance>=40&&RenderSettings.fogEndDistance<=60,"Summit visibility");
-            race.Seek(15220);
+            race.Seek(16104);Need(RenderSettings.fog&&RenderSettings.fogEndDistance>=40&&RenderSettings.fogEndDistance<=60,"Summit visibility");
+            race.Seek(24220);
             var plough=race.World.Items.Find(o=>o.kind=="cat"&&Mathf.Abs(o.distance-race.Status.metres)<60);
             Need(plough!=null&&plough.Visual,"Missing night plough");
             var optics=plough.Visual.GetComponent<GroomerOptics>();Need(optics,"Missing fixed light housing");
@@ -86,10 +86,10 @@ public static class CheckSlopeEffects {
             Need(beacon&&Mathf.Abs(beacon.localPosition.y-3.83f)<.03f,"Amber light detached from original roof lens");
             Need(Vector3.Dot(beam.transform.forward,plough.Visual.transform.up)<0,"Floodlights point above the snow");
             Need(RenderSettings.fogEndDistance<61,"Night must hide the far road");
-            race.Seek(17525);
+            race.Seek(28025);
             var festival=race.transform.Find("Distant fireworks").GetComponent<ParticleSystem>();
             int events=0;
-            for(int i=0;i<45;i++){race.Seek(17525+i);if(festival.particleCount>30)events++;}
+            for(int i=0;i<45;i++){race.Seek(28025+i);if(festival.particleCount>30)events++;}
             Need(events>10,"Missing sustained holiday display");
             Debug.Log("SLOPE EFFECTS PASS: directed cannon, limited summit and night visibility, cab-mounted optics and festival");
             EditorApplication.Exit(0);

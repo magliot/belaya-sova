@@ -34,10 +34,10 @@ public partial class MountainRace {
         }
         if(IsMenu||CourseMode!="normal")return;
         // The front rolls in 220 m before its arch; the light and visibility settle 80 m after it.
-        int next=Mathf.FloorToInt((Status.metres+220)/2500);
+        int next=Mathf.FloorToInt((Status.metres+220)/RaceWorld.StageLength);
         if(next==0)return;
         from=stageSky[(next-1)%RaceWorld.StageCount];to=stageSky[next%RaceWorld.StageCount];
-        if(from!=to)mix=StepBlend(Mathf.InverseLerp(-220,80,Status.metres-next*2500));
+        if(from!=to)mix=StepBlend(Mathf.InverseLerp(-220,80,Status.metres-next*RaceWorld.StageLength));
     }
     static float WeatherWeight(int sky,int from,int to,float t)=>Mathf.Lerp(from==sky?1:0,to==sky?1:0,t);
 

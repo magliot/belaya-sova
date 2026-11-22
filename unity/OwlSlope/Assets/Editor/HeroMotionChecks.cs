@@ -17,7 +17,7 @@ public static class HeroMotionChecks {
         var seen=new HashSet<int>();var sequence=new List<int>();int previous=-1;
         string shots=Environment.GetEnvironmentVariable("SOVA_JUMP_SHOTS");
         for(int jump=0;jump<=count;jump++){
-            checkpoint.Invoke(race,new object[]{7620f+jump*RaceWorld.LapLength,0f});
+            checkpoint.Invoke(race,new object[]{3*RaceWorld.StageLength+120f+jump*RaceWorld.LapLength,0f});
             var ramp=race.World.Items.First(o=>o.kind=="ramp"&&o.prizeLine);
             float lip=ramp.distance+ramp.length*.5f;
             checkpoint.Invoke(race,new object[]{lip-1,ramp.lane});
@@ -62,7 +62,7 @@ public static class HeroMotionChecks {
     public static void OnAir(MountainRace race,string hero){
         race.RestartRide();
         var checkpoint=typeof(MountainRace).GetMethod("Checkpoint",BindingFlags.NonPublic|BindingFlags.Instance);
-        checkpoint.Invoke(race,new object[]{7620f,0f});
+        checkpoint.Invoke(race,new object[]{3*RaceWorld.StageLength+120f,0f});
         var ramp=race.World.Items.First(o=>o.kind=="ramp"&&o.prizeLine);
         checkpoint.Invoke(race,new object[]{ramp.distance-ramp.length*.5f-2,ramp.lane});
         race.Advance(1f/60);

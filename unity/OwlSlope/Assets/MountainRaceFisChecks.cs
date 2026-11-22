@@ -56,26 +56,26 @@ public partial class MountainRace {
             DragSteer((nextGate.lane-dragStart)/(27*sensitivity));Advance(1f/60);
         }
         Check(earnedRules.Contains(3)&&earnedRules.Contains(4),"safe line and overtake at "+Status.metres+" "+Status.phase);
-        int first=Array.Find(Status.fisContexts,c=>c/1000==9);
-        float holidayEdge=CheckFisPatrol(17637);
-        Check(earnedRules.FindAll(n=>n==9).Count==1&&Array.Exists(Status.fisContexts,c=>c/1000==9&&c!=first),
-            "another accident must change context and only count once");
         // Cross the safe end of the actual signed summit net, starting four metres before it.
         bool passedSign=false;
-        for(float at=10040;at<12420&&!passedSign;at+=60){
+        for(float at=16040;at<5*RaceWorld.StageLength&&!passedSign;at+=60){
             Checkpoint(at,0);
             var fence=World.Items.Find(o=>o.kind=="fence"&&o.distance>=at&&Mathf.Abs(o.lane)>1);
             if(fence==null)continue;
             float x=fence.lane-Mathf.Sign(fence.lane)*(fence.width*.5f+1.5f);
             Check(Mathf.Abs(x)<LaneLimit(fence.distance),"marked bypass beyond the bank");
             Checkpoint(fence.distance-4,x);
-            for(int i=0;i<50&&!earnedRules.Contains(8)&&Status.phase=="play";i++)Advance(1f/60);
+            for(int i=0;i<120&&Status.metres<fence.distance+3&&!earnedRules.Contains(8)&&Status.phase=="play";i++)Advance(1f/60);
             passedSign=earnedRules.Contains(8);
         }
-        Check(passedSign&&earnedRules.Count==10,"ten rules not completed with real controls");
+        int first=Array.Find(Status.fisContexts,c=>c/1000==9);
+        float holidayEdge=CheckFisPatrol(28137);
+        Check(earnedRules.FindAll(n=>n==9).Count==1&&Array.Exists(Status.fisContexts,c=>c/1000==9&&c!=first),
+            "another accident must change context and only count once");
+        Check(passedSign&&earnedRules.Count==10,"ten rules not completed with real controls: "+string.Join(",",earnedRules)+" at "+Status.metres+" "+Status.phase+" "+Status.message);
         RestartRide();Check(Status.fis.Length==0&&Status.fisContexts.Length==0,"FIS carried over into new score");
         return "10 FIS actions on real course; patrol at 289 m (lane "+schoolEdge.ToString("0.0")+
-            ") / 17637 m (lane "+holidayEdge.ToString("0.0")+"), contexts 9001 and 9071, one rule per attempt";
+            ") / 28137 m (lane "+holidayEdge.ToString("0.0")+"), contexts 9001 and 9071, one rule per attempt";
     }
 }
 #endif

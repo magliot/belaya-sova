@@ -23,7 +23,7 @@ public static class CaptureMountainRace {
     public static void Surfaces(){SessionState.SetBool(PendingSurfaces,true);Run();}
     static IEnumerator Film(MountainRace race,string hero){
         race.Menu();race.ChooseHero(hero);race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
-        Checkpoint(race,7620,0);var ramp=race.World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
+        Checkpoint(race,12120,0);var ramp=race.World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
         float start=ramp.distance-20,lip=ramp.distance+ramp.length*.5f,end=lip+ramp.span;
         Checkpoint(race,start,ramp.lane);
         var cam=race.View;float originalAspect=cam.aspect;
@@ -118,7 +118,7 @@ public static class CaptureMountainRace {
         var pixels=new Texture2D(W,H,TextureFormat.RGB24,false);
         try{
             camera.aspect=(float)W/H;camera.targetTexture=rt;
-            string[] targets={"tube","tree","mogulYeti","cat"};float[] searches={0,2510,5000,15180};int frame=0;
+            string[] targets={"tube","tree","mogulYeti","cat"};float[] searches={0,4010,8000,24180};int frame=0;
             for(int shot=0;shot<targets.Length;shot++){
                 race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"helmets\":1}");
                 RaceItem target=null;float at=searches[shot];
@@ -143,7 +143,7 @@ public static class CaptureMountainRace {
     }
     static void AirFrame(MountainRace race,string hero){
         race.Menu();race.ChooseHero(hero);race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
-        Checkpoint(race,7620,0);var ramp=race.World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
+        Checkpoint(race,12120,0);var ramp=race.World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
         Checkpoint(race,ramp.distance-ramp.length*.5f-1,ramp.lane);
         for(int i=0;i<180&&race.Altitude<ramp.height+.15f;i++)race.Advance(1f/60);
         if(race.Altitude<ramp.height+.15f)throw new Exception("No launch to photograph");
@@ -163,10 +163,10 @@ public static class CaptureMountainRace {
                 race.Menu();race.ChooseHero("owl");race.StartRace("{\"mode\":\"normal\",\"seed\":1911}");
                 var tube=race.World.Items.Find(o=>o.kind=="tube");
                 Checkpoint(race,tube.distance-7,tube.lane);Save(race,"07-tube-training");
-                Checkpoint(race,7620,0);var ramp=race.World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
+                Checkpoint(race,12120,0);var ramp=race.World.Items.Find(o=>o.kind=="ramp"&&o.prizeLine);
                 Checkpoint(race,ramp.distance-ramp.length*.5f-6,ramp.lane);Save(race,"08-ramp-snow");
                 Checkpoint(race,20,0);var cup=race.World.Items.Find(o=>o.kind=="thermos"&&o.distance>24);
-                if(cup==null){Checkpoint(race,15150,0);cup=race.World.Items.Find(o=>o.kind=="thermos");}
+                if(cup==null){Checkpoint(race,24150,0);cup=race.World.Items.Find(o=>o.kind=="thermos");}
                 if(cup==null)throw new InvalidOperationException("No reproducible thermos in course");
                 Checkpoint(race,cup.distance-5,cup.lane);Save(race,"09-coffee-glow");
                 race.StartRace("{\"mode\":\"tubing\",\"seed\":1911}");for(int i=0;i<45;i++)race.Advance(1f/60);
@@ -185,7 +185,7 @@ public static class CaptureMountainRace {
             race.ChooseHero("bear");race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
             race.BeginSteer();for(int i=0;i<67;i++)race.Advance(1f/60);Save(race,"03-training");
             Checkpoint(race,2474,0);race.Advance(1f/60);Save(race,"04-forest-entry");
-            Checkpoint(race,2510,0);race.Advance(1f/60);Save(race,"13-forest-canopy");
+            Checkpoint(race,4010,0);race.Advance(1f/60);Save(race,"13-forest-canopy");
             Checkpoint(race,12507,0);race.Advance(1f/60);Save(race,"14-stone-gate");
             AirFrame(race,"bear");AirFrame(race,"owl");Debug.Log("MOUNTAIN CAPTURE PASS");EditorApplication.Exit(0);
         }catch(Exception e){Debug.LogException(e.InnerException??e);EditorApplication.Exit(2);}

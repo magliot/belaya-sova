@@ -18,10 +18,10 @@ for(const token of ['unitytest','unitytest_20g','unitytest_20h','unity']){
 }
 const data='auth_date=42&user=%7B%22id%22%3A123%7D&start_param=unitytest_20g&hash=fixture';
 const previewData=data.replace('unitytest_20g','unitytest_progress21');
-for(const [token,stage,metre] of [['snowpark_1911','3',null],['freeridewide_1911','8','20165'],['boulder_1911','8','20119']]){
+for(const [token,stage,metre] of [['snowpark_1911','3',null],['festival_1911','7',null],['freeridewide_1911','8','165'],['boulder_1911','8','119']]){
   const jump=route('#'+new URLSearchParams({tgWebAppData:data.replace('unitytest_20g',token)}));
   assert.equal(jump.pathname,root.pathname+'unity-test/');
-  assert.equal(jump.searchParams.get('reviewStage'),stage);assert.equal(jump.searchParams.get('reviewAt'),metre);
+  assert.equal(jump.searchParams.get('reviewStage'),stage);assert.equal(jump.searchParams.get('reviewOffset'),metre);
 }
 for(const input of ['?startapp=freeride_1911','#tgWebAppStartParam=freeride_1911',
   '#'+new URLSearchParams({tgWebAppData:data.replace('unitytest_20g','freeride_1911')})]){

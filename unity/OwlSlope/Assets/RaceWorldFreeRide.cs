@@ -2,7 +2,8 @@ using UnityEngine;
 
 public partial class RaceWorld {
     public const int FreeRideLength=StageLength;
-    const int FreeRideSectionLength=150;
+    public const int FreeRideSectionLength=150;
+    public const int FreeRideGapCount=FreeRideLength/FreeRideSectionLength;
     public struct FreeRideGap {
         public const int ShapeSegments=8;
         public float lipD,endD,lane,halfWidth,bypassLane;
@@ -29,7 +30,13 @@ public partial class RaceWorld {
                 float width=halfWidth*Mathf.Pow(bulge,.64f)*(.85f+.28f*Roll(seed,section,1350+i));
                 float shift=slant*t+bulge*(bend+.53f*Mathf.Sin(2*Mathf.PI*t+phase));
                 float centre=side*Mathf.Max(width+1.05f,Mathf.Abs(lane)+shift);
-                banks[i]=new Vector2(centre-width,centre+width);
+                float left=centre-width,right=centre+width;
+                if(section>=2&&i>0&&i<ShapeSegments){
+                    // The marked takeoff line must lead over open ice, including at the midpoint that earns the landing award.
+                    float margin=.70f*bulge;
+                    left=Mathf.Min(left,lane-margin);right=Mathf.Max(right,lane+margin);
+                }
+                banks[i]=new Vector2(left,right);
             }
         }
         public float SectionDistance(int index)=>Mathf.Lerp(lipD,endD,(float)index/ShapeSegments);
@@ -59,7 +66,7 @@ public partial class RaceWorld {
             metre=lipD;return false;
         }
     }
-    readonly FreeRideGap[] freeRideGaps=new FreeRideGap[FreeRideLength/FreeRideSectionLength];
+    readonly FreeRideGap[] freeRideGaps=new FreeRideGap[FreeRideGapCount];
     int freeRideSeed,freeRideVisit;
     bool gapsReady;
 
@@ -77,14 +84,15 @@ public partial class RaceWorld {
             for(int i=0;i<freeRideGaps.Length;i++){
                 float side=Roll(layout,i,1300)<.5f?-1:1;
                 float lip=origin+i*FreeRideSectionLength+(i==0?85:75)+(2*Roll(layout,i,1301)-1)*(i==0?3:16);
-                bool transverse=i%4==1;
+                bool transverse=i%2==1;
                 if(transverse){
-                    float firstSide=Roll(layout,(i/8)*8+1,1300)<.5f?-1:1;
-                    side=i%8==1?firstSide:-firstSide;
+                    float firstSide=Roll(layout,1,1300)<.5f?-1:1;
+                    side=i%4==1?firstSide:-firstSide;
                 }
-                freeRideGaps[i]=new FreeRideGap{lipD=lip,endD=lip+18+4*Roll(layout,i,1302),transverse=transverse,
+                float length=(transverse&&i>1?23.5f:18)+4*Roll(layout,i,1302);
+                freeRideGaps[i]=new FreeRideGap{lipD=lip,endD=lip+length,transverse=transverse,
                     lane=side*((transverse?1:4)+2.4f*Roll(layout,i,1303)),halfWidth=2.55f+.75f*Roll(layout,i,1304),
-                    bypassLane=-side*(transverse?10.2f+.24f*Roll(layout,i,1345):3.2f)};
+                    bypassLane=-side*(transverse?(i>1?10.40f:10.2f)+.24f*Roll(layout,i,1345):3.2f)};
                 freeRideGaps[i].Shape(layout,i);
             }
             gapsReady=true;freeRideSeed=seed;freeRideVisit=visit;
@@ -115,7 +123,7 @@ public partial class RaceWorld {
         return Mathf.Lerp(glide,leap,trickBlend);
     }
     void BuildFreeRideSection(int section,float start){
-        if(section%2==0)SpawnSnowBoulder(start,section);
+        if(section%2==0||section%6==3)SpawnSnowBoulder(start,section);
         if(!TryFreeRideGap(start,out var gap))return;
         float side=Mathf.Sign(gap.lane);
         // Keep rock and moving traffic off the narrow snow shelf.
@@ -145,6 +153,14 @@ public partial class RaceWorld {
             float d=start+31+12*Roll(seed,section,1362);
             Person(200+20*x,20*d,155+34*Roll(seed,section,1363),board?"snowboarder":"skier",
                 24+8*Roll(seed,section,1364),6*Roll(seed,section,1365));
+        }
+
+        if(section>=2){
+            // A staggered entry and a clear takeoff. The next obstruction is beside the landing,
+            // leaving both the marked flight and the narrow snow shelf open.
+            Boulder(start+10,side*Mathf.Lerp(-.7f,1.4f,Roll(seed,section,1412)),1.45f,true);
+            Boulder(start+48,-side*(3.5f+1.4f*Roll(seed,section,1413)),1.65f,false);
+            if(section%3!=0)Snowman(200+20*(gap.lane-side*3.65f),(gap.endD+17)*20);
         }
 
         int approach=2+Mathf.Min(2,(int)(3*Roll(seed,section,1315)));

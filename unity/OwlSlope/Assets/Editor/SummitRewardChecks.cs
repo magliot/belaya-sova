@@ -22,13 +22,13 @@ public static class SummitRewardChecks {
             string.Join(",",reached.Where(o=>!o.consumed).Select(o=>o.kind+"@"+o.distance)));
     }
     public static void Run(MountainRace race){
-        Ride(race,1911,10480,10512);Ride(race,1911,10659,10688);Ride(race,1911,11230,11259);
-        Ride(race,4903,10480+RaceWorld.LapLength,10520+RaceWorld.LapLength);
+        Ride(race,1911,16480,16512);Ride(race,1911,16659,16688);Ride(race,1911,17230,17259);
+        Ride(race,4903,16480+RaceWorld.LapLength,16520+RaceWorld.LapLength);
         var world=race.World;
         foreach(int seed in new[]{1911,8573})foreach(int lap in new[]{0,1}){
             world.Configure(seed,"normal");int count=0;
-            int start=10000+RaceWorld.LapLength*lap;
-            for(int metres=start;metres<start+2500;metres+=50){
+            int start=16000+RaceWorld.LapLength*lap;
+            for(int metres=start;metres<start+RaceWorld.StageLength;metres+=50){
                 world.Refresh(metres,metres/20f,0,false);
                 foreach(var o in world.Items.Where(o=>o.distance>=metres&&o.distance<metres+50)){
                     if(Reward(o)){

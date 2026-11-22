@@ -106,13 +106,13 @@ async function main(){
     await page.waitForFunction(()=>lastRace.courseMode==='tubing' && document.querySelector('#rideStatus').textContent==='Открытый склон · ворота 0');
     await page.locator('#reviewRide').selectOption('normal');
     await page.waitForFunction(()=>lastRace.courseMode==='normal');
-    for(const [name,metre] of [['tube',29],['cannon',78],['coffee',105],['magnet',653],['forest-arch',2472],['forest-canopy',2510],
-      ['training-mound',205],['uphill-groomer',443],['tube-moguls',5150],['ramp',7655],['park',7630],['summit',10104],
-      ['summit-approach',9910],['black-gate',12507],['night-approach',14910],['night',15050],['night-slalom',15082],
-      ['groomer',15232],['holiday',17525],['holiday-slalom',17618],['forest-fork',25120],['park-lap-two',30143],['night-fork',37620]]){
+    for(const [name,metre] of [['tube',29],['cannon',78],['coffee',105],['magnet',653],['forest-arch',3972],['forest-canopy',4010],
+      ['training-mound',205],['uphill-groomer',443],['tube-moguls',8150],['ramp',12155],['park',12130],['summit',16104],
+      ['summit-approach',15910],['black-gate',20007],['night-approach',23910],['night',24050],['night-slalom',24082],
+      ['groomer',24232],['holiday',28025],['holiday-slalom',28118],['forest-fork',40120],['park-lap-two',48143],['night-fork',60120]]){
       await page.locator('#seek').evaluate((el,value)=>{el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));},metre);
       await page.waitForFunction(n=>Math.abs(lastRace.metres-n)<2,metre,{timeout:30000});
-      if(metre>=22500)assert.equal(await page.evaluate(()=>lastRace.stage),Math.floor(metre/2500)%9);
+      if(metre>=36000)assert.equal(await page.evaluate(()=>lastRace.stage),Math.floor(metre/4000)%9);
       await page.locator('#reviewFold').tap();
       await page.waitForTimeout(850);const frame=await page.screenshot({path:path.join(out,name+'.png')});
       if(['summit','park','night','night-slalom'].includes(name))weatherFrames[name]=frame.toString('base64');
@@ -125,22 +125,22 @@ async function main(){
     // Use the phone controls to ride, restart and return to the selected point on lap two.
     const profileBefore=await page.evaluate(()=>JSON.stringify({...localStorage}));
     await page.locator('#reviewPlay').tap();
-    await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.stage===6&&lastRace.metres>35124);
+    await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.stage===6&&lastRace.metres>60124);
     await page.locator('#pause').tap();await waitState('pause','owl');
     await page.locator('#restartPaused').tap();
-    await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.metres>=37620&&lastRace.metres<37660);
+    await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.metres>=60120&&lastRace.metres<60160);
     await page.locator('#pause').tap();await waitState('pause','owl');
     await page.locator('#exitPaused').tap();await waitState('review','owl');
-    assert.equal(await page.evaluate(()=>lastRace.metres),37620);
+    assert.equal(await page.evaluate(()=>lastRace.metres),60120);
     assert.equal(await page.evaluate(()=>JSON.stringify({...localStorage})),profileBefore,'inspection practice modified the saved profile');
     // The summit encounter uses the original stationary Yeti mesh on the left edge.
     // Compare a brush against its arm and a safe pass with the same camera, seed and approach.
     for(const [lane,helmets] of [[-7.75,0],[-5,1]]){
-      await page.locator('#reviewAt').fill('11782');await page.locator('#reviewAt').press('Enter');
+      await page.locator('#reviewAt').fill('17782');await page.locator('#reviewAt').press('Enter');
       await page.locator('#reviewLane').evaluate((e,x)=>{e.value=x;e.dispatchEvent(new Event('input',{bubbles:true}));},lane);
-      await page.waitForFunction(()=>lastRace.phase==='review'&&lastRace.metres===11782);
+      await page.waitForFunction(()=>lastRace.phase==='review'&&lastRace.metres===17782);
       await page.locator('#reviewPlay').tap();
-      await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.metres>11790,null,{timeout:20000});
+      await page.waitForFunction(()=>lastRace.phase==='play'&&lastRace.metres>17790,null,{timeout:20000});
       assert.equal(await page.evaluate(()=>lastRace.helmets),helmets,'summit Yeti at lane '+lane);
       await page.locator('#pause').tap();await waitState('pause','owl');
       await page.locator('#exitPaused').tap();await waitState('review','owl');

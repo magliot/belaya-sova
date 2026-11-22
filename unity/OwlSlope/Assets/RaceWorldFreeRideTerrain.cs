@@ -223,31 +223,43 @@ public partial class RaceWorld {
     }
     void WholeAlpineStrip(float d0,float d1){
         if(d1<=d0)return;
-        for(int x=-FractureBand;x<FractureBand;x+=2){
-            int a=AlpineVertex(d0,x,0,Color.white),b=AlpineVertex(d1,x,0,Color.white);
-            int c=AlpineVertex(d0,x+2,0,Color.white),e=AlpineVertex(d1,x+2,0,Color.white);
-            AlpineFace(powderFaces,a,b,c,e);
-        }
+        for(int x=-FractureBand;x<FractureBand;x+=2)
+            ClipAlpineShelf(d0,d1,x,x+2,x+2,true);
     }
-    // Clip each ordinary snow cell against one slanting bank. The intersection
-    // also covers cells where the broken rim crosses a lane boundary mid-row.
+    // Subdivide the cropped polygon along the original support triangle diagonal.
+    // A single fan across both triangles can lift a skiable bank above the contact surface.
+    readonly Vector2[] clippedShelf=new Vector2[7];
     void ClipAlpineShelf(float d0,float d1,float x,float edge0,float edge1,bool left){
         if(left?Mathf.Max(edge0,edge1)<=x:Mathf.Min(edge0,edge1)>=x+2)return;
-        int start=alpineVertices.Count;
+        int count=0;
         Vector2 prev=new Vector2(x+2,d0);
         float previousSide=(left?1:-1)*(prev.x-edge0);
         for(int k=0;k<4;k++){
             bool far=k==1||k==2;
             Vector2 next=new Vector2(k<2?x:x+2,far?d1:d0);
             float side=(left?1:-1)*(next.x-(far?edge1:edge0));
-            if((previousSide<0&&side>0)||(previousSide>0&&side<0)){
-                var meet=Vector2.Lerp(prev,next,previousSide/(previousSide-side));
-                AlpineVertex(meet.y,meet.x,0,Color.white);
-            }
-            if(side<=0)AlpineVertex(next.y,next.x,0,Color.white);
+            if(previousSide*side<0)clippedShelf[count++]=Vector2.Lerp(prev,next,previousSide/(previousSide-side));
+            if(side<=0)clippedShelf[count++]=next;
             prev=next;previousSide=side;
         }
-        for(int k=start+2;k<alpineVertices.Count;k++){powderFaces.Add(start);powderFaces.Add(k-1);powderFaces.Add(k);}
+        if(count<3)return;
+        float row=Mathf.Floor(d0*.5f)*2;
+        for(int half=-1;half<=1;half+=2){
+            int begin=alpineVertices.Count;
+            prev=clippedShelf[count-1];
+            float Signed(Vector2 p)=>half*((p.x-x)+(p.y-row)-2);
+            previousSide=Signed(prev);
+            for(int i=0;i<count;i++){
+                var next=clippedShelf[i];float side=Signed(next);
+                if(side*previousSide<0){
+                    var meet=Vector2.Lerp(prev,next,previousSide/(previousSide-side));
+                    AlpineVertex(meet.y,meet.x,0,Color.white);
+                }
+                if(side<=0)AlpineVertex(next.y,next.x,0,Color.white);
+                prev=next;previousSide=side;
+            }
+            for(int k=begin+2;k<alpineVertices.Count;k++){powderFaces.Add(begin);powderFaces.Add(k-1);powderFaces.Add(k);}
+        }
     }
 
     // A white shelf projects over blue ice. Fractured faces taper into dark rock

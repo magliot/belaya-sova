@@ -17,7 +17,7 @@ public partial class RaceWorld {
         void AddTurn(float length,float end){turns.Add(new Turn{start=d,length=length,x=x,delta=end-x});d+=length;x=end;}
         float side=Roll(seed,0,0)>.5f?1:-1;
         AddTurn(22,0);
-        while(d<1920){
+        while(d<StageLength-580){
             side=Mathf.Abs(x)>46?-Mathf.Sign(x):Roll(seed,i,2)<.55f?-side:side;
             AddTurn(100+Roll(seed,i,3)*37,x+side*(17+Roll(seed,i,4)*10));
             if(Roll(seed,i,5)<.56f)AddTurn(112+Roll(seed,i,6)*32,x-side*(18+Roll(seed,i,7)*10));
@@ -31,12 +31,12 @@ public partial class RaceWorld {
         float b=36f/52*Mathf.Sin(d/52)-16f/97*Mathf.Sin(d/97);
         float c=36f/(52*52)*Mathf.Cos(d/52)-16f/(97*97)*Mathf.Cos(d/97);
         cx=a;dx=b;float dd=c;
-        if(d<2500){
+        if(d<StageLength){
             if(d<=0){cx=dx=curve=0;return;}
             int lo=0,hi=turns.Count;
             while(lo<hi){int mid=(lo+hi)/2;var t=turns[mid];if(d>=t.start+t.length)lo=mid+1;else hi=mid;}
             bool tail=lo==turns.Count;
-            var seg=tail?new Turn{start=lastTurnD,length=2500-lastTurnD,x=lastTurnX,delta=a-lastTurnX}:turns[lo];
+            var seg=tail?new Turn{start=lastTurnD,length=StageLength-lastTurnD,x=lastTurnX,delta=a-lastTurnX}:turns[lo];
             float u=(d-seg.start)/seg.length,blend=u*u*u*(10+u*(-15+6*u));
             float vel=30*u*u*(u-1)*(u-1)/seg.length,accel=60*u*(u-1)*(2*u-1)/(seg.length*seg.length);
             cx=seg.x+seg.delta*blend;dx=seg.delta*vel;dd=seg.delta*accel;
@@ -51,7 +51,7 @@ public partial class RaceWorld {
     public float WidthAt(float metres){
         if(AlpineAt(metres))return 21+3*AlpineBlend(metres);
         if(mode=="tubing")return 16.2f;
-        float blend=Smooth(Mathf.Repeat(metres,2500)/35)*Smooth((2500-Mathf.Repeat(metres,2500))/35);
+        float blend=Smooth(Mathf.Repeat(metres,StageLength)/35)*Smooth((StageLength-Mathf.Repeat(metres,StageLength))/35);
         return StageAt(metres)==1?21-7.5f*blend:21;
     }
     public static float Grade(float d)=>.29f+.22f*Mathf.Sin(d/42)+.09f*Mathf.Sin(d/17+1);
@@ -62,16 +62,16 @@ public partial class RaceWorld {
         float bank=.12f*(float)Math.Tanh(-curve*10/.12f);
         float height=CourseHeight(d);
         float shoulder=Smooth((mag-9.4f)/5.8f)*(3.4f+.65f*Mathf.Sin(d/23+(lane<0?1.4f:0))+.25f*Mathf.Cos(d/9));
-        int stage=StageAt(d);float within=Mathf.Repeat(d,2500),blend=Smooth(within/35)*Smooth((2500-within)/35);
+        int stage=StageAt(d);float within=Mathf.Repeat(d,StageLength),blend=Smooth(within/35)*Smooth((StageLength-within)/35);
         if(stage==1)shoulder=Mathf.Lerp(shoulder,2.8f*Smooth((mag-6.6f)/5.8f),blend);
         if(stage==3)shoulder=Mathf.Lerp(shoulder,4.2f*Smooth((mag-6)/6),blend);
         if(mode=="tubing")shoulder+=.67f*Smooth((mag-7.3f)/.95f)*(1-Smooth((mag-8.3f)/1.6f));
-        if(mode!="sled"&&mode!="tubing"&&stage==2&&within<2457)height+=MogulHeight(d,lane);
+        if(mode!="sled"&&mode!="tubing"&&stage==2&&within<MogulRunLength)height+=MogulHeight(d,lane);
         if(stage==4)height+=SummitField(d,lane);
         return new Vector3(cx+lane*Mathf.Cos(h),height+bank*Mathf.Clamp(lane,-14,14)+shoulder,d-lane*Mathf.Sin(h));
     }
     float MogulHeight(float d,float x){
-        float local=Mathf.Repeat(d,2500);int section=Mathf.FloorToInt(local/117),field=section%3;float rowD=local-section*117-7.5f;
+        float local=Mathf.Repeat(d,StageLength);int section=Mathf.FloorToInt(local/117),field=section%3;float rowD=local-section*117-7.5f;
         float h=0;
         for(int i=Mathf.Max(0,Mathf.FloorToInt(rowD/8.75f)-1);i<=Mathf.Min(11,Mathf.CeilToInt(rowD/8.75f)+1);i++){
             float shift=(i%2==1?1:-1)*(field==0?1.4f:field==1?2.45f:1.75f);
@@ -92,8 +92,8 @@ public partial class RaceWorld {
     float firstSnowRow;
     float MeshTrail(float d){
         if(mode!="normal"||StageAt(d)!=2)return 0;
-        float local=Mathf.Repeat(d,2500);
-        return MogulLine(d)*Smooth(local/16)*Smooth((2457-local)/24);
+        float local=Mathf.Repeat(d,StageLength);
+        return MogulLine(d)*Smooth(local/16)*Smooth((MogulRunLength-local)/24);
     }
     float ColumnLane(int column,float width,float trail){
         if(usingAlpineMesh)return alpineLanes[column];
@@ -156,7 +156,7 @@ public partial class RaceWorld {
         for(int i=0;i<rows;i++){
             float d=centre-50+2*i,half=WidthAt(d)*.5f,trail=MeshTrail(d);
             if(i<rows-1){
-                byte mark=mode=="normal"&&StageAt(d)==2&&Mathf.Repeat(d,2500)<2457?(byte)1:(byte)0;
+                byte mark=mode=="normal"&&StageAt(d)==2&&Mathf.Repeat(d,StageLength)<MogulRunLength?(byte)1:(byte)0;
                 if(mark!=markings[i]){markings[i]=mark;reindex=true;}
             }
             for(int j=0;j<cols;j++){

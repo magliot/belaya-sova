@@ -59,7 +59,7 @@ public partial class RaceWorld {
             float left,right,before,after;
             switch(o.kind){
                 case "gate":
-                    if(o.stoneGate||z<entry-1||z>exit+1)continue;
+                    if(o.ScoringPlane||z<entry-1||z>exit+1)continue;
                     float gateX=lane+slope*Mathf.Clamp(z-centre,-halfSpan,halfSpan);
                     if(Mathf.Abs(Mathf.Abs(gateX-x)-o.width*.5f)<1.0f)return false;
                     continue;

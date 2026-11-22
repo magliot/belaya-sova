@@ -15,15 +15,16 @@ public partial class RaceWorld {
         int stride=1+Mathf.Min(3,(int)(Roll(seed,stage,643)*4));
         return (first+(slot%5)*stride)%5;
     }
+    const int MogulRunLength=StageLength/117*117;
     public float MogulLine(float d){
-        float local=Mathf.Repeat(d,2500);
-        float phase=Roll(seed,Mathf.FloorToInt(d/2500),612)*6.283185f;
+        float local=Mathf.Repeat(d,StageLength);
+        float phase=Roll(seed,Mathf.FloorToInt(d/StageLength),612)*6.283185f;
         return 3.55f*Mathf.Sin(local/38+phase)+1.48f*Mathf.Sin(local/68-phase*.7f);
     }
     public float MogulRoughness(float d,float lane){
-        float local=Mathf.Repeat(d,2500);
+        float local=Mathf.Repeat(d,StageLength);
         float rough=Smooth((Mathf.Abs(lane-MogulLine(d))-1.52f)/2.25f);
-        return rough*Smooth(local/16)*Smooth((2457-local)/24);
+        return rough*Smooth(local/16)*Smooth((MogulRunLength-local)/24);
     }
     void EndlessRoad(float d,ref float x,ref float slope,ref float second){
         const float spacing=154,transition=195;
@@ -41,11 +42,13 @@ public partial class RaceWorld {
         second+=f*dds+2*df*ds+ddf*side;slope+=f*ds+df*side;x+=f*side;
     }
     void EndlessScene(int fullStage,int n){
-        int stage=fullStage%StageCount,section=n/10,row=n%10;
+        int stage=fullStage%StageCount,rowsPerScene=StageLength/(5*50);
+        int section=n/rowsPerScene,row=n%rowsPerScene;
+        if(row>=8)row=row>=rowsPerScene-2?8:2+(row-8)%5;
         int scenario=RouteScenario(seed,stage,fullStage/StageCount,section);
-        int key=fullStage*50+n;
+        int key=fullStage*(StageLength/50)+n;
         float direction=Roll(seed,fullStage*5+section,644)<.5f?-1:1;
-        float start=fullStage*2500+n*50;
+        float start=fullStage*StageLength+n*50;
         float At(float offset)=>(start+offset)*20;
         float centre=200+direction*Mathf.Lerp(-50,54,Roll(seed,key,651));
         float outside=200-direction*Mathf.Lerp(65,98,Roll(seed,key,652));

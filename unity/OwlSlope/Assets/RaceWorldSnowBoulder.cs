@@ -9,10 +9,16 @@ public partial class RaceWorld {
         float radius=Mathf.Lerp(.89f,1.20f,Roll(seed,key,1400));
         float side=Mathf.Sign(gap.lane);
         bool pursuit=section%4==0;
-        var o=Add("snowBoulder",start+(pursuit?112:117),side*(pursuit?8.8f:7.7f),2*radius,2*radius);
+        float release=Mathf.Max(start+(pursuit?112:117),gap.endD+8);
+        var o=Add("snowBoulder",release,side*(pursuit?8.8f:7.7f),2*radius,2*radius);
         o.route=pursuit?1:0;
         o.scale=radius;o.side=side;o.vCruise=(pursuit?32:8)+3*Roll(seed,key,1401);
         o.phase=Roll(seed,key,1402)*Mathf.PI*2;
+        if(section%8==6){
+            float r=radius*.74f;
+            var second=Add("snowBoulder",release+12,side*7.7f,2*r,2*r);
+            second.side=side;second.scale=r;second.vCruise=o.vCruise*.91f;second.phase=o.phase+1.7f;
+        }
     }
     static void RollSnowBoulder(RaceItem o,float player,float riderLane,float dt){
         if(o.route==1){

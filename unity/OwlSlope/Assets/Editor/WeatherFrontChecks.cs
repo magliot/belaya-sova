@@ -8,8 +8,8 @@ public static class WeatherFrontChecks {
         CheckSlopeEffects.CourseMarkers(race);
         race.StartRace("{\"mode\":\"review\",\"seed\":1911}");
         foreach(int lap in new[]{0,RaceWorld.LapLength}){
-            foreach(int edge in new[]{10000,12500,15000,17500}){
-                bool blizzard=edge<15000,entering=edge==10000||edge==15000;
+            foreach(int edge in new[]{16000,20000,24000,28000}){
+                bool blizzard=edge<24000,entering=edge==16000||edge==24000;
                 string property=blizzard?"_Storm":"_Night";
                 int arch=lap+edge;
                 float previous=-1,previousFog=0,previousLight=0;
@@ -31,9 +31,9 @@ public static class WeatherFrontChecks {
                 }
             }
         }
-        race.Seek(14985);race.RideFromReview();
-        for(int i=0;i<50&&race.Status.metres<15005;i++)race.Advance(.05f);
-        Need(race.Status.metres>=15005&&race.Status.phase=="play"&&RenderSettings.sun.intensity<.31f,
+        race.Seek(23985);race.RideFromReview();
+        for(int i=0;i<50&&race.Status.metres<24005;i++)race.Advance(.05f);
+        Need(race.Status.metres>=24005&&race.Status.phase=="play"&&RenderSettings.sun.intensity<.31f,
             "ordinary descent through the night arch");
         Debug.Log("WEATHER FRONTS PASS: storm and night fade across four boundaries on two laps; live night entry.");
     }

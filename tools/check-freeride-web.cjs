@@ -88,7 +88,7 @@ async function main() {
     }
     if(fromTelegramLink){
       await phase('review');
-      await page.waitForFunction(()=>probe.metres===19955&&probe.seed===1911);
+      await page.waitForFunction(()=>probe.metres===31955&&probe.seed===1911);
       assert.equal(new URL(page.url()).searchParams.get('reviewStage'),'8');
       assert.equal(await page.evaluate(()=>mountainRelease.channel),'test');
       await click('reviewExit');
@@ -119,18 +119,19 @@ async function main() {
     for(const hero of ['bear','owl']){
       await page.locator('#reviewHero').selectOption(hero);
       await phase('review',hero);
-      await seek(19955);
+      const approachLane=-3.5; // Through the final pair of firework gates before the arch.
+      await setLane(approachLane);await seek(31955);
       await page.evaluate(()=>{window.turnNames=[];});
       await click('reviewPlay');await phase('play',hero);
       await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:195,y:515,id:1}]});
-      await at(19967);
-      if(hero==='bear')await shot('arch-19970m');
-      await at(20001);
+      await at(31967);
+      if(hero==='bear')await shot('arch-31970m');
+      await at(32001);
       await page.waitForFunction(()=>probe.stage===8);
-      const x=195-4.83*390/(27*.79);
+      const x=195+(-4.83-approachLane)*390/(27*.79);
       const steer={x,y:515,id:1};
       await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[steer]});
-      await page.waitForFunction(()=>probe.freeRideTrickReady&&probe.air&&probe.metres>=20086,null,{timeout:12000});
+      await page.waitForFunction(()=>probe.freeRideTrickReady&&probe.air&&probe.metres>=32086,null,{timeout:12000});
       const tapMetres=await page.evaluate(()=>probe.metres);
       if(hero==='bear'){
         await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
@@ -143,11 +144,11 @@ async function main() {
         await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[steer,tap]});
         await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[tap]});
       }
-      await page.waitForFunction(()=>probe.air&&!probe.freeRideTrickReady&&probe.metres>=20092,null,{timeout:3000});
+      await page.waitForFunction(()=>probe.air&&!probe.freeRideTrickReady&&probe.metres>=32092,null,{timeout:3000});
       await shot(hero+'-jump');
-      await at(20124);
+      await at(32124);
       const stats=await page.evaluate(()=>probe);
-      assert.equal(stats.helmets,1);assert.equal(stats.tricks,1);assert.equal(stats.courseMode,'normal');
+      assert.equal(stats.crevasseCoins,10);assert.equal(stats.helmets,1);assert.equal(stats.tricks,1);assert.equal(stats.courseMode,'normal');
       const moves=await page.evaluate(()=>turnNames);
       if(hero==='owl')assert.deepEqual(moves,['Сальто назад']);
       samples.push({hero,input:hero==='bear'?'airborne press':'second finger tap',tapMetres,metres:stats.metres,coins:stats.coins,tricks:stats.tricks,helmets:stats.helmets,moves});
@@ -161,12 +162,12 @@ async function main() {
       await leavePractice();
     }
     // A quick steering correction out and back ends where it began. It must still count as a drag.
-    await seek(20048);
+    await setLane(0);await seek(32048);
     await page.locator('#reviewLane').evaluate(el=>{el.value='-4.8';el.dispatchEvent(new Event('input',{bubbles:true}));});
     await click('reviewPlay');
     const centre={x:182,y:480,id:1};
     await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[centre]});
-    await at(20070);
+    await at(32070);
     await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
     await page.touchscreen.tap(182,480);
     await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[centre]});
@@ -180,53 +181,53 @@ async function main() {
     samples.push({hero:'owl',input:'ground tap, then steer only',helmets:0,tricks:0});
     await leavePractice();
     await page.locator('#reviewLane').evaluate(el=>{el.value='0';el.dispatchEvent(new Event('input',{bubbles:true}));});
-    await seek(22485);await click('reviewPlay');await at(22503);
+    await seek(35985);await click('reviewPlay');await at(36003);
     assert.equal(await page.evaluate(()=>probe.stage),0);
     assert.match(await page.locator('#stage').innerText(),/Круг 2/);
     await leavePractice();await click('reviewExit');
-    await quickLink('snowpark_1911',7500);
+    await quickLink('snowpark_1911',12000);
     for(const hero of ['bear','owl']){
       await page.locator('#reviewHero').selectOption(hero);await phase('review',hero);
       await page.evaluate(()=>{window.turnNames=[];});
-      await setLane(-2.75);await seek(7650);await click('reviewPlay');
+      await setLane(2.75);await seek(12150);await click('reviewPlay');
       const steer={x:190,y:510,id:1};
       await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[steer]});
-      await page.waitForFunction(()=>probe.air&&probe.metres>=7673);
+      await page.waitForFunction(()=>probe.air&&probe.metres>=12173);
       await touchTapWhileSteering(steer);
-      await at(7688);await touchTapWhileSteering(steer);
-      await at(7694);await shot('park-turn-'+hero);
-      await at(7736);const s=await page.evaluate(()=>probe);
+      await at(12188);await touchTapWhileSteering(steer);
+      await at(12194);await shot('park-turn-'+hero);
+      await at(12236);const s=await page.evaluate(()=>probe);
       assert.equal(s.tricks,2);assert.equal(s.rings,1);assert(s.feather);
       const moves=await page.evaluate(()=>turnNames);
       if(hero==='owl')assert.deepEqual(moves,['Сальто назад','Оборот вправо']);
       samples.push({hero,park:s.metres,tricks:s.tricks,feather:s.feather,moves});
       await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await leavePractice();
     }
-    await quickLink('boulder_1911',20119);
+    await quickLink('boulder_1911',32119);
     for(const evade of [false,true]){
-      await setLane(0);await seek(20119);await click('reviewPlay');
+      await setLane(0);await seek(32119);await click('reviewPlay');
       const origin={x:195,y:480,id:1};
       await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[origin]});
       await page.waitForFunction(()=>probe.boulderChasing&&document.getElementById('rideStatus').textContent.includes('Ком сзади'));
       const warning=await page.evaluate(()=>probe.metres);
       if(evade)await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...origin,x:125}]});
-      if(!evade)await page.waitForFunction(()=>probe.helmets===0);else await at(20179);
+      if(!evade)await page.waitForFunction(()=>probe.helmets===0);else await at(32179);
       const s=await page.evaluate(()=>probe);assert.equal(s.helmets,evade?1:0);
       samples.push({pursuit:evade?'evaded':'hit',warning,metres:s.metres,helmets:s.helmets});
       await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await leavePractice();
     }
-    await quickLink('freeridewide_1911',20165);
+    await quickLink('freeridewide_1911',32165);
     for(const [path,x] of [['shelf',-10.36],['jump',1.67]]){
-      await setLane(0);await seek(20165);await click('reviewPlay');
+      await setLane(0);await seek(32165);await click('reviewPlay');
       const origin={x:230,y:510,id:1},steer={...origin,x:230+x*390/(27*.79)};
       await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[origin]});
       await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[steer]});
-      if(path==='shelf'){await at(20204);await shot('wide-approach');}
-      else{await page.waitForFunction(()=>probe.freeRideTrickReady&&probe.metres>20228);await touchTapWhileSteering(steer);}
-      await at(20234);await shot('wide-'+path);
-      await at(20266);const s=await page.evaluate(()=>probe);
-      assert.equal(s.helmets,1);assert.equal(s.tricks,path==='jump'?1:0);
-      samples.push({path,metres:s.metres,tricks:s.tricks,helmets:s.helmets});
+      if(path==='shelf'){await at(32204);await shot('wide-approach');}
+      else{await page.waitForFunction(()=>probe.freeRideTrickReady&&probe.metres>32228);await touchTapWhileSteering(steer);}
+      await at(32234);await shot('wide-'+path);
+      await at(32266);const s=await page.evaluate(()=>probe);
+      assert.equal(s.helmets,1);assert.equal(s.tricks,path==='jump'?1:0);assert.equal(s.crevasseCoins,path==='jump'?15:0);
+      samples.push({path,metres:s.metres,tricks:s.tricks,landingAward:s.crevasseCoins,helmets:s.helmets});
       await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await leavePractice();
     }
     assert.deepEqual(posts, []);
