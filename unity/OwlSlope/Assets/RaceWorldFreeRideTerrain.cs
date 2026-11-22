@@ -97,7 +97,7 @@ public partial class RaceWorld {
         alpineBank=Mathf.Sin(d*.026f+alpinePhaseB)*.045f;
         pillowA=d*.10f+alpinePhase;pillowB=d*.052f+alpinePhaseB;
         alpineLeft=SampleRidge(d,alpinePhase+.7f);alpineRight=SampleRidge(d,alpinePhaseB+3.3f);
-        alpineNearLip=TryFreeRideGap(worldD,out alpineGap)&&worldD>=alpineGap.lipD-7&&worldD<alpineGap.lipD+8;
+        alpineNearLip=TryFreeRideGap(worldD,out alpineGap)&&worldD>=alpineGap.lipD-7&&worldD<alpineGap.lipD+(alpineGap.transverse?15:8);
     }
     Vector3 AlpineGround(float d,float lane){
         float side=Mathf.Abs(lane)*(1-.26f*valleyOpening);
@@ -116,6 +116,10 @@ public partial class RaceWorld {
         if(alpineNearLip){
             float lip=alpineGap.lipD;
             float cross=Smooth((alpineGap.halfWidth+.65f-Mathf.Abs(lane-alpineGap.lane))/1.25f);
+            if(alpineGap.transverse){
+                var banks=alpineGap.CrossSection(alpineGap.SectionDistance(3));
+                cross=alpineGap.TryFrontLip(lane,out lip)?Smooth(Mathf.Min(lane-banks.x,banks.y-lane)/.9f):0;
+            }
             y+=.72f*cross*Smooth((d-lip+7)/7)*(1-Smooth((d-lip)/8));
         }
         float bank=.12f*(float)System.Math.Tanh(-curve*10/.12f);

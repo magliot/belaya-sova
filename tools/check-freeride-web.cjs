@@ -68,6 +68,19 @@ async function main() {
     async function leavePractice() {
       await click('pause');await phase('pause');await click('exitPaused');await phase('review');
     }
+    const setLane=x=>page.locator('#reviewLane').evaluate((el,value)=>{el.value=String(value);el.dispatchEvent(new Event('input',{bubbles:true}));},x);
+    async function quickLink(name,metre){
+      const dest=new URL(url);dest.pathname=dest.pathname.replace(/(?:unity(?:-test)?|progression-test)\/$/,'');
+      dest.searchParams.set('startapp',name);dest.searchParams.delete('reviewStage');dest.searchParams.delete('reviewAt');
+      await page.goto(dest.href,{waitUntil:'commit'});await phase('review');
+      await page.waitForFunction(d=>probe.metres===d&&probe.seed===1911,metre);
+      assert.equal(await page.evaluate(()=>mountainRelease.channel),'test');
+    }
+    async function touchTapWhileSteering(steer){
+      const tap={x:292,y:530,id:2};
+      await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[steer,tap]});
+      await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[tap]});
+    }
     if(fromTelegramLink){
       await phase('review');
       await page.waitForFunction(()=>probe.metres===19955&&probe.seed===1911);
@@ -79,10 +92,21 @@ async function main() {
     assert.equal(await page.locator('[data-mode="freeride"]').count(),0);
     assert.equal(await page.locator('#freeRideJump').count(),0);
     await shot('menu');
+    await page.setViewportSize({width:320,height:640});
+    for(const name of ['collection','missions','shop','settings','rules']){
+      await page.locator('[data-panel="'+name+'"]').tap();
+      const el=page.locator('#panel');
+      assert(await el.isVisible());
+      assert.match(await el.evaluate(node=>getComputedStyle(node).borderImageSource),/hud-59b/);
+      assert(await el.evaluate(node=>node.scrollWidth<=node.clientWidth+1));
+      await click('closePanel');
+    }
+    await shot('menu-320');await page.setViewportSize({width:390,height:780});
     await click('play');await at(3);
     assert.equal(await page.evaluate(()=>probe.stage),0);
     assert.deepEqual(await page.locator('#hud button').evaluateAll(nodes=>nodes.map(node=>node.id)),['pause']);
-    await click('pause');await click('exitPaused');await phase('menu');
+    assert.match(await page.locator('#speedometer').evaluate(node=>getComputedStyle(node).borderImageSource),/hud-59b/);
+    await click('pause');await phase('pause');await shot('winter-pause');await click('exitPaused');await phase('menu');
     await inspect();
     for(const hero of ['bear','owl']){
       await page.locator('#reviewHero').selectOption(hero);
@@ -149,6 +173,35 @@ async function main() {
     assert.equal(await page.evaluate(()=>probe.stage),0);
     assert.match(await page.locator('#stage').innerText(),/Круг 2/);
     await leavePractice();await click('reviewExit');
+    await quickLink('snowpark_1911',7500);
+    for(const hero of ['bear','owl']){
+      await page.locator('#reviewHero').selectOption(hero);await phase('review',hero);
+      await setLane(-2.75);await seek(7650);await click('reviewPlay');
+      const steer={x:190,y:510,id:1};
+      await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[steer]});
+      await page.waitForFunction(()=>probe.air&&probe.metres>=7673);
+      await touchTapWhileSteering(steer);
+      await at(7688);await touchTapWhileSteering(steer);
+      await at(7694);await shot('park-turn-'+hero);
+      await at(7736);const s=await page.evaluate(()=>probe);
+      assert.equal(s.tricks,2);assert.equal(s.rings,1);assert(s.feather);
+      samples.push({hero,park:s.metres,tricks:s.tricks,feather:s.feather});
+      await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await leavePractice();
+    }
+    await quickLink('freeridewide_1911',20165);
+    for(const [path,x] of [['shelf',-10.36],['jump',1.67]]){
+      await setLane(0);await seek(20165);await click('reviewPlay');
+      const origin={x:230,y:510,id:1},steer={...origin,x:230+x*390/(27*.79)};
+      await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[origin]});
+      await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[steer]});
+      if(path==='shelf'){await at(20204);await shot('wide-approach');}
+      else{await page.waitForFunction(()=>probe.freeRideTrickReady&&probe.metres>20228);await touchTapWhileSteering(steer);}
+      await at(20234);await shot('wide-'+path);
+      await at(20266);const s=await page.evaluate(()=>probe);
+      assert.equal(s.helmets,1);assert.equal(s.tricks,path==='jump'?1:0);
+      samples.push({path,metres:s.metres,tricks:s.tricks,helmets:s.helmets});
+      await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await leavePractice();
+    }
     assert.deepEqual(posts, []);
     assert.deepEqual(errors, []);
     console.log('FREE RIDE WEB PASS', JSON.stringify(samples));

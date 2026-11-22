@@ -34,10 +34,6 @@ public partial class MountainRace {
         int stage=BonusMode?0:RaceWorld.StageAt(d);
         if(stage!=bestStage){
             bestStage=s.stage=stage;SelectChallenge(stage);Cue("stage");
-            if(World.AlpineAt(d)){
-                chaseLeft=s.avalanche=0;
-                chaseNext=d-Mathf.Repeat(d,RaceWorld.StageLength)+RaceWorld.StageLength+900;
-            }
         }
         if(StepFisStop(dt,keyboard,drawWorld))return;
         float previousSpeed=speed;
@@ -106,7 +102,7 @@ public partial class MountainRace {
         if(crashTimer<=0)CheckItems(d,oldLane);
         if(s.phase!="play"||crashTimer>0)return;
         TickTimers(dt);
-        if(!BonusMode&&!freeRide){Avalanche(dt);TickChallenge();FisHints(d,s.metres);}
+        if(!BonusMode&&!freeRide){TickChallenge();FisHints(d,s.metres);}
         if(BonusMode&&s.elapsed>=BonusSeconds)Finish(true,s.mode=="tubing"?"Финиш у бухты!":"Снежная доставка завершена!");
         else if(s.mode=="sprint"&&s.metres>=SprintLength)Finish(true,"Короткий спуск пройден!");
     }
@@ -122,6 +118,7 @@ public partial class MountainRace {
     }
     void BeginFlight(RaceItem item){
         airborne=true;parkFlight=item.park;trickLine=item.trickLine;prizeLine=item.prizeLine;
+        parkTapQueued=false;
         lipHeight=item.height;flightStart=item.distance+item.length*.5f;
         if(parkFlight){
             // A slow rider lands short, without stretching the same jump into slow motion.
@@ -152,18 +149,25 @@ public partial class MountainRace {
             }
             return;
         }
-        if(trickProgress>=0||BonusMode)return;
+        if(BonusMode)return;
         float remaining=airMax-airTime;
+        if(trickProgress>=0){
+            float left=(1-trickProgress)*trickLength;
+            if(SnowParkFlight&&flightTricks==0&&left<=.24f&&remaining>=left+ParkTurnSeconds)parkTapQueued=true;
+            return;
+        }
         if(World.AlpineAt(Status.metres)){
             if(!freeRideAwaitingTrick||airTime>=freeRideTrickUntil)return;
             freeRideAwaitingTrick=false;freeRideTrickAt=airTime;
             foreach(var fruit in crossedFruit)if(!fruit.consumed)CollectCoin(fruit);
             crossedFruit.Clear();
             trickLength=Mathf.Max(.1f,remaining);ChooseAirPose(trickLength,true);
+        }else if(SnowParkFlight){
+            if(!RequestParkPose())return;
         }else{
             float minimum=Hero=="bear"?.42f:.50f;
             if(remaining<minimum+.025f)return;
-            float preferred=prizeLine?airMax*.32f:parkFlight&&flightTricks==0?airMax*.46f-.07f:.94f;
+            float preferred=parkFlight&&flightTricks==0?airMax*.46f-.07f:.94f;
             trickLength=Mathf.Clamp(remaining-.10f,minimum,Mathf.Clamp(preferred,minimum,.94f));
             RequestAirPose(trickLength);
         }
@@ -183,7 +187,10 @@ public partial class MountainRace {
         }
         if(trickProgress>=0){
             trickProgress+=dt/trickLength;
-            if(trickProgress>=1)AwardTrick(false);
+            if(trickProgress>=1){
+                AwardTrick(false);
+                if(parkTapQueued){parkTapQueued=false;AirTrick("tap");}
+            }
         }
         if(parkFlight&&World.AlpineAt(Status.metres)){
             if(airTime<.06f||FreeRideClearance(Status.metres,lane)>0)return;
@@ -230,7 +237,7 @@ public partial class MountainRace {
             case "snowBoulder":msg="Сбил снежный ком";break;
             case "crevasse":msg="Срыв в расщелину";break;
             case "edge":msg="Снежный борт! Рули на поворотах";break;case "rock":msg="Камень на трассе";break;
-            case "avalanche":msg="Лавина догнала";break;case "cat":msg="Столкновение с ратраком";break;
+            case "cat":msg="Столкновение с ратраком";break;
             case "npc":msg="Держи дистанцию при обгоне";break;case "tube":msg="Плюшка пересекла твою линию";break;
             case "tree":msg="Столкновение с деревом";break;case "mogulYeti":case "yeti":msg="Столкновение с йети";break;
             case "gate":msg="Задел стойку ворот";break;case "dog":msg="Столкновение с собакой";break;
@@ -238,19 +245,6 @@ public partial class MountainRace {
             default:msg="Столкновение на трассе";break;
         }
         Notice(msg,"crash");
-    }
-    void Avalanche(float dt){
-        if(chaseLeft<=0){
-            if(Status.metres<chaseNext)return;
-            chaseLeft=20;chaseDistance=Status.metres-28;chaseNext=Status.metres+1300+random.Next(600);Notice("Лавина! Держи скорость","warn");
-        }
-        // Keep the pursuit matched to the kicker's slower flight line. Time in
-        // the air must leave room for the mandatory two tricks before landing.
-        float chasePace=airborne&&parkFlight?Mathf.Min(baseSpeed,speed):baseSpeed;
-        chaseLeft-=dt;chaseDistance+=chasePace*.94f*dt;
-        Status.avalanche=Mathf.Clamp01(1-(Status.metres-chaseDistance)/28);
-        if(Status.metres-chaseDistance<.75f&&fall<=0){Hit("avalanche");chaseDistance=Status.metres-21;}
-        if(chaseLeft<=0&&crashTimer<=0){bonusPoints+=600*Mult;Status.avalanche=0;Notice("Ушёл от лавины!","chime");}
     }
     void SelectChallenge(int stage){
         if(random==null)return;

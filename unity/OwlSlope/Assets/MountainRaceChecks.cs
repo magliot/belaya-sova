@@ -15,6 +15,39 @@ public partial class MountainRace {
         if(CourseMode=="normal"&&RaceWorld.StageAt(metres)==3)speed=ParkPace(metres);
         World.Refresh(metres,Status.elapsed);BeginSteer();
     }
+    void VerifyParkTempo(){
+        foreach(string hero in new[]{"owl","bear"})foreach(int lap in new[]{0,1})foreach(int row in new[]{0,1,2})
+        foreach(float tapAt in row==2?new[]{.12f,.50f}:new[]{.12f}){
+            Menu();ChooseHero(hero);StartRace("{\"mode\":\"normal\",\"seed\":1911}");
+            float start=7500+lap*RaceWorld.LapLength+row*75;
+            Checkpoint(start,0);
+            var ramp=World.Items.Find(o=>o.kind=="ramp"&&o.park&&o.distance>=start&&o.distance<start+60);
+            Check(ramp!=null,"missing test kicker at "+start);
+            Checkpoint(ramp.distance,ramp.lane);
+            if(lap==1){boost=.6f;speed=37;}
+            float low=10,high=0;bool requested=false;
+            for(int n=0;n<250&&Status.phase=="play";n++){
+                if(airborne&&!requested&&airTime>tapAt){
+                    float from=PoseTime;AirTrick("tap");requested=trickProgress>=0;
+                    if(requested)Check(Mathf.Abs(PoseTime-from)<.001f,"tap jumped to a different pose at "+start);
+                }
+                float phase=PoseTime;
+                bool measuring=airborne&&trickProgress>=0;
+                Advance(1f/60);
+                float change=PoseTime-phase;
+                if(measuring&&airborne&&trickProgress>=0&&change>.001f){
+                    float seconds=(1f/60)/change;
+                    low=Mathf.Min(low,seconds);high=Mathf.Max(high,seconds);
+                }
+                if(requested&&!airborne)break;
+            }
+            Check(requested&&Status.tricks==1&&high>0,"no scored park rotation at "+start);
+            Check(Mathf.Abs(low-ParkTurnSeconds)<.012f&&Mathf.Abs(high-ParkTurnSeconds)<.012f,
+                "park motion changed speed at "+start+" seconds per turn "+low+".."+high);
+            Debug.Log("PARK TEMPO "+hero+" lip "+(ramp.distance+ramp.length*.5f).ToString("F1")+" flight "+airMax.ToString("F2")+
+                " tap "+tapAt.ToString("F2")+" seconds per full motion "+low.ToString("F3")+".."+high.ToString("F3"));
+        }
+    }
     string VerifyPrize(string hero,int taps,int lap=0,bool coffee=false){
         Menu();ChooseHero(hero);StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
         Checkpoint(7620+lap*RaceWorld.LapLength,0);
@@ -59,7 +92,7 @@ public partial class MountainRace {
     string VerifyParkJumps(int lap){
         Menu();ChooseHero("bear");StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4}");
         float start=7500+lap*RaceWorld.LapLength,end=start+2500;
-        Checkpoint(start,0);chaseNext=end+900;
+        Checkpoint(start,0);
         var features=new HashSet<RaceItem>();
         for(int frame=0;frame<3300&&Status.phase=="play"&&Status.metres<end;frame++){
             foreach(var item in World.Items){
@@ -306,6 +339,7 @@ public partial class MountainRace {
             report.Add(VerifySledSeat("bear"));report.Add(VerifySledSeat("owl"));
             foreach(var vehicle in new[]{"tubing","sled"})foreach(var rider in new[]{"owl","bear"})
                 report.Add(VerifyBonusJump(vehicle,rider));
+            VerifyParkTempo();
             report.Add(VerifyPrize("bear",2));report.Add(VerifyPrize("owl",2));report.Add(VerifyPrize("bear",1));report.Add(VerifyPrize("owl",0));
             report.Add(VerifyPrize("bear",2,1));report.Add(VerifyPrize("owl",2,1,true));
             report.Add(VerifyParkJumps(0));report.Add(VerifyParkJumps(1));

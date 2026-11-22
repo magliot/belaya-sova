@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#183c56">
   <title>Белая Сова · Спуск</title>
   <link rel="icon" type="image/jpeg" href="art/av_owl.jpg">
-  <link rel="stylesheet" href="race.css?v=804269cc9aca">
+  <link rel="stylesheet" href="race.css?v=5e5c1de362af">
   <script src="vendor/telegram-web-app.js?v=e999954b603b"></script>
   <script src="release.js?v=02306089b92b"></script><script src="save.js?v=856b082986e6"></script><script src="equipment.js?v=c446f7325708"></script>
-  <script defer src="mountain-audio.js?v=d61fec4a1e61"></script><script defer src="mountain-metrics.js?v=2c1afe0401dc"></script>
+  <script defer src="mountain-audio.js?v=4a1e7fcd87e4"></script><script defer src="mountain-metrics.js?v=2c1afe0401dc"></script>
 </head>
 <body><main id="app">
   <canvas id="slope" aria-label="Горнолыжная трасса" tabindex="0"></canvas>
@@ -38,9 +38,8 @@
       <button class="rules-link" data-panel="rules">Правила FIS · <b id="ruleCount">0/10</b></button>
     </section>
     <div id="hud" hidden>
-      <div id="course"><b id="metres"></b><b id="pace"></b><b id="multiplier" hidden></b></div>
+      <div id="course"><b id="metres"></b><div id="speedometer"><span class="speed-dial" aria-hidden="true"><i></i></span><b id="pace"></b></div><b id="multiplier" hidden></b></div>
       <div id="rideInfo"><span id="stage"></span><span id="rideStatus" hidden></span><aside id="notice" hidden></aside></div>
-      <div id="avalancheMeter" hidden><i></i></div>
       <div id="rewardFloats" aria-hidden="true"></div>
       <div class="scoreboard" aria-label="Счёт, каски и мандарины">
         <b id="score">0</b><div id="helmets"><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""></div>
@@ -57,7 +56,7 @@
         <option value="0">Стоп</option><option value=".25">¼×</option><option value="1">1×</option><option value="3">3×</option><option value="6">6×</option></select>
         <button id="reviewStep">Один кадр</button><button id="reviewPlay">Проехать отсюда</button></div>
       <label>Положение поперёк склона<input id="reviewLane" type="range" min="-9" max="9" step=".25" value="0"></label>
-      <div class="row"><select id="reviewStage" aria-label="Этап"></select><select id="reviewEffect" aria-label="Событие осмотра"><option value="normal">Обычный спуск</option><option value="coffee">Кофе</option><option value="avalanche">Лавина</option><option value="jump">Прыжок</option></select></div></div>
+      <div class="row"><select id="reviewStage" aria-label="Этап"></select><select id="reviewEffect" aria-label="Событие осмотра"><option value="normal">Обычный спуск</option><option value="coffee">Кофе</option><option value="jump">Прыжок</option></select></div></div>
     </section>
     <section id="paused" class="sheet" hidden><h2>Пауза</h2><p id="pausedDist"></p>
       <div id="pauseVolumes"></div>
@@ -83,10 +82,10 @@
       <div id="panelBody"></div>
     </section>
   </div>
-</main><script src="race.js?v=d92c75430d86"></script>
+</main><script src="race.js?v=7ea85156eb40"></script>
 <script>
   MountainShell.boot({
-    loader:'Build/a61d7201a91ab2d94ad5e7850d146ca1.loader.js', data:'Build/763f67dcc6db3ce6446cf0aaf1b77fbd.data.unityweb',
-    framework:'Build/03e23be05751131bdf03db6d7bb218f0.framework.js.unityweb', code:'Build/3e3ea351c37b410d8ca9c9fa2126dc92.wasm.unityweb'
+    loader:'Build/00198c35c812318c5a5350968eeefcee.loader.js', data:'Build/b30e0978ea030ff8a59883e79f8a17a6.data.unityweb',
+    framework:'Build/03e23be05751131bdf03db6d7bb218f0.framework.js.unityweb', code:'Build/d3208a0c867719bb9ce7fb5817eca2a0.wasm.unityweb'
   });
 </script></body></html>

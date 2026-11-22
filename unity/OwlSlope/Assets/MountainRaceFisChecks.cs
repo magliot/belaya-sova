@@ -4,7 +4,7 @@ using UnityEngine;
 
 public partial class MountainRace {
     float CheckFisPatrol(float station){
-        Checkpoint(station-22,0);chaseNext=station+900;chaseLeft=0;
+        Checkpoint(station-22,0);
         var sitter=World.Items.Find(o=>o.sit&&Mathf.Abs(o.distance-station)<2);
         Check(sitter!=null&&sitter.patrolPatient&&World.Items.Exists(o=>o.kind=="aid"&&Mathf.Abs(o.distance-station)<2),
             "patient or first-aid kit missing at "+station);
@@ -68,7 +68,7 @@ public partial class MountainRace {
             if(fence==null)continue;
             float x=fence.lane-Mathf.Sign(fence.lane)*(fence.width*.5f+1.5f);
             Check(Mathf.Abs(x)<LaneLimit(fence.distance),"marked bypass beyond the bank");
-            Checkpoint(fence.distance-4,x);chaseNext=fence.distance+900;chaseLeft=0;
+            Checkpoint(fence.distance-4,x);
             for(int i=0;i<50&&!earnedRules.Contains(8)&&Status.phase=="play";i++)Advance(1f/60);
             passedSign=earnedRules.Contains(8);
         }

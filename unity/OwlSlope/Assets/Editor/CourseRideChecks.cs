@@ -61,8 +61,15 @@ public static class CourseRideChecks {
     static float SelectLane(){
         var s=race.Status;float d=s.metres,lane=race.Lane,speed=Mathf.Max(10,s.speed/3.6f);
         float width=race.World.WidthAt(d+speed)*.5f-.35f;
-        if(race.World.AlpineAt(d)&&race.World.TryFreeRideGap(d,out var cut)&&d>cut.lipD-30&&d<cut.endD+3)return -Mathf.Sign(cut.lane)*2.3f;
         obstacles.Clear();rewards.Clear();
+        if(race.World.TryFreeRideGap(d,out var cut)&&d>cut.lipD-45&&d<cut.endD){
+            for(int knot=1;knot<RaceWorld.FreeRideGap.ShapeSegments;knot++){
+                float at=cut.SectionDistance(knot);
+                if(at<d-1)continue;
+                var banks=cut.CrossSection(at);
+                ObstacleAt((banks.x+banks.y)*.5f,(at-d)/speed,(banks.y-banks.x)*.5f+.55f);
+            }
+        }
         foreach(var item in race.World.Items){
             float dz=item.distance-d;
             if(item.consumed||dz< -8||dz>speed*2.15f+5)continue;

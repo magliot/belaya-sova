@@ -57,7 +57,7 @@ public partial class MountainRace {
     }
     float Shoulder(RaceItem sitter)=>World.PatrolShoulder(sitter);
     RaceItem NearbyPatient(){
-        if(airborne||fall>0||crashTimer>0||chaseLeft>0)return null;
+        if(airborne||fall>0||crashTimer>0)return null;
         foreach(var sitter in World.Items){
             if(!sitter.patrolPatient)continue;
             float ahead=sitter.distance-Status.metres;

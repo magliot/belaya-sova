@@ -17,7 +17,7 @@ public partial class MountainRace : MonoBehaviour {
         public string phase="menu",hero="bear",mode="normal",courseMode="normal",message="",cue="",nextLetter="";
         public int seed,score,coins,helmets,stage,gates,tricks,rings,combo,maxCombo,polite,gifts,snowmen,
             feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds,horns;
-        public float metres,elapsed,engineNear,enginePan,boulderNear,avalanche,blizzard,edge,boostSeconds,magnetSeconds,chaseSeconds,chaseGap;
+        public float metres,elapsed,engineNear,enginePan,boulderNear,blizzard,edge,boostSeconds,magnetSeconds;
         public int letterSide,bonusLocation;
         public float riderLane,riderScreenX=.5f,riderScreenY=.65f;
         public int scoreDistance,scoreFruit,scoreGates,scoreRings,scoreFis;
@@ -49,7 +49,7 @@ public partial class MountainRace : MonoBehaviour {
     int flightTricks;
     readonly float[] tapOrigin={float.NaN,float.NaN};
     float rampHeight,rampPhase,lastLanding,crashTimer,cleanStart,lastClose;
-    float chaseNext,chaseDistance,chaseLeft,noticeUntil,lastReward;
+    float noticeUntil,lastReward;
     float reviewRate, reviewLane,nextHud;
     string reviewEffect="normal";
     int rewardChain,challenge,challengeNeed,challengeBaseline,consecutiveGates,bestStage;
@@ -122,7 +122,7 @@ public partial class MountainRace : MonoBehaviour {
         ResetFreeRideInput();ResetJumpPoses();
         earnedRules.Clear();bonusPoints=flightTricks=rewardChain=consecutiveGates=0;lastReward=-100;
         ResetFis();
-        chaseLeft=0;chaseNext=900;bestStage=0;nextHud=0;reviewEffect="normal";SelectChallenge(0);
+        bestStage=0;nextHud=0;reviewEffect="normal";SelectChallenge(0);
         PrepareActors();ScheduleLetter(0,false);World.Refresh(0,0);RenderRace(0,true);
         Cue("start");Publish();
     }
@@ -169,7 +169,7 @@ public partial class MountainRace : MonoBehaviour {
         if(Status.stage==3)speed=ParkPace(Status.metres);
         World.SetThrowTarget(lane,14,0,0);
         World.Refresh(Status.metres,Status.elapsed);ReviewContact();
-        boost=reviewEffect=="coffee"?5:0;Status.avalanche=reviewEffect=="avalanche"?.85f:0;
+        boost=reviewEffect=="coffee"?5:0;
         if(reviewEffect=="jump"){
             airborne=true;parkFlight=false;lipHeight=.9f;flightLift=2.15f;
             airMax=1.35f;airTime=airMax*(.1f+.8f*Mathf.PingPong(Status.elapsed*.8f,1));
@@ -187,7 +187,7 @@ public partial class MountainRace : MonoBehaviour {
         if(World.AlpineAt(Status.metres)){airborne=parkFlight=false;ResetFreeRideInput();}
         Status.helmets=BonusMode?0:1;
         helmetsIssued=Status.helmets;
-        cleanStart=Status.metres;chaseNext=cleanStart+900;
+        cleanStart=Status.metres;
         bestStage=Status.stage;SelectChallenge(bestStage);
         travelYaw=World.HeadingAt(cleanStart);nextHud=0;
         ScheduleLetter(cleanStart,false);PrepareActors();RenderRace(0,true);Publish();
@@ -241,7 +241,6 @@ public partial class MountainRace : MonoBehaviour {
         Status.freeRideInCrevasse=World.AlpineAt(Status.metres)&&freeRideFalling;
         Status.bonusLocation=Status.metres<580?0:Status.metres<1190?1:2;
         Status.boostSeconds=Mathf.Max(0,boost);Status.magnetSeconds=Mathf.Max(0,magnet);
-        Status.chaseSeconds=Mathf.Max(0,chaseLeft);Status.chaseGap=Mathf.Max(0,Status.metres-chaseDistance);
         Status.nextLetter="";Status.letterSide=0;
         if(!IsMenu && World) foreach(var item in World.Items){
             if(item.kind!="letter"||item.consumed||item.distance<=Status.metres||item.distance>=Status.metres+75)continue;

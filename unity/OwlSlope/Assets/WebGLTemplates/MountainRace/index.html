@@ -38,9 +38,8 @@
       <button class="rules-link" data-panel="rules">Правила FIS · <b id="ruleCount">0/10</b></button>
     </section>
     <div id="hud" hidden>
-      <div id="course"><b id="metres"></b><b id="pace"></b><b id="multiplier" hidden></b></div>
+      <div id="course"><b id="metres"></b><div id="speedometer"><span class="speed-dial" aria-hidden="true"><i></i></span><b id="pace"></b></div><b id="multiplier" hidden></b></div>
       <div id="rideInfo"><span id="stage"></span><span id="rideStatus" hidden></span><aside id="notice" hidden></aside></div>
-      <div id="avalancheMeter" hidden><i></i></div>
       <div id="rewardFloats" aria-hidden="true"></div>
       <div class="scoreboard" aria-label="Счёт, каски и мандарины">
         <b id="score">0</b><div id="helmets"><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""></div>
@@ -57,7 +56,7 @@
         <option value="0">Стоп</option><option value=".25">¼×</option><option value="1">1×</option><option value="3">3×</option><option value="6">6×</option></select>
         <button id="reviewStep">Один кадр</button><button id="reviewPlay">Проехать отсюда</button></div>
       <label>Положение поперёк склона<input id="reviewLane" type="range" min="-9" max="9" step=".25" value="0"></label>
-      <div class="row"><select id="reviewStage" aria-label="Этап"></select><select id="reviewEffect" aria-label="Событие осмотра"><option value="normal">Обычный спуск</option><option value="coffee">Кофе</option><option value="avalanche">Лавина</option><option value="jump">Прыжок</option></select></div></div>
+      <div class="row"><select id="reviewStage" aria-label="Этап"></select><select id="reviewEffect" aria-label="Событие осмотра"><option value="normal">Обычный спуск</option><option value="coffee">Кофе</option><option value="jump">Прыжок</option></select></div></div>
     </section>
     <section id="paused" class="sheet" hidden><h2>Пауза</h2><p id="pausedDist"></p>
       <div id="pauseVolumes"></div>

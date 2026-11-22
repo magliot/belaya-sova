@@ -98,8 +98,7 @@ async function main(){
     const weatherFrames={};
     await page.locator('#reviewEffect').selectOption('coffee');
     await page.waitForFunction(()=>lastRace.boostSeconds===5 && document.querySelector('#rideStatus').textContent.includes('5.0 с'));
-    await page.locator('#reviewEffect').selectOption('avalanche');
-    await page.waitForFunction(()=>lastRace.avalanche>0 && !document.querySelector('#avalancheMeter').hidden);
+    assert.equal(await page.locator('#reviewEffect option[value="avalanche"],#avalancheMeter').count(),0);
     await page.locator('#reviewEffect').selectOption('normal');
     await page.locator('#reviewRide').selectOption('sled');
     await page.waitForFunction(()=>lastRace.courseMode==='sled' && document.querySelector('#rideStatus').textContent==='Снеговики 0 · подарки 0');

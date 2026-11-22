@@ -45,7 +45,7 @@ function createGraph(){
     for(const [f,v] of[[46,0.5],[69,0.35],[184,.12]]){const o=AC.createOscillator();o.type='sawtooth';o.frequency.value=f;const g=AC.createGain();g.gain.value=v;o.connect(g).connect(lp);o.start();engO.push(o);}
     const n3=AC.createBufferSource();n3.buffer=noiseBuf;n3.loop=true;const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=160;bp.Q.value=1.2;const ng=AC.createGain();ng.gain.value=1.4;n3.connect(bp).connect(ng).connect(lp);n3.start();
     lp.connect(chug).connect(engG);if(engP)engG.connect(engP).connect(sfxBus);else engG.connect(sfxBus);}
-  // гул лавины
+  // Гул приближающегося снежного кома Free Ride.
   {const n4=AC.createBufferSource();n4.buffer=noiseBuf;n4.loop=true;rumFilter=AC.createBiquadFilter();rumFilter.type='lowpass';rumFilter.frequency.value=140;rumG=AC.createGain();rumG.gain.value=0;n4.connect(rumFilter).connect(rumG).connect(sfxBus);n4.start(0,1.1);}
   const n2=AC.createBufferSource();n2.buffer=noiseBuf;n2.loop=true;const hp=AC.createBiquadFilter();hp.type='highpass';hp.frequency.value=700;const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3200;carveG=AC.createGain();carveG.gain.value=0;n2.connect(hp).connect(lp).connect(carveG).connect(sfxBus);n2.start(0,0.7);
 }
@@ -158,7 +158,7 @@ const SFX={
     const snow=next.boulderNear||0;
     rumFilter.frequency.setTargetAtTime(140+460*snow,t,.16);
     const roll=.30*snow**1.6*(.84+.16*Math.sin((next.elapsed||0)*13));
-    rumG.gain.setTargetAtTime(riding?Math.max(.16*(next.avalanche||0),roll):0,t,.12);
+    rumG.gain.setTargetAtTime(riding?roll:0,t,.12);
     if(!riding){
       if(next.phase==='over'&&previous.phase!=='over'&&next.cue==='fallEnd')speak('crash',true,'over');
       lastEvent=next.eventId;return;

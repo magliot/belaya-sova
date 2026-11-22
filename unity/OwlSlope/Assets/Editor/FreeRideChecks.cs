@@ -22,12 +22,12 @@ public static class FreeRideChecks {
     }
     static void Need(bool condition,string detail){if(!condition)throw new InvalidOperationException("Free Ride: "+detail);}
     const int Entry=RaceWorld.AlpineStage*RaceWorld.StageLength;
-    static void Start(MountainRace race,string hero,int seed){
+    static void Start(MountainRace race,string hero,int seed,float at=Entry){
         race.Menu();race.ChooseHero(hero);
         race.StartRace(JsonUtility.ToJson(new MountainRace.Settings{mode="review",seed=seed,sensitivity=4}));
-        race.Seek(Entry);race.RideFromReview();
+        race.Seek(at);race.RideFromReview();
         Need(race.Status.phase=="play"&&race.World.Mode=="normal"&&race.Status.stage==8,"normal-course powder stage");
-        Need(race.World.Items.Any(o=>o.kind=="arch"&&o.variant=="arch8"),"missing entry arch");
+        if(at==Entry)Need(race.World.Items.Any(o=>o.kind=="arch"&&o.variant=="arch8"),"missing entry arch");
         race.BeginSteer();
     }
     enum Path {Jump,Bypass,Miss,NoJump}
@@ -64,7 +64,7 @@ public static class FreeRideChecks {
         Start(race,hero,seed);
         Need(race.World.TryFreeRideGap(Entry+80,out var gap),"missing first crevasse");
         if(path==Path.Jump)CheckRenderedCut(race.World,gap);
-        Need(race.World.Items.All(o=>o.distance<Entry||o.kind=="coin"||o.kind=="rock"||o.kind=="arch"||o.kind=="snowBoulder"),"mixed regular course objects into powder");
+        Need(race.World.Items.All(o=>o.distance<Entry||o.kind=="coin"||o.kind=="rock"||o.kind=="arch"||o.kind=="snowBoulder"||o.kind=="npc"),"mixed regular course objects into powder");
         var fruit=race.World.Items.Where(o=>o.kind=="coin"&&o.air&&o.distance>gap.lipD&&o.distance<gap.endD).ToArray();
         Need(fruit.Length==3,"unmarked lip");
         float peak=0,depth=0,landing=0,tapMetre=0;bool airborne=false,early=false,prompt=false;
@@ -142,7 +142,72 @@ public static class FreeRideChecks {
             "snow collision/bypass "+collide+" at "+race.Status.metres+", ball "+snow.distance+"/"+snow.lane+", "+race.Status.message);
         Debug.Log("ROLLING SNOW PASS "+(collide?"collision":"bypass")+", helmets "+race.Status.helmets+", proximity "+volume.ToString("F2"));
     }
+    static void Transverse(MountainRace race,int seed,bool bypass){
+        Start(race,bypass?"bear":"owl",seed,Entry+165);
+        int count=0,leftShelves=0;
+        for(int i=0;i<16;i++){
+            Need(race.World.TryFreeRideGap(Entry+150*i+75,out var hole),"missing section "+i);
+            if(!hole.transverse)continue;
+            count++;
+            if(hole.bypassLane<0)leftShelves++;
+            float mid=hole.SectionDistance(4),width=race.World.WidthAt(mid)*.5f;
+            var banks=hole.CrossSection(mid);
+            float left=Mathf.Max(0,banks.x+width),right=Mathf.Max(0,width-banks.y);
+            Need(Mathf.Min(left,right)==0&&Mathf.Max(left,right)>2.8f&&Mathf.Max(left,right)<4.1f&&
+                !hole.OverOpening(mid,hole.bypassLane)&&hole.OverOpening(mid,0),"transverse shelf width "+left+"/"+right);
+        }
+        Need(count==4&&leftShelves==2,"two shelves on each side per visit");
+        race.World.TryFreeRideGap(Entry+225,out var gap);
+        var outcrops=race.World.Items.Where(o=>o.kind=="rock"&&o.distance>=gap.lipD-11&&o.distance<=gap.endD+5&&o.lane*gap.bypassLane>0).ToArray();
+        Need(outcrops.Length==3&&outcrops.All(o=>Mathf.Abs(o.lane-gap.bypassLane)>o.width*.5f+1.2f),"outcrop intrudes into the snow shelf");
+        if(!bypass)CheckRenderedCut(race.World,gap);
+        float peak=0;bool tapped=false;
+        for(int i=0;i<700&&race.Status.phase=="play"&&race.Status.metres<gap.endD+20;i++){
+            float line=bypass?gap.bypassLane:gap.lane;
+            race.DragSteer(line/(27*.79f));
+            if(!bypass&&!tapped&&race.Status.freeRideTrickReady&&race.Status.metres>gap.lipD+5){
+                race.BeginTap(1);race.EndTap(1);tapped=true;
+            }
+            race.Advance(1f/60);peak=Mathf.Max(peak,race.Altitude);
+        }
+        Need(race.Status.metres>=gap.endD+20&&race.Status.helmets==1&&
+            (bypass?peak<.06f&&race.Status.tricks==0:tapped&&peak>1&&race.Status.tricks==1),"blocked crossing "+seed+" bypass "+bypass+" at "+race.Status.metres);
+        Debug.Log("WIDE FREE RIDE seed "+seed+" "+gap.lipD.ToString("F1")+".."+gap.endD.ToString("F1")+" shelf lane "+gap.bypassLane.ToString("F1")+
+            " "+(bypass?"ground bypass":"air trick")+" helmets "+race.Status.helmets);
+    }
+    static void AlpineTraffic(MountainRace race,bool board){
+        Start(race,"owl",1911,Entry+(board?158:6));
+        var npc=race.World.Items.Find(o=>o.kind=="npc"&&o.sb==board&&o.distance>race.Status.metres&&o.distance<race.Status.metres+65);
+        Need(npc!=null,"missing moving powder rider");
+        float start=npc.distance,low=npc.lane,high=npc.lane,visibleAt=0;
+        for(int i=0;i<105;i++){
+            race.Advance(1f/60);low=Mathf.Min(low,npc.lane);high=Mathf.Max(high,npc.lane);
+            var v=race.View.WorldToViewportPoint(npc.Visual.bounds.center);
+            if(v.z>5&&v.x>.025f&&v.x<.975f&&v.y>.025f&&v.y<.975f)visibleAt=race.Status.metres;
+        }
+        Need(npc.distance-start>8&&high-low>.28f&&visibleAt>0,"powder rider must descend, turn and enter the camera: "+npc.variant);
+        Debug.Log("POWDER TRAFFIC "+npc.variant+" visible from "+visibleAt.ToString("F1")+" m, travelled "+(npc.distance-start).ToString("F1")+" m");
+        if(board){
+            Need(race.World.TryFreeRideGap(Entry+225,out var cut),"missing boarder's jump");
+            float peak=0,time=race.Status.elapsed;
+            // Keep the streamed actor in view through touchdown. A faster player
+            // can otherwise finish the pass and unload the boarder mid-jump.
+            for(int i=0;i<500&&npc.distance<cut.endD+4;i++){
+                time+=1f/60;
+                race.World.Refresh(Mathf.Max(race.Status.metres,npc.distance-12),time,cut.bypassLane,true);
+                if(npc.Visual&&cut.OverOpening(npc.distance,npc.lane)){
+                    float y=npc.Visual.transform.position.y-race.World.SnowSurface(npc.distance,npc.lane).y;
+                    peak=Mathf.Max(peak,y);
+                    Need(Mathf.Abs(npc.lane-cut.bypassLane)>3,"boarder blocks the only snow shelf");
+                }
+            }
+            float landed=npc.Visual.transform.position.y-race.World.SnowSurface(npc.distance,npc.lane).y;
+            Need(npc.distance>=cut.endD+3&&peak>1&&Mathf.Abs(landed)<.05f,"boarder touchdown "+npc.distance+" peak "+peak+" snow offset "+landed);
+        }
+    }
     public static void Run(MountainRace race){
+        foreach(int seed in new[]{1911,4242}){Transverse(race,seed,false);Transverse(race,seed,true);}
+        AlpineTraffic(race,false);AlpineTraffic(race,true);
         FirstCut(race,"owl",1911,Path.Jump);FirstCut(race,"bear",1911,Path.Bypass);
         FirstCut(race,"bear",1911,Path.Miss);FirstCut(race,"owl",1911,Path.NoJump);FirstCut(race,"bear",4242,Path.Jump);
         FirstCut(race,"bear",1911,Path.Jump);FirstCut(race,"bear",1911,Path.NoJump);

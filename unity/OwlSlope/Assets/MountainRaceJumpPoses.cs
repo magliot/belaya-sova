@@ -9,6 +9,9 @@ public partial class MountainRace {
     int airPose=-1,lastBearJump=-1;
     float poseStart,poseDuration,poseFrom,poseTo,switchStarted,switchFrame;
     const float SwitchRecovery=.38f;
+    const float ParkTurnSeconds=.76f;
+    bool parkTapQueued;
+    bool SnowParkFlight=>parkFlight&&Status.stage==3&&!BonusMode;
     const float BearCrouch=(194-184)/30f;
 
     void ResetJumpPoses(){
@@ -24,6 +27,7 @@ public partial class MountainRace {
         }
         poseStart=Review?0:airTime;poseDuration=Mathf.Max(.1f,duration);poseFrom=0;
         poseTo=finishOnSnow&&Hero=="bear"&&airPose==0?.52f:1;
+        if(SnowParkFlight)poseDuration=ParkTurnSeconds*poseTo;
         switchStarted=float.NegativeInfinity;
     }
     void EndAirPose(){
@@ -31,8 +35,31 @@ public partial class MountainRace {
             switchFrame=PoseTime;switchStarted=Status.elapsed;
         }
     }
-    float PoseTime=>Mathf.Lerp(poseFrom,poseTo,(airTime-poseStart)/Mathf.Max(.1f,poseDuration));
+    float PoseTime{
+        get{
+            if(SnowParkFlight&&airMax>1.1f&&poseTo<1){
+                // Set the skis at takeoff, then turn into the switch landing.
+                // On a high kicker the bear waits in the wind-up rather than
+                // spending the flight backwards. A tap resumes from this pose.
+                const float windup=.16f;
+                float entry=Mathf.Clamp((airTime-poseStart)/ParkTurnSeconds,0,windup);
+                float finish=Mathf.Max(0,poseTo-windup-(airMax-airTime)/ParkTurnSeconds);
+                return Mathf.Min(poseTo,entry+finish);
+            }
+            return Mathf.Lerp(poseFrom,poseTo,(airTime-poseStart)/Mathf.Max(.001f,poseDuration));
+        }
+    }
     string AirPoseName=>Hero=="owl"?"Оборот вправо":airPose==0?"Вращение 360°":"Сальто назад";
+    bool RequestParkPose(){
+        // A tap claims the turn already in progress. Its clock keeps running at
+        // the same rate, including the second rotation on the feather jump.
+        bool continuing=flightTricks==0&&airPose>=0&&PoseTime<1;
+        float from=continuing?PoseTime:0,seconds=(1-from)*ParkTurnSeconds;
+        if(airMax-airTime+.003f<seconds)return false;
+        if(!continuing)ChooseAirPose(ParkTurnSeconds);
+        poseFrom=from;poseTo=1;poseStart=airTime;poseDuration=trickLength=Mathf.Max(.001f,seconds);
+        return true;
+    }
     void RequestAirPose(float length){
         if(flightTricks==0&&airPose>=0){
             // Continue the movement already visible on takeoff. A tap changes the
@@ -45,7 +72,8 @@ public partial class MountainRace {
     Vector3 SnowboardTurn(){
         if(!airborne||Hero!="owl"||airPose<0||BonusMode)return Vector3.zero;
         float t=PoseTime;
-        float spin=360*(t-.82f*Mathf.Sin(2*Mathf.PI*t)/(2*Mathf.PI));
+        float ease=SnowParkFlight?.46f:.82f;
+        float spin=360*(t-ease*Mathf.Sin(2*Mathf.PI*t)/(2*Mathf.PI));
         return new Vector3(0,spin,8*Mathf.Sin(t*Mathf.PI));
     }
     float SampleBearPose(){

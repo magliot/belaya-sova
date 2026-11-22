@@ -226,7 +226,8 @@ public partial class RaceWorld {
             return;
         }
         float w=line==2?96:112,len=line==0?125:line==1?160:200,height=line==0?.95f:line==1?1.6f:2.35f;
-        float span=prize?1100:line==0?395:line==1?520:680,lift=line==0?1.65f:line==1?2.6f:3.65f;
+        float span=line==0?395:line==1?520:680,lift=line==0?1.65f:line==1?2.6f:3.65f;
+        if(fullPark)span=prize?1230:trick?680:Mathf.Max(span,600);
         float at=y+310,lip=at+len*.5f;
         var ramp=Kicker(x,at,w,len,height);ramp.park=true;ramp.span=span*.05f;ramp.lift=lift;ramp.trickLine=trick||prize;ramp.prizeLine=prize;
         void Target(string kind,float t){
@@ -234,9 +235,9 @@ public partial class RaceWorld {
             var o=Entry(kind,x,lip+t*span,kind=="airRing"?62:22,h,kind=="airRing"?"ring"+tier:kind);
             o.air=true;o.needsTrick=(trick||prize)&&kind=="airRing";o.points=line==2?100:line==1?70:45;o.prizeLine=prize;
         }
-        Target("coin",.16f);Target("coin",.31f);Target("airRing",prize?.52f:trick?.68f:.48f);
+        Target("coin",.16f);Target("coin",.31f);Target("airRing",prize?.52f:trick?.87f:.48f);
         Target("coin",.64f);Target("coin",.82f);
-        if(prize)Target("feather",.92f);
+        if(prize)Target("feather",.978f);
         if(fullPark&&section%4==0&&lip+span+48<y+1460)Entry("gift",x,lip+span+48,24,.85f);
         if(fullPark&&section%3!=2){Person(200-side*133,y+640,48,section%3==1?"snowboarder":"skier",14,n);
             if(section%6==4)Entry("mogul",200+side*133,y+1080,24,.4f,"mound0");}

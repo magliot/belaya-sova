@@ -5,7 +5,8 @@ public partial class RaceWorld {
     const int FreeRideSectionLength=150;
     public struct FreeRideGap {
         public const int ShapeSegments=8;
-        public float lipD,endD,lane,halfWidth;
+        public float lipD,endD,lane,halfWidth,bypassLane;
+        public bool transverse;
         Vector2[] banks;
         internal void Shape(int seed,int section){
             banks=new Vector2[ShapeSegments+1];
@@ -14,6 +15,16 @@ public partial class RaceWorld {
             float phase=Roll(seed,section,1342)*2*Mathf.PI,side=Mathf.Sign(lane);
             for(int i=0;i<=ShapeSegments;i++){
                 float t=(float)i/ShapeSegments;
+                if(transverse){
+                    // The cut reaches into the rock on one side. The other bank
+                    // leaves a skiable shelf all the way from approach to runout.
+                    float open=Smooth(t/.26f)*Smooth((1-t)/.24f);
+                    float shelfSide=Mathf.Sign(bypassLane);
+                    float shelf=shelfSide*(2*Mathf.Abs(bypassLane)-12+.20f*Mathf.Sin(phase+8*t));
+                    float rock=-shelfSide*(13.1f+.6f*Mathf.Sin(phase+5*t));
+                    banks[i]=Vector2.Lerp(new Vector2(lane,lane),new Vector2(Mathf.Min(shelf,rock),Mathf.Max(shelf,rock)),open);
+                    continue;
+                }
                 float bulge=i==0||i==ShapeSegments?0:Mathf.Sin(Mathf.PI*t);
                 float width=halfWidth*Mathf.Pow(bulge,.64f)*(.85f+.28f*Roll(seed,section,1350+i));
                 float shift=slant*t+bulge*(bend+.53f*Mathf.Sin(2*Mathf.PI*t+phase));
@@ -66,8 +77,14 @@ public partial class RaceWorld {
             for(int i=0;i<freeRideGaps.Length;i++){
                 float side=Roll(layout,i,1300)<.5f?-1:1;
                 float lip=origin+i*FreeRideSectionLength+(i==0?85:75)+(2*Roll(layout,i,1301)-1)*(i==0?3:16);
-                freeRideGaps[i]=new FreeRideGap{lipD=lip,endD=lip+18+4*Roll(layout,i,1302),
-                    lane=side*(4+2.4f*Roll(layout,i,1303)),halfWidth=2.55f+.75f*Roll(layout,i,1304)};
+                bool transverse=i%4==1;
+                if(transverse){
+                    float firstSide=Roll(layout,(i/8)*8+1,1300)<.5f?-1:1;
+                    side=i%8==1?firstSide:-firstSide;
+                }
+                freeRideGaps[i]=new FreeRideGap{lipD=lip,endD=lip+18+4*Roll(layout,i,1302),transverse=transverse,
+                    lane=side*((transverse?1:4)+2.4f*Roll(layout,i,1303)),halfWidth=2.55f+.75f*Roll(layout,i,1304),
+                    bypassLane=-side*(transverse?10.2f+.24f*Roll(layout,i,1345):3.2f)};
                 freeRideGaps[i].Shape(layout,i);
             }
             gapsReady=true;freeRideSeed=seed;freeRideVisit=visit;
@@ -101,8 +118,7 @@ public partial class RaceWorld {
         if(section%2==0)SpawnSnowBoulder(start,section);
         if(!TryFreeRideGap(start,out var gap))return;
         float side=Mathf.Sign(gap.lane);
-        // A rocky shoulder marks the bowl early. The centre and the other shoulder
-        // are clear throughout the approach, the cut and the whole landing apron.
+        // Keep rock and moving traffic off the narrow snow shelf.
         void Boulder(float d,float x,float size,bool slab){
             var o=Add("rock",d,x,(slab?1.54f:.84f)*size,(slab?.87f:1.52f)*size,slab?"rockWide":"rockTall");
             o.scale=size;o.yaw=Roll(seed,section,1320+Mathf.RoundToInt(d))*150;
@@ -110,7 +126,20 @@ public partial class RaceWorld {
         }
         Boulder(start+23+6*Roll(seed,section,1310),side*(8.4f+Roll(seed,section,1311)),1.75f+.7f*Roll(seed,section,1312),false);
         if(section%3!=1)Boulder(start+34,side*10.1f,1.7f,true);
+        if(gap.transverse){
+            float shelfSide=Mathf.Sign(gap.bypassLane);
+            Boulder(gap.lipD-10,shelfSide*14.1f,1.85f,false);
+            Boulder(gap.SectionDistance(4)+2,shelfSide*15.2f,2.35f,true);
+            Boulder(gap.endD+4,shelfSide*14.3f,1.55f,false);
+        }
         Boulder(gap.endD+27+6*Roll(seed,section,1313),-side*(4+2.8f*Roll(seed,section,1314)),1.85f,true);
+        if(section%4!=3){
+            bool board=section%4==1;
+            float x=(board?side:-side)*(5.8f+Roll(seed,section,1361));
+            float d=start+31+12*Roll(seed,section,1362);
+            Person(200+20*x,20*d,155+34*Roll(seed,section,1363),board?"snowboarder":"skier",
+                24+8*Roll(seed,section,1364),6*Roll(seed,section,1365));
+        }
 
         int approach=2+Mathf.Min(2,(int)(3*Roll(seed,section,1315)));
         for(int i=0;i<approach;i++)Add("coin",start+15+i*3.5f,side*(.45f+i*.30f),1.1f,0);
@@ -125,8 +154,16 @@ public partial class RaceWorld {
             Add("coin",d,gap.lane,1.1f,FreeRideHeight(y,.5f)+.9f).air=true;
         }
         int count=2+(section%2);
-        float lane=-side*(2.7f+Roll(seed,section,1316)*1.9f);
-        for(int i=0;i<count;i++)Add("coin",gap.lipD+1+i*4.2f,lane-side*i*.15f,1.1f,0);
+        if(gap.transverse){
+            for(int i=0;i<4;i++){
+                float d=gap.lipD-28+i*10;
+                Add("coin",d,gap.bypassLane*Mathf.Lerp(.66f,1,Mathf.Clamp01(i*.5f)),1.1f,0);
+            }
+            Add("coin",gap.endD-4,gap.bypassLane,1.1f,0);
+        }else{
+            float lane=-side*(2.7f+Roll(seed,section,1316)*1.9f);
+            for(int i=0;i<count;i++)Add("coin",gap.lipD+1+i*4.2f,lane-side*i*.15f,1.1f,0);
+        }
         for(int i=0;i<2;i++)Add("coin",gap.endD+15+i*4,gap.lane-side*i*.5f,1.1f,0);
     }
 }

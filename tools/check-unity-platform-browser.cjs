@@ -115,10 +115,10 @@ async function main(){
       await p.setViewportSize({width:375,height:667});
       await hud({magnetSeconds:2});assert.match(await p.locator('#rideStatus').innerText(),/Магнит · 2.0 с/);
       await hud({nextLetter:'С',letterSide:-1});assert.equal(await p.locator('#rideStatus').innerText(),'Буква «С» ←');
-      await hud({chaseSeconds:2.4,chaseGap:15.4,avalanche:.55});assert(await p.locator('#avalancheMeter').isVisible());
-      assert.equal(await p.locator('#rideStatus').innerText(),'Лавина · 3 с · 15 м');
+      await hud({speed:90});assert.equal(await p.locator('#pace').innerText(),'90 км/ч');
+      assert.equal(await p.locator('#speedometer').evaluate(el=>el.style.getPropertyValue('--needle')),'0deg');
       await hud({mode:'sprint',metres:101});assert.equal(await p.locator('#stage').innerText(),'Финиш · 1099 м');
-      assert(await p.locator('#avalancheMeter').isHidden());assert(await p.locator('#rideStatus').isHidden());
+      assert.equal(await p.locator('#avalancheMeter').count(),0);assert(await p.locator('#rideStatus').isHidden());
       await hud({mode:'tubing',metres:490,bonusLocation:1});assert.equal(await p.locator('#stage').innerText(),'Плюшки · 65 с');
       assert.equal(await p.locator('#multiplier').innerText(),'×3');
       assert.equal(await p.locator('#rideStatus').innerText(),'Еловый лес · ворота 4');

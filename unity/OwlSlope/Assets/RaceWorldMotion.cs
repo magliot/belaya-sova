@@ -141,6 +141,13 @@ public partial class RaceWorld {
         float width=Mathf.Clamp(o.amp*(o.sb?1.45f:1.22f)+.15f,.30f,2.45f);
         float edge=Mathf.Sin(rhythm);
         float target=o.originX+width*edge;
+        FreeRideGap cut=default;
+        bool powder=AlpineAt(o.originD)&&TryFreeRideGap(o.distance,out cut);
+        if(powder){
+            float approach=Smooth((o.distance-cut.lipD+39)/25)*(1-Smooth((o.distance-cut.endD-4)/20));
+            float line=cut.transverse?-Mathf.Sign(cut.bypassLane)*7.4f:-Mathf.Sign(cut.lane)*5.9f;
+            target=Mathf.Lerp(target,line+.30f*edge,approach);
+        }
         if(o.mergeGateMetre>0){
             // A real downhill traverse: progress is the skier's own travelled distance.
             // A player who slows down can watch the skier clear the opening.
@@ -182,6 +189,11 @@ public partial class RaceWorld {
         o.lean=Mathf.Lerp(o.lean,Mathf.Clamp(-a*(o.sb?6.6f:5.2f),-18,18),1-Mathf.Exp(-5*dt));o.offset=0;
         if(o.airSpan>0){float t=(o.distance-o.airStart)/o.airSpan;
             o.offset=(1-t)*(o.airBase+4*o.airLift*t);if(t>=1){o.airSpan=0;o.offset=0;o.landedAt=o.age;}return;}
+        if(powder&&cut.OverOpening(o.distance,o.lane)){
+            o.airStart=cut.TryFrontLip(o.lane,out float lip)?Mathf.Clamp(lip,previous,o.distance):previous;
+            o.airSpan=cut.endD+3-o.airStart;o.airBase=0;o.airLift=1.6f;
+            float t=Mathf.Clamp01((o.distance-o.airStart)/o.airSpan);o.offset=4*o.airLift*t*(1-t);return;
+        }
         foreach(var q in Items){
             if(q.kind!="ramp"||Mathf.Abs(q.lane-o.lane)>q.width*.5f)continue;
             float lip=q.distance+q.length*.5f;

@@ -58,9 +58,10 @@
   function drawHud(s){
     const mode=s.courseMode||(s.mode==='review'?$('reviewRide').value:s.mode);
     const metres=Math.floor(s.metres),bonus=mode==='tubing'||mode==='sled';
-    const warning=s.chaseSeconds>0||s.avalanche>0;
-    setText('metres',metres+' м');setText('pace',Math.round(s.speed||0)+' км/ч');
-    $('pace').classList.toggle('boosting',!!s.boost);
+    const kmh=Math.max(0,Math.round(s.speed||0));
+    setText('metres',metres+' м');setText('pace',kmh+' км/ч');
+    $('speedometer').style.setProperty('--needle',(Math.min(1,kmh/180)*156-78)+'deg');
+    $('speedometer').classList.toggle('boosting',!!s.boost);
     $('multiplier').hidden=!bonus||!(s.multiplier>1);if(bonus&&s.multiplier>1)setText('multiplier','×'+s.multiplier);
     const action=actions[s.fisAction]||'';
     const stage=bonus?modes[mode]+' · '+Math.max(0,Math.ceil(75-s.elapsed))+' с':
@@ -69,14 +70,11 @@
     let status='';
     if(mode==='sled')status='Снеговики '+(s.snowmen||0)+' · подарки '+(s.gifts||0);
     else if(action)status='Тап — '+action;
-    else if(warning)status=s.chaseSeconds>0?'Лавина · '+Math.ceil(s.chaseSeconds)+' с · '+Math.round(s.chaseGap)+' м':'Лавина';
     else if(s.boostSeconds>0)status='☕ Ускорение · '+s.boostSeconds.toFixed(1)+' с';
     else if(s.magnetSeconds>0)status='🧲 Магнит · '+s.magnetSeconds.toFixed(1)+' с';
     else if(s.nextLetter)status='Буква «'+s.nextLetter+'» '+(s.letterSide<0?'←':'→');
     else if(mode==='tubing')status=['Открытый склон','Еловый лес','Закат над бухтой'][s.bonusLocation||0]+' · ворота '+(s.gates||0);
-    setText('rideStatus',status);$('rideStatus').hidden=!status;$('rideStatus').classList.toggle('warning',warning);
-    $('avalancheMeter').hidden=!warning;
-    if(warning)$('avalancheMeter').firstElementChild.style.transform='scaleX('+Math.max(0,Math.min(1,s.avalanche||0))+')';
+    setText('rideStatus',status);$('rideStatus').hidden=!status;
     setText('score',s.score);$('score').style.setProperty('--digits',String(s.score).length);
     setText('coins',s.coins);$('coins').classList.toggle('many',s.coins>=1000);
     $('helmets').setAttribute('aria-label','Каски '+s.helmets);
@@ -126,8 +124,7 @@
     if(s.phase==='play'&&s.message&&s.message!==prev?.message){
       clearTimeout(noticeTimer);
       const onTimer=(s.boostSeconds>0&&s.message.startsWith('Кофе'))||
-        (s.magnetSeconds>0&&s.message.startsWith('Магнит'))||
-        (s.chaseSeconds>0&&s.message.startsWith('Лавина!'));
+        (s.magnetSeconds>0&&s.message.startsWith('Магнит'));
       $('notice').hidden=onTimer;
       if(!onTimer){setText('notice',s.message);noticeTimer=setTimeout(()=>{$('notice').hidden=true;},1250);}
     }else if(s.phase!=='play')$('notice').hidden=true;
@@ -514,9 +511,10 @@
       while(!snapshot&&performance.now()<limit)await new Promise(r=>setTimeout(r,100));
       if(!snapshot)throw Error('Mountain race scene did not initialize');
       ready=true;$('loading').hidden=true;draw(snapshot,null);changed();performance.mark('mountain-menu-ready');
-      if(release.channel!=='production'&&new URLSearchParams(location.search).get('reviewStage')==='8'){
+      const query=new URLSearchParams(location.search),trialStage=query.get('reviewStage');
+      if(release.channel!=='production'&&(trialStage==='8'||trialStage==='3')){
         start('review');
-        command('Seek',19955);
+        command('Seek',trialStage==='3'?7500:query.get('reviewAt')==='20165'?20165:19955);
       }
     }catch(e){failed(e);}
   }};
