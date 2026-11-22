@@ -55,6 +55,8 @@ public partial class MountainRace {
     GameObject tube,sled;
     float camLane,camY;
     float menuYaw,menuVelocity,menuMouseX;
+    float homePanelTop=1f;
+    public void SetHomePanelTop(float value){homePanelTop=Mathf.Clamp01(value);}
     bool spinHeld;
     string activeEquipment;
     static void Discard(UnityEngine.Object generated){
@@ -259,9 +261,19 @@ public partial class MountainRace {
         menuShadow.gameObject.SetActive(!kit&&!head);
         View.fieldOfView=kit?52:50;
         // Frame the rotating product above the shop sheet and the home hero beside the resort sign.
-        float x=kit?.80f:head?0:-Mathf.Min(.15f,View.aspect*.26f);
-        Vector3 eye=ground+actorRoot.rotation*new Vector3(x,head?1.50f:kit?1.55f:1.39f,kit?3.6f:head?1.56f:3.12f);
-        Vector3 aim=ground+actorRoot.rotation*new Vector3(x,kit?.07f:head?.87f:.58f,0);
+        float x=kit?.80f:head?0:.02f;
+        float homeDistance=Mathf.Max(4.25f,1.96f/View.aspect);
+        const float homeEyeHeight=1.39f;
+        Vector3 eye=ground+actorRoot.rotation*new Vector3(x,head?1.50f:kit?1.55f:homeEyeHeight,kit?3.6f:head?1.56f:homeDistance);
+        // Leave clearance for the planted ski tips above the actual phone menu and its safe area.
+        float homeAim=.29f;
+        if(!kit&&!head&&homePanelTop<.68f){
+            float floorAngle=-Mathf.Atan2(homeEyeHeight+.09f,homeDistance);
+            float floorY=Mathf.Min(.57f,1-homePanelTop+.026f);
+            float frameAngle=Mathf.Atan((2*floorY-1)*Mathf.Tan(View.fieldOfView*.5f*Mathf.Deg2Rad));
+            homeAim=Mathf.Min(homeAim,homeEyeHeight+homeDistance*Mathf.Tan(floorAngle-frameAngle));
+        }
+        Vector3 aim=ground+actorRoot.rotation*new Vector3(x,kit?.07f:head?.87f:homeAim,0);
         View.transform.SetPositionAndRotation(eye,Quaternion.LookRotation(aim-eye,Vector3.up));
         UpdateWeather();
     }

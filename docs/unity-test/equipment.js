@@ -3,7 +3,7 @@ window.MountainEquipment=(()=>{
     fireboard:{hero:'owl',slot:'gear',tab:'Доска',name:'Доска «Салют»',stock:'Обычная доска',effect:'Быстрее разгоняется, чуть медленнее перекантовывается. За доской летят искры.',tune:'+2 м/с² к разгону'},
     carveSkis:{hero:'bear',slot:'gear',tab:'Лыжи',name:'Лыжи «Ледорез»',stock:'Обычные лыжи',effect:'Меньше бокового сноса в повороте. Скорость после поворота набирается медленнее.',tune:'быстрее гасится боковой снос'},
     orangeHelmet:{hero:'bear',slot:'headgear',tab:'Каска М',name:'Оранжевая каска «М»',stock:'Белая каска «М»',effect:'Мишаня встаёт на 0,15 с быстрее после удара, который погасила защитная каска.',tune:'ещё −0,15 с на восстановление'},
-    pinkGoggles:{hero:'owl',slot:'headgear',tab:'Очки',name:'Розовые очки Совы',stock:'Синие очки',effect:'Сова подбирает мандарины на снегу на 25 см шире.',tune:'ещё +20 см к радиусу сбора'}
+    pinkGoggles:{hero:'owl',slot:'headgear',tab:'Каска Совы',name:'Розовая каска Совы',stock:'Синяя каска Совы',effect:'Сова подбирает мандарины на снегу на 25 см шире.',tune:'ещё +20 см к радиусу сбора'}
   };
   const primary=hero=>hero==='owl'?'fireboard':'carveSkis';
   function config(d,hero=d.hero,inspect){

@@ -20,24 +20,42 @@ async function main(){
     const tap=id=>page.locator('#'+id).tap();
     const hero=h=>page.locator('[data-hero="'+h+'"]').tap();
     const openShop=()=>page.locator('[data-panel="shop"]').tap();
-    // The planted deck is fixed on the left of the menu camera. The bindings and background
-    // are identical in the two references, so only pixels of the changed finish are measured.
+    // The lightning on the planted tail stays below the moving wing at this viewport.
     async function deck(){
       await page.locator('#play').waitFor({timeout:100000});
       await page.waitForFunction(()=>rider.phase==='menu'&&rider.hero==='owl');
       await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
-      return (await page.screenshot({clip:{x:5,y:185,width:58,height:184}})).toString('base64');
+      return (await page.screenshot({clip:{x:78,y:390,width:54,height:45}})).toString('base64');
     }
     await page.goto(url.href,{waitUntil:'commit'});
     const capture=async name=>{if(evidence){fs.mkdirSync(evidence,{recursive:true});await page.screenshot({path:path.join(evidence,name+'.png')});}};
     const stock=await deck();await capture('menu-owl');
-    for(const dims of [{width:320,height:565},{width:384,height:832}]){
-      await page.setViewportSize(dims);
-      for(const selector of ['#play','[data-panel="settings"]','[data-panel="missions"]','[data-panel="bonuses"]']){
+    const settled=()=>page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+    for(const [width,height,safe,content] of [[320,565,34,8],[360,640,24,0],[384,832,24,8],[390,844,34,0]]){
+      await page.setViewportSize({width,height});
+      await page.evaluate(([a,b])=>{
+        const style=document.documentElement.style;
+        style.setProperty('--tg-safe-area-inset-bottom',a+'px');
+        style.setProperty('--tg-content-safe-area-inset-bottom',b+'px');
+      },[safe,content]);
+      await settled();
+      for(const selector of ['#play','[data-panel="settings"]','[data-panel="missions"]','[data-panel="bonuses"]','[data-panel="rules"]']){
         assert(await page.locator(selector).evaluate(el=>{const b=el.getBoundingClientRect();return el.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2));}),selector);
       }
+      const rules=page.getByRole('button',{name:/Правила FIS/});
+      const box=await rules.boundingBox(), gap=Math.round(height-box.y-box.height);
+      assert(box.height>=44&&gap>=safe+content+18,'FIS hit area or bottom clearance at '+width+'×'+height);
+      console.log('FIS',width+'×'+height,'height',box.height,'bottom gap',gap);
+      await rules.tap();await page.locator('#panel[data-view="rules"]').waitFor();await tap('closePanel');
+      if(width===320||width===384){
+        for(const name of ['bear','owl']){
+          await hero(name);await page.waitForFunction(h=>rider.hero===h,name);await settled();
+          await capture('home-'+name+'-'+width);
+        }
+      }
     }
-    await page.setViewportSize({width:390,height:780});
+    await page.evaluate(()=>{for(const prop of ['--tg-safe-area-inset-bottom','--tg-content-safe-area-inset-bottom'])document.documentElement.style.removeProperty(prop);});
+    await page.setViewportSize({width:390,height:780});await settled();
     assert.equal(await page.locator('[data-mode="free"],[data-mode="sprint"],#reviewRide option[value="sprint"]').count(),0);
     await openShop();await page.locator('[data-buy="fireboard"]').tap();
     await page.locator('[data-buy="tune"]').tap();await tap('closePanel');
@@ -84,26 +102,47 @@ async function main(){
       const before=await data();assert(!before.ownedGear.includes(id));
       const box=await page.locator('#panel').boundingBox();assert(box.y>390,'Shop controls obscure the product');
       await capture('preview-'+id);
-      if(id==='orangeHelmet'){
-        const clip={x:85,y:155,width:210,height:200};
-        const front=(await page.screenshot({clip})).toString('base64');
-        const touch=await page.context().newCDPSession(page);
-        await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:120,y:245}]});
-        for(const x of [141,163,189,211,235])await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:245}]});
-        await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await touch.detach();
-        const turn=(await page.screenshot({clip})).toString('base64');
-        const changed=await page.evaluate(async frames=>{
-          const values=await Promise.all(frames.map(async src=>{
+      if(id==='pinkGoggles'||id==='orangeHelmet'){
+        const owl=id==='pinkGoggles';
+        assert.match(await page.locator('.product h3').innerText(),owl?/Розовая каска Совы/:/Оранжевая каска/);
+        async function finishCount(clip){
+          const src=(await page.screenshot({clip})).toString('base64');
+          return page.evaluate(async src=>{
             const img=new Image();img.src='data:image/png;base64,'+src;await img.decode();
             const ctx=new OffscreenCanvas(img.width,img.height).getContext('2d');ctx.drawImage(img,0,0);
-            return ctx.getImageData(0,0,img.width,img.height).data;
-          }));
-          let moved=0;for(let i=0;i<values[0].length;i+=4){
-            if(Math.abs(values[0][i]-values[1][i])+Math.abs(values[0][i+1]-values[1][i+1])>44)moved++;
+            const px=ctx.getImageData(0,0,img.width,img.height).data;
+            let pink=0,blue=0,orange=0,white=0;
+            for(let i=0;i<px.length;i+=4){
+              const [r,g,b]=[px[i],px[i+1],px[i+2]];
+              if(r>g+22&&b>g+15&&r>b*.90)pink++;
+              if(b>r+24&&b>g+8)blue++;
+              if(r>g*1.45&&g>b*1.5&&r>65)orange++;
+              if(Math.min(r,g,b)>110&&Math.max(r,g,b)-Math.min(r,g,b)<25)white++;
+            }
+            const n=px.length/4;return {pink:pink/n,blue:blue/n,orange:orange/n,white:white/n};
+          },src);
+        }
+        if(owl){
+          const lens=await finishCount({x:120,y:252,width:41,height:35});
+          const crown=await finishCount({x:169,y:191,width:48,height:13});
+          console.log('OWL FACE',lens,crown);
+          assert(lens.blue>.60&&lens.pink<.02&&crown.pink>.55,'Owl visor must stay blue under the pink shell');
+        }
+        const touch=await page.context().newCDPSession(page);
+        try{
+          await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:50,y:245}]});
+          for(const [x,angle] of [[181,'side'],[312,'back'],[50,'front']]){
+            await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:245}]});
+            await settled();await capture('helmet-'+who+'-'+angle);
+            if(angle==='back'){
+              const rear=await finishCount(owl?{x:142,y:360,width:106,height:14}:{x:147,y:327,width:92,height:17});
+              console.log('HELMET BACK',who,rear);
+              assert(owl?rear.pink>.72:rear.orange>.82&&rear.white<.025,'Unpainted rear shell or brim: '+who);
+            }
           }
-          return moved/(values[0].length/4);
-        },[front,turn]);
-        assert(changed>.06,'Helmet turntable did not rotate: '+changed);console.log('HELMET ROTATION',changed);
+        }finally{
+          await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await touch.detach();
+        }
       }
       await page.locator('[data-buy="'+id+'"]').tap();
       const after=await data();assert.equal(after.payments[id],'feathers');assert.equal(after.coins,before.coins);
@@ -119,6 +158,15 @@ async function main(){
       assert.equal(await page.evaluate(()=>rider.mode),mode);
       await tap('pause');await tap('exitPaused');await phase('menu');
       await page.locator('[data-panel="bonuses"]').tap();
+    }
+    await page.reload({waitUntil:'commit'});await phase('menu');
+    for(const [who,headgear] of [['owl','pinkGoggles'],['bear','orangeHelmet']]){
+      await hero(who);await page.waitForFunction(h=>rider.hero===h,who);
+      assert.equal((await data()).headgear[who],headgear);
+      await capture('equipped-home-'+who);
+      await tap('play');await phase('play');await page.waitForFunction(()=>rider.metres>=30);
+      await capture('equipped-ride-'+who);
+      await tap('pause');await tap('exitPaused');await phase('over');await tap('exitResult');await phase('menu');
     }
     console.log('GEAR RETURN WEB PASS');
   }finally{await browser.close();}

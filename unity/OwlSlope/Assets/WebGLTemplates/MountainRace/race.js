@@ -229,9 +229,15 @@
     }
   }
   function suspended(){if(run&&snapshot?.phase!=='pause')requestPause=true;pause();}
+  function fitHomeMenu(){
+    if(!ready||$('menu').hidden)return;
+    const screen=canvas.getBoundingClientRect(),controls=$('menu').getBoundingClientRect();
+    if(screen.height>0)command('SetHomePanelTop',controls.width<screen.width*.5?1:(controls.top-screen.top)/screen.height);
+  }
   function restoreViewport(){
     const height=app?.viewportHeight||window.visualViewport?.height||window.innerHeight;
     if(height>0)document.documentElement.style.setProperty('--mountain-height',Math.round(height)+'px');
+    requestAnimationFrame(fitHomeMenu);
   }
   function back(){
     const dialog=document.querySelector('dialog[open]');if(dialog){dialog.close();return;}
@@ -497,6 +503,10 @@
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();back();}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)suspended();else restoreViewport();});
   window.addEventListener('pagehide',suspended);window.addEventListener('blur',suspended);
+  if(window.ResizeObserver){
+    const observer=new ResizeObserver(fitHomeMenu);
+    observer.observe($('menu'));observer.observe($('safe'));
+  }
   window.addEventListener('resize',restoreViewport);window.visualViewport?.addEventListener('resize',restoreViewport);
   if(app){
     for(const event of ['viewportChanged','safeAreaChanged','contentSafeAreaChanged','fullscreenChanged'])app.onEvent(event,restoreViewport);
@@ -525,7 +535,7 @@
       const limit=performance.now()+20000;
       while(!snapshot&&performance.now()<limit)await new Promise(r=>setTimeout(r,100));
       if(!snapshot)throw Error('Mountain race scene did not initialize');
-      ready=true;$('loading').hidden=true;draw(snapshot,null);changed();performance.mark('mountain-menu-ready');
+      ready=true;$('loading').hidden=true;draw(snapshot,null);changed();fitHomeMenu();performance.mark('mountain-menu-ready');
       const query=new URLSearchParams(location.search),trialStage=query.get('reviewStage');
       if(release.channel!=='production'&&(trialStage==='8'||trialStage==='3')){
         start('review');

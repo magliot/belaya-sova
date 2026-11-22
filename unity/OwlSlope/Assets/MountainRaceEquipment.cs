@@ -11,8 +11,9 @@ public partial class MountainRace {
     int KitTuning=>Mathf.Clamp(settings.tuning,0,2);
     int HeadTuning=>Mathf.Clamp(settings.headTuning,0,2);
     bool OrangeHelmet=>!BonusMode&&Hero=="bear"&&settings.headgear=="orangeHelmet";
-    bool PinkGoggles=>!BonusMode&&Hero=="owl"&&settings.headgear=="pinkGoggles";
-    float GroundFruitRadius=>1.1f+(PinkGoggles?.25f+.20f*HeadTuning:0);
+    // Existing purchases and tuning use the original saved item ID.
+    bool PinkHelmet=>!BonusMode&&Hero=="owl"&&settings.headgear=="pinkGoggles";
+    float GroundFruitRadius=>1.1f+(PinkHelmet?.25f+.20f*HeadTuning:0);
     int MainUpgrade(int level)=>CourseMode=="normal"?Mathf.Clamp(level,0,5):0;
 
     public void PreviewGear(string json){
