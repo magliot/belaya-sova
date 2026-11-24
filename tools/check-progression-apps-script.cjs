@@ -64,3 +64,18 @@ assert.equal(ctx.leaderboard(null,'all').rows[0].score,1906);
 const longRide={...attempt,runId:'eleven-loops',dist:220000,dur:8200,score:220256};
 assert.equal(ctx.submitScore({id:111,first_name:'Дальняя дистанция'},longRide).best,220256);
 console.log('Apps Script VM PASS · legacy writes rejected, original rows 1420/1750 · ranked 1256, 1906 · retry after 38 newer rides ignored · eleven laps accepted');
+
+const replies=[];
+ctx.tg=(method,body)=>{replies.push({method,body});return {ok:true};};
+assert.equal(ctx.doGet().apiRevision,'24c-polling');
+const emptyUpdate=ctx.doPost({postData:{contents:JSON.stringify({update_id:0})}});
+assert.equal(emptyUpdate.error,'unsupported action');
+assert.equal(replies.length,0);
+ctx.handleUpdate({message:{chat:{type:'private',id:me.id},from:me,text:'/start'}});
+assert.equal(replies.length,1);
+assert.equal(replies[0].method,'sendMessage');
+assert.equal(replies[0].body.chat_id,me.id);
+assert.ok(replies[0].body.reply_markup.inline_keyboard.length);
+assert.equal(ctx.configuredOwner(),'');
+assert.ok(ctx.leaderboard(me,'all').rows.every(row=>!Object.hasOwn(row,'id')));
+console.log('Apps Script VM PASS · public ingress, polling /start, unconfigured owner and private leaderboard identifiers');
