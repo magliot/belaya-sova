@@ -1,7 +1,7 @@
 using UnityEngine;
 
 public partial class MountainRace {
-    const int MaxHelmetsPerRide=2;
+    const int MaxHelmetsPerRide=3;
     int helmetsIssued;
     ParticleSystem kitSparks;
     float nextKitSpark;
@@ -119,14 +119,21 @@ public partial class MountainRace {
             PreviewGear(json);CheckBody(menuModel);StartRace(json);CheckBody(rideModel);
             Check(hero=="bear"?Mathf.Abs(FallTime-1.25f)<.001f:Mathf.Abs(GroundFruitRadius-1.75f)<.001f,"headgear boost");
         }
+        float[] trainingHelmets={284.25f,1784.25f,3659.25f};
         for(int stock=0;stock<=1;stock++){
-            Menu();StartRace(JsonUtility.ToJson(new Settings{mode="normal",seed=1911,helmets=stock}));
-            Checkpoint(4,0);
+            Menu();ChooseHero(stock==0?"bear":"owl");
+            StartRace(JsonUtility.ToJson(new Settings{mode="normal",seed=1911,helmets=stock}));
             for(int count=stock+1;count<=MaxHelmetsPerRide;count++){
-                var item=World.Add("helmet",Status.metres,lane,.5f,.7f);
-                CheckItems(Status.metres-.01f,lane);CheckItems(Status.metres,lane);
+                float metre=trainingHelmets[count-stock-1];
+                Checkpoint(metre-3,0);
+                var item=World.Items.Find(o=>o.kind=="helmet"&&Mathf.Abs(o.distance-metre)<.1f);
+                Check(item!=null,"missing course helmet at "+metre);
+                Checkpoint(metre-1.4f,item.lane);
+                Advance(.15f);
+                CheckItems(Status.metres,lane);
                 Check(item.consumed&&Status.helmets==count&&helmetsIssued==count,"each visible helmet must count exactly once");
             }
+            Check(Status.helmets==3,"all three helmet slots must be usable");
             var extra=World.Add("helmet",Status.metres+1,lane,.5f,.7f);
             World.Refresh(Status.metres,Status.elapsed);
             Check(!World.Items.Contains(extra)&&!extra.obj,"unusable helmet presented to the rider");
@@ -137,7 +144,7 @@ public partial class MountainRace {
         }
         // Resolve the final unprotected impact via the production collision and finish path.
         Hit("npc");for(int i=0;i<150&&Status.phase=="play";i++)Advance(1f/60);
-        Check(Status.phase=="over","third fall extended the attempt");
+        Check(Status.phase=="over","unprotected fourth fall extended the attempt");
         Debug.Log("EQUIPMENT PASS main stock/board/tuned="+basic.speed+"/"+board.speed+"/"+tuned.speed+
             "; basic/carve lateral slip="+basicSki.slide+"/"+carve.slide+" m/s");
         Menu();

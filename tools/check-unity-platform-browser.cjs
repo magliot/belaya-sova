@@ -106,6 +106,12 @@ async function main(){
       assert.equal(await p.locator('#metres').innerText(),'4020 м');assert.equal(await p.locator('#pace').innerText(),'57 км/ч');
       assert(await p.locator('#multiplier').isHidden());assert.equal(await p.locator('#score').innerText(),'123456');
       assert.equal(await p.locator('#coins').innerText(),'12');assert.match(await p.locator('#helmets').getAttribute('aria-label'),/1/);
+      for(const n of [0,1,2,3,2]){
+        await hud({helmets:n});
+        assert.equal(await p.locator('#helmets img').count(),3);
+        assert.deepEqual(await p.locator('#helmets img').evaluateAll(icons=>icons.map(i=>Number(i.style.opacity)===1)),[0,1,2].map(i=>i<n));
+      }
+      await hud({boost:true,boostSeconds:3.4});
       assert.match(await p.locator('#rideStatus').innerText(),/Ускорение · 3.4 с/);
       for(const width of [320,384]){
         await p.setViewportSize({width,height:740});
@@ -183,7 +189,7 @@ async function main(){
     console.log('Driving from ordinary menu.');
     await p.locator('#play').click();await p.locator('#pause').waitFor();
     await host('back_button_pressed');await p.locator('#resume').waitFor();
-    assert.equal(await p.locator('#pauseVolumes input[type="range"]').count(),3);
+    assert.equal(await p.locator('#pauseSettings input[type="range"]').count(),3);
     await p.locator('#resume').click();
     await host('visibility_changed',{is_visible:false});await p.locator('#resume').waitFor();
     await host('visibility_changed',{is_visible:true});assert(await p.locator('#resume').isVisible());

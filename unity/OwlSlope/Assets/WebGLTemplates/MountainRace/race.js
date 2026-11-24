@@ -12,6 +12,9 @@
   const ruleHow=['оставь запас при проезде мимо ученика','сбавь ход перед группой или на участке с плохой видимостью','выбери сторону заранее и сохрани просвет до человека','обгони движущегося лыжника или сноубордиста с запасом','после остановки осмотрись и дождись свободного выезда','остановись у края рядом с пострадавшим','пройди вдоль безопасной обочины','объедь ограждение со стороны стрелки','остановись рядом с пострадавшим и вызови патруль','назовись свидетелем прибывающему патрулю'];
   const panels={settings:'Настройки',missions:'Задания',shop:'Магазин',bonuses:'Бонусные спуски',collection:'Коллекция',rules:'Правила FIS',top:'Рейтинг',catalog:'Лист моделей'};
   let deviceStorage;try{deviceStorage=window.localStorage;}catch{}
+  const graphicsKey='bsova_graphics_'+release.channel;
+  let lightweightGraphics=false;
+  try{lightweightGraphics=deviceStorage?.getItem(graphicsKey)==='light';}catch{}
   const profile=MountainSaves.create({storage:deviceStorage,app,channel:release.channel,onChange:changed});
   const ranking=MountainSaves.leaderboard(release,app,profile);
   const fixedSeed=new URLSearchParams(location.search).get('seed');
@@ -80,7 +83,7 @@
     setText('rideStatus',status);$('rideStatus').hidden=!status;
     setText('score',s.score);$('score').style.setProperty('--digits',String(s.score).length);
     setText('coins',s.coins);$('coins').classList.toggle('many',s.coins>=1000);
-    const helmets=$('helmets'),label='Каски '+s.helmets;
+    const helmets=$('helmets'),label='Каски '+s.helmets+' из '+helmets.childElementCount;
     if(helmets.getAttribute('aria-label')!==label){
       helmets.setAttribute('aria-label',label);
       for(let i=0;i<helmets.children.length;i++)helmets.children[i].style.opacity=i<s.helmets?1:.23;
@@ -130,7 +133,7 @@
       }
     }
     if(s.phase==='pause'){
-      if(prev?.phase!=='pause')$('pauseVolumes').replaceChildren(...volumeSliders());
+      if(prev?.phase!=='pause')$('pauseSettings').replaceChildren(graphicsControl(),...volumeSliders());
       setText('pausedDist',modes[s.mode]+' · '+Math.floor(s.metres)+' м · трасса № '+s.seed);
       setText('exitPaused',run?.practice?'К осмотру':s.metres>=30?'Завершить заезд':'В меню');$('pauseSense').value=profile.data.sens;setText('pauseSenseValue',profile.data.sens);
     }
@@ -239,9 +242,17 @@
     const screen=canvas.getBoundingClientRect(),controls=$('menu').getBoundingClientRect();
     if(screen.height>0)command('SetHomePanelTop',controls.width<screen.width*.5?1:(controls.top-screen.top)/screen.height);
   }
+  function sizeRenderTarget(){
+    const ratio=Math.min(window.devicePixelRatio||1,1.5)*(lightweightGraphics ? .88 : 1);
+    const width=Math.round(canvas.clientWidth*ratio),height=Math.round(canvas.clientHeight*ratio);
+    if(width<1||height<1)return;
+    if(canvas.width!==width)canvas.width=width;
+    if(canvas.height!==height)canvas.height=height;
+  }
   function restoreViewport(){
     const height=app?.viewportHeight||window.visualViewport?.height||window.innerHeight;
     if(height>0)document.documentElement.style.setProperty('--mountain-height',Math.round(height)+'px');
+    sizeRenderTarget();
     requestAnimationFrame(fitHomeMenu);
   }
   function back(){
@@ -315,6 +326,21 @@
     return [['music','Музыка'],['sfx','Эффекты'],['vox','Голоса']].map(([key,title])=>
       slider(title,profile.data.vol[key],0,10,value=>profile.change(['vol'],d=>d.vol[key]=value)));
   }
+  function graphicsControl(){
+    const label=document.createElement('label'),select=document.createElement('select');
+    label.className='graphics-mode';
+    select.add(new Option('Обычная','standard'));
+    select.add(new Option('Для слабых устройств','light'));
+    select.value=lightweightGraphics?'light':'standard';
+    select.onchange=()=>{
+      lightweightGraphics=select.value==='light';
+      try{deviceStorage?.setItem(graphicsKey,select.value);}catch{}
+      sizeRenderTarget();
+      command('SetLightweightGraphics',Number(lightweightGraphics));
+    };
+    label.append('Графика',select);
+    return label;
+  }
   async function refreshMenuRank(){
     try{
       await ranking.flush();
@@ -374,6 +400,7 @@
     else if(next==='shop')MountainEquipment.render(body,profile,btn,shopItem,id=>{shopItem=id;switchPanel('shop');});
     else if(next==='bonuses')MountainEquipment.bonuses(body,profile,btn,start,()=>switchPanel('bonuses'));
     else if(next==='settings'){
+      body.append(graphicsControl());
       body.append(slider('Чувствительность',d.sens,1,10,v=>profile.change(['sens'],p=>p.sens=v)));
       body.append(btn(d.muted?'Включить звук':'Выключить звук',()=>{profile.change(['muted'],p=>p.muted=!p.muted);switchPanel('settings');}));
       body.append(...volumeSliders());
@@ -572,10 +599,11 @@
       }
       const [,files]=await duringBoot(Promise.all([loader,transfer?transfer.prepare():urls]));
       touch();
+      sizeRenderTarget();
       player=await duringBoot(createUnityInstance(canvas,{dataUrl:files.data,frameworkUrl:files.framework,codeUrl:files.code,
         cacheControl:()=>transfer?'no-store':'immutable',
         streamingAssetsUrl:'StreamingAssets',companyName:'Белая Сова',productName:'MountainRace',productVersion:'1',
-        devicePixelRatio:Math.min(devicePixelRatio||1,1.5)},v=>{
+        matchWebGLToCanvasSize:false},v=>{
           if(stopped||transfer)return;
           if(v!==lastLoaded){touch();lastLoaded=v;}
           $('loadBar').value=v;setText('loadText',v>=.9?'Запускаем 3D-движок…':'Загружаем игру · '+Math.round(v*100)+'%');
@@ -584,6 +612,7 @@
       const limit=performance.now()+20000;
       while(!snapshot&&performance.now()<limit)await new Promise(r=>setTimeout(r,100));
       if(!snapshot)throw Error('Mountain race scene did not initialize');
+      if(lightweightGraphics)command('SetLightweightGraphics',1);
       ready=true;$('retryLoad').hidden=true;$('loading').hidden=true;draw(snapshot,null);changed();fitHomeMenu();performance.mark('mountain-menu-ready');
       transfer?.prune().catch(()=>{});
       const query=new URLSearchParams(location.search),trialStage=query.get('reviewStage');

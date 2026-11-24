@@ -7,6 +7,20 @@ public static class WeatherFrontChecks {
     public static void Verify(MountainRace race){
         CheckSlopeEffects.CourseMarkers(race);
         race.StartRace("{\"mode\":\"review\",\"seed\":1911}");
+        var flakes=race.transform.Find("Windblown snow").GetComponent<ParticleSystem>();
+        foreach(int metre in new[]{284,16120}){
+            race.Seek(metre);
+            float fullRate=flakes.emission.rateOverTime.constant,fog=RenderSettings.fogEndDistance;
+            race.SetLightweightGraphics(1);
+            race.Seek(metre);
+            float lightRate=flakes.emission.rateOverTime.constant;
+            Need(fullRate>0 && Mathf.Approximately(lightRate,fullRate*.75f),"lightweight snowfall");
+            Need(Mathf.Approximately(fog,RenderSettings.fogEndDistance),"graphics mode changed course visibility");
+            race.SetLightweightGraphics(0);
+            race.Seek(metre);
+            Need(Mathf.Approximately(flakes.emission.rateOverTime.constant,fullRate),"standard snowfall not restored");
+            Debug.Log($"GRAPHICS PASS at {metre} m: {fullRate:F1} / {lightRate:F1} flakes per second, visibility {fog:F1} m");
+        }
         foreach(int lap in new[]{0,RaceWorld.LapLength}){
             foreach(int edge in new[]{16000,20000,24000,28000}){
                 bool blizzard=edge<24000,entering=edge==16000||edge==24000;

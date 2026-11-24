@@ -7,10 +7,10 @@
   <meta name="theme-color" content="#183c56">
   <title>Белая Сова · Спуск</title>
   <link rel="icon" type="image/jpeg" href="art/av_owl.jpg">
-  <link rel="stylesheet" href="race.css?v=82d526946e4a">
+  <link rel="stylesheet" href="race.css?v=81e770fe28c0">
   <script defer src="vendor/telegram-web-app.js?v=e999954b603b"></script>
   <script defer src="../unity/release.js?v=a4c26d9bd7f8"></script><script defer src="save.js?v=1a5b0dd2b8d7"></script><script defer src="equipment.js?v=cad7dba31903"></script>
-  <script defer src="mountain-downloads.js?v=cf9286e1c47c"></script><script defer src="race.js?v=3cfb822686b2"></script>
+  <script defer src="mountain-downloads.js?v=cf9286e1c47c"></script><script defer src="race.js?v=59e783a21d71"></script>
   <script async src="mountain-audio.js?v=4a1e7fcd87e4"></script><script async src="mountain-metrics.js?v=2c1afe0401dc"></script>
 </head>
 <body><main id="app">
@@ -43,7 +43,7 @@
       <div id="rideInfo"><span id="stage"></span><span id="rideStatus" hidden></span><aside id="notice" hidden></aside></div>
       <div id="rewardFloats" aria-hidden="true"></div>
       <div class="scoreboard" aria-label="Счёт, каски и мандарины">
-      <b id="score">0</b><div id="helmets"><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""></div>
+      <b id="score">0</b><div id="helmets" role="img"><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""></div>
         <b id="coins">0</b>
       </div>
       <button id="pause" aria-label="Пауза">Ⅱ</button>
@@ -60,7 +60,7 @@
       <div class="row"><select id="reviewStage" aria-label="Этап"></select><select id="reviewEffect" aria-label="Событие осмотра"><option value="normal">Обычный спуск</option><option value="coffee">Кофе</option><option value="jump">Прыжок</option></select></div></div>
     </section>
     <section id="paused" class="sheet" hidden><h2>Пауза</h2><p id="pausedDist"></p>
-      <div id="pauseVolumes"></div>
+      <div id="pauseSettings"></div>
       <label>Чувствительность · <output id="pauseSenseValue">4</output><input type="range" id="pauseSense" min="1" max="10" step="1"></label>
       <button id="resume" class="primary">Продолжить</button>
       <div class="row"><button id="restartPaused">Сначала</button><button id="exitPaused">В меню</button></div>
@@ -101,9 +101,9 @@
     clearTimeout(shellTimer);
     if(!window.MountainShell){delayedPage();return;}
     MountainShell.boot({
-      loader:'Build/3d15f29fc2161e26772252b7fb1c0912.loader.js', data:'Build/ae447f70f9dd973956b92636ca883a08.data.unityweb',
-      framework:'Build/5f9b01960f007120246e033e3b8b97ba.framework.js.unityweb', code:'Build/4ddb0eb9b0af687602a0b6d3f157b42a.wasm.unityweb',
-      sizes:{/* player bytes */data:17161695,code:6222695,framework:71713}
+      loader:'Build/d308f85c95a39c4d349be1446ae21110.loader.js', data:'Build/2fe7f4607d1dda9b129566f0ed5c9444.data.unityweb',
+      framework:'Build/5f9b01960f007120246e033e3b8b97ba.framework.js.unityweb', code:'Build/dd6a7cfa3e3894f6491ac4aad5719c64.wasm.unityweb',
+      sizes:{/* player bytes */data:17160946,code:6224721,framework:71713}
     });
   });
 </script></body></html>

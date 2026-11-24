@@ -42,7 +42,7 @@
       <div id="rideInfo"><span id="stage"></span><span id="rideStatus" hidden></span><aside id="notice" hidden></aside></div>
       <div id="rewardFloats" aria-hidden="true"></div>
       <div class="scoreboard" aria-label="Счёт, каски и мандарины">
-      <b id="score">0</b><div id="helmets"><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""></div>
+      <b id="score">0</b><div id="helmets" role="img"><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""><img src="art/helmet-59b.webp" alt=""></div>
         <b id="coins">0</b>
       </div>
       <button id="pause" aria-label="Пауза">Ⅱ</button>
@@ -59,7 +59,7 @@
       <div class="row"><select id="reviewStage" aria-label="Этап"></select><select id="reviewEffect" aria-label="Событие осмотра"><option value="normal">Обычный спуск</option><option value="coffee">Кофе</option><option value="jump">Прыжок</option></select></div></div>
     </section>
     <section id="paused" class="sheet" hidden><h2>Пауза</h2><p id="pausedDist"></p>
-      <div id="pauseVolumes"></div>
+      <div id="pauseSettings"></div>
       <label>Чувствительность · <output id="pauseSenseValue">4</output><input type="range" id="pauseSense" min="1" max="10" step="1"></label>
       <button id="resume" class="primary">Продолжить</button>
       <div class="row"><button id="restartPaused">Сначала</button><button id="exitPaused">В меню</button></div>

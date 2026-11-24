@@ -5,6 +5,7 @@ public partial class MountainRace {
     Light sun,headlight;Material raceSky,flakePaint;
     readonly Light[] nightLamps=new Light[4];
     ParticleSystem flakes,fireworks;
+    bool lightweightGraphics;
     int tubePanoramaPair=-1,previousSkyFrom=-1,previousSkyTo=-1;
     float previousSkyMix=-1,weatherMetre=float.NaN,festivalVisibility;
     Texture2D[] tubePanoramas;
@@ -40,6 +41,13 @@ public partial class MountainRace {
         if(from!=to)mix=StepBlend(Mathf.InverseLerp(-220,80,Status.metres-next*RaceWorld.StageLength));
     }
     static float WeatherWeight(int sky,int from,int to,float t)=>Mathf.Lerp(from==sky?1:0,to==sky?1:0,t);
+
+    public void SetLightweightGraphics(float enabled){
+        bool lightweight=enabled>.5f;
+        if(lightweightGraphics==lightweight)return;
+        lightweightGraphics=lightweight;
+        previousSkyFrom=-1;
+    }
 
     void SetupWeather(){
         raceSky=new Material(Resources.Load<Shader>("MountainRaceSky"));
@@ -125,7 +133,8 @@ public partial class MountainRace {
         if(skyChanged||storm>0){
             var emission=flakes.emission;var wind=flakes.velocityOverLifetime;
             float strength=Mathf.Abs(gust);
-            emission.rateOverTime=Mathf.Lerp(5+18*holiday,310+190*strength,storm);
+            float flakesPerSecond=Mathf.Lerp(5+18*holiday,310+190*strength,storm);
+            emission.rateOverTime=flakesPerSecond*(lightweightGraphics ? .75f : 1f);
             wind.x=Mathf.Lerp(-.9f,gust*11,storm);wind.y=Mathf.Lerp(-2.8f,-3.5f-strength,storm);
             wind.z=Mathf.Lerp(-2,-Mathf.Clamp(speed*.67f,6,17),storm);
             RenderSettings.fogStartDistance=Mathf.Lerp(Mathf.Lerp(52,12,night),16-5*strength,storm);

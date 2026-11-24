@@ -59,7 +59,8 @@ button small{display:block;font-size:10px;font-weight:500;margin-top:2px}
 #shareImage{display:block;max-height:52vh;width:100%;object-fit:contain}#closeShare{max-width:40px}
 #resultScore{font-size:34px;color:#17557b}#loadBar{width:100%;accent-color:#317697}
 #resultStats{white-space:pre-line}#resultRule{font-size:12px;color:#4d6874}
-#pauseVolumes{display:grid;gap:5px}#panelBody .stat b{white-space:normal;text-align:right}
+#pauseSettings{display:grid;gap:5px}#panelBody .stat b{white-space:normal;text-align:right}
+.graphics-mode{display:flex;align-items:center;justify-content:space-between;gap:8px}.graphics-mode select{max-width:72%}
 #closePanel{width:38px;font-size:22px}.heading{border-bottom:1px solid #c4d3d9;padding-bottom:7px}
 #panelBody{display:grid;gap:7px}.stat{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #d8e0df;padding:5px 0;gap:9px}.stat b{white-space:nowrap}
 label input[type=range]{width:100%;accent-color:#226b90}
