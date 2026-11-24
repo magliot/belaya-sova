@@ -42,6 +42,7 @@ jobs:
           node tools/check-unity-host.cjs http://127.0.0.1:8784/unity/
           node tools/check-unity-host.cjs http://127.0.0.1:8784/unity-test/
           node tools/check-unity-entry-browser.cjs http://127.0.0.1:8784/ --software
+          node tools/check-training-pickups.cjs http://127.0.0.1:8784/unity-test/ --software
           node tools/check-mountain-web.cjs http://127.0.0.1:8784/
           node tools/check-unity-platform-browser.cjs http://127.0.0.1:8784/unity-test/
           node tools/check-mountain-audio.cjs

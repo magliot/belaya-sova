@@ -16,7 +16,7 @@ public partial class MountainRace : MonoBehaviour {
     [Serializable] public class State {
         public string phase="menu",hero="bear",mode="normal",courseMode="normal",message="",cue="",nextLetter="";
         public int seed,score,coins,helmets,stage,gates,tricks,rings,combo,maxCombo,polite,gifts,snowmen,
-            feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds,horns;
+            feathers,encounters,letters,lettersTotal,speed,multiplier=1,eventId,grinds,horns,aidKits;
         public float metres,elapsed,engineNear,enginePan,boulderNear,blizzard,edge,boostSeconds,magnetSeconds;
         public int letterSide,bonusLocation,crevasseCoins;
         public int stageLength=RaceWorld.StageLength,tubingEnd=BonusDistanceLimit(false),sledEnd=BonusDistanceLimit(true);
@@ -26,7 +26,7 @@ public partial class MountainRace : MonoBehaviour {
         public int scoreDistance,scoreFruit,scoreGates,scoreRings,scoreFis;
         public bool rankedResult;
         public bool freeRideTrickReady,freeRideInCrevasse;
-        public bool air,boost,feather,goldenOwl;
+        public bool air,boost,feather;
         public int[] fis=Array.Empty<int>();
         public int[] fisContexts=Array.Empty<int>();
         public string fisAction="";

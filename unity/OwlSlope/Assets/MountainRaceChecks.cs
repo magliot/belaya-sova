@@ -383,6 +383,46 @@ public partial class MountainRace {
         return mode+" "+hero+" kicker "+ramp.distance.ToString("F1")+" m, 4 airborne fruit, apex "+peak.ToString("F2")+
             " m"+(mode=="tubing"?", max handle gap "+gripError.ToString("F3")+" m":"");
     }
+    string VerifyGroundPickups(){
+        var measured=new List<string>();
+        foreach(string hero in new[]{"owl","bear"}){
+            foreach(var sample in new[]{("coin",0),("thermos",75),("helmet",275),("aid",275),
+                     ("magnet",8117),("gift",12225),("letter",1480)}){
+                Menu();ChooseHero(hero);StartRace("{\"mode\":\"normal\",\"seed\":1911}");
+                var (kind,at)=sample;
+                Checkpoint(at,0);
+                var item=World.Items.Find(o=>o.kind==kind&&!o.air&&o.distance>at+2);
+                Check(item!=null,kind+" missing from generated course at "+at);
+                Checkpoint(item.distance-1.35f,item.lane);
+                Advance(.13f);
+                Check(item.consumed,hero+" missed "+kind+" on its visible line at "+item.distance);
+                switch(kind){
+                    case "coin":Check(Status.coins>0&&Status.scoreFruit==3*Status.coins,"fruit score");break;
+                    case "thermos":Check(Status.boostSeconds>4&&Status.boost,"coffee activation");break;
+                    case "helmet":Check(Status.helmets==1,"helmet credit");break;
+                    case "aid":Check(Status.aidKits==1,"aid credit");break;
+                    case "gift":Check(Status.gifts==1,"gift credit");break;
+                    case "magnet":Check(Status.magnetSeconds>6,"magnet activation");break;
+                    case "letter":Check(Status.letters==1&&Status.lettersTotal==1,"letter credit");break;
+                }
+                if(hero=="owl")measured.Add(kind+"@"+item.distance.ToString("F1"));
+            }
+        }
+        // Cross between two samples. A flyover of the same line and a wide pass must miss.
+        Menu();StartRace("{\"mode\":\"normal\",\"seed\":1911}");Checkpoint(8,0);
+        var gift=World.Add("gift",7,0,1.2f,.85f);
+        lane=2;previousAltitude=rampHeight=0;
+        Check(TouchPickup(gift,6,-2,1.2f),"swept pickup was missed");
+        Check(!TouchPickup(gift,6,2,1.2f),"wide pass picked up a gift");
+        previousAltitude=rampHeight=4;
+        Check(!TouchPickup(gift,6,-2,1.2f),"high flyover collected ground gift");
+        RestartRide();Checkpoint(4,0);
+        World.Add("magnet",4,0,1.2f,.85f);
+        var attracted=World.Add("coin",6,4,1.1f,0);
+        for(int tick=0;tick<35&&!attracted.consumed;tick++)Advance(1f/60);
+        Check(attracted.consumed&&Status.coins==1&&Status.magnetSeconds>0,"magnet missed nearby off-line fruit");
+        Menu();return "both heroes: "+string.Join(", ",measured);
+    }
     public string VerifyMechanics(){
         Initialize();var report=new List<string>();
         try{
@@ -411,6 +451,7 @@ public partial class MountainRace {
             Checkpoint(skier.distance,skier.lane);Advance(1f/60);for(int i=0;i<17;i++)Advance(.1f);
             Check(Status.phase=="over","unprotected collision did not end the ride");
             report.Add("training pickup + protected and unprotected NPC collisions");
+            report.Add(VerifyGroundPickups());
             report.Add(VerifyBodyContacts());
             report.Add(VerifyCourseMarkers());
             report.Add(VerifyFisSituations());

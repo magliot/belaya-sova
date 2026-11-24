@@ -119,19 +119,22 @@ public partial class MountainRace {
             PreviewGear(json);CheckBody(menuModel);StartRace(json);CheckBody(rideModel);
             Check(hero=="bear"?Mathf.Abs(FallTime-1.25f)<.001f:Mathf.Abs(GroundFruitRadius-1.75f)<.001f,"headgear boost");
         }
-        Menu();StartRace("{\"mode\":\"normal\",\"seed\":1911,\"helmets\":0}");
-        Checkpoint(4,0);
-        void ContactHelmet(){
-            var item=World.Add("helmet",Status.metres,lane,.5f,.7f);
-            CheckItems(Status.metres-.01f,lane);
-            Check(item.consumed,"helmet pickup missed");
+        for(int stock=0;stock<=1;stock++){
+            Menu();StartRace(JsonUtility.ToJson(new Settings{mode="normal",seed=1911,helmets=stock}));
+            Checkpoint(4,0);
+            for(int count=stock+1;count<=MaxHelmetsPerRide;count++){
+                var item=World.Add("helmet",Status.metres,lane,.5f,.7f);
+                CheckItems(Status.metres-.01f,lane);CheckItems(Status.metres,lane);
+                Check(item.consumed&&Status.helmets==count&&helmetsIssued==count,"each visible helmet must count exactly once");
+            }
+            var extra=World.Add("helmet",Status.metres+1,lane,.5f,.7f);
+            World.Refresh(Status.metres,Status.elapsed);
+            Check(!World.Items.Contains(extra)&&!extra.obj,"unusable helmet presented to the rider");
+            for(int remaining=MaxHelmetsPerRide-1;remaining>=0;remaining--){
+                Hit("npc");Hit("npc");Check(Status.helmets==remaining&&fall>0,"one protection per impact");fall=0;
+            }
+            Check(World.HelmetLimitReached,"used protection reopened the quota");
         }
-        for(int i=0;i<MaxHelmetsPerRide;i++){
-            ContactHelmet();ContactHelmet();
-            Check(Status.helmets==1&&helmetsIssued==i+1,"helmets stacked");
-            Hit("npc");Check(Status.helmets==0&&fall>0,"helmet did not absorb a fall");fall=0;
-        }
-        ContactHelmet();Check(Status.helmets==0&&helmetsIssued==MaxHelmetsPerRide,"attempt gained a third helmet");
         // Resolve the final unprotected impact via the production collision and finish path.
         Hit("npc");for(int i=0;i<150&&Status.phase=="play";i++)Advance(1f/60);
         Check(Status.phase=="over","third fall extended the attempt");

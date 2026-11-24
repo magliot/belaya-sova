@@ -48,6 +48,7 @@ public partial class RaceWorld : MonoBehaviour {
     string mode,letter;
     bool letterAdded;
     public string Mode=>mode;
+    internal bool HelmetLimitReached {get;set;}
     public const int StageLength=4000, AlpineStage=8, StageCount=9, LapLength=StageLength*StageCount;
     public bool AlpineAt(float d)=>mode=="normal"&&d>=0&&StageAt(d)==AlpineStage;
     public static int StageAt(float d)=>Mathf.FloorToInt(Mathf.Max(0,d)/StageLength)%StageCount;
@@ -59,6 +60,7 @@ public partial class RaceWorld : MonoBehaviour {
         }
     }
     public void Configure(int seed,string mode){
+        HelmetLimitReached=false;
         ClearObjects();this.seed=seed;this.mode=mode=="sled"||mode=="tubing"?mode:"normal";lastDistance=lastTime=0;snowVertices=null;
         firstSegment=int.MaxValue;lastSegment=int.MinValue;chunk=int.MinValue;
         letter=null;letterAdded=false;letterDistance=float.PositiveInfinity;
@@ -116,7 +118,7 @@ public partial class RaceWorld : MonoBehaviour {
         if(next!=chunk){chunk=next;UpdateTerrain(next*14);UpdateScenery(distance);UpdateLandscape(distance);}
         if(draw)RefreshLift(distance,elapsed);
         for(int i=Items.Count-1;i>=0;i--){
-            var o=Items[i];if(o.consumed||Mathf.Max(o.distance,o.originD)+o.length*.5f+o.span<distance-Behind){
+            var o=Items[i];if(o.consumed||(HelmetLimitReached&&o.kind=="helmet")||Mathf.Max(o.distance,o.originD)+o.length*.5f+o.span<distance-Behind){
                 Release(o);Items.RemoveAt(i);continue;
             }
             o.previousLane=o.lane;o.previousDistance=o.distance;o.previousOffset=o.offset;
@@ -170,7 +172,7 @@ public partial class RaceWorld : MonoBehaviour {
             attitude=SnowFrame(o.distance,o.lane)*Quaternion.Euler(o.stride,0,0);
             y+=o.scale*.93f;
         }
-        if(o.air||o.kind=="ball"||o.kind=="letter"||o.kind=="goldenOwl")y+=o.height;
+        if(o.air||o.kind=="ball"||o.kind=="letter")y+=o.height;
         else if(o.kind=="coin")y+=.6f;else if(o.kind=="thermos"||o.kind=="helmet"||o.kind=="magnet"||o.kind=="aid"||o.kind=="gift")y+=.84f;
         o.obj.transform.SetPositionAndRotation(SnowSurface(o.distance,o.lane)+Vector3.up*y,attitude);
         float sx=o.scale;

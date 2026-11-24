@@ -153,7 +153,7 @@
           else if(k==='meet'){
             for(const name of ['prizeFeather','goldenOwl'])if(record.data.meet[name])merged.meet[name]=true;
             merged.meet.bestStage=Math.max(count(merged.meet.bestStage),count(record.data.meet.bestStage));
-            for(const name of ['gifts','feathers','yeti'])merged.meet[name]=Math.max(0,count(merged.meet[name])+count(record.data.meet[name])-count(initial.meet[name]));
+            for(const name of ['gifts','aidKits','feathers','yeti'])merged.meet[name]=Math.max(0,count(merged.meet[name])+count(record.data.meet[name])-count(initial.meet[name]));
           }else if(k==='ownedGear')merged.ownedGear=[...new Set([...merged.ownedGear,...record.data.ownedGear])];
           else if(k==='bonuses')merged.bonuses=[...new Set([...merged.bonuses,...record.data.bonuses])];
           else if(k==='payments'){for(const [id,via] of Object.entries(record.data.payments))if(!known.has(id))merged.payments[id]=via;}
@@ -222,7 +222,6 @@
       unlock(state){
         const d=record.data,keys=[];
         if(state.feather&&!d.meet.prizeFeather){d.meet.prizeFeather=true;keys.push('meet');}
-        if(state.goldenOwl&&!d.meet.goldenOwl){d.meet.goldenOwl=true;keys.push('meet');}
         if(Array.isArray(state.fis)){
           const added=state.fis.filter(n=>Number.isInteger(n)&&n>=1&&n<=10&&!d.fis.includes(n));
           if(added.length){d.fis.push(...added);keys.push('fis');}
@@ -252,6 +251,7 @@
         completeMissions(d);d.coins+=count(state.coins);
         if(ranked(state))d.best=Math.max(d.best,count(state.score));
         d.meet.bestStage=Math.max(count(d.meet.bestStage),stats.stage);d.meet.gifts=count(d.meet.gifts)+count(state.gifts);
+        d.meet.aidKits=count(d.meet.aidKits)+count(state.aidKits);
         d.meet.feathers=count(d.meet.feathers)+count(state.feathers);d.meet.yeti=count(d.meet.yeti)+count(state.encounters);
         record.lastRun=id;
         record.recent=[...(record.recent||[]),id].slice(-32);

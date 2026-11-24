@@ -24,7 +24,7 @@ async function main(){
   assert(p.data.meet.goldenOwl&&p.data.meet.prizeFeather);
   const price=MountainSaves.price(p.data,'mag');assert(p.buy('mag'));assert.equal(p.data.coins,501-price);
   p.change(['hero'],d=>d.hero='bear');
-  const run={mode:'normal',phase:'over',rankedResult:true,stage:0,hero:'bear',score:1400,metres:1343,elapsed:72,coins:19};
+  const run={mode:'normal',phase:'over',rankedResult:true,stage:0,hero:'bear',score:1400,metres:1343,elapsed:72,coins:19,gifts:2,aidKits:1};
   const bank=p.data.coins;
   p.finish('run-1',run);const total=p.data.coins;assert(total>=bank+19);
   assert.equal(p.finish('run-1',run),false);assert.equal(p.data.coins,total);
@@ -34,6 +34,7 @@ async function main(){
   assert.equal(values.save,JSON.stringify(oldCloud));assert(app.writes.length&&app.writes.every(k=>k==='unity_test_v1'));
   for(const [k,v] of legacySnapshot)assert.equal(storage.get(k),v);
   const after=create({storage:driver,app});await after.load();
+  assert.equal(after.data.meet.gifts,2);assert.equal(after.data.meet.aidKits,1);
   assert.equal(after.data.hero,'bear');assert.equal(after.data.coins,total);assert.equal(after.data.best,1400);assert.equal(after.data.coll.length,2);
   const foreign=create({storage:driver,app:telegram(998,values)});await foreign.load();
   assert.equal(foreign.data.best,0);assert.equal(foreign.data.hero,'owl');assert(!foreign.data.meet.prizeFeather);

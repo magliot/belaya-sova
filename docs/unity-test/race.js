@@ -80,8 +80,11 @@
     setText('rideStatus',status);$('rideStatus').hidden=!status;
     setText('score',s.score);$('score').style.setProperty('--digits',String(s.score).length);
     setText('coins',s.coins);$('coins').classList.toggle('many',s.coins>=1000);
-    $('helmets').setAttribute('aria-label','Каски '+s.helmets);
-    for(const [i,img] of [...$('helmets').children].entries())img.style.opacity=i<s.helmets?1:.23;
+    const helmets=$('helmets'),label='Каски '+s.helmets;
+    if(helmets.getAttribute('aria-label')!==label){
+      helmets.setAttribute('aria-label',label);
+      for(let i=0;i<helmets.children.length;i++)helmets.children[i].style.opacity=i<s.helmets?1:.23;
+    }
   }
   function rewardFeedback(s,prev){
     const layer=$('rewardFloats');
@@ -174,7 +177,8 @@
           s.mode==='tubing'?'Ворота '+s.gates+' · подарки '+(s.gifts||0):
           'Ворота '+s.gates+' · серия '+(s.maxCombo||0)+' · трюки '+s.tricks+' · кольца '+(s.rings||0);
         const route=s.mode==='normal'?'Этап '+(s.stage+1)+' · '+stages[s.stage%stages.length]:modes[s.mode];
-        setText('resultStats',route+' · '+Math.floor(s.metres)+' м\n'+detail+'\n🍊 +'+s.coins+(s.feathers?' · перья '+s.feathers:'')+' · рекорд '+profile.data.best);
+        const finds=(s.mode==='normal'&&s.gifts?' · подарки '+s.gifts:'')+(s.aidKits?' · аптечки '+s.aidKits:'');
+        setText('resultStats',route+' · '+Math.floor(s.metres)+' м\n'+detail+'\n🍊 +'+s.coins+finds+(s.feathers?' · перья '+s.feathers:'')+' · рекорд '+profile.data.best);
         const rule=s.fis?.at(-1);
         $('resultRule').hidden=!rule;
         if(rule)setText('resultRule','Правило FIS №'+rule+' · '+ruleText[rule-1]);
@@ -404,7 +408,8 @@
         body.append(row,stat(got.length===word.length?'Слово собрано':open?'Буквы на склоне':'После предыдущего слова',got.length+' / '+word.length));
         if(got.length){const last=got[got.length-1];body.append('Последняя буква '+last.ch+' · '+last.date+' · '+last.dist+' м');}
       }
-      for(const [t,v] of [['Золотое перо · сноупарк',d.meet.prizeFeather?'Поймано':'Два трюка на высокой линии'],['Встречи с йети',d.meet.yeti],['Перья за все заезды',d.meet.feathers],['Доступно перьев',MountainSaves.featherBalance(d)],['Золотая сова',d.meet.goldenOwl?'✓':'—'],['Лучший этап',d.meet.bestStage?d.meet.bestStage+' · '+stages[(d.meet.bestStage-1)%stages.length]:'—'],['Рекорд очков',d.best]])body.append(stat(t,v||0));
+      for(const [t,v] of [['Золотое перо · сноупарк',d.meet.prizeFeather?'Поймано':'Два трюка на высокой линии'],['Встречи с йети',d.meet.yeti],['Перья за все заезды',d.meet.feathers],['Доступно перьев',MountainSaves.featherBalance(d)],['Подарки',d.meet.gifts],['Аптечки',d.meet.aidKits],['Лучший этап',d.meet.bestStage?d.meet.bestStage+' · '+stages[(d.meet.bestStage-1)%stages.length]:'—'],['Рекорд очков',d.best]])body.append(stat(t,v||0));
+      if(d.meet.goldenOwl)body.append(stat('Золотая сова · архив','✓'));
     }
   }
   let shareText='',shareBlob=null,cardId=0;

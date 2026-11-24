@@ -3,6 +3,7 @@ using UnityEngine;
 public partial class MountainRace {
     RaceItem touchedFeather;
     void CollectFeather(RaceItem item){
+        if(item.consumed)return;
         item.Consume();Status.feather=true;Status.feathers++;bonusPoints+=300*Mult;
         Notice("Золотое перо +1","feather");
     }
@@ -53,6 +54,20 @@ public partial class MountainRace {
         float a=(low-start)/delta,b=(high-start)/delta;
         enter=Mathf.Max(enter,Mathf.Min(a,b));exit=Mathf.Min(exit,Mathf.Max(a,b));
         return enter<=exit;
+    }
+    bool TouchPickup(RaceItem item,float before,float fromLane,float radius){
+        if(item.air)return TouchAir(item,before,fromLane,1.12f);
+        float enter=0,exit=1;
+        float height=item.kind=="letter"?item.height:item.kind=="coin"?.6f:.84f;
+        // Clip to the rider's vertical reach before finding the closest point on the snow.
+        if(!ClipContact(previousAltitude-item.previousOffset,Altitude-item.offset,
+            height-2.2f,height+.7f,ref enter,ref exit))return false;
+        var start=new Vector2(fromLane-(item.positioned?item.previousLane:item.lane),
+                              before-(item.positioned?item.previousDistance:item.distance));
+        var end=new Vector2(lane-item.lane,Status.metres-item.distance);
+        var delta=end-start;
+        float t=Mathf.Clamp(-Vector2.Dot(start,delta)/Mathf.Max(.000001f,delta.sqrMagnitude),enter,exit);
+        return (start+delta*t).sqrMagnitude<=radius*radius;
     }
     bool TouchesBody(RaceItem o,float before,float fromLane,float halfWidth,float halfLength,float height,float post,bool round){
         // Both bodies move during a physics tick. Clip first to the height interval,
@@ -181,10 +196,11 @@ public partial class MountainRace {
                     float length=Mathf.Sqrt(square);
                     if(length>.0001f){
                         float k=Mathf.Min(1,Mathf.Max(length*8,(speed+17.5f))*(d-before)/Mathf.Max(1,speed)/length);
-                        o.lane+=dx*k;o.distance+=dy*k;square*=1-k;square*=1-k;
+                        o.lane+=dx*k;o.distance+=dy*k;
                     }
                 }
-                if(o.air?!TouchAir(o,before,fromLane,1.12f):square>=radius*radius)break;
+                if(o.kind=="helmet"&&helmetsIssued>=MaxHelmetsPerRide)break;
+                if(!TouchPickup(o,before,fromLane,radius))break;
                 if(o.kind=="coin"){
                     if(o.air&&freeRideAwaitingTrick){if(!crossedFruit.Contains(o))crossedFruit.Add(o);}
                     else CollectCoin(o);
@@ -194,24 +210,22 @@ public partial class MountainRace {
                 switch(o.kind){
                     case "thermos":boost=4.5f+MainUpgrade(settings.boost)*.8f;Notice(BonusMode?"Кофе · ускорение +22%":"Кофе · ускорение +65%","power");break;
                     case "helmet":
-                        if(Status.helmets==0&&helmetsIssued<MaxHelmetsPerRide){Status.helmets=1;helmetsIssued++;Notice("Каска EMCO","power");}
+                        Status.helmets++;helmetsIssued++;
+                        World.HelmetLimitReached=helmetsIssued>=MaxHelmetsPerRide;
+                        Notice("Каска +1 · защита "+Status.helmets+"/"+MaxHelmetsPerRide,"power");
                         break;
                     case "magnet":magnet=7+MainUpgrade(settings.mag)*2;Notice("Магнит для мандаринов","power");break;
                 }break;
-              case "goldenOwl":
-                if(square<1.5f*1.5f&&Mathf.Abs((airborne?FlightHeight(d):0)+1-o.height)<1.7f){
-                    o.Consume();Status.goldenOwl=true;bonusPoints+=500*Mult;Notice("Золотая сова!","chime");}
-                break;
               case "letter":
-                if(square<1.4f*1.4f&&(!o.air||airborne)){
+                if(TouchPickup(o,before,fromLane,1.4f)){
                     o.Consume();Status.letters++;Status.lettersTotal++;
                     bool word=Status.lettersTotal==4||Status.lettersTotal==8||Status.lettersTotal==16;
                     bonusPoints+=(word?1000:200)*Mult;Notice(word?"Слово собрано!":"Буква "+o.character,"chime");letterChange=1;
                 }else if(!o.judged&&dy>2){o.judged=true;letterChange=-1;}break;
               case "gift":
-                if(square<1.44f){o.Consume();Status.gifts++;if(BonusMode)BonusReward(120);else bonusPoints+=50*Mult;Notice("Подарок!","power");}break;
+                if(TouchPickup(o,before,fromLane,1.2f)){o.Consume();Status.gifts++;if(BonusMode)BonusReward(120);else bonusPoints+=50*Mult;Notice("Подарок +1","power");}break;
               case "aid":
-                if(square<1.69f){o.Consume();bonusPoints+=80*Mult;Notice("Аптечка подобрана","power");}break;
+                if(TouchPickup(o,before,fromLane,1.3f)){o.Consume();Status.aidKits++;bonusPoints+=80*Mult;Notice("Аптечка +1","power");}break;
               case "snowman":
                 if(BonusMode&&Altitude<1.5f&&square<2.25f){ScatterSnowman(o);o.Consume();Status.snowmen++;BonusReward(90);Notice("Снеговик!","smash");}
                 else if(o.variant=="snowman")HandleSolid(o,before,fromLane,.89f,.72f,2.50f,0,true);

@@ -1,8 +1,8 @@
-// Export the two legacy weighted stages, including the summit's authored landmarks.
-// The other six stage generators and both bonuses are implemented directly in C#.
+// Export the summit landmarks used by Unity and the original holiday layouts kept as art references.
 const fs=require('node:fs'),path=require('node:path');
 const {chromium}=require(process.env.DANCE_BROWSER_MODULE||'playwright');
 const root=path.resolve('unity/OwlSlope/Assets/Resources/Race/Layouts'),base=process.argv[2]||'http://127.0.0.1:8766/';
+const townArchive=path.resolve('art/course-review/legacy-town-layouts');
 function generate(seed,stage){
  const originalRandom=Math.random;let state=seed+stage;
  Math.random=()=>((state=Math.imul(1664525,state)+1013904223>>>0)/4294967296);
@@ -19,6 +19,7 @@ function generate(seed,stage){
 }
 (async()=>{
  fs.mkdirSync(root,{recursive:true});
+ fs.mkdirSync(townArchive,{recursive:true});
  const b=await chromium.launch({args:['--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  try{const p=await b.newPage();await p.route('https://script.google.com/**',r=>r.abort());
   let src=require('./archived-three.cjs')('index.html');
@@ -41,7 +42,7 @@ function generate(seed,stage){
   await p.goto(base,{waitUntil:'domcontentloaded'});await p.waitForFunction(()=>window.exportLegacyRows&&window.__g?.()?.mode==='menu');
   for(const stage of [4,7])for(const seed of [19,1911,1927,4903]){
    const result=await p.evaluate(([s,t])=>exportLegacyRows(s,t),[seed,stage]);
-   fs.writeFileSync(path.join(root,'stage'+stage+'-'+seed+'.json'),JSON.stringify(result));
+   fs.writeFileSync(path.join(stage===7?townArchive:root,'stage'+stage+'-'+seed+'.json'),JSON.stringify(result));
    console.log(stage,seed,result.objects.length,result.patches.length);
   }
  }finally{await b.close();}
