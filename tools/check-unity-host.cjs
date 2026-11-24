@@ -16,6 +16,12 @@ async function main(){
   const assetBase=new URL(html.match(/<base\s+href="([^"]+)"/)?.[1]||'.',base);
   const names=Array.from(html.matchAll(/['"](Build\/[a-f0-9]{32}\.[^'"]+)['"]/g),m=>m[1]);
   assert.equal(new Set(names).size,4,'Expected the hashed loader, data, WebAssembly and JavaScript framework');
+  const sizes=html.match(/\/\* player bytes \*\/data:(\d+),code:(\d+),framework:(\d+)/);
+  assert(sizes,'Missing player download manifest');
+  for(const [i,suffix] of ['.data.unityweb','.wasm.unityweb','.framework.js.unityweb'].entries()){
+    const artifact=names.find(name=>name.endsWith(suffix));
+    assert.equal(Number(sizes[i+1]),fs.statSync(path.join(site,artifact)).size,'Download size for '+artifact);
+  }
   let bytes=0;
   const changed=[];
   for(const name of names){
@@ -50,6 +56,11 @@ async function main(){
   };
   const css=await fetch(dependency('race.css'));
   assert(css.ok&&css.headers.get('content-type')?.includes('text/css'),'CSS content type');
+  for(const name of ['mountain-downloads.js','race.js']){
+    const response=await fetch(dependency(name));
+    assert.equal(response.status,200,name);
+    assert.equal((await response.text()).replace(/\r\n/g,'\n'),fs.readFileSync(path.join(site,name),'utf8').replace(/\r\n/g,'\n'),name);
+  }
   const release=await fetch(dependency('release.js'));
   assert(release.ok,'Release config');
   const config=await release.text();

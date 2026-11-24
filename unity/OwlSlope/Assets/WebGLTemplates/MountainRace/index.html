@@ -7,9 +7,10 @@
   <title>Белая Сова · Спуск</title>
   <link rel="icon" type="image/jpeg" href="art/av_owl.jpg">
   <link rel="stylesheet" href="race.css">
-  <script src="vendor/telegram-web-app.js"></script>
-  <script src="release.js"></script><script src="save.js"></script><script src="equipment.js"></script>
-  <script defer src="mountain-audio.js"></script><script defer src="mountain-metrics.js"></script>
+  <script defer src="vendor/telegram-web-app.js"></script>
+  <script defer src="release.js"></script><script defer src="save.js"></script><script defer src="equipment.js"></script>
+  <script defer src="mountain-downloads.js"></script><script defer src="race.js"></script>
+  <script async src="mountain-audio.js"></script><script async src="mountain-metrics.js"></script>
 </head>
 <body><main id="app">
   <canvas id="slope" aria-label="Горнолыжная трасса" tabindex="0"></canvas>
@@ -20,7 +21,7 @@
       <button class="settings-key" data-panel="settings" aria-label="Настройки">⚙</button>
     </header>
     <section id="loading" class="sheet" aria-live="polite">
-      <h2>Готовим склон</h2><p id="loadText">Загружаем игру…</p>
+      <h2>Готовим склон</h2><p id="loadText">Открываем игру…</p>
       <progress id="loadBar" max="1" value="0" aria-label="Загрузка игры"></progress>
       <button id="retryLoad" hidden>Повторить загрузку</button>
     </section>
@@ -82,10 +83,26 @@
       <div id="panelBody"></div>
     </section>
   </div>
-</main><script src="race.js"></script>
+</main>
 <script>
-  MountainShell.boot({
-    loader:'Build/{{{ LOADER_FILENAME }}}', data:'Build/{{{ DATA_FILENAME }}}',
-    framework:'Build/{{{ FRAMEWORK_FILENAME }}}', code:'Build/{{{ CODE_FILENAME }}}'
+  // This recovery control also works if a required shell script never executes.
+  document.getElementById('retryLoad').onclick=()=>{
+    const entry=new URL(location.href);
+    entry.searchParams.set('bootretry',Date.now().toString(36));
+    location.replace(entry.href);
+  };
+  function delayedPage(){
+    document.getElementById('loadText').textContent='Не удалось открыть игру. Проверь соединение и повтори загрузку.';
+    document.getElementById('retryLoad').hidden=false;
+  }
+  const shellTimer=setTimeout(delayedPage,18000);
+  document.addEventListener('DOMContentLoaded',()=>{
+    clearTimeout(shellTimer);
+    if(!window.MountainShell){delayedPage();return;}
+    MountainShell.boot({
+      loader:'Build/{{{ LOADER_FILENAME }}}', data:'Build/{{{ DATA_FILENAME }}}',
+      framework:'Build/{{{ FRAMEWORK_FILENAME }}}', code:'Build/{{{ CODE_FILENAME }}}',
+      sizes:{/* player bytes */}
+    });
   });
 </script></body></html>

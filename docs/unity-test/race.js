@@ -1,6 +1,7 @@
 (function(){
   'use strict';
   const $=id=>document.getElementById(id), canvas=$('slope'), release=window.mountainRelease;
+  if(!release||!window.MountainSaves||!window.MountainEquipment)return;
   const app=window.Telegram?.WebApp?.initData?window.Telegram.WebApp:null;
   const names={owl:'Сова',bear:'Мишаня'};
   const stages=['Учебный склон','Лесная тропа','Бугры','Сноупарк','Вершина','Чёрная трасса','Ночная трасса','Новогодний городок','Free Ride'];
@@ -499,7 +500,6 @@
   $('reviewLater').onclick=()=>command('Seek',Math.min(+$('seek').max,Math.floor(snapshot.metres)+100));
   $('reviewEffect').onchange=e=>command('ReviewEffect',e.target.value);
   $('reviewFold').onclick=()=>{const hidden=!$('reviewBody').hidden;$('reviewBody').hidden=hidden;setText('reviewFold',hidden?'Развернуть':'Свернуть');$('reviewFold').setAttribute('aria-expanded',!hidden);};
-  $('retryLoad').onclick=()=>location.reload();
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();back();}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)suspended();else restoreViewport();});
   window.addEventListener('pagehide',suspended);window.addEventListener('blur',suspended);
@@ -520,22 +520,67 @@
     if(pendingStart){clearTimeout(pendingStart.timeout);pendingStart=null;}
     ready=false;
     console.error('Unity startup:',String(error));$('loading').hidden=false;$('menu').hidden=true;
-    setText('loadText',message||'Не удалось загрузить 3D-игру. Проверь соединение и повтори загрузку.');
+    const reason=String(error);
+    const hint=/does not support.*WebGL|not support graphics API/i.test(reason)?'На этом устройстве игре нужен браузер с WebGL 2.':
+      /out of memory|memory allocation/i.test(reason)?'Устройству не хватило памяти. Закрой другие приложения и повтори загрузку.':
+      'Загрузка прервалась. Нажми «Повторить загрузку», чтобы продолжить.';
+    setText('loadText',message||hint);
     $('loadBar').hidden=true;$('retryLoad').hidden=false;
   }
   window.MountainShell={async boot(urls){
+    let wake,watch,transfer=null,stopped=false,lastChange=performance.now(),lastLoaded=-1,phase='page';
+    const interrupted=new Promise((_,reject)=>{wake=reject;});
+    const duringBoot=work=>Promise.race([work,interrupted]);
+    const touch=()=>{lastChange=performance.now();};
+    function showBytes(loaded,total,message,active=false){
+      if(stopped)return;
+      if(active&&loaded===lastLoaded){touch();return;}
+      if(loaded!==lastLoaded){touch();lastLoaded=loaded;}
+      if(loaded===total){
+        phase='engine';$('loadBar').removeAttribute('value');setText('loadText','Запускаем 3D-движок…');return;
+      }
+      phase='download';$('loadBar').value=loaded/total;
+      const mb=bytes=>(bytes/1000000).toFixed(1).replace('.',',');
+      setText('loadText',(message?message+' ':'Загружаем склон · ')+mb(loaded)+' из '+mb(total)+' МБ');
+      if(message)$('retryLoad').hidden=false;
+    }
     try{
       performance.mark('mountain-load-start');
+      $('retryLoad').hidden=true;
+      document.addEventListener('visibilitychange',touch);
+      watch=setInterval(()=>{
+        if(document.hidden){touch();return;}
+        const idle=performance.now()-lastChange;
+        if(idle>14000){
+          $('retryLoad').hidden=false;
+          if(phase==='page')setText('loadText','Долго нет ответа от сервера. Можно повторить загрузку.');
+          if(phase==='engine')setText('loadText','Запускаем 3D-движок. Можно повторить, если экран не меняется.');
+        }
+        if(idle>75000)wake(Error('Нет ответа от загрузчика.'));
+      },1000);
       const data=profile.load();
-      await new Promise((ok,fail)=>{const script=document.createElement('script');script.src=urls.loader;script.onload=ok;script.onerror=()=>fail(Error('loader'));document.body.append(script);});
-      player=await createUnityInstance(canvas,{dataUrl:urls.data,frameworkUrl:urls.framework,codeUrl:urls.code,
+      const loader=new Promise((ok,fail)=>{const script=document.createElement('script');script.src=urls.loader;script.onload=ok;script.onerror=()=>fail(Error('loader'));document.body.append(script);});
+      if(urls.sizes?.data&&window.MountainDownloads&&window.AbortController&&
+         window.ReadableStream?.prototype.getReader&&window.Response&&'body' in Response.prototype){
+        transfer=MountainDownloads.open(urls,showBytes);
+        showBytes(0,transfer.total,'');
+      }
+      const [,files]=await duringBoot(Promise.all([loader,transfer?transfer.prepare():urls]));
+      touch();
+      player=await duringBoot(createUnityInstance(canvas,{dataUrl:files.data,frameworkUrl:files.framework,codeUrl:files.code,
+        cacheControl:()=>transfer?'no-store':'immutable',
         streamingAssetsUrl:'StreamingAssets',companyName:'Белая Сова',productName:'MountainRace',productVersion:'1',
-        devicePixelRatio:Math.min(devicePixelRatio||1,1.5)},v=>{$('loadBar').value=v;setText('loadText',Math.round(v*100)+'%');});
+        devicePixelRatio:Math.min(devicePixelRatio||1,1.5)},v=>{
+          if(stopped||transfer)return;
+          if(v!==lastLoaded){touch();lastLoaded=v;}
+          $('loadBar').value=v;setText('loadText',v>=.9?'Запускаем 3D-движок…':'Загружаем игру · '+Math.round(v*100)+'%');
+        }));
       await data;
       const limit=performance.now()+20000;
       while(!snapshot&&performance.now()<limit)await new Promise(r=>setTimeout(r,100));
       if(!snapshot)throw Error('Mountain race scene did not initialize');
-      ready=true;$('loading').hidden=true;draw(snapshot,null);changed();fitHomeMenu();performance.mark('mountain-menu-ready');
+      ready=true;$('retryLoad').hidden=true;$('loading').hidden=true;draw(snapshot,null);changed();fitHomeMenu();performance.mark('mountain-menu-ready');
+      transfer?.prune().catch(()=>{});
       const query=new URLSearchParams(location.search),trialStage=query.get('reviewStage');
       if(release.channel!=='production'&&['3','7','8'].includes(trialStage)){
         start('review');
@@ -547,6 +592,7 @@
         }
         command('Seek',entry+(trialStage==='8'?([119,165].includes(offset)?offset:-45):0));
       }
-    }catch(e){failed(e);}
+    }catch(e){transfer?.cancel();failed(e);}
+    finally{stopped=true;transfer?.cancel();clearInterval(watch);document.removeEventListener('visibilitychange',touch);}
   }};
 })();

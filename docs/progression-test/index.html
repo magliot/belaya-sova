@@ -7,9 +7,10 @@
   <title>Белая Сова · Спуск</title>
   <link rel="icon" type="image/jpeg" href="art/av_owl.jpg">
   <link rel="stylesheet" href="race.css?v=82d526946e4a">
-  <script src="vendor/telegram-web-app.js?v=e999954b603b"></script>
-  <script src="release.js?v=3296100ede46"></script><script src="save.js?v=22dd03bb9afd"></script><script src="equipment.js?v=cad7dba31903"></script>
-  <script defer src="mountain-audio.js?v=4a1e7fcd87e4"></script><script defer src="mountain-metrics.js?v=2c1afe0401dc"></script>
+  <script defer src="vendor/telegram-web-app.js?v=e999954b603b"></script>
+  <script defer src="release.js?v=3296100ede46"></script><script defer src="save.js?v=22dd03bb9afd"></script><script defer src="equipment.js?v=cad7dba31903"></script>
+  <script defer src="mountain-downloads.js?v=cf9286e1c47c"></script><script defer src="race.js?v=150bf752c371"></script>
+  <script async src="mountain-audio.js?v=4a1e7fcd87e4"></script><script async src="mountain-metrics.js?v=2c1afe0401dc"></script>
 </head>
 <body><main id="app">
   <canvas id="slope" aria-label="Горнолыжная трасса" tabindex="0"></canvas>
@@ -20,7 +21,7 @@
       <button class="settings-key" data-panel="settings" aria-label="Настройки">⚙</button>
     </header>
     <section id="loading" class="sheet" aria-live="polite">
-      <h2>Готовим склон</h2><p id="loadText">Загружаем игру…</p>
+      <h2>Готовим склон</h2><p id="loadText">Открываем игру…</p>
       <progress id="loadBar" max="1" value="0" aria-label="Загрузка игры"></progress>
       <button id="retryLoad" hidden>Повторить загрузку</button>
     </section>
@@ -82,10 +83,26 @@
       <div id="panelBody"></div>
     </section>
   </div>
-</main><script src="race.js?v=8dbf04d85e3e"></script>
+</main>
 <script>
-  MountainShell.boot({
-    loader:'Build/d109bfcc1016b6c0da463a54d6b0a459.loader.js', data:'Build/353b728e5796e8c7a539e16f7eb1d0db.data.unityweb',
-    framework:'Build/b7aa5d04801d45d71467f9dd9ea55003.framework.js.unityweb', code:'Build/4739a93868bb08c671cb619e0902ac63.wasm.unityweb'
+  // This recovery control also works if a required shell script never executes.
+  document.getElementById('retryLoad').onclick=()=>{
+    const entry=new URL(location.href);
+    entry.searchParams.set('bootretry',Date.now().toString(36));
+    location.replace(entry.href);
+  };
+  function delayedPage(){
+    document.getElementById('loadText').textContent='Не удалось открыть игру. Проверь соединение и повтори загрузку.';
+    document.getElementById('retryLoad').hidden=false;
+  }
+  const shellTimer=setTimeout(delayedPage,18000);
+  document.addEventListener('DOMContentLoaded',()=>{
+    clearTimeout(shellTimer);
+    if(!window.MountainShell){delayedPage();return;}
+    MountainShell.boot({
+      loader:'Build/dd3837c062ae8206edec6ed857b50925.loader.js', data:'Build/db8ec82c15c02d435606117b7867bd4c.data.unityweb',
+      framework:'Build/59561ce77823ae07e2f55e34cdcdd60d.framework.js.unityweb', code:'Build/05a61bc10151fc77efd7a4db49de49d8.wasm.unityweb',
+      sizes:{/* player bytes */data:17198553,code:6224881,framework:71630}
+    });
   });
 </script></body></html>

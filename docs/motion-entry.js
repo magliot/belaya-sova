@@ -28,7 +28,7 @@
     if(start==='freeridewide_1911')query.set('reviewOffset','165');
     if(start==='boulder_1911')query.set('reviewOffset','119');
   }
-  query.set('v', '2026-11-24a');
+  query.set('v', '2026-11-24b');
   target.search = query.toString();
   target.hash = context.toString();
   location.replace(target.href);
