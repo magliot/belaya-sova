@@ -12,6 +12,9 @@ public static class CourseRideChecks {
     static MountainRace race;
     static float target,velocity,lastLane,lapApproach;
     static int stageSeen,lap;
+    static string archFrames;
+    static int nextArch,approachFrame;
+    static readonly int[] approachOffsets={38,29,22,16};
     static readonly List<Obstacle> obstacles=new List<Obstacle>();
     static readonly List<Vector2> rewards=new List<Vector2>();
     struct Obstacle {public float lane,seconds,gap;}
@@ -24,6 +27,17 @@ public static class CourseRideChecks {
         race=game;race.enabled=false;
         race.Menu();race.ChooseHero("bear");race.StartRace("{\"mode\":\"normal\",\"seed\":1911,\"sensitivity\":4,\"helmets\":1}");
         race.BeginSteer();target=velocity=lastLane=lapApproach=0;stageSeen=lap=0;motion.Clear();
+        archFrames=Environment.GetEnvironmentVariable("SOVA_ARCH_FRAMES");
+        nextArch=0;approachFrame=0;
+    }
+    static void CaptureApproach(){
+        if(string.IsNullOrEmpty(archFrames)||nextArch>=RaceWorld.StageCount)return;
+        float d=race.Status.metres;
+        float mark=nextArch==0?0:nextArch*RaceWorld.StageLength-approachOffsets[approachFrame];
+        if(d<mark)return;
+        string name=(nextArch+1).ToString("00")+"-"+Mathf.RoundToInt(d)+"m";
+        RiderCourseChecks.Shot(race.View,name,archFrames,480,900);
+        if(nextArch==0||++approachFrame==approachOffsets.Length){nextArch++;approachFrame=0;}
     }
     static void Update(){
         if(!EditorApplication.isPlaying||EditorApplication.isCompiling)return;
@@ -45,6 +59,7 @@ public static class CourseRideChecks {
                         s.scoreRings+" rings + "+s.scoreFis+" FIS, finish: "+s.message);
                     race=null;EditorApplication.Exit(0);return;
                 }
+                CaptureApproach();
                 if((stageSeen&(1<<s.stage))==0)Debug.Log("COURSE RIDE stage "+s.stage+" at "+s.metres+" m, "+s.coins+" mandarins");
                 if(s.metres<RaceWorld.LapLength)lapApproach=s.speed;
                 if(lap==1&&s.metres>=RaceWorld.LapLength){
@@ -128,8 +143,11 @@ public static class CourseRideChecks {
         motion.Clear();
         foreach(var item in race.World.Items)motion[item]=new Vector2(item.lane,item.distance);
         float best=float.PositiveInfinity,choice=lane;
+        float approach=RaceWorld.StageLength-Mathf.Repeat(d,RaceWorld.StageLength);
+        bool aimThroughArch=!string.IsNullOrEmpty(archFrames)&&approach<104;
         for(float x=-width;x<=width+.01f;x+=.32f){
             float cost=.15f*Mathf.Abs(x-lane)+.15f*Mathf.Abs(x-target)+.035f*Mathf.Abs(x);
+            if(aimThroughArch)cost+=1.35f*Mathf.Abs(x);
             if(jumpLine.HasValue)cost+=2.5f*Mathf.Abs(x-jumpLine.Value);
             foreach(var o in obstacles){
                 float t=Mathf.Max(.035f,o.seconds);

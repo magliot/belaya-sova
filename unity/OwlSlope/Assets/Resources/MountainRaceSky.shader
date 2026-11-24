@@ -15,6 +15,7 @@ Shader "Owl/MountainRaceSky" {
   _Powder("High alpine bowl",Range(0,1))=0
   _Forward("Direction",Vector)=(0,0,1,0)
   _Horizon("Horizon",Color)=(.82,.90,.97,1)
+  _ValleyMist("Valley haze",Color)=(.82,.90,.97,1)
   _Zenith("Zenith",Color)=(.38,.67,.91,1)
   _Tint("Landscape tint",Color)=(1,1,1,1)
   _Night("Night",Range(0,1))=0
@@ -32,7 +33,7 @@ Shader "Owl/MountainRaceSky" {
    #include "UnityCG.cginc"
    sampler2D _Ridge,_LeftRidge,_RightRidge,_Aurora,_AuroraA,_AuroraC,_MenuArt,_Route,_RouteNext;
    float _RouteBlend,_Powder;
-   float4 _Forward,_Horizon,_Zenith,_Tint;float _Night,_Storm,_Clock,_Menu,_Tube;
+   float4 _Forward,_Horizon,_ValleyMist,_Zenith,_Tint;float _Night,_Storm,_Clock,_Menu,_Tube;
    struct V {float4 pos:SV_POSITION;float3 ray:TEXCOORD0;float4 screen:TEXCOORD1;};
    V vert(float4 p:POSITION){V o;o.pos=UnityObjectToClipPos(p);o.screen=ComputeScreenPos(o.pos);o.ray=p.xyz;return o;}
    fixed4 mountainPanel(float panel,float2 uv,float2 du,float2 dv){
@@ -90,8 +91,11 @@ Shader "Owl/MountainRaceSky" {
     fixed4 ridgeA=mountainPanel(panel,float2(.5+t*.78,v),du,dv);
     fixed4 ridgeB=mountainPanel(panel+1.,float2(.5+(t-1.)*.78,v),du,dv);
     float blend=smoothstep(.36,.64,t);
-    fixed3 a=lerp(sky,lerp(ridgeA.rgb*_Tint.rgb,_Horizon.rgb,.20),ridgeA.a);
-    fixed3 b=lerp(sky,lerp(ridgeB.rgb*_Tint.rgb,_Horizon.rgb,.20),ridgeB.a);
+    // The foot of the far ranges shares the physical hills' atmospheric
+    // colour. This closes the valley without a flat seam on downhill turns.
+    float haze=lerp(.90,.25,smoothstep(-.30,.07,dir.y));
+    fixed3 a=lerp(sky,lerp(ridgeA.rgb*_Tint.rgb,_ValleyMist.rgb,haze),ridgeA.a);
+    fixed3 b=lerp(sky,lerp(ridgeB.rgb*_Tint.rgb,_ValleyMist.rgb,haze),ridgeB.a);
     sky=lerp(a,b,blend);
     if(_Storm>0.){
      float ripple=sin(az*5.-_Clock*.65+sin(az*11.+dir.y*18.-_Clock*.31));

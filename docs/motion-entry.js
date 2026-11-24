@@ -22,12 +22,13 @@
   const destination = start === 'unitytest_progress21' ? 'progression-test/' : test ? 'unity-test/' : 'unity/';
   const target = new URL((pilot ? '../' : './') + destination, location.href);
   query.delete('tgWebAppData');
+  if (start === 'unitytest_1911') query.set('seed','1911');
   if (trialStage) {
     query.set('reviewStage',trialStage);query.set('seed','1911');
     if(start==='freeridewide_1911')query.set('reviewOffset','165');
     if(start==='boulder_1911')query.set('reviewOffset','119');
   }
-  query.set('v', '2026-11-22h');
+  query.set('v', '2026-11-24a');
   target.search = query.toString();
   target.hash = context.toString();
   location.replace(target.href);

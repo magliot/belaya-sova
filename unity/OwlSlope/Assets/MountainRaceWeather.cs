@@ -102,20 +102,20 @@ public partial class MountainRace {
         WeatherFront(out int from,out int to,out float mix);
         float night=WeatherWeight(NightSky,from,to,mix),storm=WeatherWeight(StormSky,from,to,mix);
         Status.blizzard=storm;
-        float holiday=WeatherWeight(HolidaySky,from,to,mix);
+        float holiday=WeatherWeight(HolidaySky,from,to,mix),powder=WeatherWeight(PowderSky,from,to,mix);
         if(holiday==0&&festivalVisibility>0)fireworks.Clear();
         festivalVisibility=holiday;
         bool skyChanged=from!=previousSkyFrom||to!=previousSkyTo||mix!=previousSkyMix;
         if(skyChanged){
-            if((previousSkyTo==PowderSky)!=(to==PowderSky))
-                sun.transform.rotation=to==PowderSky?Quaternion.Euler(42,-109,0):Quaternion.Euler(38,-38,0);
+            sun.transform.rotation=Quaternion.Euler(Mathf.Lerp(38,42,powder),Mathf.Lerp(-38,-109,powder),0);
             previousSkyFrom=from;previousSkyTo=to;previousSkyMix=mix;
-            raceSky.SetFloat("_Powder",to==PowderSky?1:0);
+            raceSky.SetFloat("_Powder",powder);
             var a=skies[from];var b=skies[to];
             Color horizon=Color.Lerp(a.horizon,b.horizon,mix);
             sun.color=Color.Lerp(a.sun,b.sun,mix);sun.intensity=Mathf.Lerp(a.sunlight,b.sunlight,mix);
             RenderSettings.ambientLight=new Color(.75f,.84f,.96f)*Mathf.Lerp(a.ambient,b.ambient,mix);
-            RenderSettings.fogColor=horizon;raceSky.SetColor("_Horizon",horizon);
+            Color valleyMist=Color.Lerp(horizon,new Color(.68f,.69f,.80f),holiday*.65f);
+            RenderSettings.fogColor=valleyMist;raceSky.SetColor("_ValleyMist",valleyMist);raceSky.SetColor("_Horizon",horizon);
             raceSky.SetColor("_Zenith",Color.Lerp(a.zenith,b.zenith,mix));raceSky.SetColor("_Tint",Color.Lerp(a.tint,b.tint,mix));
             raceSky.SetFloat("_Storm",storm);raceSky.SetFloat("_Night",night);Shader.SetGlobalFloat("_OwlNight",night);
         }
@@ -129,7 +129,7 @@ public partial class MountainRace {
             wind.x=Mathf.Lerp(-.9f,gust*11,storm);wind.y=Mathf.Lerp(-2.8f,-3.5f-strength,storm);
             wind.z=Mathf.Lerp(-2,-Mathf.Clamp(speed*.67f,6,17),storm);
             RenderSettings.fogStartDistance=Mathf.Lerp(Mathf.Lerp(52,12,night),16-5*strength,storm);
-            RenderSettings.fogEndDistance=to==PowderSky?239:Mathf.Lerp(Mathf.Lerp(185,59,night),58-13*strength,storm);
+            RenderSettings.fogEndDistance=Mathf.Lerp(Mathf.Lerp(Mathf.Lerp(185,59,night),58-13*strength,storm),239,powder);
         }
         flakes.transform.SetPositionAndRotation(View.transform.position+forward*9+Vector3.up-
             orientation*Vector3.right*(storm*gust*3),orientation);

@@ -7,6 +7,7 @@ Shader "Owl/Course model" {
         _DstBlend("Destination blend",Float)=0
         _ZWrite("Depth write",Float)=1
         _LeafCoverage("Foliage alpha to coverage", Float)=0
+        _GrovePivots("Batched trunk pivots", Float)=0
         _FadeCable("Soften distant lift cable", Float)=0
         _StoneRim("Icy stone gate edge", Float)=0
         _GateTint("Night slalom reflectors", Color)=(0,0,0,0)
@@ -30,11 +31,11 @@ Shader "Owl/Course model" {
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
             CBUFFER_START(UnityPerMaterial)
-            float _Lit,_Glow,_LeafCoverage,_FadeCable,_StoneRim;
+            float _Lit,_Glow,_LeafCoverage,_GrovePivots,_FadeCable,_StoneRim;
             half4 _GateTint;
             CBUFFER_END
             half _OwlNight;
-            struct Input {float4 p:POSITION;float3 n:NORMAL;float2 uv:TEXCOORD0;half4 c:COLOR;};
+            struct Input {float4 p:POSITION;float3 n:NORMAL;float2 uv:TEXCOORD0;float2 corner:TEXCOORD1;half4 c:COLOR;};
             struct Output {float4 p:SV_POSITION;float3 n:TEXCOORD0;float2 uv:TEXCOORD1;
                            half4 c:COLOR;float fog:TEXCOORD2;float3 world:TEXCOORD3;
                            #if defined(OWL_NIGHT_GATE)
@@ -45,10 +46,15 @@ Shader "Owl/Course model" {
                 Output o;o.world=TransformObjectToWorld(v.p.xyz);o.n=TransformObjectToWorldNormal(v.n);
                 if(_LeafCoverage>.5){
                     float3 root=TransformObjectToWorld(float3(0,0,0));
+                    float2 corner=v.p.xy;
+                    if(_GrovePivots>.5){
+                        root=TransformObjectToWorld(v.p.xyz-float3(v.corner,0));
+                        corner=v.corner;
+                    }
                     float3 facing=SafeNormalize(float3(_WorldSpaceCameraPos.x-root.x,0,_WorldSpaceCameraPos.z-root.z));
                     // A second intersecting drawing gave bent spruces two trunks and four mismatched crowns.
                     float3 right=float3(-facing.z,0,facing.x);
-                    o.world=root+(right*v.p.x+float3(0,v.p.y,0))*length(TransformObjectToWorldDir(float3(0,1,0),false));
+                    o.world=root+(right*corner.x+float3(0,corner.y,0))*length(TransformObjectToWorldDir(float3(0,1,0),false));
                     o.n=facing;
                 }
                 o.p=TransformWorldToHClip(o.world);o.uv=v.uv;o.c=v.c;o.fog=ComputeFogFactor(o.p.z);

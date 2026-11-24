@@ -69,7 +69,7 @@ public partial class RaceWorld : MonoBehaviour {
         for(int i=Items.Count-1;i>=0;i--)if(Items[i].kind=="letter"){Release(Items[i]);Items.RemoveAt(i);}
         letter=character;letterDistance=metres;letterAdded=false;
     }
-    void ClearObjects(){foreach(var i in Items)Release(i);Items.Clear();foreach(var i in scenery)Release(i);scenery.Clear();summitTurns.Clear();plannedSummit=null;}
+    void ClearObjects(){foreach(var i in Items)Release(i);Items.Clear();foreach(var i in scenery)Release(i);scenery.Clear();ClearLandscape();summitTurns.Clear();plannedSummit=null;}
     static void DisposeOwned(UnityEngine.Object value){
         if(Application.isPlaying)Destroy(value);else DestroyImmediate(value);
     }
@@ -113,7 +113,7 @@ public partial class RaceWorld : MonoBehaviour {
             var o=Add("letter",letterDistance,0,1.3f,1.3f,"letter"+(int)letter[0]);o.character=letter;letterAdded=true;
         }
         int next=Mathf.FloorToInt(distance/14);
-        if(next!=chunk){chunk=next;UpdateTerrain(next*14);UpdateScenery(distance);}
+        if(next!=chunk){chunk=next;UpdateTerrain(next*14);UpdateScenery(distance);UpdateLandscape(distance);}
         if(draw)RefreshLift(distance,elapsed);
         for(int i=Items.Count-1;i>=0;i--){
             var o=Items[i];if(o.consumed||Mathf.Max(o.distance,o.originD)+o.length*.5f+o.span<distance-Behind){

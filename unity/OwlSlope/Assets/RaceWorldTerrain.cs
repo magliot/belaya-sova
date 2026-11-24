@@ -66,9 +66,16 @@ public partial class RaceWorld {
         if(stage==1)shoulder=Mathf.Lerp(shoulder,2.8f*Smooth((mag-6.6f)/5.8f),blend);
         if(stage==3)shoulder=Mathf.Lerp(shoulder,4.2f*Smooth((mag-6)/6),blend);
         if(mode=="tubing")shoulder+=.67f*Smooth((mag-7.3f)/.95f)*(1-Smooth((mag-8.3f)/1.6f));
-        if(mode!="sled"&&mode!="tubing"&&stage==2&&within<MogulRunLength)height+=MogulHeight(d,lane);
-        if(stage==4)height+=SummitField(d,lane);
-        return new Vector3(cx+lane*Mathf.Cos(h),height+bank*Mathf.Clamp(lane,-14,14)+shoulder,d-lane*Mathf.Sin(h));
+        if(mode=="normal"&&stage==2&&within<MogulRunLength&&mag<16)height+=MogulHeight(d,lane);
+        if(stage==4&&mag<18)height+=SummitField(d,lane);
+        float lateral=lane*Mathf.Cos(h),along=lane*Mathf.Sin(h);
+        if(mode=="normal"&&mag>16){
+            height+=ValleyRelief(d,lane);
+            float open=Smooth((mag-16)/36);
+            lateral=Mathf.Lerp(lateral,lane,open);
+            along=Mathf.Lerp(along,Mathf.Clamp(lane,-16,16)*Mathf.Sin(h),open);
+        }
+        return new Vector3(cx+lateral,height+bank*Mathf.Clamp(lane,-14,14)+shoulder,d-along);
     }
     float MogulHeight(float d,float x){
         float local=Mathf.Repeat(d,StageLength);int section=Mathf.FloorToInt(local/117),field=section%3;float rowD=local-section*117-7.5f;
@@ -87,7 +94,9 @@ public partial class RaceWorld {
         return h*1.22f*MogulRoughness(d,x);
     }
     static readonly int[] sides={-1,1};
-    static readonly float[] columns={-54,-26,-16,-13,-11,-9.4f,-7.5f,-6,-4.5f,-3,-1.5f,0,1.5f,3,4.5f,6,7.5f,9.4f,11,13,16,26,54};
+    static readonly float[] columns={-152,-116,-90,-68,-52,-38,-26,-16,-13,-11,-9.4f,-7.5f,-6,-4.5f,-3,-1.5f,0,1.5f,3,4.5f,6,7.5f,9.4f,11,13,16,26,38,52,68,90,116,152};
+    static readonly float[] bonusColumns={-54,-26,-16,-13,-11,-9.4f,-7.5f,-6,-4.5f,-3,-1.5f,0,1.5f,3,4.5f,6,7.5f,9.4f,11,13,16,26,54};
+    float[] GroomedColumns=>mode=="normal"?columns:bonusColumns;
     Vector3[] snowVertices;
     float firstSnowRow;
     float MeshTrail(float d){
@@ -97,7 +106,7 @@ public partial class RaceWorld {
     }
     float ColumnLane(int column,float width,float trail){
         if(usingAlpineMesh)return alpineLanes[column];
-        float x=columns[column];
+        float x=GroomedColumns[column];
         if(Mathf.Abs(x)>11)return x;
         float lane=x*width/22;
         return lane+trail*(1-Smooth((Mathf.Abs(x)-1.5f)/9.5f));
@@ -108,7 +117,7 @@ public partial class RaceWorld {
         float width0=WidthAt(lower),width1=WidthAt(lower+2);
         float trail0=MeshTrail(lower),trail1=MeshTrail(lower+2);
         float LaneAt(int j)=>Mathf.Lerp(ColumnLane(j,width0,trail0),ColumnLane(j,width1,trail1),t);
-        int cols=usingAlpineMesh?alpineLanes.Length:columns.Length;
+        int cols=usingAlpineMesh?alpineLanes.Length:GroomedColumns.Length;
         int lo=0,hi=cols-1;
         while(hi-lo>1){int mid=(lo+hi)/2;if(lane<LaneAt(mid))hi=mid;else lo=mid;}
         float u=Mathf.InverseLerp(LaneAt(lo),LaneAt(hi),lane);
@@ -142,7 +151,9 @@ public partial class RaceWorld {
         if(alpineRun&&alpineRun.activeSelf)alpineRun.SetActive(false);
         if(groomedRun&&!groomedRun.activeSelf)groomedRun.SetActive(true);
         // Continue the terrain behind the last streamed trees, past the end of the normal fog.
-        const int rows=151,cols=23;
+        const int rows=151;
+        var lanes=GroomedColumns;
+        int cols=lanes.Length;
         var points=new Vector3[rows*cols];var uv=new Vector2[points.Length];
         if(!terrain){
             var go=new GameObject("Groomed run");go.transform.SetParent(transform,false);
@@ -152,7 +163,8 @@ public partial class RaceWorld {
             var packed=SnowPaint("Piste",new Color(.65f,.82f,.91f));
             go.AddComponent<MeshRenderer>().sharedMaterials=new[]{pisteMat,bankMat,packed};
         }
-        bool reindex=terrain.GetIndexCount(0)==0;
+        bool reindex=terrain.vertexCount!=points.Length||terrain.GetIndexCount(0)==0;
+        if(terrain.vertexCount!=0&&terrain.vertexCount!=points.Length){terrain.Clear();terrain.subMeshCount=3;}
         for(int i=0;i<rows;i++){
             float d=centre-50+2*i,half=WidthAt(d)*.5f,trail=MeshTrail(d);
             if(i<rows-1){
@@ -169,7 +181,7 @@ public partial class RaceWorld {
         if(reindex){
             var middle=new List<int>(rows*84);var banks=new List<int>(rows*48);var packed=new List<int>();
             for(int i=0;i<rows-1;i++)for(int j=0;j<cols-1;j++){int a=i*cols+j;
-                var indices=markings[i]==1&&(j==10||j==11)?packed:j>=4&&j<18?middle:banks;
+                var indices=markings[i]==1&&lanes[j]>=-1.5f&&lanes[j]<1.5f?packed:lanes[j]>=-11&&lanes[j]<11?middle:banks;
                 indices.Add(a);indices.Add(a+cols);indices.Add(a+1);
                 indices.Add(a+1);indices.Add(a+cols);indices.Add(a+cols+1);}
             terrain.SetTriangles(middle,0,false);terrain.SetTriangles(banks,1,false);terrain.SetTriangles(packed,2,false);
@@ -213,6 +225,13 @@ public partial class RaceWorld {
                 int phase=(row+(side<0?2:0))%5;
                 count=phase<3?2+(Roll(seed,grove,207+side)>.45f?1:0):phase==3?1:0;
             }
+            if(mode=="normal"){
+                float woods=LandscapeTuning(row*12).x;
+                // Both flanks have their own stands and clearings. Keep the first
+                // view through a portal open while the next landscape fills in beyond.
+                int group=Mathf.FloorToInt((row+(side<0?3:0))/4f);
+                if(Roll(seed,group,392+side)>woods||NearPortal(row*12,17))count=0;
+            }
             for(int i=0;i<count;i++){
                 float t=row*12+i*1.88f+Roll(seed,row,120+i+side)*2;
                 float offset=(stage==1?9.5f:stage==3?18:14.5f)+i*3.4f+Roll(seed,row,108+i+side)*5;
@@ -224,7 +243,7 @@ public partial class RaceWorld {
                     scale=scale,offset=-.12f-height*scale*.085f,decor=true};
                 scenery.Add(obj);Place(obj);
             }
-            if(row%3==0&&(stage!=0||mode=="sled")&&mode!="tubing"){
+            if(row%3==0&&(stage!=0||mode=="sled")&&mode!="tubing"&&(mode!="normal"||!NearPortal(row*12,19))){
                 var lamp=new RaceItem{kind="lamp",variant="stageLamp"+stage,
                     distance=row*12,lane=side*11.6f,decor=true,yaw=90};scenery.Add(lamp);Place(lamp);
             }

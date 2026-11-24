@@ -16,7 +16,7 @@ const specs={skier:['npc',{}],kid:['npc',{kid:true}],instructor:['npc',{instr:tr
  fence:['fence',{x1:0,x2:100}],finish:['finish',{}],boundaryPole:['boundaryPole',{}],dog:['dog',{vx:120}],yeti:['mogulYeti',{}],
  cannonLeft:['cannon',{x:38}],cannonRight:['cannon',{x:362}]};
 // cat12A, snowmobile and playerSled are now authored in tools/build-unity-vehicles.py.
-Object.assign(specs,{startArch:['startArch',{}],liftTower:['kit',{model:'tower16C'}],liftChair:['liftChair',{}],
+Object.assign(specs,{liftTower:['kit',{model:'tower16C'}],liftChair:['liftChair',{}],
  holidayFir:['holidayFir',{}],festivalFountain:['festivalFountain',{}],
  emptyChair:['emptyChair',{}],boardKid1:['npc',{sb:true,kid:true,vi:1}],walker:['npc',{walker:true}],
  fence1:['fence',{x1:0,x2:100,fenceStyle:1}],fence2:['fence',{x1:0,x2:100,fenceStyle:2}]});
@@ -24,7 +24,7 @@ for(let i=0;i<8;i++)specs['stageLamp'+i]=['stageLamp',{stage:i}];
 for(const key of ['coin','gift','helmet','thermos','magnet','feather','aid','ball','snowman'])specs[key]=[key,{}];
 // The four revised Unity tube riders are built with tools/build-unity-tube-riders.py.
 for(const key of ['snow26A','snow26B','snow26C'])specs[key]=['snowman',{variant:key}];
-for(let i=0;i<8;i++)specs['arch'+i]=['arch',{stage:i}];
+// All nine entry arches, including the narrower start, are baked by build-unity-arches.py.
 for(let i=0;i<3;i++){
  specs['ring'+i]=['airRing',{radius:1.55,ringStyle:i}];
  specs['mound'+i]=['mogul',{profile:i}];
@@ -84,11 +84,6 @@ async function exportModel(type,details){
   const glow=o.stage===6?1:o.stage===7?.65:0;
   beamMat.opacity=glow*.35;glowMat.opacity=glow*.55;
   model=l.clone();model.position.set(0,0,0);model.rotation.set(0,0,0);
- }
- else if(type==='startArch'){
-  model=arch.clone();model.position.set(0,0,0);model.rotation.set(0,0,0);
-  const banner=model.children.find(n=>n.material?.map);banner.scale.x*=.58;banner.scale.y*=.58;
-  S3(mk(sharedGeo.box,M(0xb64c17),0,banner.position.y+.44,.03,model),12,.057,.057);
  }
  else if(type==='liftChair'){
   model=new THREE.Group();const c=NPCM.chair.clone();c.position.y=-NPCM.chair.userData.h-.05;model.add(c);

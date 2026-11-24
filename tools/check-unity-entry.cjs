@@ -16,6 +16,12 @@ for(const token of ['unitytest','unitytest_20g','unitytest_20h','unity']){
     assert.equal(route(url).pathname,root.pathname+'unity-test/');
   }
 }
+for(const path of ['?startapp=unitytest_1911','#tgWebAppStartParam=unitytest_1911']){
+  const ordinary=route(path);
+  assert.equal(ordinary.pathname,root.pathname+'unity-test/');
+  assert.equal(ordinary.searchParams.get('seed'),'1911');
+  assert.equal(ordinary.searchParams.get('reviewStage'),null);
+}
 const data='auth_date=42&user=%7B%22id%22%3A123%7D&start_param=unitytest_20g&hash=fixture';
 const previewData=data.replace('unitytest_20g','unitytest_progress21');
 for(const [token,stage,metre] of [['snowpark_1911','3',null],['festival_1911','7',null],['freeridewide_1911','8','165'],['boulder_1911','8','119']]){

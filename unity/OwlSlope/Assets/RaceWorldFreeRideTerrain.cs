@@ -16,7 +16,7 @@ public partial class RaceWorld {
     readonly List<Color32> alpineColors=new List<Color32>(8600);
     readonly List<int> powderFaces=new List<int>(23500),slateFaces=new List<int>(9500),iceFaces=new List<int>(1800);
     float alpinePhase,alpinePhaseB,alpineHeight,alpineAcross,alpineBank,pillowA,pillowB;
-    float valleyOpening;
+    float valleyOpening,entryOpening;
     bool alpineNearLip;
     FreeRideGap alpineGap;
 
@@ -93,6 +93,7 @@ public partial class RaceWorld {
         alpineHeight=CourseHeight(worldD);
         float tail=Mathf.Clamp01((d-(StageLength-110))/85);
         valleyOpening=Smooth(tail);
+        entryOpening=1-Smooth((d-35)/240);
 
         alpineBank=Mathf.Sin(d*.026f+alpinePhaseB)*.045f;
         pillowA=d*.10f+alpinePhase;pillowB=d*.052f+alpinePhaseB;
@@ -100,13 +101,15 @@ public partial class RaceWorld {
         alpineNearLip=TryFreeRideGap(worldD,out alpineGap)&&worldD>=alpineGap.lipD-7&&worldD<alpineGap.lipD+(alpineGap.transverse?15:8);
     }
     Vector3 AlpineGround(float d,float lane){
-        float side=Mathf.Abs(lane)*(1-.26f*valleyOpening);
+        float magnitude=Mathf.Abs(lane);
+        float entrance=entryOpening*Smooth((magnitude-18)/28);
+        float side=magnitude*(1-.26f*Mathf.Max(valleyOpening,entrance));
         Ridge ridge=lane<0?alpineLeft:alpineRight;
         float dunes=.22f*Mathf.Cos(lane*.26f+pillowA)+.32f*Mathf.Sin(lane*.17f-pillowB);
         float y=alpineHeight+dunes+alpineBank*Mathf.Clamp(lane,-15,15);
         y+=ridge.shoulder*side*side*.009f*(1-Smooth((side-19)/15));
         y+=ridge.spur*Smooth((side-12)/21)*(1-Smooth((side-34)/20));
-        y+=ridge.peak*Smooth((side-36)/51)*(1-.49f*Smooth((side-87)/25));
+        y+=ridge.peak*(1-.42f*entrance)*Smooth((side-36)/51)*(1-.49f*Smooth((side-87)/25));
         y+=ridge.crest*7*Smooth((side-47)/20);
         if(side>15){
             float flutes=1-Mathf.Abs(Mathf.Sin(lane*.18f+d*.068f+alpinePhase+.57f*Mathf.Sin(d*.082f)));
@@ -124,7 +127,9 @@ public partial class RaceWorld {
         }
         float bank=.12f*(float)System.Math.Tanh(-curve*10/.12f);
         float shoulder=Smooth((Mathf.Abs(lane)-9.4f)/5.8f)*(3.4f+.65f*Mathf.Sin(d/23+(lane<0?1.4f:0))+.25f*Mathf.Cos(d/9));
-        y=Mathf.Lerp(alpineHeight+bank*Mathf.Clamp(lane,-14,14)+shoulder,y,AlpineBlend(d));
+        float blend=AlpineBlend(d);
+        if(blend<1&&Mathf.Abs(lane)>16)shoulder+=ValleyRelief(d,lane);
+        y=Mathf.Lerp(alpineHeight+bank*Mathf.Clamp(lane,-14,14)+shoulder,y,blend);
         // The distant walls run down the valley. Extrapolating a ski's road
         // normal a hundred metres into the rock folds the outer mesh on bends.
         return new Vector3(cx+lane*alpineAcross,y,d-Mathf.Clamp(lane,-16,16)*dx*alpineAcross);

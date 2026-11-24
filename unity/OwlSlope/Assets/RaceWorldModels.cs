@@ -80,7 +80,7 @@ public partial class RaceWorld {
             // A solid beam without its sign otherwise draws a screen-wide orange line.
             for(int i=0;i<mats.Count;i++){
                 var banner=new Material(mats[i]);banner.EnableKeyword("OWL_START_BANNER");
-                banner.SetFloat("_ZWrite",0);banner.SetFloat("_SrcBlend",(int)BlendMode.SrcAlpha);
+                banner.SetFloat("_ZWrite",1);banner.SetFloat("_SrcBlend",(int)BlendMode.SrcAlpha);
                 banner.SetFloat("_DstBlend",(int)BlendMode.OneMinusSrcAlpha);
                 banner.renderQueue=(int)RenderQueue.Transparent;mats[i]=banner;
             }
